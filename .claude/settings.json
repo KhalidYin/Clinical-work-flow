@@ -1,0 +1,44 @@
+{
+  "mcp_servers": {
+    "clinical-tools": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["-m", "src.mcp_tools.server"],
+      "description": "Clinical statistical programming MCP tools: SDTM spec builder, ADaM spec builder, TFL renderer, CDISC validator, define.xml builder",
+      "tools": [
+        "sdtm_spec_build",
+        "adam_spec_build",
+        "tfl_shells_list",
+        "cdisc_validate",
+        "define_xml_build",
+        "triage_p21"
+      ]
+    }
+  },
+  "skills": [
+    {
+      "name": "sap-review",
+      "description": "Review Statistical Analysis Plan completeness and consistency against Protocol",
+      "context_documents": ["Protocol", "SAP", "TFL Shells"],
+      "prompt": "You are an expert clinical biostatistician reviewing a SAP. Check: 1) Endpoints match protocol, 2) Analysis populations defined, 3) Multiplicity specified, 4) Missing data handling, 5) Estimands per ICH E9(R1)"
+    },
+    {
+      "name": "tfl-qc",
+      "description": "Quality control review of TFL outputs against SAP mock shells",
+      "context_documents": ["TFL Outputs", "SAP Shells", "ADaM Spec"],
+      "prompt": "You are an expert TFL QC reviewer. For each TFL, verify: 1) Title/headers match shell, 2) Population correct, 3) N-counts consistent, 4) Statistics accurate, 5) Footnotes complete"
+    },
+    {
+      "name": "domain-review",
+      "description": "Review SDTM/ADaM domain specifications for CDISC compliance",
+      "context_documents": ["Domain Spec", "CDISC IG", "aCRF"],
+      "prompt": "You are an expert CDISC standards specialist. Verify: 1) All Req variables present, 2) Variable types/lengths correct, 3) Controlled terminology applied, 4) Derivations clearly documented"
+    },
+    {
+      "name": "protocol-analyze",
+      "description": "Analyze clinical protocol to extract statistical analysis requirements",
+      "context_documents": ["Protocol", "Schedule of Assessments"],
+      "prompt": "You are an expert clinical biostatistician analyzing a protocol. Extract: 1) Study design, 2) Endpoints (primary/secondary/exploratory), 3) Analysis populations, 4) Statistical methods, 5) Recommended ADaM datasets and TFLs"
+    }
+  ]
+}
