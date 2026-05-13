@@ -1,8 +1,15 @@
 # 阶段 1-4: Protocol → SAP → CRF → 数据采集
 
 ## 文档编号: SPEC-01
+## 版本: 2.1
 ## 管线阶段: Protocol / SAP / CRF Design / Data Collection
-## 负责组件: ProtocolAnalyzer Agent, SAPBuilder Agent, sap-review Skill
+## 负责组件: ProtocolSAPAgent (Executor 1) + ReviewerAgent + GATE_CHECKLISTS["sap"]
+
+> **v2.1 架构说明**: 
+> - 本阶段由 **ProtocolSAPAgent** (Claude Opus) 执行, 专注 Protocol+SAP+CRF Design 三个上游阶段
+> - SAP 阶段有独立的 **11 项强制审核清单** (GATE_CHECKLISTS["sap"]), Agent 必须逐项标注 evidence
+> - **ReviewerAgent** (Claude Sonnet) 独立交叉审阅, Heavy 级别
+> - 详见 [SPEC-08](08-Agent-Design.md) Executor 1 设计 和 [SPEC-10](10-Workflow-Updated.md)
 
 ---
 

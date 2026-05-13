@@ -1,8 +1,11 @@
 # 阶段 11-12: QC 验证与递交打包
 
 ## 文档编号: SPEC-05
+## 版本: 2.1
 ## 管线阶段: QC Validation / Submission Package
-## 负责组件: QCValidator Agent, SubmissionPackager Agent
+## 负责组件: TFLQCSubmissionAgent (Executor 3) + ReviewerAgent + GATE_CHECKLISTS["qc_validation"] + GATE_CHECKLISTS["submission"] + Change Management
+
+> **v2.1 架构说明**: 本阶段由 **TFLQCSubmissionAgent** (Claude Opus) 执行。QC 有 **4 项强制审核清单**, Submission 有 **4 项强制审核清单**。本阶段是 **Change Management 系统**的关键集成点: 每次 Human Gate 返回修改都生成 ChangeRecord, 触发版本升级。递交包是管线最终产物, 所有变更记录在此阶段应归零。详见 [SPEC-11](11-Change-Management.md)。
 
 ---
 

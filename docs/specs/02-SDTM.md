@@ -1,8 +1,16 @@
 # 阶段 5-6: SDTM 规范与编程
 
 ## 文档编号: SPEC-02
+## 版本: 2.1
 ## 管线阶段: SDTM Specification / SDTM Programming
-## 负责组件: SDTMSpecBuilder Agent, SDTMMapper Agent, domain-review Skill
+## 负责组件: DataStandardsAgent (Executor 2) + ReviewerAgent + GATE_CHECKLISTS["sdtm_spec"]
+
+> **v2.1 架构说明**: 
+> - 本阶段由 **DataStandardsAgent** (Claude Opus) 执行, 专注 SDTM+ADaM 四个阶段, ~10K prompt CDISC 精确知识
+> - SDTM Spec 阶段有独立的 **5 项强制审核清单**, Agent 必须逐项标注 evidence
+> - **ReviewerAgent** (Claude Sonnet) Heavy 级别独立审阅, 逐项核对 CDISC CT
+> - SDTM Programming 为 AI_AUTO, 无需人工审核
+> - 详见 [SPEC-08](08-Agent-Design.md) Executor 2 设计
 
 ---
 

@@ -2,7 +2,9 @@
 
 ## 文档编号: SPEC-09
 ## 主题: 6个 MCP 工具的详细 API 设计与实现约束
-## 版本: 2.0
+## 版本: 2.1
+
+> **v2.1 架构说明**: MCP 工具层在 v2.1 中完全保留, 无变更。这 6 个确定性纯函数被 3 个 Executor Agent 和 ReviewerAgent 调用。原则2 (确定性操作走 MCP, 推理走 LLM) 是本层存在的核心理由。详见 [SPEC-06](06-AI-Architecture.md) 和 [SPEC-08](08-Agent-Design.md)。
 
 ---
 

@@ -1,8 +1,15 @@
 # 变更管理与审计追踪
 
 ## 文档编号: SPEC-11
-## 主题: 临床试验中间修改、版本追踪、影响分析
-## 版本: 1.0
+## 主题: 临床试验中间修改、版本追踪、影响分析、审计追踪
+## 版本: 2.1
+
+> **v2.1 架构说明**: 变更管理系统是 v2.1 新增的完整模块。集成到 Orchestrator 中:
+> - `VersionManager` — MAJOR.MINOR.PATCH, 每次 Human Gate 返回修改 / Protocol Amendment 自动 bump
+> - `ImpactAnalyzer` — BFS 依赖图分析, Protocol 变化 → 31 文件 + 7 阶段受影响
+> - `ChangeRecord` — JSONL 审计日志, FDA 检查时可逐条追溯
+> - 代码位置: `src/change_management/`
+> - Orchestrator 集成: `handle_human_review_feedback()`, `handle_protocol_amendment()`
 
 ---
 

@@ -1,142 +1,171 @@
-# AI 架构深度分析: 双 Agent + MCP 架构
+# AI 架构深度分析: v2.1 最终架构
 
 ## 文档编号: SPEC-06
-## 主题: MainAgent + ReviewerAgent + MCP Tools 的架构设计与决策
-## 版本: 2.0
-
-> **注**: 本文档为架构 v2.0 版本的总结。详细的 Agent 设计、MCP 工具 API、工作流编排已拆分至独立文档:
-> - [SPEC-08: Agent 设计深度规格](08-Agent-Design.md) — MainAgent + ReviewerAgent 完整设计
-> - [SPEC-09: MCP 工具层设计规格](09-MCP-Tools-Design.md) — 6个工具 API 与实现约束
-> - [SPEC-10: 工作流编排双 Agent 集成版](10-Workflow-Updated.md) — 完整工作流编排
+## 版本: 2.1
+## 主题: 3 Executor + 1 Reviewer + Checklist + Change Management
 
 ---
 
-## 1. 架构演进: 三层 → 双 Agent + MCP
-
-### 1.1 为什么要进化
+## 1. 架构演进路线
 
 ```
-v1.0 架构: 三层分离
-  ┌────────────┐  ┌──────────┐  ┌──────────┐
-  │  Skills    │  │  MCP     │  │  Agents   │
-  │  人工协同   │  │  确定性   │  │  自主执行  │
-  └────────────┘  └──────────┘  └──────────┘
+v1.0  三层分离                        v2.0  双 Agent + MCP                v2.1  3 Executor + Reviewer + Checklist
+──────                              ──────                              ──────
 
-  问题:
-  · Skills 需要手动加载文档, 不能融入自动化管线
-  · 5个 Agent 各自片段化, 跨阶段信息不连贯
-  · 单 Agent 自审 = 同一个模型的同一个盲区再检查一遍
-  · 三层之间的调用关系复杂
-
-v2.0 架构: 双 Agent + MCP
-  ┌─────────────────┐    ┌──────────────────┐
-  │   MainAgent     │    │  ReviewerAgent   │
-  │   执行 + 协调    │───→│  独立交叉审阅     │
-  │   全阶段覆盖     │←───│  不同模型        │
-  │   模型: Opus    │    │  模型: Sonnet    │
-  └────────┬───────┘    └──────────────────┘
-           │
-           ▼
-  ┌─────────────────┐
-  │   MCP Tools (6) │
-  │   确定性执行     │
-  └─────────────────┘
-
-  改进:
-  · Skills 的审核清单内化到 Agent 的 REVIEW 阶段 → 不再需要独立 Skill 层
-  · 5个 Agent → 2个 (1执行 + 1审阅) → 更简单
-  · 不同模型交叉审阅 → 覆盖不同的"幻觉指纹"
-  · 统一编排 → 跨阶段上下文连贯
+┌──────────┐                        ┌──────────────┐                    ┌─────────────────────────────┐
+│ Skills   │  人工协同               │              │                    │  ReviewerAgent (Sonnet)     │
+├──────────┤                        │  MainAgent   │                    │  独立审阅, 强制找问题        │
+│ Agents   │  5个自主执行            │  (Opus)      │                    ├─────────────────────────────┤
+├──────────┤                        │  全阶段覆盖   │                    │  Checklist Layer (独立)      │
+│ MCP      │  6个工具               │  内化Skills  │                    │  6 Gate × 4-11 items        │
+└──────────┘                        ├──────────────┤                    │  强制逐项校验                │
+                                    │  Reviewer    │                    │  Agent不能跳过              │
+问题:                               │  (Sonnet)    │                    ├─────────────────────────────┤
+· Skills 不连自动化管线             └──────┬───────┘                    │  3 Executor Agents (Opus)    │
+· 5 Agent 各自片段化                       │                            │  · ProtocolSAP (3阶段)      │
+· 无交叉审阅                      ┌────────┴────────┐                  │  · DataStandards (4阶段)     │
+· 单模型自审 = 同盲区             │   MCP Tools (6)  │                  │  · TFLQCSubmission (4阶段)   │
+                                  └─────────────────┘                  ├─────────────────────────────┤
+                                                                       │  MCP Tools (6)              │
+                                  问题:                                ├─────────────────────────────┤
+                                  · 单体 Agent 注意力被 12 阶段稀释     │  Change Management          │
+                                  · Skills 审核清单内化 → 无强制力     │  · VersionManager           │
+                                  · 无变更管理                        │  · ImpactAnalyzer           │
+                                                                       │  · ChangeRecord (审计)       │
+                                                                       └─────────────────────────────┘
 ```
 
-### 1.2 核心洞察: Skills 不是消失了，是被整合了
+## 2. v1.0 → v2.0 → v2.1 设计决策演变
+
+| 决策点 | v1.0 | v2.0 | v2.1 | 理由 |
+|--------|------|------|------|------|
+| Agent 数量 | 5 | 2 | 4 (3+1) | 2太少(注意力分散), 5太多(碎片化), 3个Executor各管3-4阶段 = 最佳 |
+| Skill 定位 | 独立进程 | 内化到 Agent | **独立强制清单层** | 内化失去强制执行力度; 独立清单程序化校验 |
+| 交叉审阅 | 无 | 有 (不同模型) | 有 (强化) | double-model > single-model |
+| 变更管理 | 无 | 无 | **完整系统** | Protocol Amendment 是临床常态, 必须追踪 |
+| 模型分配 | 不区分 | 执行Opus 审阅Sonnet | 执行Opus 审阅Sonnet | 关键阶段可审阅也用Opus |
+
+## 3. 3 Executor 的设计逻辑
 
 ```
-v1.0:                            v2.0:
-  用户调用 /sap-review             用户调用 /sap-review
-  → 独立的 Skill 执行              → MainAgent 进入 Stage.SAP REVIEW
-  → Skill 有独立 system prompt     → MainAgent 使用内置审核清单
-  → 结果返回给用户                 → MainAgent 生成审核包
-                                   → ReviewerAgent 独立审阅
-                                   → 呈现双 Agent 结果
+为什么是 3 个而不是 5 个或 1 个?
 
-  效果: 用户体验相同 (/sap-review 还是 /sap-review)
-       但背后是双 Agent 交叉验证, 质量更高
+  1 个 (v2.0):
+    · 12 阶段共享 25K+ prompt → 每阶段 ~2K
+    · LLM 注意力被稀释
+    · 单点故障
+    · 但对简单场景足够
+
+  5 个 (v1.0):
+    · 每阶段 5-8K prompt → 深度好
+    · 但跨阶段上下文断裂
+    · Stage 1 的决策依据无法直接传给 Stage 6
+    · 5 套 system prompt 维护成本高
+
+  3 个 (v2.1):
+    · 每 Executor 3-4 阶段 → ~8-12K prompt → 深度好
+    · 阶段群组有逻辑相关性:
+      Protocol + SAP + CRF     → 方案到计划 (上游设计)
+      SDTM Spec + Prog +       → 数据标准化 (中游执行)
+      ADaM Spec + Prog
+      TFL Sh + Prog +          → 输出到递交 (下游产出)
+      QC + Submission
+    · 跨相关阶段上下文连贯
+    · 3 套 prompt 维护可控
+```
+
+## 4. Checklist Layer — Skills 替代方案对比
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│              Skills vs Checklist Layer                        │
+│                                                               │
+│  Skills (v1.0):                                              │
+│    调用 /sap-review → 独立 Claude Skill 进程                 │
+│    · 有自己的 system prompt                                  │
+│    · 返回结构化审核结果                                       │
+│    · 优势: 隔离执行                                           │
+│    · 劣势:                                                  │
+│      - 需要手动加载文档                                       │
+│      - LLM 可能忘记检查某一项                                 │
+│      - 无法强制"必须逐项完成"                                 │
+│      - 不能集成到自动化管线                                   │
+│                                                               │
+│  Checklist Layer (v2.1):                                     │
+│    · 6 个 YAML/代码定义的审核清单                             │
+│    · 每个 Human Gate 自动加载对应清单                         │
+│    · 程序化校验: validate_checklist_completion()             │
+│      → 如果任何 PASS 项缺少 evidence → 拒绝提交              │
+│    · 优势:                                                  │
+│      + 强制执行 (Agent 不能跳过)                              │
+│      + 可审计 (每项的 evidence 永久记录)                     │
+│      + 自动化 (管线触发, 无需手动调用)                       │
+│      + 增量审核 (第二次审核只需关注变更项)                    │
+│    · 劣势:                                                  │
+│      - 缺乏 Skills 的开放式推理灵活性                        │
+│      - 清单维护成本 (但这是一次性的)                         │
+│                                                               │
+│  结论: Checklist Layer 比 Skills 更适合 GxP 受监管环境        │
+│        因为强制执行 + 可审计 > 开放式推理的灵活性             │
+└──────────────────────────────────────────────────────────────┘
+```
+
+## 5. 模型配对策略 (v2.1)
+
+```
+┌──────────────────────┬─────────────────────┬──────────────────────────┐
+│ 场景                  │ Executor (执行)      │ Reviewer (审阅)           │
+├──────────────────────┼─────────────────────┼──────────────────────────┤
+│ 常规阶段              │ Opus                 │ Sonnet                   │
+│                      │ 深度推理, 复杂推导    │ 不同盲区, 快速精审         │
+├──────────────────────┼─────────────────────┼──────────────────────────┤
+│ 关键审阅 (SAP/Sub)    │ Opus                 │ Opus ← 也用 Opus!         │
+│                      │                     │ 不同 system prompt        │
+│                      │                     │ 独立上下文, 不用推理过程    │
+├──────────────────────┼─────────────────────┼──────────────────────────┤
+│ 批量抽样 (TFL Light)  │ Opus                 │ Haiku                    │
+│                      │                     │ 极速, 只查格式化/术语      │
+└──────────────────────┴─────────────────────┴──────────────────────────┘
+
+关键阶段审阅侧用 Opus 的原因:
+  执行侧的错误 → 可以被审阅侧捕获
+  审阅侧的漏审 → 没有后续防线能捕获
+  → 审阅侧的模型能力决定系统质量上限
+  → 关键阶段审阅侧不应弱于执行侧
+```
+
+## 6. 变更管理集成
+
+```
+每条管线操作都生成 ChangeRecord:
+
+  Human Gate 返回修改:
+    → ChangeType.HUMAN_REVIEW
+    → VersionManager.bump(file, MINOR)
+    → ImpactAnalyzer.analyze(file)  # 只在跨阶段时
+    → ChangeRecord.to_audit_line()  # 写入 audit/change_log.jsonl
+
+  ReviewerAgent 发现问题:
+    → ChangeType.REVIEWER_FEEDBACK
+    → MainAgent 自动修复 (PATCH bump)
+    → Re-review 最多 2 轮
+
+  Protocol Amendment:
+    → ChangeType.PROTOCOL_AMEND
+    → ImpactAnalyzer → 全链路影响
+    → 所有受影响文件 MAJOR bump
+    → Pipeline 回退到最早受影响阶段
+    → 重新走全部 Human Gate
 ```
 
 ---
 
-## 2. 双 Agent 设计的核心理由
+## 7. 规格文档交叉引用
 
-### 2.1 单 Agent 自审 = 同一个盲区
-
-```
-MainAgent 生成 SDTM AE Spec:
-  → "AESEV controlled_terms = [MILD, MODERATE, SEVERE]"
-
-MainAgent 自审:
-  → "我用同样的知识和推理路径再检查了一遍"
-  → 结果: PASS ✓
-  → 如果第一次的知识有盲区, 第二次也一样
-
-ReviewerAgent (不同模型) 审阅:
-  → "等一下, CDISC CT 最新版还有 LIFE_THREATENING 和 DEATH"
-  → 不同的训练数据 → 不同的知识覆盖 → 不同的盲区
-
-核心原理:
-  两个不同的模型, 同一时间都错在同一个点的概率 << 单个模型错的概率
-  这是"交叉验证"在 AI 时代的体现
-```
-
-### 2.2 审批视角的正确设计
-
-```
-关键设计决策: 谁能看什么
-
-  MainAgent 提交给 Reviewer 的:
-    · ✅ 最终产物 (Spec / TFL / Report)
-    · ✅ 对应的 CDISC 标准引用
-    · ❌ MainAgent 的推理过程 (这会带偏 Reviewer!)
-    · ❌ 上下文中的其他不相关信息
-
-  如果 Reviewer 看到 MainAgent 的推理:
-    "我认为 AESEV 应该用 [MILD, MODERATE, SEVERE], 因为..."
-    → Reviewer 被锚定在这个思路上
-    → 独立的审阅价值打折扣
-
-  如果 Reviewer 看不到推理:
-    "我看到 AESEV 的值是 [MILD, MODERATE, SEVERE]"
-    "我独立检查 CDISC CT: 应该是 [MILD, MODERATE, SEVERE, LIFE_THREATENING, DEATH]"
-    → 真正独立的判断
-```
-
----
-
-## 3. 设计决策对比总结
-
-| 维度 | v1.0 (三层) | v2.0 (双 Agent + MCP) |
-|------|-----------|---------------------|
-| Agent 数量 | 5 个 (片段化) | 2 个 (1 执行 + 1 审阅) |
-| Skill 位置 | 独立层 | 内化到 Agent REVIEW 阶段 |
-| 交叉审阅 | 无 (同 Agent 自审) | 不同模型独立审阅 |
-| 模型盲区覆盖 | 单一模型 | 双模型交叉覆盖 |
-| 质量保证 | 依赖 Human Gate | 双 Agent 交叉 + Human Gate |
-| 开发复杂度 | 高 (三层协调) | 中 (Agent 内聚) |
-| 维护成本 | 3 套独立配置 | 1 套 Agent 配置 |
-| 审计能力 | 工具层可审计 | 全部产出可审计 |
-| 法规合规 | Human Gate 签字 | Human Gate 签字 + 双 Agent 审阅报告 |
-
----
-
-## 4. 六项核心设计原则 (完整保留)
-
-这些原则同时约束 MainAgent 和 ReviewerAgent:
-
-1. **"半自动步枪"不是"全自动机枪"** — 关键节点人类扣扳机
-2. **确定性操作走 MCP，推理判断走 LLM** — 不混用
-3. **不怕说"我不会"，怕的是装会** — LOW confidence → STOP
-4. **每一个 AI 产出物带 AI Generated 水印** — 直到人类签字
-5. **状态持久化是底线** — 跨 session 可恢复，审计可复现
-6. **审核清单是 Agent 和人类之间的合同** — 人类只需逐项确认
-
-> 详见 [SPEC-08: Agent 设计深度规格](08-Agent-Design.md) 第 1 章
+| 主题 | 文档 |
+|------|------|
+| Agent 设计原则 + 3 Executor 详细设计 | [SPEC-08](08-Agent-Design.md) |
+| MCP 工具 API 完整规格 | [SPEC-09](09-MCP-Tools-Design.md) |
+| 工作流编排 + Checklist + Change | [SPEC-10](10-Workflow-Updated.md) |
+| 变更管理深度设计 | [SPEC-11](11-Change-Management.md) |
+| Phase/TA 配置 + Executor 路由 | [SPEC-07](07-Phase-TA-Config.md) |

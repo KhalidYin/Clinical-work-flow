@@ -1,8 +1,11 @@
 # 阶段 9-10: TFL Shell 设计与编程输出
 
 ## 文档编号: SPEC-04
+## 版本: 2.1
 ## 管线阶段: TFL Shell Design / TFL Programming
-## 负责组件: TFLShellDesigner Agent, TFLGenerator Agent, tfl-qc Skill
+## 负责组件: TFLQCSubmissionAgent (Executor 3) + ReviewerAgent + GATE_CHECKLISTS["tfl_shell"]
+
+> **v2.1 架构说明**: 本阶段由 **TFLQCSubmissionAgent** (Claude Opus) 执行, 专注 TFL+QC+Submission 四个下游阶段。TFL Shell 有独立的 **4 项强制审核清单**。TFL Programming 为 AI_AUTO (LIGHT Review)。
 
 ---
 

@@ -1,8 +1,11 @@
 # 阶段 7-8: ADaM 规范与编程
 
 ## 文档编号: SPEC-03
+## 版本: 2.1
 ## 管线阶段: ADaM Specification / ADaM Programming
-## 负责组件: ADaMSpecBuilder Agent, ADaMProgrammer Agent, domain-review Skill
+## 负责组件: DataStandardsAgent (Executor 2) + ReviewerAgent + GATE_CHECKLISTS["adam_spec"]
+
+> **v2.1 架构说明**: 本阶段由 **DataStandardsAgent** (Claude Opus) 执行, 与 SDTM 共用 Executor 2 (CDISC 精确核心)。ADaM Spec 有独立的 **5 项强制审核清单** (GATE_CHECKLISTS["adam_spec"])。ADaM Programming 为 AI_AUTO。
 
 ---
 

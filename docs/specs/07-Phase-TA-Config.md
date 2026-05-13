@@ -1,7 +1,13 @@
 # Phase I-III 与 肿瘤/非肿瘤 配置手册
 
 ## 文档编号: SPEC-07
-## 主题: 试验分期和治疗领域的差异化配置
+## 版本: 2.1
+## 主题: 试验分期和治疗领域的差异化配置 + Executor 路由
+
+> **v2.1 架构说明**: 试验配置通过 `OrchestratorConfig(trial_phase, therapeutic_area)` 注入, 影响:
+> - **Executor 行为**: ProtocolSAPAgent 加载不同 SAP 模板, DataStandardsAgent 加载不同 SDTM 域, TFLQCSubmissionAgent 加载不同 TFL Shell
+> - **审阅强度**: Phase I 快速审阅 (LIGHT/MEDIUM), Phase III 全面审阅 (HEAVY)
+> - **变更管理**: Phase I 轻量追踪, Phase III 全量审计
 
 ---
 

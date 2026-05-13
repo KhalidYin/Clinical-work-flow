@@ -1,213 +1,192 @@
 # 临床数统编程 AI 工作流 — 总体架构规格说明书
 
 ## 文档编号: SPEC-00
-## 版本: 2.0
+## 版本: 2.1
 ## 适用阶段: 全部 (Protocol → Submission)
 
 ---
 
-## 1. 项目背景与目标
-
-### 1.1 业务背景
-
-临床数据统计分析编程(Clinical Statistical Programming)是药物研发过程中从临床试验方案到监管递交的关键环节。涉及 Protocol → SAP → SDTM → ADaM → TFL → Submission 的全链路。
-
-### 1.2 核心痛点
-
-| 痛点 | AI 介入价值 |
-|------|-----------|
-| SDTM/ADaM 规范文档编写高度重复 (单个 Spec 可达 200+ 页) | **高** — LLM 从 SAP 自动生成初稿 |
-| 双编程 QC 翻倍工作量 | **高** — 双 Agent 交叉审阅替代部分双编程 |
-| Pinnacle 21 验证问题手工分类 | **高** — AI 自动分类 |
-| 法规递交文档编写 (ADRG/SDRG) | **中** — AI 起草初稿 |
-| 临时分析需求响应 (FDA IR) | **高** — 自然语言→TFL 代码 |
-
----
-
-## 2. 架构 v2.0: 双 Agent + MCP
+## 1. 架构 v2.1: 3 Executor + 1 Reviewer + MCP + Checklist + Change Management
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                    临床数统编程 AI 工作流 v2.0                              │
+│                    临床数统编程 AI 工作流 v2.1                              │
 │                                                                          │
 │  ┌─────────────────────────────────────────────────────────────────┐    │
 │  │              STATE MACHINE (12 阶段)                              │    │
-│  │                                                                   │    │
 │  │  Protocol → SAP → CRF → Data → SDTM Sp → SDTM Pr → ADaM Sp →    │    │
 │  │  ADaM Pr → TFL Sh → TFL Pr → QC → Submission                     │    │
-│  │     │        │              │          │          │        │      │    │
-│  │     ▼        ▼              ▼          ▼          ▼        ▼      │    │
-│  │   AUTO    [GATE]         [GATE]     [GATE]     [GATE]   [GATE]   │    │
+│  │     │        │      │      │      │          │        │      │    │    │
+│  │     ▼        ▼      ▼      ▼      ▼          ▼        ▼      ▼    │    │
+│  │   AUTO    [GATE]  AUTO   AUTO  [GATE]      [GATE]   [GATE] [GATE]│    │
 │  └─────────────────────────────────────────────────────────────────┘    │
 │                                                                          │
-│  ┌──────────────────────────────┐  ┌────────────────────────────────┐   │
-│  │       MAIN AGENT              │  │      REVIEWER AGENT             │   │
-│  │  · 模型: Claude Opus         │  │  · 模型: Claude Sonnet          │   │
-│  │  · 角色: 执行 + 协调          │  │  · 角色: 独立交叉审阅            │   │
-│  │  · PLAN→EXECUTE→REVIEW      │  │  · 不同模型 = 不同盲区覆盖        │   │
-│  │  · 调用 MCP 工具             │  │  · 不拿推理过程, 只看产出        │   │
-│  └──────────────┬───────────────┘  └────────────────────────────────┘   │
-│                 │                                                       │
-│                 ▼                                                       │
-│  ┌──────────────────────────────┐                                       │
-│  │      MCP TOOLS (6个)          │                                       │
-│  │  sdtm_spec_build              │                                       │
-│  │  adam_spec_build              │  ← 确定性纯函数, 可审计               │
-│  │  tfl_shells_list              │                                       │
-│  │  cdisc_validate               │                                       │
-│  │  define_xml_build             │                                       │
-│  │  triage_p21                   │                                       │
-│  └──────────────────────────────┘                                       │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │                   3 EXECUTOR AGENTS (深度专注)                     │   │
+│  │                                                                   │   │
+│  │  ┌─────────────────────┐ ┌──────────────────┐ ┌────────────────┐ │   │
+│  │  │ ProtocolSAPAgent    │ │DataStandardsAgent│ │TFLQCSubmission │ │   │
+│  │  │                     │ │                  │ │    Agent       │ │   │
+│  │  │ · Protocol + SAP    │ │ · SDTM + ADaM    │ │ · TFL + QC     │ │   │
+│  │  │ · ICH E3/E9/E9(R1) │ │ · CDISC IG+CT    │ │ · Submission   │ │   │
+│  │  │ · Endpoint 分类     │ │ · P21 规则引擎   │ │ · define.xml   │ │   │
+│  │  │ · ~8K prompt 深度   │ │ · ~10K prompt    │ │ · ~8K prompt   │ │   │
+│  │  └─────────────────────┘ └──────────────────┘ └────────────────┘ │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                                                                          │
+│  ┌─────────────────────────────┐  ┌───────────────────────────────────┐ │
+│  │      REVIEWER AGENT          │  │    INDEPENDENT CHECKLIST LAYER    │ │
+│  │  · Claude Sonnet (不同模型)   │  │  · 6 Gate × 4-11 items           │ │
+│  │  · 独立上下文, 不看推理       │  │  · 强制校验: 每项必须有 evidence  │ │
+│  │  · 强制找 N 个问题 (防懒审)   │  │  · Agent 不能跳过任何一项        │ │
+│  └─────────────────────────────┘  └───────────────────────────────────┘ │
 │                                                                          │
 │  ┌──────────────────────────────────────────────────────────────────┐   │
-│  │                HUMAN GATES (6个 → 6 个法规关键节点)                │   │
-│  │  · 双 Agent 一致 → 快速通过  · 不一致 → 人类仲裁  · 人类签字     │   │
+│  │                     MCP TOOLS (6个, 确定性, 纯函数)                 │   │
+│  │  sdtm_spec_build | adam_spec_build | tfl_shells_list |             │   │
+│  │  cdisc_validate | define_xml_build | triage_p21                   │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                                                                          │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │                  CHANGE MANAGEMENT SYSTEM                         │   │
+│  │  · VersionManager (MAJOR.MINOR.PATCH)  · ImpactAnalyzer (BFS依赖) │   │
+│  │  · ChangeRecord (JSONL 审计日志)        · Rollback (任意版本回退)  │   │
 │  └──────────────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 2.1 三层职责 (全新定义)
+### 1.1 v2.0 → v2.1 关键变更
 
-| 层 | 职责 | 模型 | 确定性 |
-|----|------|------|--------|
-| **MainAgent** | 管线执行, MCP 工具调度, 审核包生成 | Claude Opus | 部分 (推理部分非确定) |
-| **ReviewerAgent** | 独立交叉审阅, 盲区覆盖 | Claude Sonnet | 部分 (推理部分非确定) |
-| **MCP Tools** | 确定性操作 (规范生成, 验证, 渲染) | 无 LLM | **全部确定** |
+| 维度 | v2.0 | v2.1 |
+|------|------|------|
+| Agent 数量 | 2 (1 Main + 1 Reviewer) | 4 (3 Executor + 1 Reviewer) |
+| 每 Agent prompt 深度 | ~25K tokens (12阶段均分) | 8-12K tokens (3-4阶段专注) |
+| 审核清单 | 内化到 Agent prompt | **独立强制执行层** (GATE_CHECKLISTS) |
+| Skills 补偿 | ReviewerAgent 审阅 | ReviewerAgent + 强制清单校验 |
+| 变更管理 | 无 | **完整系统** (版本 + 影响分析 + 审计) |
 
-### 2.2 v1.0 → v2.0 变更
+### 1.2 三层职责定义
+
+| 层 | 职责 | 确定性 |
+|----|------|--------|
+| **3 Executor Agents** | 管线执行 (深度专注 3-4 阶段) | 部分 (推理非确定) |
+| **ReviewerAgent** | 独立交叉审阅 (不同模型, 不同盲区) | 部分 (推理非确定) |
+| **MCP Tools (6)** | 确定性操作 | **全部确定** |
+| **Checklist Layer** | 强制审核校验 (Agent 不能跳过) | **全部确定** (程序化) |
+| **Change Management** | 版本追踪 + 影响分析 + 审计 | **全部确定** |
+
+---
+
+## 2. 12阶段管线 + 6 Human Gate + Executor 路由
+
+| 阶段 | Executor | Gate | Reviewer | 审阅深度 |
+|------|----------|------|----------|---------|
+| ① Protocol 分析 | ProtocolSAPAgent | AUTO | LIGHT | 终点提取完整性 |
+| ② SAP 生成 | ProtocolSAPAgent | **Gate 1** | HEAVY | 11项清单 + Protocol 比对 |
+| ③ CRF 设计 | ProtocolSAPAgent | AUTO | LIGHT | 变量覆盖度 |
+| ④ 数据采集 | — | AUTO | NONE | — |
+| ⑤ SDTM 规范 | DataStandardsAgent | **Gate 2** | HEAVY | 5项清单 + CDISC CT |
+| ⑥ SDTM 编程 | DataStandardsAgent | AUTO | MEDIUM | 代码逻辑 + P21 |
+| ⑦ ADaM 规范 | DataStandardsAgent | **Gate 3** | HEAVY | 5项清单 + SAP 一致性 |
+| ⑧ ADaM 编程 | DataStandardsAgent | AUTO | MEDIUM | 关键衍生 (TRTEMFL, CNSR) |
+| ⑨ TFL Shell | TFLQCSubmissionAgent | **Gate 4** | MEDIUM | 4项清单 + Mock 比对 |
+| ⑩ TFL 编程 | TFLQCSubmissionAgent | AUTO | LIGHT | 抽样 10-20% |
+| ⑪ QC 验证 | TFLQCSubmissionAgent | **Gate 5** | HEAVY | 4项清单 + 双编程 |
+| ⑫ Submission | TFLQCSubmissionAgent | **Gate 6** | HEAVY | 4项清单 + eCTD |
+
+---
+
+## 3. 六项核心设计原则
 
 ```
-v1.0: Skills(人工协同) + MCP(确定性) + Agents(5个自主执行)
-v2.0: MainAgent(执行+内化Skills) + ReviewerAgent(独立审阅) + MCP(确定性)
-
-变更:
-  · Skills 审核清单内化到 Agent REVIEW 阶段 → 不再有独立 Skill 层
-  · 5个分散 Agent → 2个 Agent (执行者 + 审阅者)
-  · 新增交叉审阅机制 → 双模型盲区覆盖
-  · 新增人类仲裁流程 → 双 Agent 争议时支持
+1. Agent 是"半自动步枪"不是"全自动机枪" — 关键节点人类扣扳机
+2. 确定性操作走 MCP，推理判断走 LLM — 不混用
+3. Agent 不怕说"我不会"，怕的是装会 — LOW confidence → STOP
+4. 每一个 AI 产出物带 "AI Generated" 水印，直到人类签字
+5. 状态持久化是底线 — 跨 session 可恢复，审计可复现
+6. 审核清单是 Agent 和人类之间的"合同" — 逐项确认
 ```
 
 ---
 
-## 3. 12阶段管线 + 6个 Human Gate
-
-| 阶段 | 类型 | Gate | Reviewer | 审阅内容 |
-|------|------|------|----------|---------|
-| ① Protocol 分析 | AUTO | 无 | LIGHT | 终点提取完整性 |
-| ② SAP 生成 | HUMAN | **Gate 1** | HEAVY | 全量审阅 + Protocol 比对 |
-| ③ CRF 设计 | AUTO | 无 | LIGHT | 变量覆盖度 |
-| ④ 数据采集 | AUTO | 无 | NONE | — |
-| ⑤ SDTM 规范 | HUMAN | **Gate 2** | HEAVY | CDISC 合规 + CT 逐项 |
-| ⑥ SDTM 编程 | AUTO | 无 | MEDIUM | 代码逻辑 + P21 |
-| ⑦ ADaM 规范 | HUMAN | **Gate 3** | HEAVY | 衍生逻辑 + SAP 一致性 |
-| ⑧ ADaM 编程 | AUTO | 无 | MEDIUM | 关键衍生检查 |
-| ⑨ TFL Shell | HUMAN | **Gate 4** | MEDIUM | TFL vs SAP Mock |
-| ⑩ TFL 编程 | AUTO | 无 | LIGHT | 抽样 10-20% |
-| ⑪ QC 验证 | HUMAN | **Gate 5** | HEAVY | 双编程 + P21 分类 |
-| ⑫ Submission | HUMAN | **Gate 6** | HEAVY | define.xml + 结构 |
-
----
-
-## 4. 六项核心原则
-
-```
-1. Agent 是"半自动步枪"不是"全自动机枪"
-2. 确定性操作走 MCP，推理判断走 LLM
-3. Agent 不怕说"我不会"，怕的是装会
-4. 每一个 AI 产出物带"AI Generated"水印, 直到人类签字
-5. 状态持久化是底线
-6. 审核清单是 Agent 和人类之间的"合同"
-```
-
----
-
-## 5. 项目代码结构 (v2.0)
+## 4. 项目代码结构 (v2.1)
 
 ```
 src/
-├── workflow/
-│   ├── state_machine.py      # 12 Stage + HumanGate + WorkflowState
-│   └── orchestrator.py       # 双 Agent 编排 + 仲裁
-│
 ├── agents/
-│   ├── base.py               # BaseAgent, Confidence, Severity, ReviewLevel
-│   ├── main_agent.py         # MainAgent: PLAN→EXECUTE→REVIEW 循环
-│   ├── reviewer_agent.py     # ReviewerAgent: 独立交叉审阅
-│   ├── review_package.py     # ReviewPackage, ReviewerReport 数据结构
-│   ├── arbitration.py        # ArbitrationCase, 人类仲裁接口
-│   └── prompts/
-│       ├── main_agent.yaml   # MainAgent System Prompt
-│       └── reviewer_agent.yaml  # ReviewerAgent System Prompt
+│   ├── base.py              — BaseAgent + enums
+│   ├── executors.py         — ProtocolSAPAgent / DataStandardsAgent / TFLQCSubmissionAgent
+│   ├── stage_checklists.py  — 独立强制审核清单 (6 gates)
+│   ├── reviewer_agent.py    — 独立交叉审阅
+│   ├── main_agent.py        — MainAgent (向后兼容)
+│   ├── review_package.py    — 数据结构
+│   ├── arbitration.py       — 仲裁机制
+│   └── prompts/             — YAML prompt 模板
 │
-├── mcp_tools/                # 6个 MCP 工具 (不变)
-│   ├── server.py
-│   ├── sdtm_spec_builder.py
-│   ├── adam_spec_builder.py
-│   ├── tfl_renderer.py
-│   └── cdisc_validator.py
+├── change_management/
+│   ├── change_record.py     — ChangeRecord + FileChange
+│   ├── version_manager.py   — MAJOR.MINOR.PATCH
+│   └── impact_analyzer.py   — BFS 依赖分析
 │
-├── knowledge/                # 知识库
-│   └── clinical_standards.py
+├── workflow/
+│   ├── state_machine.py     — 12 Stage + HumanGate
+│   └── orchestrator.py      — v2.1: Executor路由 + Checklist + Change
 │
-├── templates/                # 试验配置模板
-│   └── trial_configs.py
-│
-└── examples/
-    └── demo_workflow.py
+├── mcp_tools/               — 6 MCP 工具
+├── knowledge/               — CDISC 知识库
+├── templates/               — Phase/TA 配置
+└── examples/                — 演示
 ```
 
 ---
 
-## 6. 规格文档索引
+## 5. 规格文档索引
 
-| 文档 | 内容 |
-|------|------|
-| [SPEC-01](01-Protocol-to-SAP.md) | Protocol → SAP 阶段详情 |
-| [SPEC-02](02-SDTM.md) | SDTM 规范与编程 |
-| [SPEC-03](03-ADaM.md) | ADaM 规范与编程 |
-| [SPEC-04](04-TFL.md) | TFL Shell 与编程输出 |
-| [SPEC-05](05-QC-Submission.md) | QC 验证与递交打包 |
-| [SPEC-06](06-AI-Architecture.md) | 架构总结 (本文档的详细版) |
-| [SPEC-07](07-Phase-TA-Config.md) | Phase/TA 配置手册 |
-| [SPEC-08](08-Agent-Design.md) | **Agent 设计 (六原则 + 双Agent)** |
-| [SPEC-09](09-MCP-Tools-Design.md) | **MCP 工具 API 规格** |
-| [SPEC-10](10-Workflow-Updated.md) | **工作流编排 v2.0** |
-| [SPEC-11](11-Change-Management.md) | **变更管理与审计追踪** |
-
----
-
-## 7. 时间节省估算
-
-```
-传统手工:       28-43 周
-v1.0 单 Agent:   ~12-18 周 (节省 ~40-50%)
-v2.0 双 Agent:   ~5-10 周  (节省 ~55-65%)
-
-v2.0 相对 v1.0 的增量:
-  · 交叉审阅减少人工 QC 工作量
-  · 争议前置发现 (不等到 Gate 才发现问题)
-  · 双模型协作降低返工率
-```
+| 文档 | 内容 | 版本 |
+|------|------|------|
+| [SPEC-01](01-Protocol-to-SAP.md) | Protocol → SAP (ProtocolSAPAgent) | v2.1 |
+| [SPEC-02](02-SDTM.md) | SDTM 规范与编程 (DataStandardsAgent) | v2.1 |
+| [SPEC-03](03-ADaM.md) | ADaM 规范与编程 (DataStandardsAgent) | v2.1 |
+| [SPEC-04](04-TFL.md) | TFL Shell 与编程 (TFLQCSubmissionAgent) | v2.1 |
+| [SPEC-05](05-QC-Submission.md) | QC + Submission + 变更管理 | v2.1 |
+| [SPEC-06](06-AI-Architecture.md) | 架构深度分析 | v2.1 |
+| [SPEC-07](07-Phase-TA-Config.md) | Phase/TA 配置 + Executor 路由 | v2.1 |
+| [SPEC-08](08-Agent-Design.md) | Agent 设计: 3 Executor + Reviewer | v2.1 |
+| [SPEC-09](09-MCP-Tools-Design.md) | MCP 工具 API 规格 | v2.1 |
+| [SPEC-10](10-Workflow-Updated.md) | 工作流编排 + Checklist + Change | v2.1 |
+| [SPEC-11](11-Change-Management.md) | 变更管理与审计追踪 | v2.1 |
 
 ---
 
-## 8. 启动方式
+## 6. 时间节省估算
 
-### 运行演示
+```
+传统手工:        28-43 周
+v1.0 单 Agent:   ~12-18 周 (节省 ~40%)
+v2.0 双 Agent:   ~5-10 周  (节省 ~55%)
+v2.1 3 Executor: ~4-8 周   (节省 ~60-65%)
+
+v2.1 增量:
+  · 深度专注 Executor → 更少的规范错误 → 更少的返工
+  · 强制清单 → Gate 审核一次通过率更高
+  · 变更管理 → Protocol Amendment 时自动计算影响范围
+```
+
+---
+
+## 7. 启动方式
+
 ```bash
+# 演示
 python -m src.examples.demo_workflow
-```
 
-### 启动 MCP Server
-```bash
+# MCP Server
 python -m src.mcp_tools.server
-```
 
-### Claude Code 快捷命令
-```
+# Claude Code 快捷命令
 /workflow-resume   → 从上次进度恢复
-/workflow-status   → 查看当前管线状态
-/sap-review        → 触发 SAP 审核 (双 Agent)
-/tfl-qc           → 触发 TFL QC (双 Agent)
-/domain-review    → 触发 Domain 规范审核
+/workflow-status   → 查看当前管线状态 + Executor 路由
+/sap-review        → 触发 SAP 审核 (ProtocolSAPAgent + ReviewerAgent)
+/tfl-qc           → 触发 TFL QC (TFLQCSubmissionAgent + ReviewerAgent)
+/domain-review    → 触发 Domain 规范审核 (DataStandardsAgent + ReviewerAgent)
 ```
