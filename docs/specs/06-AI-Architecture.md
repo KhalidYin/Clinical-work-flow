@@ -1,368 +1,142 @@
-# AI 架构深度分析: Skills vs MCP Tools vs AI Agents
+# AI 架构深度分析: 双 Agent + MCP 架构
 
 ## 文档编号: SPEC-06
-## 主题: AI 三层架构的设计决策与实现细节
+## 主题: MainAgent + ReviewerAgent + MCP Tools 的架构设计与决策
+## 版本: 2.0
+
+> **注**: 本文档为架构 v2.0 版本的总结。详细的 Agent 设计、MCP 工具 API、工作流编排已拆分至独立文档:
+> - [SPEC-08: Agent 设计深度规格](08-Agent-Design.md) — MainAgent + ReviewerAgent 完整设计
+> - [SPEC-09: MCP 工具层设计规格](09-MCP-Tools-Design.md) — 6个工具 API 与实现约束
+> - [SPEC-10: 工作流编排双 Agent 集成版](10-Workflow-Updated.md) — 完整工作流编排
 
 ---
 
-## 1. 为什么需要三层？
+## 1. 架构演进: 三层 → 双 Agent + MCP
 
-### 1.1 临床数统编程的特殊性
-
-临床数统编程不是一个常规的软件开发场景。它具有以下特征,决定了单一 AI 方案无法满足:
+### 1.1 为什么要进化
 
 ```
-GxP 合规要求 → 每一个产出物必须可审计、可追溯
-法规审核     → 关键决策节点必须有人类签字确认
-重复性高     → 大量规范文档和代码是可模板化的
-专业性强     → 需要 CDISC、ICH、FDA/NMPA 深度知识
-质量零容忍   → 递交数据中的错误可能导致审批延迟或拒绝
-批量 vs 交互  → 既有大规模批处理(200+ TFLs),也有深度交互式审阅
+v1.0 架构: 三层分离
+  ┌────────────┐  ┌──────────┐  ┌──────────┐
+  │  Skills    │  │  MCP     │  │  Agents   │
+  │  人工协同   │  │  确定性   │  │  自主执行  │
+  └────────────┘  └──────────┘  └──────────┘
+
+  问题:
+  · Skills 需要手动加载文档, 不能融入自动化管线
+  · 5个 Agent 各自片段化, 跨阶段信息不连贯
+  · 单 Agent 自审 = 同一个模型的同一个盲区再检查一遍
+  · 三层之间的调用关系复杂
+
+v2.0 架构: 双 Agent + MCP
+  ┌─────────────────┐    ┌──────────────────┐
+  │   MainAgent     │    │  ReviewerAgent   │
+  │   执行 + 协调    │───→│  独立交叉审阅     │
+  │   全阶段覆盖     │←───│  不同模型        │
+  │   模型: Opus    │    │  模型: Sonnet    │
+  └────────┬───────┘    └──────────────────┘
+           │
+           ▼
+  ┌─────────────────┐
+  │   MCP Tools (6) │
+  │   确定性执行     │
+  └─────────────────┘
+
+  改进:
+  · Skills 的审核清单内化到 Agent 的 REVIEW 阶段 → 不再需要独立 Skill 层
+  · 5个 Agent → 2个 (1执行 + 1审阅) → 更简单
+  · 不同模型交叉审阅 → 覆盖不同的"幻觉指纹"
+  · 统一编排 → 跨阶段上下文连贯
 ```
 
-### 1.2 单层方案的风险
-
-| 如果只用... | 会缺少... | 导致的后果 |
-|-----------|----------|-----------|
-| **MCP Tools** | 上下文推理能力 | 无法理解 SAP 中的歧义描述,无法处理自然语言的终点定义 |
-| **Skills** | 大规模自动化 | 200+ TFL 需要逐个人工交互,无法提效 |
-| **Agents** | 人类审核节点 | 法规风险,无法满足 GxP 合规中的人类职责要求 |
-
----
-
-## 2. 三层详细设计
-
-### 2.1 Layer 1: MCP Tools — 确定性工具层
+### 1.2 核心洞察: Skills 不是消失了，是被整合了
 
 ```
-设计原则:
-  · 每个工具是纯函数 (相同输入 → 相同输出)
-  · 无状态,无副作用
-  · 可独立测试和验证
-  · 可被 Agent 和 Skill 调用
-  · 输出结构化的 JSON/machine-readable 数据
+v1.0:                            v2.0:
+  用户调用 /sap-review             用户调用 /sap-review
+  → 独立的 Skill 执行              → MainAgent 进入 Stage.SAP REVIEW
+  → Skill 有独立 system prompt     → MainAgent 使用内置审核清单
+  → 结果返回给用户                 → MainAgent 生成审核包
+                                   → ReviewerAgent 独立审阅
+                                   → 呈现双 Agent 结果
 
-为什么用 MCP:
-  · Claude Code 原生支持 MCP Server
-  · stdio 协议轻量无依赖
-  · JSON-RPC 标准调用接口
-  · 可被多个 Claude session 复用
-```
-
-#### 工具 API 规范
-
-```
-sdtm_spec_build
-  输入:  domain_code (string), crf_mappings (list)
-  输出:  {domain, name, class, variables[], crf_annotations[]}
-  用途:  生成单个 SDTM 域的完整变量映射规范
-
-adam_spec_build
-  输入:  dataset_name (string), trial_phase, therapeutic_area
-  输出:  {dataset, label, structure, predecessor, variables[]}
-  用途:  生成单个 ADaM 数据集的完整变量衍生规范
-
-tfl_shells_list
-  输入:  trial_phase, therapeutic_area
-  输出:  {total_tfls, tables, figures, listings, shells[]}
-  用途:  获取该试验配置下的完整 TFL 目录
-
-cdisc_validate
-  输入:  type (sdtm|adam), domain_or_dataset, data
-  输出:  {total_findings, review_queue[], triage_summary}
-  用途:  运行 CDISC 合规性验证
-
-define_xml_build
-  输入:  dataset_name, variables[]
-  输出:  {ItemGroupDef, ItemDefs[], CodeLists[]}
-  用途:  生成 define.xml 2.0 元数据结构
-
-triage_p21
-  输入:  findings[]
-  输出:  {total_findings, auto_resolved, needs_review, review_queue}
-  用途:  AI 分类 P21 验证发现,减少人工审核
-```
-
-### 2.2 Layer 2: Claude Skills — 人工协同层
-
-```
-设计原则:
-  · 交互式工作流,需要加载文档上下文
-  · 产生结构化、可操作的审核反馈
-  · 包含审核清单(Checklist)指导人工判断
-  · 不可自主执行,必须人类确认
-  · 法规关键环节的"AI 辅助+人类决策"
-
-为什么用 Skill 而不是 Agent:
-  · Skills 设计上就包含"等待人类确认"的交互模式
-  · Skills 可以加载大量文档上下文(Protocol PDF, SAP PDF)
-  · Skills 的系统提示词可以精细调优审核标准
-  · Claude Code 原生支持 Skills 调用 (/skill-name)
-```
-
-#### Skill 规格
-
-```
-sap-review
-  触发:    用户加载 Protocol + SAP 文档后
-  审查清单: 11 项 (终点匹配、人群定义、多重性、缺失数据处理、Estimands等)
-  输出:    Critical Issues / Recommendations / Compliant Items / Next Steps
-  审查者:   Lead Biostatistician, Lead Programmer
-
-tfl-qc
-  触发:    用户加载 TFL 输出 + SAP Shell + ADaM Spec
-  审查清单: 10 项 (标题、人群、N-counts、统计量、p值、CI、格式化、脚注等)
-  输出:    Pass/Fail Items / Discrepancies / Cross-Table Consistency
-  审查者:   QC Programmer, Lead Programmer
-
-domain-review
-  触发:    用户加载 Domain Spec + CDISC IG + aCRF
-  审查清单: 10 项 (Req变量、类型/长度、控制术语、SUPPQUAL、衍生逻辑等)
-  输出:    Missing Variables / CT Deviations / Derivation Issues / Recommendations
-  审查者:   Lead Programmer, Data Manager
-
-protocol-analyze
-  触发:    用户加载 Protocol + SoA
-  审查清单: 8 项 (研究设计、终点提取、人群定义、统计方法等)
-  输出:    Study Design Summary / Endpoint Map / ADaM Planning / TFL Planning
-  审查者:   Lead Biostatistician (AI 辅助分析,人类确认)
-```
-
-### 2.3 Layer 3: AI Agents — 自主执行层
-
-```
-设计原则:
-  · 可自主执行多步骤任务
-  · 编排多个 MCP Tools
-  · 非法规关键环节(编程执行阶段)
-  · 有错误处理/重试机制
-  · 产生日志供后续审计
-
-为什么需要 Agent:
-  · SDTM 编程不只是调用一个工具,而是: spec读取→代码生成→执行→验证→修复
-  · Agent 可以在工具之间传递上下文
-  · Agent 可以处理异常(Bad data, 格式错误等)
-```
-
-#### Agent 规格
-
-```
-ProtocolAnalyzer
-  阶段:     Protocol
-  自主能力:  读取方案PDF → 解析终点 → 分类人群 → 推荐数据集和TFL
-  输出:     Endpoint Map + 推荐 ADaM + 推荐 TFL 目录
-  门控:     无需人工审核(AI输出供后续参考)
-
-SDTMMapper
-  阶段:     SDTM Programming
-  自主能力:  读取 aCRF → 调用 sdtm_spec_build → 生成代码 → 调用 cdisc_validate
-             → 自动修复已知问题 → 输出 SDTM 数据集
-  输出:     SDTM 数据集 (XPT格式) + Spec 文档 + 程序代码 + P21 验证记录
-  门控:     无需人工审核(代码AI自主,Spec在此之前已人工审核)
-
-ADaMProgrammer
-  阶段:     ADaM Programming
-  自主能力:  读取 SAP + SDTM → 调用 adam_spec_build → 生成 ADaM 代码
-             → 执行 → 调用 cdisc_validate → 输出 ADaM 数据集
-  输出:     ADaM 数据集 (XPT格式) + Spec 文档 + 程序代码
-  门控:     无需人工审核(Spec在此之前已人工审核)
-
-TFLGenerator
-  阶段:     TFL Programming
-  自主能力:  读取 TFL Shells → 生成 TFL 代码 → 执行 → 输出 RTF/PDF
-  输出:     TFL 输出文件 + 程序代码
-  门控:     无需人工审核(Shell在此之前已人工审核)
-
-QCValidator
-  阶段:     QC Validation
-  自主能力:  读取 Primary 和 QC 程序 → 执行双编程比对 → 差异分析
-             → 运行 P21 → 调用 triage_p21 → 生成 QC 报告
-  输出:     差异分析报告 + P21 分类结果
-  门控:     需要人工审核(确认差异裁定)
+  效果: 用户体验相同 (/sap-review 还是 /sap-review)
+       但背后是双 Agent 交叉验证, 质量更高
 ```
 
 ---
 
-## 3. 编排器设计 (Orchestrator)
+## 2. 双 Agent 设计的核心理由
 
-### 3.1 状态机模型
-
-```
-State:  WorkflowState
-   · study_id (唯一标识)
-   · trial_phase (phase_i | phase_ii | phase_iii)
-   · therapeutic_area (oncology | non_oncology)
-   · current_stage (Stage枚举)
-   · stage_history (执行记录)
-   · artifacts (产出物注册)
-   · human_gates (人工审核状态)
-
-Transition: advance()
-   1. 获取 next_stage
-   2. 检查是否需要 Human Gate
-   3. 如果需要且未批准 → 阻塞,等待人类审批
-   4. 如果 AI_AUTO_STAGE → 直接执行
-   5. 记录历史,更新 current_stage
-```
-
-### 3.2 阶段→组件路由
-
-```python
-STAGE_ASSIGNMENT = {
-    Stage.PROTOCOL:           {"agent": "ProtocolAnalyzer",  "skill": "protocol-analyze"},
-    Stage.SAP:                {"agent": "SAPBuilder",        "skill": "sap-review"},
-    Stage.SDTM_SPEC:          {"agent": "SDTMSpecBuilder",   "skill": "domain-review"},
-    Stage.SDTM_PROGRAMMING:   {"agent": "SDTMProgrammer",    "skill": None},  # AI Auto
-    Stage.ADAM_SPEC:          {"agent": "ADaMSpecBuilder",   "skill": "domain-review"},
-    Stage.ADAM_PROGRAMMING:   {"agent": "ADaMProgrammer",    "skill": None},  # AI Auto
-    Stage.TFL_SHELL:          {"agent": "TFLShellDesigner",  "skill": "tfl-qc"},
-    Stage.TFL_PROGRAMMING:    {"agent": "TFLGenerator",      "skill": None},  # AI Auto
-    Stage.QC_VALIDATION:      {"agent": "QCValidator",       "skill": "tfl-qc"},
-    Stage.SUBMISSION:         {"agent": "SubmissionPackager", "skill": "adrg-draft"},
-}
-```
-
----
-
-## 4. Human-in-the-Loop 门控设计
-
-### 4.1 为什么需要人工门控
+### 2.1 单 Agent 自审 = 同一个盲区
 
 ```
-法规要求:
-  · ICH E6 (GCP) 要求关键决策有人类责任主体
-  · 21 CFR Part 11 要求电子记录需要人类授权
-  · NMPA 数据递交要求统计编程有人类审核签字
+MainAgent 生成 SDTM AE Spec:
+  → "AESEV controlled_terms = [MILD, MODERATE, SEVERE]"
 
-AI 做不到的:
-  · 判断临床/科学合理性 (如终点定义是否恰当的临床意义)
-  · 做出法规责任决策 (如递交数据是否满足递交标准)
-  · 处理未预见的歧义 (如 SAP 中的模糊描述需要人类判断)
-  · 承担法律责任 (AI 不能作为法规递交的责任主体)
+MainAgent 自审:
+  → "我用同样的知识和推理路径再检查了一遍"
+  → 结果: PASS ✓
+  → 如果第一次的知识有盲区, 第二次也一样
+
+ReviewerAgent (不同模型) 审阅:
+  → "等一下, CDISC CT 最新版还有 LIFE_THREATENING 和 DEATH"
+  → 不同的训练数据 → 不同的知识覆盖 → 不同的盲区
+
+核心原理:
+  两个不同的模型, 同一时间都错在同一个点的概率 << 单个模型错的概率
+  这是"交叉验证"在 AI 时代的体现
 ```
 
-### 4.2 门控配置
-
-```python
-HumanGate:
-   · stage: 当前管线阶段
-   · description: 审核目标说明
-   · reviewers: 审核责任人 (2人签名制)
-   · checklist: 审核清单 (4-11 项)
-   · status: pending | approved | rejected | conditional
-   · signed_by: 审核人
-   · signed_at: 审核时间
-```
-
-### 4.3 预期的时间节省
+### 2.2 审批视角的正确设计
 
 ```
-传统流程 vs AI 辅助流程:
+关键设计决策: 谁能看什么
 
-传统:
-  SDTM Spec 编写:   3-5 天 (纯人工)
-  SDTM 编程:        2-3 周 (人工编码+调试)
-  ADaM Spec 编写:   5-7 天
-  ADaM 编程:        3-4 周
-  TFL 编程:         4-6 周
-  QC 验证:          3-4 周
-  递交打包:         1-2 周
-  ──────────────────────────
-  总计:             ~16-20 周
+  MainAgent 提交给 Reviewer 的:
+    · ✅ 最终产物 (Spec / TFL / Report)
+    · ✅ 对应的 CDISC 标准引用
+    · ❌ MainAgent 的推理过程 (这会带偏 Reviewer!)
+    · ❌ 上下文中的其他不相关信息
 
-AI 辅助:
-  SDTM Spec 编写:   1 天  (AI 生成初稿 + 人工审核)
-  SDTM 编程:        2-3 天 (AI 自动生成代码+执行)
-  ADaM Spec 编写:   1-2 天
-  ADaM 编程:        3-5 天
-  TFL 编程:         1-2 周
-  QC 验证:          1-2 周 (AI 双编程分析 + P21 分类)
-  递交打包:         3-5 天
-  ──────────────────────────
-  总计:             ~5-8 周 (节省 ~50-60%)
+  如果 Reviewer 看到 MainAgent 的推理:
+    "我认为 AESEV 应该用 [MILD, MODERATE, SEVERE], 因为..."
+    → Reviewer 被锚定在这个思路上
+    → 独立的审阅价值打折扣
+
+  如果 Reviewer 看不到推理:
+    "我看到 AESEV 的值是 [MILD, MODERATE, SEVERE]"
+    "我独立检查 CDISC CT: 应该是 [MILD, MODERATE, SEVERE, LIFE_THREATENING, DEATH]"
+    → 真正独立的判断
 ```
 
 ---
 
-## 5. 知识库设计 (Knowledge Base)
+## 3. 设计决策对比总结
 
-```
-知识库分层:
-
-Layer 1: 法规标准 (静态,每季度更新)
-  · CDISC SDTM IG v3.4
-  · CDISC ADaM IG v1.3
-  · CDISC Controlled Terminology (NCI Thesaurus)
-  · FDA TCG
-  · ICH Guidelines (E3, E6, E9, E9(R1), E10)
-
-Layer 2: 企业 SOP (半静态,按需更新)
-  · SAP 模板
-  · ADaM Spec 模板
-  · TFL Shell 模板
-  · 命名规范
-  · 编码规范
-
-Layer 3: 项目知识 (动态,每项目更新)
-  · Protocol 内容
-  · 既往项目教训
-  · 常用代码片段
-
-Layer 4: 领域知识 (中等更新频率)
-  · 肿瘤特有分析 (RECIST, ADTR, CTCAE)
-  · 非肿瘤各治疗领域终点库
-  · Phase I PK/PD 分析模板
-```
+| 维度 | v1.0 (三层) | v2.0 (双 Agent + MCP) |
+|------|-----------|---------------------|
+| Agent 数量 | 5 个 (片段化) | 2 个 (1 执行 + 1 审阅) |
+| Skill 位置 | 独立层 | 内化到 Agent REVIEW 阶段 |
+| 交叉审阅 | 无 (同 Agent 自审) | 不同模型独立审阅 |
+| 模型盲区覆盖 | 单一模型 | 双模型交叉覆盖 |
+| 质量保证 | 依赖 Human Gate | 双 Agent 交叉 + Human Gate |
+| 开发复杂度 | 高 (三层协调) | 中 (Agent 内聚) |
+| 维护成本 | 3 套独立配置 | 1 套 Agent 配置 |
+| 审计能力 | 工具层可审计 | 全部产出可审计 |
+| 法规合规 | Human Gate 签字 | Human Gate 签字 + 双 Agent 审阅报告 |
 
 ---
 
-## 6. 安全与合规
+## 4. 六项核心设计原则 (完整保留)
 
-### 6.1 数据安全
+这些原则同时约束 MainAgent 和 ReviewerAgent:
 
-| 层级 | 措施 |
-|------|------|
-| 传输 | MCP stdio 本地通信,无网络暴露 |
-| 存储 | 临床试验数据不出本地工作目录 |
-| 访问 | 通过 Claude Code 的权限管理控制 |
-| 审计 | 全流程日志,每次 AI 操作记录在案 |
+1. **"半自动步枪"不是"全自动机枪"** — 关键节点人类扣扳机
+2. **确定性操作走 MCP，推理判断走 LLM** — 不混用
+3. **不怕说"我不会"，怕的是装会** — LOW confidence → STOP
+4. **每一个 AI 产出物带 AI Generated 水印** — 直到人类签字
+5. **状态持久化是底线** — 跨 session 可恢复，审计可复现
+6. **审核清单是 Agent 和人类之间的合同** — 人类只需逐项确认
 
-### 6.2 GxP 合规
-
-```
-AI 辅助 ≠ AI 决策:
-  · 所有法规关键节点有人类签字确认
-  · AI 产出物标记为 "AI-Generated Draft" 直到人类审核
-  · 审核过程可追溯 (谁、何时、批准了什么)
-  · 版本控制覆盖所有 AI 产出物
-  · AI 使用的 Prompt 模板也纳入版本管理
-```
-
----
-
-## 7. 性能与扩展性
-
-### 7.1 MCP Tools 性能
-
-```
-工具执行时间目标:
-  sdtm_spec_build:    <100ms (内存计算)
-  adam_spec_build:    <100ms (内存计算)
-  tfl_shells_list:    <50ms  (内存查询)
-  cdisc_validate:     <500ms (规则引擎)
-  define_xml_build:   <200ms (XML生成)
-  triage_p21:         <300ms (规则匹配)
-```
-
-### 7.2 并行扩展
-
-```
-Stage 级别的并行:
-  · SDTM 编程可并行执行多个域 (AE, CM, LB同时运行)
-  · ADaM 编程可并行执行多个数据集 (ADSL→ADAE,ADTTE,ADLB同时)
-  · TFL 编程可并行执行所有独立 TFL
-
-Agent 级别的并行:
-  · 多个 Agent 可在不同 Study 上并行工作
-  · 同一 Study 的不同阶段由 Orchestrator 串行控制
-```
+> 详见 [SPEC-08: Agent 设计深度规格](08-Agent-Design.md) 第 1 章
