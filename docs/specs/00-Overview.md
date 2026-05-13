@@ -172,6 +172,7 @@ src/
 | [SPEC-08](08-Agent-Design.md) | **Agent 设计 (六原则 + 双Agent)** |
 | [SPEC-09](09-MCP-Tools-Design.md) | **MCP 工具 API 规格** |
 | [SPEC-10](10-Workflow-Updated.md) | **工作流编排 v2.0** |
+| [SPEC-11](11-Change-Management.md) | **变更管理与审计追踪** |
 
 ---
 

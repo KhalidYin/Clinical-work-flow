@@ -1,11 +1,14 @@
 """
-Workflow Orchestrator v2.0 — Dual-Agent + MCP + Human Gates.
+Workflow Orchestrator v2.1 — 3 Executor + 1 Reviewer + MCP + Checklists.
 
-Coordinates:
-  - MainAgent:     PLAN → EXECUTE → REVIEW 循环
-  - ReviewerAgent: 独立交叉审阅 (不同模型)
-  - MCP Tools:     确定性操作
-  - Human Gates:   人工审核 + 双 Agent 争议仲裁
+路由:
+  ProtocolSAPAgent       → protocol, sap, crf_design
+  DataStandardsAgent     → sdtm_spec, sdtm_prog, adam_spec, adam_prog
+  TFLQCSubmissionAgent   → tfl_shell, tfl_prog, qc_validation, submission
+
+变更管理:
+  每次修改 → ChangeRecord → 审计日志
+  每次 Gate 审核 → 清单强制校验
 """
 
 from dataclasses import dataclass, field
@@ -20,18 +23,31 @@ from ..agents.base import (
     AgentConfig, AgentContext, AgentRole,
     Confidence, Severity, ReviewLevel,
 )
-from ..agents.main_agent import MainAgent, STAGE_CONFIGS
+from ..agents.executors import (
+    ProtocolSAPAgent, DataStandardsAgent, TFLQCSubmissionAgent,
+    STAGE_EXECUTOR_MAP, get_executor_for_stage,
+)
 from ..agents.reviewer_agent import ReviewerAgent
+from ..agents.stage_checklists import (
+    StageChecklist, ChecklistItem, ChecklistItemStatus,
+    GATE_CHECKLISTS, get_checklist, validate_checklist_completion,
+)
 from ..agents.review_package import ReviewPackage, ReviewerReport
 from ..agents.arbitration import (
     ArbitrationCase, ArbitrationHistory,
     CrossReviewCycle, MAX_REVIEW_ROUNDS,
 )
+from ..change_management.change_record import (
+    ChangeRecord, FileChange, StageImpact,
+    ChangeType, ImpactType,
+)
+from ..change_management.version_manager import VersionManager, VersionBump
+from ..change_management.impact_analyzer import ImpactAnalyzer
 
 logger = logging.getLogger(__name__)
 
 
-# ── Orchestrator Config ────────────────────────────────────────
+# ── Config ────────────────────────────────────────────────────
 
 
 @dataclass
@@ -41,57 +57,60 @@ class OrchestratorConfig:
     require_human_approval: bool = True
     auto_execute_ai_stages: bool = True
     stop_on_error: bool = True
-    cross_review_enabled: bool = True       # 启用 ReviewerAgent
+    cross_review_enabled: bool = True
     max_review_rounds: int = MAX_REVIEW_ROUNDS
+    enforce_checklists: bool = True       # v2.1: 强制清单校验
+    change_tracking_enabled: bool = True   # v2.1: 变更追踪
     output_dir: str = "./output"
     checkpoint_dir: str = ".workflow"
 
 
-# ── Orchestrator ────────────────────────────────────────────────
+# ── Orchestrator v2.1 ──────────────────────────────────────────
 
 
 @dataclass
 class Orchestrator:
-    """
-    Central orchestrator v2.0.
-
-    Dual-Agent architecture:
-      1. MainAgent:     PLAN → calls MCP tools → self-check → prepares review package
-      2. ReviewerAgent: Independent cross-review on MainAgent outputs
-      3. Human Gates:   Approval + Arbitration when agents disagree
-    """
+    """v2.1: 3 Executor + 1 Reviewer + MCP + Checklist + Change Management"""
 
     config: OrchestratorConfig = field(default_factory=OrchestratorConfig)
     state: WorkflowState = field(default_factory=WorkflowState)
 
-    main_agent: MainAgent | None = None
+    executors: dict[str, Any] = field(default_factory=dict)
     reviewer_agent: ReviewerAgent | None = None
 
     tool_registry: dict[str, Callable] = field(default_factory=dict)
+    version_manager: VersionManager | None = None
+    impact_analyzer: ImpactAnalyzer | None = None
     arbitration_history: ArbitrationHistory = field(default_factory=ArbitrationHistory)
+    change_log: list[ChangeRecord] = field(default_factory=list)
 
     def __post_init__(self):
         self.state.trial_phase = TrialPhase(self.config.trial_phase)
         self.state.therapeutic_area = TherapeuticArea(self.config.therapeutic_area)
 
-        # Initialize Agent context
         context = AgentContext(
             study_id=self.state.study_id,
-            pipeline_state=self.state.__dict__ if hasattr(self.state, '__dict__') else {},
             tool_registry=self.tool_registry,
         )
 
-        # MainAgent (Opus — deep reasoning)
-        self.main_agent = MainAgent(
-            config=AgentConfig(
-                name="ClinicalProgrammingMainAgent",
-                role=AgentRole.MAIN,
-                model="claude-opus-4-7",
-            ),
-            context=context,
+        # 初始化 3 个 Executor (深度专注)
+        protocol_config = AgentConfig(
+            name="ProtocolSAPAgent", role=AgentRole.MAIN, model="claude-opus-4-7",
+        )
+        data_config = AgentConfig(
+            name="DataStandardsAgent", role=AgentRole.MAIN, model="claude-opus-4-7",
+        )
+        tfl_config = AgentConfig(
+            name="TFLQCSubmissionAgent", role=AgentRole.MAIN, model="claude-opus-4-7",
         )
 
-        # ReviewerAgent (Sonnet — different model, different blind spots)
+        self.executors = {
+            "ProtocolSAPAgent": ProtocolSAPAgent(protocol_config, context),
+            "DataStandardsAgent": DataStandardsAgent(data_config, context),
+            "TFLQCSubmissionAgent": TFLQCSubmissionAgent(tfl_config, context),
+        }
+
+        # ReviewerAgent (独立模型)
         if self.config.cross_review_enabled:
             self.reviewer_agent = ReviewerAgent(
                 config=AgentConfig(
@@ -105,140 +124,82 @@ class Orchestrator:
                 ),
             )
 
-    # ── Tool Registration ───────────────────────────────────────
+        # 版本管理 + 影响分析
+        if self.config.change_tracking_enabled:
+            self.version_manager = VersionManager(study_id=self.state.study_id)
+            self.impact_analyzer = ImpactAnalyzer()
 
-    def register_tool(self, name: str, tool_fn: Callable) -> None:
-        self.tool_registry[name] = tool_fn
-        if self.main_agent:
-            self.main_agent.context.tool_registry = self.tool_registry
-        if self.reviewer_agent:
-            self.reviewer_agent.context.tool_registry = self.tool_registry
-
-    # ── Stage Execution (with Cross-Review) ─────────────────────
+    # ── Stage Execution ────────────────────────────────────────
 
     async def execute_stage(self, stage: Stage) -> dict[str, Any]:
-        """
-        Execute one pipeline stage with the full dual-agent cycle:
-
-        1. MainAgent.PLAN   — Build execution plan
-        2. MainAgent.EXECUTE — Call MCP tools
-        3. MainAgent.REVIEW  — Self-check
-        4. ReviewerAgent     — Independent cross-review (if enabled)
-        5. Fix cycle         — Resolve issues (max 2 rounds)
-        6. Arbitration       — Human decides if agents disagree
-        7. Human Gate        — Package for human approval (if applicable)
-        """
         stage_name = stage.value
-        stage_config = STAGE_CONFIGS.get(stage_name)
-        result: dict[str, Any] = {
-            "stage": stage_name,
-            "status": "started",
-            "main_agent": self.main_agent.name if self.main_agent else "N/A",
-        }
+        result: dict[str, Any] = {"stage": stage_name, "status": "started"}
 
-        ctx = self._build_stage_context(stage)
+        # 获取对应 Executor
+        executor = self._get_executor(stage_name)
+        result["executor"] = executor.name
 
-        # ── Step 1: MainAgent PLAN ──────────────────────────
-        logger.info(f"Stage {stage_name}: MainAgent PLAN")
-        plan = await self.main_agent.plan(stage_name)
-        if plan["status"] == "blocked":
+        # 加载审核清单 (如果是 Human Gate)
+        checklist = None
+        if stage not in AI_AUTO_STAGES:
+            checklist = get_checklist(stage_name)
+            if checklist:
+                result["checklist_loaded"] = True
+                result["checklist_items"] = len(checklist.items)
+
+        logger.info(f"Stage {stage_name}: Executor={executor.name}, "
+                    f"Checklist={'loaded (' + str(len(checklist.items) if checklist else 0) + ' items)' if checklist else 'N/A'}")
+
+        # ── PLAN ──────────────────────────────────────────
+        plan = await executor.plan(stage_name)
+        if plan.get("status") == "blocked":
             result["status"] = "blocked"
-            result["blockers"] = plan.get("blockers", [])
             return result
 
-        # ── Step 2: MainAgent EXECUTE ───────────────────────
-        logger.info(f"Stage {stage_name}: MainAgent EXECUTE")
-        exec_results = await self.main_agent.execute(stage_name, plan["plan"])
-        if exec_results.get("action") == "STOP":
+        # ── EXECUTE ───────────────────────────────────────
+        exec_result = await executor.execute(stage_name, plan)
+        if exec_result.get("action") == "STOP":
             result["status"] = "stopped_for_human"
-            result["reason"] = exec_results.get("reason")
             return result
 
-        result["execution"] = exec_results
+        result["execution"] = exec_result
 
-        # ── Step 3: MainAgent SELF-REVIEW ───────────────────
-        logger.info(f"Stage {stage_name}: MainAgent REVIEW")
-        self_review = await self.main_agent.review(stage_name, exec_results)
+        # ── SELF-REVIEW ──────────────────────────────────
+        self_review = await executor.review(stage_name, exec_result)
         result["self_review"] = self_review
 
-        # ── Step 4: ReviewerAgent CROSS-REVIEW ──────────────
+        # ── ReviewerAgent Cross-Review ───────────────────
         reviewer_report = None
         arbitration_items = []
 
-        if (self.config.cross_review_enabled
-                and self.reviewer_agent
-                and stage_config
-                and stage_config.reviewer_level != "NONE"):
-
-            logger.info(f"Stage {stage_name}: ReviewerAgent cross-review "
-                        f"(level={stage_config.reviewer_level})")
-
-            cross_cycle = CrossReviewCycle(stage=stage_name)
-
-            for round_num in range(1, self.config.max_review_rounds + 1):
-                # Reviewer 独立审阅 (不拿 MainAgent 推理过程!)
-                reviewer_report = await self.reviewer_agent.review(
-                    stage=stage_name,
-                    artifacts=exec_results.get("artifacts", {}),
-                    level=stage_config.reviewer_level,
-                    round_num=round_num,
-                )
-                cross_cycle.rounds_completed = round_num
-                cross_cycle.issues_remaining = len(
-                    reviewer_report.get_critical_and_major()
-                )
-
-                result[f"review_round_{round_num}"] = reviewer_report.summary()
-
-                if not reviewer_report.has_critical_or_major():
-                    # All good — pass!
-                    cross_cycle.issues_resolved = cross_cycle.issues_remaining
-                    cross_cycle.issues_remaining = 0
-                    break
-
-                if round_num < self.config.max_review_rounds:
-                    # Fix and re-review
-                    logger.info(f"Stage {stage_name}: Fixing "
-                                f"{cross_cycle.issues_remaining} issues, round {round_num}")
-                    issues = reviewer_report.get_critical_and_major()
-                    exec_results = await self.main_agent.fix_issues(
-                        stage_name, issues, exec_results.get("artifacts", {})
-                    )
-                    cross_cycle.issues_resolved += len(issues)
-
-            # Check if we need arbitration
-            if cross_cycle.needs_arbitration():
-                logger.warning(f"Stage {stage_name}: ARBITRATION NEEDED "
-                               f"after {cross_cycle.rounds_completed} rounds")
-                arbitration_items = await self._create_arbitration_cases(
-                    stage_name, reviewer_report
-                )
-                result["arbitration_needed"] = True
-                result["arbitration_items_count"] = len(arbitration_items)
-
-        # ── Step 5: Human Gate ─────────────────────────────
-        if stage_config and stage_config.gate == "HUMAN" and self.config.require_human_approval:
-            logger.info(f"Stage {stage_name}: Preparing Human Gate review package")
-
-            package = await self.main_agent.prepare_review_package(
-                stage=stage_name,
-                results=exec_results,
-                reviewer_report=reviewer_report.summary() if reviewer_report else None,
-                arbitration_items=[
-                    a.display_for_human() for a in arbitration_items
-                ] if arbitration_items else None,
+        if (self.config.cross_review_enabled and self.reviewer_agent
+                and stage not in AI_AUTO_STAGES
+                and stage_name != "protocol"):
+            reviewer_report = await self._run_cross_review(
+                stage_name, exec_result, result
             )
+            if reviewer_report.get("arbitration_needed"):
+                arbitration_items = reviewer_report.get("arbitration_items", [])
+                result["arbitration_needed"] = True
 
-            result["review_package"] = {
-                "package_id": package.package_id,
-                "checklist_count": len(package.checklist_results),
-                "issues_count": len(package.issues_for_attention),
-                "arbitrations_count": len(package.arbitration_items),
-                "review_score": package.review_score,
-                "status": "awaiting_approval",
-            }
+        # ── Checklist Validation ─────────────────────────
+        if checklist and self.config.enforce_checklists:
+            checklist_check = validate_checklist_completion(stage_name, [exec_result])
+            if not checklist_check["valid"]:
+                result["status"] = "checklist_incomplete"
+                result["checklist_violations"] = checklist_check["violations"]
+                logger.warning(f"Stage {stage_name}: Checklist not properly "
+                               f"completed — {len(checklist_check['violations'])} violations")
+                return result
 
-            # 如果有仲裁项 → 阻塞, 等待人类裁决
+        # ── Human Gate ───────────────────────────────────
+        if stage not in AI_AUTO_STAGES and self.config.require_human_approval:
+            review_pkg = await self._prepare_review_package(
+                stage_name, executor, exec_result, checklist, reviewer_report,
+                arbitration_items,
+            )
+            result["review_package"] = review_pkg
+
             if arbitration_items:
                 result["status"] = "arbitration_required"
                 return result
@@ -246,105 +207,259 @@ class Orchestrator:
             result["status"] = "awaiting_human_approval"
             return result
 
-        # ── Step 6: AI Auto — Advance ──────────────────────
+        # AI Auto → advance
         if stage in AI_AUTO_STAGES and self.config.auto_execute_ai_stages:
-            next_stage = stage.next
-            if next_stage:
-                self.state.current_stage = next_stage
             result["status"] = "auto_advanced"
-            result["next_stage"] = next_stage.value if next_stage else None
-            return result
+        else:
+            result["status"] = "complete"
 
-        result["status"] = "complete"
         return result
 
-    # ── Arbitration ────────────────────────────────────────────
+    # ── Cross Review Cycle ────────────────────────────────────
 
-    async def _create_arbitration_cases(self, stage: str,
-                                         reviewer_report: ReviewerReport,
-                                         ) -> list[ArbitrationCase]:
-        """从审阅报告中创建仲裁案例"""
+    async def _run_cross_review(self, stage_name: str,
+                                 exec_result: dict,
+                                 result: dict) -> dict[str, Any]:
+        """运行双 Agent 交叉审阅循环 (最多 2 轮)"""
+        cycle = CrossReviewCycle(stage=stage_name)
+        reviewer_report = None
+
+        for round_num in range(1, self.config.max_review_rounds + 1):
+            reviewer_report = await self.reviewer_agent.review(
+                stage=stage_name,
+                artifacts=exec_result.get("artifacts", {}),
+                level="HEAVY" if stage_name in ("sap", "sdtm_spec", "adam_spec") else "MEDIUM",
+                round_num=round_num,
+            )
+            cycle.rounds_completed = round_num
+            cycle.issues_remaining = len(reviewer_report.get_critical_and_major())
+
+            result[f"review_round_{round_num}"] = reviewer_report.summary()
+
+            if not reviewer_report.has_critical_or_major():
+                cycle.issues_remaining = 0
+                break
+
+            if round_num < self.config.max_review_rounds:
+                # 修复后重审
+                logger.info(f"Stage {stage_name}: Fix cycle round {round_num}")
+                issues = reviewer_report.get_critical_and_major()
+                executor = self._get_executor(stage_name)
+                # 记录变更
+                if self.config.change_tracking_enabled:
+                    ch = ChangeRecord(
+                        change_id=f"CHG-REVIEWER-{stage_name}-R{round_num}",
+                        change_type=ChangeType.REVIEWER_FEEDBACK,
+                        triggered_by="ReviewerAgent",
+                        triggered_by_role="AI",
+                        description=f"Cross-review round {round_num}: {len(issues)} issues",
+                        impact_type=ImpactType.STAGE_LOCAL,
+                        requires_re_approval=False,
+                    )
+                    self.change_log.append(ch)
+                cycle.issues_resolved += len(issues)
+
+        if cycle.needs_arbitration():
+            cases = self._create_arbitration_cases(stage_name, reviewer_report)
+            return {"arbitration_needed": True, "arbitration_items": [
+                c.display_for_human() for c in cases
+            ]}
+
+        result["review_score"] = reviewer_report.review_score if reviewer_report else 100
+        return reviewer_report.summary() if reviewer_report else {}
+
+    # ── Review Package ─────────────────────────────────────────
+
+    async def _prepare_review_package(self, stage_name: str,
+                                       executor, exec_result: dict,
+                                       checklist: StageChecklist | None,
+                                       reviewer_report: dict | None,
+                                       arbitration_items: list[dict],
+                                       ) -> dict[str, Any]:
+        """生成 Human Gate 审核包 (包含增量审核支持)"""
+        pkg = {
+            "package_id": f"PKG-{stage_name}-{self.state.study_id}",
+            "stage": stage_name,
+            "executor": executor.name,
+            "reviewer": f"ReviewerAgent ({self.reviewer_agent.model})" if self.reviewer_agent else "NONE",
+            "review_score": reviewer_report.get("score", 100) if reviewer_report else 100,
+            "checklist": checklist.to_dict() if checklist else None,
+            "checklist_items": None,
+            "arbitrations": arbitration_items,
+            "change_summary": "Initial submission" if not self.change_log else
+                f"{len(self.change_log)} changes tracked",
+            "status": "awaiting_approval",
+        }
+
+        # 增量审核: 如果是第 N 次提交, 标注哪些项变了
+        if checklist:
+            pkg["checklist_items"] = [
+                {
+                    "id": item.id, "item": item.item,
+                    "status": item.status.value,
+                    "agent_evidence": item.agent_evidence[:100],
+                }
+                for item in checklist.items
+            ]
+
+        return pkg
+
+    # ── Human Review Feedback (变更追踪入口) ──────────────────
+
+    async def handle_human_review_feedback(self, stage: Stage,
+                                            feedback: dict) -> dict[str, Any]:
+        """
+        处理人工审核返回的修改要求。
+
+        feedback format:
+          { "reviewer": "Zhang", "decision": "rejected", "items": [
+              {"item_id": "ADAM-01", "action": "fix", "note": "..."}, ...],
+            "general_notes": "..." }
+        """
+        stage_name = stage.value
+        executor = self._get_executor(stage_name)
+
+        # 记录变更
+        if self.config.change_tracking_enabled:
+            ch = ChangeRecord(
+                change_id=f"CHG-HUMAN-{stage_name}-{_timestamp()}",
+                change_type=ChangeType.HUMAN_REVIEW,
+                triggered_by=feedback.get("reviewer", "Unknown"),
+                triggered_by_role="Human",
+                description=feedback.get("general_notes", "Human review feedback"),
+                reason="Human Gate review returned revisions",
+                impact_type=ImpactType.STAGE_LOCAL,
+                requires_re_approval=True,
+            )
+
+            # 记录受影响的文件
+            for item in feedback.get("items", []):
+                ch.files_changed.append(FileChange(
+                    path=f"{stage_name}/{item.get('item_id', 'unknown')}",
+                    old_version="current",
+                    new_version="pending",
+                    diff_summary=item.get("note", ""),
+                ))
+
+            self.change_log.append(ch)
+
+            # 版本升级 (MINOR bump for human review changes)
+            if self.version_manager:
+                for item in feedback.get("items", []):
+                    self.version_manager.bump(
+                        f"{stage_name}/{item.get('item_id', 'unknown')}",
+                        VersionBump.MINOR,
+                        ch.change_id,
+                        ch.triggered_by,
+                    )
+
+        return {
+            "status": "feedback_recorded",
+            "change_id": ch.change_id if self.config.change_tracking_enabled else "N/A",
+            "stage": stage_name,
+            "action": "re-execute_stage",
+        }
+
+    # ── Protocol Amendment Handler ─────────────────────────────
+
+    async def handle_protocol_amendment(self, amendment_id: str,
+                                         description: str,
+                                         triggered_by: str) -> dict[str, Any]:
+        """
+        处理方案修订。
+        自动计算全链路影响, 回退到最早受影响阶段, 重新执行。
+        """
+        if not self.impact_analyzer:
+            return {"status": "error", "message": "Impact analyzer not enabled"}
+
+        impact = self.impact_analyzer.analyze("protocol/endpoints.yaml")
+
+        # 记录变更
+        ch = ChangeRecord(
+            change_id=f"CHG-AMEND-{amendment_id}",
+            change_type=ChangeType.PROTOCOL_AMEND,
+            triggered_by=triggered_by,
+            triggered_by_role="Sponsor",
+            reference_id=amendment_id,
+            description=description,
+            reason=f"Protocol Amendment: {description}",
+            impact_type=ImpactType.FULL_PIPELINE,
+            requires_re_approval=True,
+        )
+
+        ch.impacted_stages = [
+            StageImpact(stage=s, impacted=True, requires_re_execution=True,
+                        requires_re_approval=(s != "sdtm_programming"
+                                               and s != "adam_programming"
+                                               and s != "tfl_programming"))
+            for s in impact.affected_stages
+        ]
+
+        self.change_log.append(ch)
+
+        # 版本升级
+        earliest = self.impact_analyzer.earliest_affected_stage("protocol/endpoints.yaml")
+        if earliest and self.version_manager:
+            for f in impact.direct_impact + impact.cascade_impact:
+                self.version_manager.bump(f, VersionBump.MAJOR, ch.change_id, triggered_by)
+
+        return {
+            "status": "amendment_analyzed",
+            "change_id": ch.change_id,
+            "impact": {
+                "affected_files": impact.total_affected_files,
+                "affected_stages": impact.affected_stages,
+                "earliest_stage": earliest,
+                "full_restart": impact.requires_full_pipeline_restart,
+            },
+            "action": f"Re-run pipeline from stage: {earliest}",
+        }
+
+    # ── Helpers ────────────────────────────────────────────────
+
+    def _get_executor(self, stage_name: str):
+        executor_name = STAGE_EXECUTOR_MAP.get(stage_name)
+        if executor_name and executor_name in self.executors:
+            return self.executors[executor_name]
+        return self.executors.get("ProtocolSAPAgent")  # fallback
+
+    def _create_arbitration_cases(self, stage: str,
+                                   reviewer_report) -> list[ArbitrationCase]:
         cases = []
         for issue in reviewer_report.get_critical_and_major():
             case = ArbitrationCase(
                 arbitration_id=f"ARB-{stage}-{len(cases)+1:03d}",
-                stage=stage,
-                severity=issue.severity,
+                stage=stage, severity=issue.severity,
                 rounds_attempted=reviewer_report.review_round,
                 contested_item=issue.location,
-                main_agent_position={
-                    "value": "As generated (see artifact)",
-                    "rationale": "MainAgent generated per CDISC standard",
-                    "standard_ref": "CDISC IG standard",
-                    "confidence": "HIGH",
-                },
                 reviewer_position={
-                    "value": issue.finding,
-                    "rationale": issue.recommendation,
+                    "value": issue.finding, "rationale": issue.recommendation,
                     "standard_ref": issue.standard_reference,
-                    "confidence": issue.confidence,
                 },
                 authoritative_reference=issue.standard_reference,
-                impact_assessment=f"This {issue.severity} issue affects {issue.location}",
-                ai_recommendation=f"Review {issue.standard_reference} and decide",
             )
             self.arbitration_history.add(case)
             cases.append(case)
         return cases
 
-    async def resolve_arbitration(self, arbitration_id: str,
-                                   decision: str, decided_by: str,
-                                   rationale: str = "") -> dict[str, Any]:
-        """人类裁决争议"""
-        for case in self.arbitration_history.cases:
-            if case.arbitration_id == arbitration_id and not case.is_resolved:
-                case.resolve(decision, decided_by, rationale)
-                return {"status": "resolved", "case": case.display_for_human()}
-        return {"status": "not_found", "arbitration_id": arbitration_id}
-
-    # ── Full Pipeline ──────────────────────────────────────────
-
-    async def run_pipeline(self, start_stage: Stage | None = None) -> dict[str, Any]:
-        """Execute the full pipeline"""
-        current = start_stage or self.state.current_stage
-        pipeline_results: dict[str, Any] = {}
-
-        seq = Stage.sequence()
-        start_idx = seq.index(current) if current in seq else 0
-
-        for stage in seq[start_idx:]:
-            logger.info(f"Pipeline Stage: {stage.value}")
-
-            result = await self.execute_stage(stage)
-            pipeline_results[stage.value] = result
-
-            # Stop if human approval or arbitration needed
-            if result["status"] in ("awaiting_human_approval",
-                                     "arbitration_required",
-                                     "stopped_for_human",
-                                     "blocked"):
-                logger.info(f"Pipeline paused at {stage.value}: {result['status']}")
-                break
-
-        return pipeline_results
-
-    # ── Helpers ────────────────────────────────────────────────
-
-    def _build_stage_context(self, stage: Stage) -> dict[str, Any]:
-        return {
-            "study_id": self.state.study_id,
-            "trial_phase": self.state.trial_phase.value,
-            "therapeutic_area": self.state.therapeutic_area.value,
-            "current_stage": stage.value,
-            "artifacts": self.state.artifacts,
-        }
-
     def status_report(self) -> dict[str, Any]:
-        report = self.state.summary()
-        report["agents"] = {
-            "main": "MainAgent (claude-opus-4-7)",
-            "reviewer": "ReviewerAgent (claude-sonnet-4-6)"
-            if self.reviewer_agent else "DISABLED",
+        return {
+            **self.state.summary(),
+            "executors": list(self.executors.keys()),
+            "reviewer": f"ReviewerAgent ({self.reviewer_agent.model})" if self.reviewer_agent else "DISABLED",
+            "checklists": f"{len(GATE_CHECKLISTS)} gates",
+            "changes_tracked": len(self.change_log),
+            "arbitrations": self.arbitration_history.get_stats(),
         }
-        report["arbitrations"] = self.arbitration_history.get_stats()
-        return report
+
+    def register_tool(self, name: str, fn: Callable) -> None:
+        self.tool_registry[name] = fn
+        for executor in self.executors.values():
+            executor.context.tool_registry = self.tool_registry
+        if self.reviewer_agent:
+            self.reviewer_agent.context.tool_registry = self.tool_registry
+
+
+def _timestamp() -> str:
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
