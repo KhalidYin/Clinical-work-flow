@@ -1,0 +1,22 @@
+# Clinical data files — never commit to git
+input/edc/*.csv
+input/edc/*.sas7bdat
+input/edc/*.xlsx
+input/external/*.csv
+input/external/*.sas7bdat
+
+# AI pipeline state — managed locally
+.workflow/
+
+# Generated datasets — regenerated on each run
+output/sdtm/datasets/
+output/adam/datasets/
+output/sdtm/programs/
+output/adam/programs/
+output/tfl/programs/
+output/tfl/tables/
+output/tfl/figures/
+output/tfl/listings/
+
+# Validation reports — regenerated on each run
+output/**/validation/

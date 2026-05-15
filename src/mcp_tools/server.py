@@ -2,13 +2,15 @@
 MCP Server for Clinical Statistical Programming Tools.
 
 Provides structured tools for:
+  - EDC data import and validation
   - SDTM specification generation
   - ADaM specification generation
   - TFL shell catalog
   - CDISC validation
-  - Code generation templates
+  - define.xml generation
+  - P21 finding triage
 
-These tools are designed to be called by AI agents and Claude Skills
+These tools are designed to be called by AI agents (Executors + Reviewer)
 as part of the clinical workflow pipeline.
 """
 
@@ -18,6 +20,10 @@ from typing import Any
 
 
 # Import tools
+from .edc_importer import (
+    import_edc_data, validate_edc_import, generate_import_report,
+    EDCManifest, ImportResult, STANDARD_MANIFEST,
+)
 from .sdtm_spec_builder import STANDARD_DOMAINS, generate_sdtm_spec, CRF2SDTMMapping
 from .adam_spec_builder import generate_adam_spec
 from .tfl_renderer import get_tfl_shells, STANDARD_TFL_SHELLS, ONCOLOGY_TFL_SHELLS, TFLType, OutputFormat
@@ -31,6 +37,14 @@ from .cdisc_validator import (
 
 
 TOOLS = [
+    {
+        "name": "edc_import",
+        "description": "Import and validate EDC data from CSV/SAS7BDAT/XPT files.",
+        "parameters": {
+            "manifest_path": "Path to EDC manifest file (YAML/JSON), or 'default' for standard",
+            "validate_only": "If true, only validate without importing",
+        },
+    },
     {
         "name": "sdtm_spec_build",
         "description": "Generate SDTM domain specification from CRF annotations.",

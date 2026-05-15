@@ -155,6 +155,9 @@ src/
 | [SPEC-09](09-MCP-Tools-Design.md) | MCP 工具 API 规格 | v2.1 |
 | [SPEC-10](10-Workflow-Updated.md) | 工作流编排 + Checklist + Change | v2.1 |
 | [SPEC-11](11-Change-Management.md) | 变更管理与审计追踪 | v2.1 |
+| [SPEC-12](12-Operational-Model.md) | **实际业务落地操作模型** | v1.0 |
+| [SPEC-13](13-Environment-Files.md) | **环境、文件结构与输出规格** | v1.0 |
+| [SPEC-14](14-Workflow-Walkthrough.md) | **工作流实际走查 (文件夹演变全过程)** | v1.0 |
 
 ---
 
