@@ -1,8 +1,11 @@
 # 环境、文件结构与输出规格
 
 ## 文档编号: SPEC-13
-## 版本: 1.0
+## 版本: 3.0
 ## 主题: EDC 数据导入、目录结构、文档格式、运行环境
+
+> **v3.0 更新**: 文件结构重大变化 — `.review_queue/` 替代 `.workflow/`, `templates/` → `knowledge/`,
+> 项目文件夹新增 `outputs/` 和 `audit_trail.jsonl`. 详见 [SPEC-00](00-Overview.md) §6.
 
 ---
 

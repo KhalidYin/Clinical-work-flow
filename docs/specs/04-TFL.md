@@ -1,384 +1,267 @@
-# 阶段 9-10: TFL Shell 设计与编程输出
+# TFL — Shell 设计与编程输出
 
 ## 文档编号: SPEC-04
-## 版本: 2.1
-## 管线阶段: TFL Shell Design / TFL Programming
-## 负责组件: TFLQCSubmissionAgent (Executor 3) + ReviewerAgent + GATE_CHECKLISTS["tfl_shell"]
+## 版本: 3.0
+## 能力域: TFLQCSubmission Domain (TFL Shell + 编程)
+## 负责组件: TFLQCSubmission Capability Domain + Agent Runtime + Review Protocol
 
-> **v2.1 架构说明**: 本阶段由 **TFLQCSubmissionAgent** (Claude Opus) 执行, 专注 TFL+QC+Submission 四个下游阶段。TFL Shell 有独立的 **4 项强制审核清单**。TFL Programming 为 AI_AUTO (LIGHT Review)。
+> **v3.0 架构说明**:
+> - 由 **TFLQCSubmission Capability Domain** (Claude Opus) 提供 TFL 设计 + 编程能力
+> - Agent Runtime 动态路由: ADaM Spec 审核通过 → 自动推进 TFL Shell 生成
+> - **Review Protocol** (v3.0): Shell 目录生成后 → Review Packet → 人工批量审批 → 编程
+> - TFL 编程为 AI 自动执行, QC 阶段双编程比对触发 Review
+> - 详见 [SPEC-08](08-Agent-Design.md) Capability Domain 3, [SPEC-15](15-Review-Protocol.md)
 
 ---
 
-## 1. 阶段概述
+## 1. 能力域概述
 
 ```
-┌───────────────┐     ┌───────────────────┐
-│ ⑨ TFL Shell   │────→│ ⑩ TFL Programming  │
-│   Shell 设计    │     │    输出生成         │
-└───────────────┘     └───────────────────┘
-   AI Agent               AI Agent
-   + Skill                (AI Auto)
-   [Human Gate]
+┌─────────────────────────────────────────────────────────────┐
+│           TFLQCSubmission Capability Domain (TFL 部分)       │
+│                                                              │
+│  能力:                                                       │
+│  ┌─────────────┐  ┌─────────────┐                           │
+│  │ TFL Shell   │  │ TFL         │                           │
+│  │ Generation  │  │ Programming │                           │
+│  └──────┬──────┘  └──────┬──────┘                           │
+│         │                │                                  │
+│         ▼                ▼                                  │
+│   Shell 目录 (.yaml)     SAS/R/Python 程序                    │
+│   按 SAP Section 组织     RTF/PDF/XPT 输出                    │
+│   (OUTPUT_FORMAT_        (OUTPUT_FORMAT_                     │
+│    SPECS.tfl_shell)       SPECS.program_code)                 │
+│                                                              │
+│  Agent Runtime 动态路由:                                      │
+│  → ADaM spec 审核通过 → 自动推进                               │
+│  → Shell 生成 → Review Packet → 人工批审 → 编程               │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ### 1.1 TFL 分类
 
 ```
 TFL (Tables, Figures, Listings)
-├── Tables     ➜ 结构化数值汇总表 (频数、描述性统计、推断性统计)
-├── Figures    ➜ 图形化展示 (K-M曲线、森林图、瀑布图、泳道图)
-└── Listings   ➜ 数据列表 (受试者级详细数据点)
+├── Tables     → 结构化数值汇总表 (频数、描述性统计、推断性统计)
+├── Figures    → 图形化展示 (K-M曲线、森林图、瀑布图、泳道图)
+└── Listings   → 数据列表 (受试者级详细数据点)
 ```
 
-### 1.2 CSR 章节组织
+### 1.2 按 CSR 章节组织
 
 ```
-14.1  Disposition, Demographics, and Baseline Characteristics
-14.2  Efficacy Results
-14.3  Safety Results
-14.4  Pharmacokinetics / Pharmacodynamics (if applicable)
-16.1  Protocol and Study Design Information
-16.2  Data Listings
+Section 14.1: Disposition & Demographics
+  受试者分布、人口学、基线特征
+  → ADSL 为主要数据源
+
+Section 14.2: Efficacy
+  主要 + 关键次要终点分析
+  → ADAE, ADTTE, ADTR, ADLB
+  → 核心: K-M 曲线 (OS/PFS)、森林图、亚组分析
+
+Section 14.3: Safety
+  不良事件、实验室检查、生命体征、心电图
+  → ADAE, ADLB, ADVS, ADEG
+  → 核心: TEAE 汇总表、实验室异常表
+
+Section 16.2: Data Listings
+  受试者级详细数据
+  → 所有 SDTM/ADaM 域
 ```
 
 ---
 
-## 2. Stage 9: TFL Shell Design (TFL Shell 设计)
+## 2. TFL Shell Generation (Shell 目录生成)
 
-### 2.1 负责组件
+### 2.1 调用方式
 
-**Agent**: `TFLShellDesigner`
-**Skill**: `tfl-qc` ← **Human Gate**
+**Capability Domain**: TFLQCSubmission → `tfl_shell_generation`
 **MCP Tool**: `tfl_shells_list`
+**Review**: Shell 目录生成后 → Review Packet (review_type=tfl_shell)
 
 ### 2.2 AI 工作流
 
 ```
-SAP Mock Shells + ADaM Spec
+SAP (approved) + ADaM Specification (approved)
         │
         ▼
-┌──────────────────────────────────────┐
-│ 1. TFL Shell 目录自动生成              │
-│                                       │
-│ 从 SAP 的 Mock Shells 提取:           │
-│  · TFL ID (如 T14.2.1, F14.2.1)      │
-│  · 标题 (Title)                       │
-│  · 列定义 (Column Headers)            │
-│  · 分析人群 (Population)              │
-│  · 源 ADaM 数据集 (Source Dataset)    │
-│  · 分析方法 (Analysis Method)         │
-│  · 脚注 (Footnotes)                   │
-│  · 排序说明 (Sorting)                 │
-│  · 数据选择条件 (Data Selection)      │
-└──────────────────────────────────────┘
+┌───────────────────────────────────┐
+│ 1. Shell 目录自动生成              │
+│                                    │
+│ 调用 MCP: tfl_shells_list()       │
+│ 参数: trial_phase + TA            │
+│ → 根据 Phase/TA 自动组装 TFL 列表  │
+│                                    │
+│ Phase III Oncology → ~100 TFLs    │
+│ Phase I → ~30 TFLs               │
+│ Phase II → ~80 TFLs              │
+│ Non-Oncology → ~60 TFLs           │
+└───────────────────────────────────┘
         │
         ▼
-┌──────────────────────────────────────┐
-│ 2. TFL→ADaM 关联映射                  │
-│                                       │
-│ T14.1.1 (人口学表)                    │
-│   · Columns → ADSL 变量              │
-│   · Row groups → TRT01PN             │
-│                                       │
-│ F14.2.1 (K-M 曲线)                   │
-│   · Y-axis → ADTTE.AVAL (OS time)    │
-│   · Censor → ADTTE.CNSR              │
-│   · Group → ADTTE.TRTA               │
-│                                       │
-│ L16.2.4 (AE 列表)                     │
-│   · Columns → ADAE 变量              │
-│   · Filter → ADAE.TRTEMFL = 'Y'      │
-└──────────────────────────────────────┘
+┌───────────────────────────────────┐
+│ 2. Shell 详细设计                  │
+│                                    │
+│ 对每个 TFL:                        │
+│  · title: 从 SAP / 模板推导        │
+│  · population: 匹配 ADSL 人群标志  │
+│  · source_dataset: 匹配 ADaM 数据集│
+│  · analysis_method: 从 SAP 推导    │
+│  · columns: 变量 + 统计量定义      │
+│  · footnotes: 标准 + 自定义        │
+│  · page_layout: 内容自适应         │
+│                                    │
+│ 输出格式:                          │
+│  每个 shell → tfl_{tfl_id}.yaml    │
+│  按 OUTPUT_FORMAT_SPECS.tfl_shell │
+└───────────────────────────────────┘
         │
         ▼
-   ╔══════════════════════════════╗
-   ║  HUMAN GATE: TFL Shell       ║
-   ║  Reviewers:                  ║
-   ║  · Lead Biostatistician      ║
-   ║  · Medical Writer            ║
-   ║                              ║
-   ║  Checklist (4 items):        ║
-   ║  1. Table/figure titles      ║
-   ║     match SAP                ║
-   ║  2. Column headers match     ║
-   ║     ADaM variable labels     ║
-   ║  3. Footnotes complete       ║
-   ║  4. Population/subgroup      ║
-   ║     headers correct          ║
-   ╚══════════════════════════════╝
-```
-
-### 2.3 标准 TFL Shell 目录
-
-#### 表格 (Tables) — 6个标准 + 1个肿瘤特有
-
-| TFL ID | 标题 | 人群 | 源数据 | 类型 |
-|--------|------|------|--------|------|
-| T14.1.1 | Subject Disposition | All Randomized | ADSL | 频数表 |
-| T14.1.2 | Demographic and Baseline Characteristics | FAS | ADSL | 描述统计 |
-| T14.2.1 | Primary Efficacy Endpoint Analysis | FAS | ADEF | 推断统计 |
-| T14.2.3 | Objective Response Rate per RECIST 1.1 * | FAS | ADTR | 频数+OR |
-| T14.3.1 | Overall Summary of TEAEs | Safety | ADAE | 频数表 |
-| T14.3.2 | TEAEs by SOC and PT (>=5% Incidence) | Safety | ADAE | 频数表 |
-
-\* 仅肿瘤试验
-
-#### 图形 (Figures) — 3个标准 + 2个肿瘤特有
-
-| TFL ID | 标题 | 人群 | 源数据 | 类型 |
-|--------|------|------|--------|------|
-| F14.1.2 | CONSORT Flow Diagram | All Screened | ADSL | 流程图 |
-| F14.2.1 | Kaplan-Meier Plot of OS | FAS | ADTTE | K-M曲线 |
-| F14.2.2 | Forest Plot of Subgroup Analysis | FAS | ADEF | 森林图 |
-| F14.2.3 | Waterfall Plot of Tumor Size * | FAS | ADTR | 瀑布图 |
-| F14.2.4 | Swimmer Plot of Treatment Duration * | FAS | ADTR, ADTTE | 泳道图 |
-
-\* 仅肿瘤试验
-
-#### 列表 (Listings) — 2个标准
-
-| TFL ID | 标题 | 人群 | 源数据 |
-|--------|------|------|--------|
-| L16.2.1 | Listing of Subject Disposition | All Randomized | ADSL |
-| L16.2.4 | Listing of Adverse Events | Safety | ADAE |
-
----
-
-## 3. Stage 10: TFL Programming (TFL 代码生成与输出)
-
-### 3.1 负责组件
-
-**Agent**: `TFLGenerator` (AI Auto)
-**MCP Tools**: `tfl_shells_list`
-
-### 3.2 AI 从自然语言生成 TFL 代码
-
-这是 AI 在临床数统编程中**最高 ROI 的应用场景**之一。
-
-#### 示例 1: 统计师描述 → AI 生成 TFL 代码
-
-```
-统计师自然语言输入:
-"I need a table of serious adverse events by System Organ Class and
- Preferred Term, with frequency counts and percentages, for the
- safety population. Sort by descending frequency in the active arm."
-
-        ↓ AI Agent (TFLGenerator)
-
-自动生成的 Python 代码:
-"""
-
-```python
-# T14.3.3: Serious TEAEs by SOC and PT (Safety Population)
-import pandas as pd
-
-# Step 1: Data selection
-adae = read_xpt("adam/adae.xpt")
-safety_pop = adae[(adae["SAFFL"] == "Y") & (adae["TRTEMFL"] == "Y")]
-
-# Step 2: Filter serious AEs
-serious = safety_pop[safety_pop["AESER"] == "Y"]
-
-# Step 3: Count unique subjects with each AE
-counts = serious.groupby(["AEBODSYS", "AEDECOD", "TRTAN"]).agg(
-    n=("USUBJID", "nunique")
-).reset_index()
-
-# Step 4: Join with population N for percentages
-pop_n = safety_pop.groupby("TRTAN")["USUBJID"].nunique()
-counts["N"] = counts["TRTAN"].map(pop_n)
-counts["pct"] = (counts["n"] / counts["N"] * 100).round(1)
-
-# Step 5: Format output
-counts["display"] = counts.apply(
-    lambda r: f"{int(r['n'])} ({r['pct']:.1f}%)", axis=1
-)
-
-# Step 6: Pivot to wide format
-pivot = counts.pivot_table(
-    index=["AEBODSYS", "AEDECOD"],
-    columns="TRTAN",
-    values="display",
-    aggfunc="first"
-)
-
-# Step 7: Sort by active arm frequency
-pivot["_sort_"] = counts[counts["TRTAN"] == 1].set_index(
-    ["AEBODSYS", "AEDECOD"]
-)["n"]
-pivot = pivot.sort_values("_sort_", ascending=False)
-
-# Step 8: Render to RTF with titles and footnotes
-render_to_rtf(pivot, shell="T14.3.3")
-```
-
-### 3.3 TFL 输出渲染
-
-```
-┌──────────────────────────────────────────────┐
-│  TFL Renderer Backend Options:               │
-│                                               │
-│  RTF  →  python-docx / rtf-parser            │
-│  PDF  →  LaTeX (via jinja2 template)         │
-│  HTML →  jinja2 + CSS (for internal review)  │
-│  SAS  →  ODS (Output Delivery System)        │
-│  R    →  gtsummary / rtables / rmarkdown     │
-└──────────────────────────────────────────────┘
-```
-
-### 3.4 肿瘤特有图形生成
-
-#### Kaplan-Meier 曲线 (F14.2.1)
-
-```python
-# AI 生成的 K-M 曲线代码
-from lifelines import KaplanMeierFitter
-import matplotlib.pyplot as plt
-
-def generate_km_plot(adtte_data, paramcd="OS", title="Overall Survival"):
-    """
-    AI 自动生成的 K-M 分析 + 绘图代码
-    Source: ADTTE (PARAMCD=OS), TRTA (treatment arm)
-    """
-    fig, ax = plt.subplots(figsize=(10, 8))
-
-    for arm in adtte_data["TRTA"].unique():
-        arm_data = adtte_data[(adtte_data["TRTA"] == arm) &
-                              (adtte_data["PARAMCD"] == paramcd)]
-
-        kmf = KaplanMeierFitter()
-        kmf.fit(
-            durations=arm_data["AVAL"],
-            event_observed=(arm_data["CNSR"] == 0),
-            label=f"{arm} (Events: {arm_data['CNSR'].eq(0).sum()}/{len(arm_data)})"
-        )
-        kmf.plot_survival_function(ax=ax)
-
-    # At-risk table, censoring ticks, HR + 95% CI annotation
-    add_at_risk_table(ax, adtte_data, paramcd)
-    add_hr_annotation(ax, coxph_result)
-
-    ax.set_title(title, fontsize=14)
-    ax.set_xlabel("Time (months)", fontsize=12)
-    ax.set_ylabel("Survival Probability", fontsize=12)
-
-    return fig
-```
-
-#### 瀑布图 (F14.2.3 — 肿瘤特有)
-
-```python
-# AI 生成的瀑布图 (Best % Change in Tumor Size per Subject)
-def generate_waterfall_plot(adtr_data):
-    """BOR 最佳疗效瀑布图 — 每个受试者一根柱子"""
-    best_pct = adtr_data.groupby("USUBJID")["PCHG"].min().sort_values()
-
-    colors = ["#2166AC" if v <= -30 else           # PR threshold (blue)
-              "#F4A582" if v >= 20 else             # PD threshold (red)
-              "#92C5DE"                              # SD (light blue)
-              for v in best_pct]
-
-    fig, ax = plt.subplots(figsize=(14, 6))
-    ax.bar(range(len(best_pct)), best_pct.values, color=colors)
-
-    ax.axhline(y=-30, color="blue", linestyle="--", label="PR threshold (-30%)")
-    ax.axhline(y=20, color="red", linestyle="--", label="PD threshold (+20%)")
-
-    ax.set_title("Best Percent Change from Baseline in Sum of Target Lesion Diameters")
-    ax.set_ylabel("Change from Baseline (%)")
-    return fig
+┌───────────────────────────────────┐
+│ 3. Review Protocol                 │
+│                                    │
+│ Shell 目录生成完成 → Review Packet │
+│ (review_type=tfl_shell)            │
+│                                    │
+│ 人工关注:                          │
+│  · 是否缺 TFL? (协议要求 vs 目录)  │
+│  · 人群和数据集是否正确?           │
+│  · 分析方法是否与 SAP 一致?         │
+│  · 脚注是否完整?                   │
+│                                    │
+│ → 批量审批 (100个shell全览)         │
+│ → Agent 读取决策 → 编程阶段        │
+│                                    │
+│ v3.0 优势:                          │
+│  100 shells → 一张表看完 → 批量     │
+│  旧: 需逐个 shell 检查 (对话式)     │
+└───────────────────────────────────┘
 ```
 
 ---
 
-## 4. tfl-qc Skill 详细规格
+## 3. TFL Programming (代码生成)
 
-### 4.1 系统提示词
+### 3.1 调用方式
 
-```
-You are an expert clinical statistical programmer performing TFL QC review.
+**Capability Domain**: TFLQCSubmission → `tfl_programming`
+**MCP Tools**: `tfl_renderer` (渲染输出), `cdisc_validate` (验证)
+**Review**: 双编程比对差异 → Review Packet (review_type=tfl_qc)
 
-For each TFL, systematically check:
-1. TITLE/HEADER: Does the title match the shell exactly?
-2. POPULATION: Is the correct analysis population used?
-3. N-COUNTS: Do population counts match across tables?
-4. STATISTICS: Are descriptive stats computed correctly?
-5. P-VALUES: Do p-values match the specified test?
-6. CONFIDENCE INTERVALS: Correct level (95%)?
-7. FORMATTING: Correct decimal places? Proper rounding?
-8. FOOTNOTES: All required footnotes present?
-9. CROSS-TABLE CONSISTENCY: N-counts in disposition =
-   demographics?
-10. PROGRAM LOG: Any warnings or errors?
-
-When you find a discrepancy:
-1. Identify the TFL ID and exact cell/row affected
-2. Describe expected vs. actual value
-3. Trace back to likely root cause
-4. Suggest the fix
-```
-
-### 4.2 输出格式
+### 3.2 编程工作流
 
 ```
-## TFL QC Review Results
-### TFL ID: T14.1.2 — Demographic and Baseline Characteristics
-### Pass/Fail Items
-| Item | Status | Details |
-|------|--------|---------|
-| Title match | PASS | Title matches SAP shell |
-| N-counts | PASS | N consistent with T14.1.1 |
-| Mean (Age) | PASS | 52.3 vs expected 52.3 |
-| p-value | FAIL | 0.042 vs expected 0.038 |
-### Discrepancies Found
-### Cross-Table Consistency Check
-### QC Programming Log Summary
+TFL Shells (approved)
+        │
+        ▼
+┌───────────────────────────────────┐
+│ 1. 代码生成                        │
+│                                    │
+│ Agent 根据 Shell 生成程序:         │
+│  · SAS: PROC REPORT / PROC FREQ  │
+│         / PROC LIFETEST           │
+│  · R: ggplot2 / gtsummary /      │
+│         survival                  │
+│  · Python: plotly / lifelines    │
+│                                    │
+│ 按 OUTPUT_FORMAT_SPECS.program_code│
+│ 包含: AI Generated 水印头          │
+│       程序名、目的、输入、输出      │
+└───────────────────────────────────┘
+        │
+        ▼
+┌───────────────────────────────────┐
+│ 2. 输出生成                        │
+│                                    │
+│ 调用 MCP: tfl_renderer            │
+│ → RTF (Tables), PDF (Figures)     │
+│ → XPT (Submission datasets)       │
+│                                    │
+│ 输出格式规范:                      │
+│  · RTF: landscape/portrait       │
+│  · 列对齐, 缩进, 字体             │
+│  · 标准脚注 (SAS 程序 + 日期)     │
+│  · 页码                             │
+└───────────────────────────────────┘
+```
+
+### 3.3 肿瘤学专有 TFL
+
+```
+肿瘤学关键图表 (Phase III Oncology):
+
+Tables:
+  T14.1.1  Subject Disposition
+  T14.1.2  Demographic and Baseline Characteristics
+  T14.2.1  Primary Endpoint: PFS (per IRC)
+  T14.2.2  Key Secondary: OS (Interim)
+  T14.2.3  Objective Response Rate (ORR)
+  T14.3.1  TEAE Summary
+  T14.3.2  Grade ≥3 TEAEs by SOC and PT
+
+Figures:
+  F14.2.1  K-M Plot: PFS
+  F14.2.2  K-M Plot: OS
+  F14.2.3  Waterfall Plot: Best % Change from Baseline
+  F14.2.4  Swimmer Plot: Treatment Duration + Response + Events
+  F14.2.5  Forest Plot: PFS Subgroup Analysis
+  F14.2.6  Spider Plot: Longitudinal Tumor Burden
+
+Listings:
+  L16.2.1  Subject Data Listing
+  L16.2.2  AE Listing
+  L16.2.3  SAE Listing
 ```
 
 ---
 
-## 5. TFL Shell 数据模型
+## 4. Review Protocol 触发点
 
-```python
-@dataclass
-class TFLShell:
-    """单个 TFL 的完整定义"""
-    tfl_id: str                  # "T14.1.1"
-    tfl_type: TFLType            # TABLE / FIGURE / LISTING
-    title: str                   # 完整标题
-    population: str              # "FAS", "Safety", "ITT", "PP"
-    source_dataset: str          # "ADSL", "ADAE", "ADTTE", etc.
-    columns: list[dict]          # [{header, var}, ...]
-    footnotes: list[str]         # 脚注列表
-    analysis_method: str         # "ANCOVA", "KM", "Descriptive"
-    subgroup: str                # 亚组变量
-    sorting: str                 # 排序规则
-    data_selection: dict         # 数据筛选条件
-    page_layout: str             # "landscape" | "portrait"
+```
+触发条件:
+  · TFL Shell 生成完成 → 自动构建 Review Packet (review_type=tfl_shell)
+  · Shell/SAP 不一致 → ReviewFinding(category=compliance, severity=critical)
+  · 分析方法选择不确定 → ReviewFinding(category=derivation)
+  · 输出格式争议 → ReviewFinding(category=formatting)
+
+TFL Shell Review (tfl_shell template):
+  ┌─ TFL Shell Review ───────────────────────────────────────┐
+  │ Generated 100 shells for Phase III oncology              │
+  │──────────────────────────────────────────────────────────│
+  │ Section: [14.1 ▼] [14.2 ▼] [14.3 ▼]  Type: [All ▼]     │
+  │──────────────────────────────────────────────────────────│
+  │ # │ TFL ID  │Type  │Title              │Pop   │Piv│Dec  │
+  │───┼─────────┼──────┼───────────────────┼──────┼───┼─────│
+  │ 1 │T14.1.1  │table │Subject Disposition│All R │ ✓ │[A  │
+  │ 2 │F14.2.3  │figure│Waterfall Plot     │FAS   │ ✓ │[A  │
+  │...│         │      │                   │      │   │     │
+  │───┴─────────┴──────┴───────────────────┴──────┴───┴─────│
+  │ [Approve All Pivotal] [Approve Section 14.2]             │
+  │ [Submit All Decisions]                                   │
+  └──────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 6. Phase/TA 差异的 TFL 配置
+## 5. 法规参考
 
-| 参数 | Phase I | Phase II | Phase III |
-|------|---------|----------|-----------|
-| 总 TFL 数 | 20-50 | 50-150 | 200-500+ |
-| 表格 | 10-25 | 25-80 | 100-250 |
-| 图形 | 3-8 | 8-25 | 20-80 |
-| 列表 | 5-15 | 15-40 | 30-100 |
-| 肿瘤特有图形 | 可选 | 瀑布图/K-M | 全套(K-M/瀑布/泳道/森林/蜘蛛) |
-| 双编程 | 可选 | 关键 TFL | 所有关键 TFL |
-| 递交质量 | 内部 | 可选递交 | 法规递交级 |
+| 法规/指南 | 适用主题 | 关键要求 |
+|----------|---------|---------|
+| ICH E3 | CSR Structure | §14.1-14.3 章节组织 |
+| FDA TCG | Submission Format | RTF 格式规范 |
+| CDISC ADaM | Analysis Data | 数据源合规性 |
+| ICH E9 | Statistical Methods | 方法选择与报告 |
+| 企业 SOP | TFL Shell 模板 | 标准 Shell 布局 |
 
 ---
 
-## 7. 法规参考
+## 6. 交叉引用
 
-| 输出标准 | 说明 |
-|---------|------|
-| RTF 1.7+ | Table/Listing 输出: 可内嵌到 CSR Word 文档 |
-| PDF | Figure 输出 (矢量图形, ≥300 DPI) |
-| XPT v5 | SDTM/ADaM 数据集递交格式 (SAS Transport v5) |
-| CSR Structure | ICH E3 规定 CSR 章节和 TFL 组织 |
-| define.xml 2.0 | 数据集元数据 (描述每个 TFL 对应的数据集和变量) |
+| 主题 | 文档 |
+|------|------|
+| 总体架构 v3.0 | [SPEC-00](00-Overview.md) |
+| TFLQCSubmission Capability Domain | [SPEC-08](08-Agent-Design.md) §5 |
+| ADaM 规范 (前序产出物) | [SPEC-03](03-ADaM.md) |
+| QC + Submission | [SPEC-05](05-QC-Submission.md) |
+| Review Protocol | [SPEC-15](15-Review-Protocol.md) |
+| MCP 工具 API | [SPEC-09](09-MCP-Tools-Design.md) |

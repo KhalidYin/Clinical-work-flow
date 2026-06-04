@@ -1,24 +1,42 @@
-# 阶段 7-8: ADaM 规范与编程
+# ADaM — 规范生成与编程
 
 ## 文档编号: SPEC-03
-## 版本: 2.1
-## 管线阶段: ADaM Specification / ADaM Programming
-## 负责组件: DataStandardsAgent (Executor 2) + ReviewerAgent + GATE_CHECKLISTS["adam_spec"]
+## 版本: 3.0
+## 能力域: DataStandards Domain (ADaM 规范 + 编程)
+## 负责组件: DataStandards Capability Domain + Agent Runtime + Review Protocol
 
-> **v2.1 架构说明**: 本阶段由 **DataStandardsAgent** (Claude Opus) 执行, 与 SDTM 共用 Executor 2 (CDISC 精确核心)。ADaM Spec 有独立的 **5 项强制审核清单** (GATE_CHECKLISTS["adam_spec"])。ADaM Programming 为 AI_AUTO。
+> **v3.0 架构说明**:
+> - 由 **DataStandards Capability Domain** (Claude Opus) 提供 ADaM 衍生逻辑知识
+> - Agent Runtime 动态路由: SDTM Spec 完成后 → 自动进入 ADaM Spec
+> - **Review Protocol** (v3.0): 衍生逻辑不确定时提交 Review Packet, 人工批量审批
+> - ADaM 编程为 AI 自动执行, P21 验证 error 时触发 Review
+> - 详见 [SPEC-08](08-Agent-Design.md) Capability Domain 2, [SPEC-15](15-Review-Protocol.md)
 
 ---
 
-## 1. 阶段概述
+## 1. 能力域概述
 
 ```
-┌───────────────┐     ┌───────────────────┐
-│ ⑦ ADaM Spec   │────→│ ⑧ ADaM Programming │
-│   规范生成      │     │    代码生成         │
-└───────────────┘     └───────────────────┘
-   AI Agent               AI Agent
-   + Skill                (AI Auto)
-   [Human Gate]
+┌─────────────────────────────────────────────────────────────┐
+│              DataStandards Capability Domain (ADaM 部分)     │
+│                                                              │
+│  能力:                                                       │
+│  ┌─────────────┐  ┌─────────────┐                           │
+│  │ ADaM Spec   │  │ ADaM        │                           │
+│  │ Generation  │  │ Programming │                           │
+│  └──────┬──────┘  └──────┬──────┘                           │
+│         │                │                                  │
+│         ▼                ▼                                  │
+│   衍生规范 (.xlsx)      SAS/R/Python 程序                     │
+│   人群标志、衍生逻辑      (按 OUTPUT_FORMAT                     │
+│   (按 OUTPUT_FORMAT      _SPECS.program_code)                 │
+│    _SPECS.adam_spec)                                         │
+│                                                              │
+│  Agent Runtime 动态路由:                                      │
+│  → SDTM spec 审核通过 → 自动推进 ADaM spec                    │
+│  → ADaM spec 自检 → 衍生逻辑不确定 → Review Packet            │
+│  → 审核通过 → 编程 → P21 验证 → error? → Review Packet       │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ### 1.1 ADaM 核心概念
@@ -28,343 +46,273 @@ ADaM (Analysis Data Model) 是分析就绪数据集标准。它从 SDTM 衍生,�
 | 数据集 | 名称 | 结构 | 源数据 | 关键变量 |
 |--------|------|------|--------|---------|
 | **ADSL** | Subject-Level Analysis | One record per subject | DM, EX, DS | FASFL, SAFFL, TRT01P/TRT01A, TRTSDT |
-| **ADAE** | Adverse Events | OCCDS (one row per AE per subject) | AE, ADSL | TRTEMFL, ATOXGR, APERIOD |
-| **ADTTE** | Time-to-Event | BDS (one row per param per subject) | ADSL, DS, AE, RS | PARAMCD, AVAL, CNSR, STARTDT |
-| **ADLB** | Lab Analysis | BDS | LB, ADSL | PARAMCD, AVAL, BASE, CHG, ABLFL, ANRIND |
-| **ADVS** | Vital Signs Analysis | BDS | VS, ADSL | PARAMCD, AVAL, BASE, CHG |
-| **ADTR** | Tumor Response (Oncology) | BDS | RS (RECIST), ADSL | PARAMCD, AVALC, ABLFL |
-| **ADEF** | Efficacy (study-specific) | BDS | 各域, ADSL | PARAMCD, AVAL, BASE, CHG |
-| **ADCM** | Concomitant Meds | OCCDS | CM, ADSL | CMDECOD, CMINDC, PRIORFL |
+| **ADAE** | Adverse Events Analysis | One record per subject per AE | AE, ADSL | TRTEMFL, AEREL, AESEV |
+| **ADTTE** | Time-to-Event Analysis | One record per subject per endpoint | ADSL, custom | CNSR, AVAL, PARAMCD |
+| **ADLB** | Lab Analysis (BDS) | One record per subject per lab per visit | LB, ADSL | AVAL, CHG, ANL01FL, ABLFL |
+| **ADVS** | Vital Signs (BDS) | One record per subject per vital per visit | VS, ADSL | AVAL, CHG, ANL01FL |
+| **ADTR** | Tumor Response (OCCDS/BDS) | One record per subject per visit | TU, TR, RS, ADSL | BOR, ORR, PFS |
 
-### 1.2 ADaM 数据结构
+### 1.2 BDS 结构 (Basic Data Structure)
 
 ```
-ADaM Data Structures:
+BDS 是 ADaM 中最常用的结构, 用于:
+  · 实验室检查 (ADLB)
+  · 生命体征 (ADVS)
+  · 心电图 (ADEG)
 
-┌─────────────────────────┐
-│ ADSL (Subject-Level)     │  每个受试者唯一的一行
-│  · Population Flags     │  FASFL, SAFFL, PPSFL, RANDFL
-│  · Treatment Variables  │  TRT01P, TRT01A, TRTSDT, TRTEDT
-│  · Demographics         │  AGE, SEX, RACE, AGEGR1
-│  · Baseline             │  BASE (if single baseline)
-└─────────────────────────┘
+BDS 关键变量:
+  PARAM / PARAMCD    — 参数名/代码
+  AVAL / AVALC       — 分析值 (数值/字符)
+  ABLFL              — 基线记录标志
+  ANL01FL            — 分析记录标志 (选哪条记录用于分析)
+  DTYPE              — 衍生类型 (LOCF, WOCF, AVERAGE)
+  ADY                — 分析相对天数
+  CHG                — 相对基线的变化
+```
 
-┌─────────────────────────┐
-│ BDS (Basic Data Structure│  每个受试者每个参数每个分析时间点一行
-│  for Findings)           │
-│  · PARAMCD / PARAM      │  Parameter identifier
-│  · AVISIT / AVISITN     │  Analysis visit
-│  · AVAL / AVALC         │  Analysis value (numeric/char)
-│  · BASE                  │  Baseline value
-│  · CHG                   │  Change from baseline
-│  · ABLFL                 │  Baseline record flag
-│  · ADT / ADY             │  Analysis date / relative day
-│  · DTYPE                 │  Derivation type (LOCF, WOCF, AVERAGE)
-│  · ANLxxFL               │  Analysis record selection flag
-└─────────────────────────┘
+### 1.3 OCCDS 结构 (Occurrence Data Structure)
 
-┌─────────────────────────┐
-│ OCCDS (Occurrence        │  每个受试者每个事件一行
-│  Data Structure)         │
-│  · ADAE uses OCCDS      │
-│  · TRTEMFL              │  Treatment-emergent flag
-│  · APERIOD              │  Analysis period
-│  · ASTDT / AENDT         │  Analysis start/end dates
-│  · ADURN                 │  Duration
-└─────────────────────────┘
+```
+OCCDS 用于事件型数据:
+  · 不良事件 (ADAE)
+  · 合并用药 (ADCM)
+
+关键变量:
+  TRTEMFL            — 治疗期出现标志 (最关键的衍生之一)
+  APERIOD            — 分析周期
+  AOCCFL             — 事件发生周期标志
 ```
 
 ---
 
-## 2. Stage 7: ADaM Specification (ADaM 规范生成)
+## 2. ADaM Specification (规范生成)
 
-### 2.1 负责组件
+### 2.1 调用方式
 
-**Agent**: `ADaMSpecBuilder`
-**Skill**: `domain-review` ← **Human Gate**
+**Capability Domain**: DataStandards → `adam_spec_generation`
 **MCP Tool**: `adam_spec_build`
+**Review**: 衍生逻辑不确定 → Review Packet (review_type=adam_spec)
 
 ### 2.2 AI 工作流
 
 ```
-SAP Endpoint Definitions + SDTM Source Metadata
+SDTM Specification (approved) + SAP Endpoint Definitions
         │
         ▼
-┌─────────────────────────────────────┐
-│ 1. ADSL 规范生成                     │
-│                                      │
-│ 从 DM + DS + EX 推导:               │
-│  · 人群标志 (FASFL/SAFFL/PPSFL)      │
-│    FASFL = Y if RANDFL=Y &          │
-│             EXDOSE > 0              │
-│    SAFFL = Y if EXDOSE > 0          │
-│  · 治疗变量 (TRT01P/TRT01A)          │
-│  · 分层因子                           │
-│  · 基线特征                           │
-└─────────────────────────────────────┘
+┌───────────────────────────────────┐
+│ 1. 数据集规划 (Dataset Planning)    │
+│                                    │
+│ Agent 从 SAP 终点推导所需 ADaM:     │
+│  · 每个终点 → 哪个 ADaM 数据集     │
+│  · ADSL 永远需要                   │
+│  · 肿瘤 → ADTR (RECIST), ADTTE     │
+│  · 安全性 → ADAE, ADLB, ADVS       │
+└───────────────────────────────────┘
         │
         ▼
-┌─────────────────────────────────────┐
-│ 2. 终点驱动 ADaM 数据集规划           │
-│                                      │
-│ Protocol Primary Endpoint:          │
-│   "Change from baseline in HbA1c     │
-│    at Week 24"                       │
-│        ↓                             │
-│   需要: ADLB (Lab BDS)              │
-│   PARAMCD = "HBA1C"                 │
-│   AVAL = LB.LBSTRESN                │
-│   BASE = AVAL when ABLFL='Y'        │
-│   CHG  = AVAL - BASE                │
-│                                      │
-│ Protocol Key Secondary:             │
-│   "Time to cardiovascular event"     │
-│        ↓                             │
-│   需要: ADTTE (TTE BDS)             │
-│   PARAMCD = "MACE"                  │
-│   CNSR = 0 if event, 1 if censored  │
-│   AVAL = days from randomization    │
-│        to event/censor               │
-└─────────────────────────────────────┘
+┌───────────────────────────────────┐
+│ 2. 衍生逻辑设计 (Derivation Logic) │
+│                                    │
+│ 调用 MCP: adam_spec_build()       │
+│ 每个变量生成衍生规则:               │
+│                                    │
+│  例: ADSL.TRTSDT                   │
+│       = datepart(min(EX.EXSTDTC    │
+│         where EX.EXDOSE > 0))      │
+│                                    │
+│  例: ADSL.FASFL                    │
+│       = 'Y' if RANDFL='Y' and      │
+│               SAFFL='Y'            │
+│         else 'N'                   │
+│                                    │
+│  例: ADAE.TRTEMFL                  │
+│       = 'Y' if TRTSDT ≤ AESTDTC   │
+│               ≤ TRTEDT + 30 days   │
+│         else 'N'                   │
+│                                    │
+│ Agent 标注置信度:                   │
+│  HIGH: CDISC IG 明确标准            │
+│  MEDIUM: 常规实践推导               │
+│  LOW: 需人工确认 → Review Finding  │
+└───────────────────────────────────┘
         │
         ▼
-┌─────────────────────────────────────┐
-│ 3. 衍生变量逻辑生成 (AI 核心价值)     │
-│                                      │
-│ AI 从 SAP 自然语言描述推导代码逻辑:   │
-│                                      │
-│ SAP: "Treatment-emergent AEs are     │
-│       defined as AEs with onset date │
-│       on or after first dose date    │
-│       and up to 30 days after last   │
-│       dose date."                    │
-│        ↓                             │
-│ ADaM Derivation Logic:              │
-│   TRTEMFL = 'Y' IF                   │
-│     ASTDT >= TRTSDT AND              │
-│     ASTDT <= TRTEDT + 30             │
-│   ELSE 'N'                           │
-└─────────────────────────────────────┘
-        │
-        ▼
-   ╔══════════════════════════════╗
-   ║  HUMAN GATE: ADaM Spec       ║
-   ║  Reviewers:                  ║
-   ║  · Lead Biostatistician      ║
-   ║  · Lead Programmer           ║
-   ║                              ║
-   ║  Checklist (5 items):        ║
-   ║  1. ADSL population flags    ║
-   ║     match SAP populations    ║
-   ║  2. Endpoint derivations     ║
-   ║     match SAP definitions    ║
-   ║  3. Imputation methods       ║
-   ║     specified                ║
-   ║  4. Analysis time windows    ║
-   ║     defined                  ║
-   ║  5. All TFL shells           ║
-   ║     traceable to ADaM vars   ║
-   ╚══════════════════════════════╝
+┌───────────────────────────────────┐
+│ 3. Review Protocol                 │
+│                                    │
+│ ADaM Spec 完成 → 构建 Review       │
+│ Packet (review_type=adam_spec)     │
+│                                    │
+│ 常见 Review Findings:              │
+│  · TRTEMFL 窗口定义 (30天? 更多?)  │
+│  · 多重填补策略 (LOCF? MMRM?)       │
+│  · 亚组分析的人群定义               │
+│  · CNSR 规则 (复杂 TTE)            │
+│                                    │
+│ → 提交到 .review_queue/            │
+│ → 人工批量审批                     │
+│ → Agent 应用决策 → 编程阶段        │
+└───────────────────────────────────┘
 ```
 
-### 2.3 ADSL 规范 (完整变量清单)
+### 2.3 关键衍生逻辑详解
 
-ADSL 是所有 ADaM 数据集的"单一真相来源"。AI 自动生成的 ADSL 规范包含 **33 个变量**:
+#### ADSL — 受试者级分析数据集
 
-| 变量类别 | 变量 | 源 | 说明 |
-|---------|------|---|------|
-| **标识符** | STUDYID, USUBJID, SUBJID, SITEID | DM | 直接复制 |
-| **人群标志** | FASFL, SAFFL, PPSFL, RANDFL | 衍生 | 基于 EX 和 DS 的条件逻辑 |
-| **治疗** | TRT01P, TRT01PN, TRT01A, TRT01AN | DM | 计划/实际分组 |
-| **人口学** | AGE, AGEU, AGEGR1, AGEGR1N | DM | 年龄及分组 |
-| | SEX, RACE, RACEN, ETHNIC | DM | 人口学特征 |
-| **日期** | RFSTDTC, RFENDTC | DM | 参考日期 |
-| | RFXSTDTC, RFXENDTC | EX | 首次/末次给药 |
-| | TRTSDT, TRTEDT, TRTDURD | EX | 治疗起止/持续天数 |
-| **分层** | STRATA1, STRATA2 | IRT | 随机分层因子 |
-| **处置** | DCDECOD, EOSSTT | DS | 完成/退出状态 |
-| **其他** | COUNTRY, DMDTC | DM | 国家,采集日期 |
+```
+ADSL 变量衍生:
 
-### 2.4 ADAE 规范 (治疗领域差异化)
+  STUDYID, USUBJID, SITEID, COUNTRY
+    → DM 直接复制
 
-#### 肿瘤试验特有变量
+  TRT01P / TRT01A (计划/实际治疗)
+    → DM.ARM / 实际暴露
 
-| 变量 | 标签 | 说明 |
-|------|------|------|
-| ATOXGR | Analysis Toxicity Grade | NCI CTCAE v5.0 分级 |
-| ATOXGRN | Toxicity Grade (N) | 数值型分级 (1-5) |
-| AREL | Causality (Relatedness) | 与研究药物相关性标志 |
+  TRTSDT (首次治疗日期)
+    = datepart(min(EX.EXSTDTC where EX.EXDOSE > 0))
 
-#### 非肿瘤试验变量
+  TRTEDT (末次治疗日期)
+    = datepart(max(EX.EXENDTC where EX.EXDOSE > 0))
 
-| 变量 | 标签 | 说明 |
-|------|------|------|
-| TRTEMFL | Treatment Emergent Flag | 核心衍生: AESTDTC vs TRTSDT/TRTEDT |
-| APERIOD | Analysis Period | 分析期: 1=On-Treatment, 2=Post-Treatment |
-| TRTA/TRTAN | Actual Treatment | 从 ADSL 继承 |
-| ASTDT/AENDT | Analysis Start/End Date | ISO 日期转数值日期 |
-| ASTDY/AENDY | Analysis Relative Days | ASTDT - TRTSDT + 1 |
-| ADURN/ADURU | AE Duration | AENDT - ASTDT + 1 |
+  TRTDURD (治疗持续时间)
+    = TRTEDT - TRTSDT + 1
 
-### 2.5 ADTTE 规范 (肿瘤核心数据集)
+  RANDFL (随机化人群)
+    = 'Y' if DM.ARMCD ne '' and DM.ARMCD ne 'SCRNFAIL'
 
-```python
-# ADTTE 核心变量 (15个)
-PARAMCD  → "OS" | "PFS" | "PFS_IRC" | "TTR" | "DOR" | "DFS"
-PARAM    → "Overall Survival" | "Progression-Free Survival" | ...
-AVAL     → Time from origin to event/censor (days)  # 核心分析值
-CNSR     → 0 = event, 1 = censored                  # 删失标志
-EVNTDESC → Event or censoring description
-ADT      → Analysis Date (event or censoring date)
-STARTDT  → Origin date (randomization or first dose)
-CNSRDT   → Censoring date (last known event-free date)
-TRTA     → Actual Treatment
-STRATA1  → Stratification Factor 1
+  SAFFL (安全性人群)
+    = 'Y' if EX.EXDOSE > 0
 
-# 肿瘤试验删失规则示例 (AI 辅助验证)
-OS 删失规则:
-  1. 事件 = 死亡 (任何原因)
-  2. 删失 = 最后已知存活日期
-  → AI 验证: 检查 DS.DSTERM 和生存随访数据一致性
+  FASFL (全分析集)
+    = 'Y' if RANDFL='Y' and SAFFL='Y'
 
-PFS 删失规则:
-  1. 事件 = RECIST 1.1 评估的 PD 或 死亡
-  2. 删失 = 无基线后评估, 或 在连续>=2个缺失评估前最后无PD评估
-  → AI 验证: 复杂! 需要 RS 域数据、访视间隔规则
+  AGEGR1 (年龄组)
+    = put(DM.AGE, agegrp.)
+```
+
+#### ADAE — 不良事件分析数据集
+
+```
+ADAE 关键衍生 (从 AE + ADSL):
+
+  TRTEMFL (Treatment-Emergent AE Flag)
+    = 'Y' if ADSL.TRTSDT ≤ AE.AESTDTC
+                ≤ ADSL.TRTEDT + 30 days
+      else 'N'
+    # ⚠ 30天窗口是常见选择, 但需根据 Protocol 确认
+    # → LOW confidence → Review Finding
+
+  AEREL (Causality)
+    → AE.AEREL 直接复制或重新编码
+
+  AESEV (Severity)
+    → AE.AESEV → CTCAE Grade 1-5
+
+  TRTA (Actual Treatment)
+    → ADSL.TRT01A merge
+
+  AOCCFL (Occurrence Flag per Period)
+    → 按 APERIOD 分段标记
 ```
 
 ---
 
-## 3. Stage 8: ADaM Programming (ADaM 代码生成)
+## 3. ADaM Programming (代码生成)
 
-### 3.1 负责组件
+### 3.1 调用方式
 
-**Agent**: `ADaMProgrammer` (AI Auto)
-**MCP Tools**: `adam_spec_build`, `cdisc_validate`
+**Capability Domain**: DataStandards → `adam_programming`
+**MCP Tools**: `adam_spec_build` (参考spec), `cdisc_validate` (验证)
+**Review**: P21 验证 error 无法自动修复 → Review Packet
 
-### 3.2 AI 生成的 ADaM 代码示例 (Python)
+### 3.2 编程工作流
 
-```python
-# AI 自动生成: ADSL (Subject-Level Analysis Dataset)
-# Source: SDTM.DM + SDTM.EX + SDTM.DS
-
-import pandas as pd
-
-# Step 1: 读取 SDTM 源数据
-dm = read_xpt("sdtm/dm.xpt")
-ex = read_xpt("sdtm/ex.xpt")
-ds = read_xpt("sdtm/ds.xpt")
-
-# Step 2: 构建 ADSL 基础 (从 DM)
-adsl = dm[["STUDYID", "USUBJID", "SUBJID", "SITEID",
-            "RFSTDTC", "RFENDTC", "AGE", "AGEU", "SEX",
-            "RACE", "ETHNIC", "ARMCD", "ARM",
-            "ACTARMCD", "ACTARM", "COUNTRY"]].copy()
-
-# Step 3: 衍生治疗变量 (从 EX)
-ex_agg = ex.groupby("USUBJID").agg(
-    RFXSTDTC=("EXSTDTC", "min"),
-    RFXENDTC=("EXENDTC", "max"),
-    EXDOSE=("EXDOSE", "sum")
-).reset_index()
-adsl = adsl.merge(ex_agg, on="USUBJID", how="left")
-
-# Step 4: 衍生人群标志
-adsl["RANDFL"] = adsl["ARMCD"].notna().map({True: "Y", False: "N"})
-adsl["SAFFL"] = adsl["EXDOSE"].gt(0).map({True: "Y", False: "N"})
-adsl["FASFL"] = ((adsl["RANDFL"] == "Y") &
-                 (adsl["SAFFL"] == "Y")).map({True: "Y", False: "N"})
-
-# Step 5: 衍生年龄分组
-adsl["AGEGR1"] = pd.cut(adsl["AGE"], bins=[0, 65, 150],
-                         labels=["<65", ">=65"])
-
-# Step 6: 衍生治疗日期
-adsl["TRTSDT"] = pd.to_datetime(adsl["RFXSTDTC"]).dt.date
-adsl["TRTEDT"] = pd.to_datetime(adsl["RFXENDTC"]).dt.date
-
-# Step 7: 最终输出
-adsl_output = adsl[ADSL_FINAL_VARLIST]  # 按 Spec 顺序输出
-write_xpt(adsl_output, "adam/adsl.xpt")
 ```
-
-### 3.3 ADaM 合规性自动检查
-
-```python
-# AI 自动执行的 ADaM 合规检查 (cdisc_validate)
-ADaM Rules:
-  AD0001: ADSL 每个 USUBJID 唯一 (无重复)         → Error
-  AD0002: SAFFL/FASFL 非空且值为 Y/N              → Error
-  AD0010: ADAE.TRTEMFL 应为 Y/N                   → Warning
-  AD0011: ADTTE.CNSR 删失规则一致                  → Note
-  AD0020: ADLB.ABLFL 每个 PARAMCD 每个 USUBJID    → Error
-          恰好一条基线记录
-  AD0030: BDS 数据集中 AVAL 和 AVALC 至少一个非空  → Error
-  AD0040: 所有分析变量可溯源至 SDTM                → Note
+ADaM Specification (approved)
+        │
+        ▼
+┌───────────────────────────────────┐
+│ 1. 代码生成                        │
+│                                    │
+│ Agent 根据 ADaM Spec 生成:         │
+│  · SAS: DATA步 + PROC SQL        │
+│  · R: dplyr + tidyr pipe         │
+│  · Python: pandas transform      │
+│                                    │
+│ 按 OUTPUT_FORMAT_SPECS.program_code│
+│ 格式: 包含 AI Generated 水印头     │
+└───────────────────────────────────┘
+        │
+        ▼
+┌───────────────────────────────────┐
+│ 2. CDISC 验证                      │
+│                                    │
+│ 调用 MCP: cdisc_validate()        │
+│ → errors: 自动修复 (最多2次)       │
+│ → warnings: 标记, 多数接受         │
+│ → 修复失败: Review Finding         │
+│                                    │
+│ 调用 MCP: define_xml_build()      │
+│ 生成 define.xml 元数据             │
+└───────────────────────────────────┘
+        │
+        ▼
+  ADaM Datasets (.sas7bdat/.xpt) + define.xml
 ```
 
 ---
 
-## 4. 肿瘤特殊处理: ADTR (Tumor Response)
+## 4. Output 检查项 (ADaM 专有)
 
-### 4.1 RECIST 1.1 肿瘤评估逻辑
+Agent 生成 ADaM 数据集后,调 `cdisc_validate(type="adam")` 进行以下自动检查:
 
 ```
-RECIST 1.1 Target Lesion Assessment
-        │
-        ▼
-┌──────────────────────────────────────┐
-│ 靶病灶总和 (Sum of Diameters, SOD):   │
-│  · 每个靶病灶最长径之和               │
-│  · 最多 5 个靶病灶 (每个器官 2 个)     │
-└──────────────────────────────────────┘
-        │
-        ▼
-┌──────────────────────────────────────┐
-│ Best Overall Response (BOR) 推导:     │
-│                                      │
-│ CR  (Complete Response):             │
-│   所有靶病灶消失, 淋巴结短径 <10mm    │
-│                                      │
-│ PR  (Partial Response):              │
-│   SOD 较基线减少 >=30%               │
-│                                      │
-│ PD  (Progressive Disease):           │
-│   SOD 较最小值增加 >=20% 且           │
-│   绝对增加 >=5mm, 或 出现新病灶       │
-│                                      │
-│ SD  (Stable Disease):                │
-│   不满足 CR/PR/PD 条件               │
-│                                      │
-│ NE  (Not Evaluable)                  │
-└──────────────────────────────────────┘
-        │
-        ▼
-┌──────────────────────────────────────┐
-│ Objective Response Rate (ORR):       │
-│   ORR = (CR + PR) / N × 100%        │
-│                                      │
-│ Disease Control Rate (DCR):          │
-│   DCR = (CR + PR + SD) / N × 100%   │
-│                                      │
-│ Duration of Response (DOR):          │
-│   首次 CR/PR → PD 或 死亡的时间      │
-│   (ADTTE with PARAMCD="DOR")         │
-└──────────────────────────────────────┘
+✅ PARAMCD/TESTCD 一致性 (PARAM 与 PARAMCD 配对正确)
+✅ AVAL/AVALC 派生正确性 (SDTM → ADaM 值匹配)
+✅ ABLFL (每个受试者每个 PARAMCD 只有一个基线记录)
+✅ ANL01FL (Primary analysis flag 标记正确)
+✅ DTYPE (派生类型标注正确: LOCF, WOCF)
+✅ 控制术语验证 (衍生变量的值在允许范围内)
+✅ 跨数据集一致性检查 (ADSL.USUBJID ∈ 所有 ADaM)
 ```
 
-**AI 角色**: 验证 BOR 推导逻辑的正确性,特别是确认性评估(CONFIRMED BOR)和 IRC vs 研究者评估的一致性。
+### 4.1 Review Protocol 触发点
+
+```
+触发条件:
+  · 衍生逻辑置信度 LOW → ReviewFinding(category=derivation)
+  · TRTEMFL 窗口期不确定 → ReviewFinding(category=derivation, severity=critical)
+  · CNSR 规则复杂 (如 PFS 多规则) → ReviewFinding(category=derivation)
+  · P21 验证 error 无法自动修复 → ReviewFinding(category=compliance, severity=critical)
+  · 人群标志定义有争议 → ReviewFinding(category=population)
+
+与 v2.1 区别:
+  旧: 5 项固定清单 → 人工逐项检查
+  新: Agent 自检 → 不确定才提 → 人工只看不确定项
+```
 
 ---
 
 ## 5. 法规参考
 
-| 标准 | 版本 | 说明 |
-|------|------|------|
-| ADaM | v2.1 | https://www.cdisc.org/standards/foundational/adam |
-| ADaM IG | v1.3 | ADaM Implementation Guide |
-| ADaM OCCDS | v1.1 | Occurrence Data Structure for AEs |
-| ADaM BDS | v2.0 | Basic Data Structure for Findings |
-| RECIST 1.1 | 2009 | Response Evaluation Criteria in Solid Tumors |
-| iRECIST | 2017 | Immunotherapy RECIST |
-| NCI CTCAE | v5.0 | Common Terminology Criteria for Adverse Events |
+| 法规/指南 | 适用主题 | 关键要求 |
+|----------|---------|---------|
+| ADaMIG v1.3 | ADaM 结构 | BDS, OCCDS, ADSL 标准结构 |
+| CDISC ADaM v2.1 | ADaM 模型 | 变量命名、衍生方法标准 |
+| CDISC CT | 控制术语 | PARAMCD, DTYPE, AEDECOD 等编码 |
+| FDA Study Data TCG | 递交规范 | ADaM 在 eCTD 中的位置要求 |
+| ICH E9 | 统计方法 | 分析人群定义, 亚组分析 |
+| ICH E9(R1) | Estimands | 缺失数据处理策略 |
+
+---
+
+## 6. 交叉引用
+
+| 主题 | 文档 |
+|------|------|
+| 总体架构 v3.0 | [SPEC-00](00-Overview.md) |
+| DataStandards Capability Domain | [SPEC-08](08-Agent-Design.md) §4 |
+| SDTM 规范 (前序产出物) | [SPEC-02](02-SDTM.md) |
+| TFL + QC + Submission | [SPEC-04](04-TFL.md), [SPEC-05](05-QC-Submission.md) |
+| Review Protocol | [SPEC-15](15-Review-Protocol.md) |
+| MCP 工具 API | [SPEC-09](09-MCP-Tools-Design.md) |

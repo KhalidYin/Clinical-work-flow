@@ -2,14 +2,15 @@
 
 ## 文档编号: SPEC-11
 ## 主题: 临床试验中间修改、版本追踪、影响分析、审计追踪
-## 版本: 2.1
+## 版本: 3.0
 
-> **v2.1 架构说明**: 变更管理系统是 v2.1 新增的完整模块。集成到 Orchestrator 中:
-> - `VersionManager` — MAJOR.MINOR.PATCH, 每次 Human Gate 返回修改 / Protocol Amendment 自动 bump
-> - `ImpactAnalyzer` — BFS 依赖图分析, Protocol 变化 → 31 文件 + 7 阶段受影响
-> - `ChangeRecord` — JSONL 审计日志, FDA 检查时可逐条追溯
-> - 代码位置: `src/change_management/`
-> - Orchestrator 集成: `handle_human_review_feedback()`, `handle_protocol_amendment()`
+> **v3.0 架构说明**: 变更管理系统是 v2.1 的核心遗产, 在 v3.0 中完整保留并强化:
+> - `VersionManager` — MAJOR.MINOR.PATCH, 每次 Review Decision 或 Protocol Amendment 自动 bump
+> - `ImpactAnalyzer` — BFS 依赖图分析
+> - `ChangeRecord` — JSONL 审计日志
+> - **v3.0 新增**: Git 双层审计 (JSONL + git log), Review Decision 集成
+> - 代码位置: `src/change_management/` (保留)
+> - 集成方式: Agent Runtime → 每个 action 后自动 record → audit_trail.jsonl + git commit
 
 ---
 
@@ -594,23 +595,66 @@ class Orchestrator:
 
 ---
 
-## 8. 总结
+## 8. Git 双层审计 (v3.0 新增)
 
 ```
-变更管理 = 五个核心能力:
+变更管理在 v3.0 中获得第二层审计: Git
+
+Layer 1: audit_trail.jsonl (结构化, 实时)
+  → 每 action 一行 JSON
+  → 可脚本查询: "show all changes to ADSL spec"
+
+Layer 2: Git history (人类可读, 事后查阅)
+  → 每个 action 一个 commit
+  → git log = 完整操作历史
+  → git diff <c1> <c2> = 任意两点之间的变更
+  → git blame = 谁改了哪一行
+
+Auto-commit 格式:
+  [agent] {description}
+  Action: {action_type}
+  Tool: {tool_name}
+  Iteration: {n}
+
+  [human] Review decision: {review_id}
+  Reviewer: {reviewer}
+  Summary: {n} approved, {m} rejected, {k} modified
+
+合规查询示例:
+  # 谁在什么时候批准了 AE domain 的 SDTM spec?
+  git log --grep="Review decision" --grep="sdtm_spec_ae"
+
+  # 从 protocol 到 submission, ADSL spec 改了多少次?
+  git log --oneline -- outputs/adam_specs/adsl_spec.xlsx
+
+  # FDA 审查时: 导出完整操作历史
+  git log --format="%H %ai %s" > submission_audit.txt
+```
+
+---
+
+## 9. 总结
+
+```
+变更管理 = 六个核心能力:
 
   1. 版本追踪  → 每个产物 MAJOR.MINOR.PATCH 版本号
-                → 每个版本完整存储在 .workflow/versions/
-
-  2. 影响分析  → 产物依赖图
-                → 自动计算变更波及范围
-
+  2. 影响分析  → 产物依赖图, 自动计算变更波及范围
   3. 增量审核  → 修改后不需要全量重审
-                → 只展示变更部分 + 差异对比
-
   4. 审计日志  → 每次变更 → ChangeRecord (JSONL)
-                → 可完整重现, FDA 检查可用
-
   5. 回滚能力  → 任意版本可回退
-                → 级联回滚 + 确认机制
+  6. Git 审计  → 第二层审计, git log = 完整操作历史 (v3.0 新增)
 ```
+
+---
+
+## 10. 交叉引用
+
+| 主题 | 文档 |
+|------|------|
+| 总体架构 v3.0 | [SPEC-00](00-Overview.md) |
+| AI 架构 — Agent-Native | [SPEC-06](06-AI-Architecture.md) |
+| 工作流编排 — 动态路由 | [SPEC-10](10-Workflow-Updated.md) |
+| MCP 工具 API (不变) | [SPEC-09](09-MCP-Tools-Design.md) |
+| Phase/TA 知识库 | [SPEC-07](07-Phase-TA-Config.md) |
+| Review Protocol | [SPEC-15](15-Review-Protocol.md) |

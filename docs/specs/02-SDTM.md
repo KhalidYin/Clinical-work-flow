@@ -1,29 +1,40 @@
-# 阶段 5-6: SDTM 规范与编程
+# SDTM — 规范生成与编程
 
 ## 文档编号: SPEC-02
-## 版本: 2.1
-## 管线阶段: SDTM Specification / SDTM Programming
-## 负责组件: DataStandardsAgent (Executor 2) + ReviewerAgent + GATE_CHECKLISTS["sdtm_spec"]
+## 版本: 3.0
+## 能力域: DataStandards Domain (SDTM 规范 + 编程)
+## 负责组件: DataStandards Capability Domain + Agent Runtime + Review Protocol
 
-> **v2.1 架构说明**: 
-> - 本阶段由 **DataStandardsAgent** (Claude Opus) 执行, 专注 SDTM+ADaM 四个阶段, ~10K prompt CDISC 精确知识
-> - SDTM Spec 阶段有独立的 **5 项强制审核清单**, Agent 必须逐项标注 evidence
-> - **ReviewerAgent** (Claude Sonnet) Heavy 级别独立审阅, 逐项核对 CDISC CT
-> - SDTM Programming 为 AI_AUTO, 无需人工审核
-> - 详见 [SPEC-08](08-Agent-Design.md) Executor 2 设计
+> **v3.0 架构说明**:
+> - 由 **DataStandards Capability Domain** (Claude Opus) 提供 CDISC 精确知识
+> - Agent Runtime 动态路由: 根据 protocol 和已有产出物自主决定 SDTM spec 还是 programming
+> - **Review Protocol** (v3.0): 变量映射不确定时提交 Review Packet → 人工批量审批
+> - SDTM 编程为 AI 自动执行, 仅在 CDISC 验证报 error 时触发 Review
+> - 详见 [SPEC-08](08-Agent-Design.md) Capability Domain 2, [SPEC-15](15-Review-Protocol.md)
 
 ---
 
-## 1. 阶段概述
+## 1. 能力域概述
 
 ```
-┌───────────────┐     ┌───────────────────┐
-│ ⑤ SDTM Spec   │────→│ ⑥ SDTM Programming │
-│   规范生成      │     │    代码生成         │
-└───────────────┘     └───────────────────┘
-   AI Agent               AI Agent
-   + Skill                (AI Auto)
-   [Human Gate]
+┌─────────────────────────────────────────────────────────────┐
+│              DataStandards Capability Domain                 │
+│                                                              │
+│  能力:                                                       │
+│  ┌─────────────┐  ┌─────────────┐                           │
+│  │ SDTM Spec   │  │ SDTM        │                           │
+│  │ Generation  │  │ Programming │                           │
+│  └──────┬──────┘  └──────┬──────┘                           │
+│         │                │                                  │
+│         ▼                ▼                                  │
+│   域变量映射规范      SAS/R/Python 程序                       │
+│   (按 OUTPUT_FORMAT    (按 OUTPUT_FORMAT                     │
+│    _SPECS.sdtm_spec)   _SPECS.program_code)                  │
+│                                                              │
+│  Agent Runtime 动态路由:                                      │
+│  → Spec 生成后自检 → 不确定的 mapping → Review Packet         │
+│  → 审核通过 → 编程 → CDISC 验证 → error? → Review Packet     │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ### 1.1 SDTM 核心概念
@@ -55,13 +66,13 @@ SDTM Variable Roles:
 
 ---
 
-## 2. Stage 5: SDTM Specification (SDTM 规范生成)
+## 2. SDTM Specification (规范生成)
 
-### 2.1 负责组件
+### 2.1 调用方式
 
-**Agent**: `SDTMSpecBuilder`
-**Skill**: `domain-review` ← **Human Gate**
+**Capability Domain**: DataStandards → `sdtm_spec_generation`
 **MCP Tool**: `sdtm_spec_build`
+**Review**: 不确定的 mapping → Review Packet (review_type=sdtm_spec)
 
 ### 2.2 AI 工作流
 
@@ -203,9 +214,13 @@ aCRF (Annotated CRF) + EDC Data Dictionary
 
 ---
 
-## 3. Stage 6: SDTM Programming (SDTM 代码生成)
+## 3. SDTM Programming (代码生成)
 
-### 3.1 负责组件
+### 3.1 调用方式
+
+**Capability Domain**: DataStandards → `sdtm_programming`
+**MCP Tools**: `sdtm_spec_build` (已有spec), `cdisc_validate` (验证)
+**Review**: CDISC 验证 error 无法自动修复 → Review Packet
 
 **Agent**: `SDTMMapper` (AI Auto — 无需人工审核)
 **MCP Tools**: `sdtm_spec_build`, `cdisc_validate`

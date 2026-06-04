@@ -1,341 +1,330 @@
-# 阶段 11-12: QC 验证与递交打包
+# QC 与 Submission — 质量验证与递交打包
 
 ## 文档编号: SPEC-05
-## 版本: 2.1
-## 管线阶段: QC Validation / Submission Package
-## 负责组件: TFLQCSubmissionAgent (Executor 3) + ReviewerAgent + GATE_CHECKLISTS["qc_validation"] + GATE_CHECKLISTS["submission"] + Change Management
+## 版本: 3.0
+## 能力域: TFLQCSubmission Domain (QC 验证 + 递交打包)
+## 负责组件: TFLQCSubmission Capability Domain + Agent Runtime + Review Protocol + Change Management
 
-> **v2.1 架构说明**: 本阶段由 **TFLQCSubmissionAgent** (Claude Opus) 执行。QC 有 **4 项强制审核清单**, Submission 有 **4 项强制审核清单**。本阶段是 **Change Management 系统**的关键集成点: 每次 Human Gate 返回修改都生成 ChangeRecord, 触发版本升级。递交包是管线最终产物, 所有变更记录在此阶段应归零。详见 [SPEC-11](11-Change-Management.md)。
-
----
-
-## 1. 阶段概述
-
-```
-┌───────────────┐     ┌───────────────────┐
-│ ⑪ QC Validation│────→│ ⑫ Submission       │
-│   QC 验证       │     │   递交打包          │
-└───────────────┘     └───────────────────┘
-   AI Agent               AI Agent
-   [Human Gate]           [Human Gate]
-```
+> **v3.0 架构说明**:
+> - 由 **TFLQCSubmission Capability Domain** (Claude Opus) 提供 QC + 递交能力
+> - **Change Management 系统**保留完整: 每次 Review Decision 生成 ChangeRecord + 版本升级
+> - **Review Protocol** (v3.0): QC 差异和 Submission 完整性均通过 Review Packet 提交
+> - Git 双层审计: audit_trail.jsonl + git log
+> - 详见 [SPEC-08](08-Agent-Design.md) Capability Domain 3, [SPEC-11](11-Change-Management.md), [SPEC-15](15-Review-Protocol.md)
 
 ---
 
-## 2. Stage 11: QC Validation (质量控制验证)
-
-### 2.1 负责组件
-
-**Agent**: `QCValidator`
-**Skill**: `tfl-qc` ← **Human Gate**
-**MCP Tools**: `cdisc_validate`, `triage_p21`
-
-### 2.2 QC 验证金字塔
+## 1. 能力域概述
 
 ```
-         ┌─────────┐
-         │ Level 3 │  双编程比对 (Pivotal TFLs)
-         │         │  → AI: 差异根因分析
-         ├─────────┤
-         │ Level 2 │  CDISC 合规性验证 (P21)
-         │         │  → AI: 自动分类 + 申辩理由
-         ├─────────┤
-         │ Level 1 │  程序日志检查
-         │         │  → AI: 异常模式检测
-         └─────────┘
+┌─────────────────────────────────────────────────────────────┐
+│         TFLQCSubmission Capability Domain (QC+Submission)    │
+│                                                              │
+│  能力:                                                       │
+│  ┌─────────────┐  ┌─────────────┐  ┌──────────────────┐    │
+│  │ QC          │  │ P21         │  │ Submission       │    │
+│  │ Validation  │  │ Triage      │  │ Packaging        │    │
+│  └──────┬──────┘  └──────┬──────┘  └────────┬─────────┘    │
+│         │                │                  │               │
+│         ▼                ▼                  ▼               │
+│   双编程比对          P21 自动分类       eCTD Module 5       │
+│   差异报告            auto-resolve /     define.xml          │
+│   推荐解决             human-review      ADRG/SDRG           │
+│                                                              │
+│  Review Protocol 触发:                                        │
+│  → 无法自动解决的差异 → Review Packet (review_type=tfl_qc)    │
+│  → Submission 完整性 → Review Packet (review_type=submission)│
+│  → 均为 BLOCKING urgency                                     │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### 2.3 AI QC 工作流
+---
+
+## 2. QC Validation (质量验证)
+
+### 2.1 调用方式
+
+**Capability Domain**: TFLQCSubmission → `qc_validation`
+**MCP Tools**: `cdisc_validate`, `triage_p21`, `define_xml_build`
+**Review**: 双编程差异无法自动解决 → Review Packet (review_type=tfl_qc)
+
+### 2.2 QC 双编程比对
 
 ```
-┌─────────────────────────────────────────────────────┐
-│ 1. 程序日志分析 (Level 1)                             │
-│                                                      │
-│ AI 扫描 SAS/R/Python 程序日志:                        │
-│  · 错误/警告分类                                     │
-│  · 数据集行数漂移检测                                 │
-│  · N-count 一致性检查 (跨程序)                        │
-│  · 缺失值模式异常检测                                 │
-└─────────────────────────────────────────────────────┘
+Program 1 (Agent generated)     Program 2 (Independent)
+        │                                │
+        ▼                                ▼
+   TFL Output 1                    TFL Output 2
+   (RTF/PDF/XPT)                   (RTF/PDF/XPT)
+        │                                │
+        └────────────┬───────────────────┘
+                     ▼
+        ┌────────────────────────┐
+        │  差异检测 (Diff Engine)  │
+        │                        │
+        │  逐单元格/逐像素比较:    │
+        │  · Tables: 数值精度     │
+        │  · Figures: 视觉差异    │
+        │  · Listings: 记录数/列  │
+        └────────────┬───────────┘
+                     ▼
+        ┌────────────────────────┐
+        │  Agent 差异分析          │
+        │                        │
+        │  MATCH (99%+):          │
+        │    → 直接通过           │
+        │                        │
+        │  MINOR (<1% diff):      │
+        │    → 自动修复 (format)  │
+        │                        │
+        │  MAJOR (≥1% diff):      │
+        │    → Agent 推理根因     │
+        │    → 推荐解决方案       │
+        │    → 无法自动解决:      │
+        │      Review Finding    │
+        │      (severity=critical)│
+        └────────────────────────┘
+```
+
+### 2.3 P21 (Pinnacle 21) 验证与分类
+
+```
+P21 输出 (250+ findings)
         │
         ▼
-┌─────────────────────────────────────────────────────┐
-│ 2. Pinnacle 21 验证 (Level 2)                        │
-│                                                      │
-│ AI 对 ~2000+ P21 规则结果进行分类:                    │
-│  · 自动处理 (Note / 已知误报) → 生成标准申辩理由      │
-│  · 需要人工审核 (Error / Warning) → 标注优先级       │
-│  · 预期发现 (符合规范的已知差异) → 文档化             │
-│                                                      │
-│ 目标: 减少 60-70% 的人工分类工作量                     │
-└─────────────────────────────────────────────────────┘
+┌───────────────────────────────────┐
+│ MCP: triage_p21                   │
+│                                    │
+│ Auto-resolve:                      │
+│  · 已知误报 (known false positive) │
+│  · 自动可修复 (auto-fixable)       │
+│  · Notes 级 (auto-justified)      │
+│  → 无需人工, ~65% findings        │
+│                                    │
+│ Needs Human Review:                │
+│  · 真实 Errors → 尝试自动修复      │
+│  · 修复失败 → Review Finding       │
+│  · Warnings 无自动方案 → Finding   │
+│  → ~35% findings, 提交 Review      │
+│                                    │
+│ Auto-resolution details:           │
+│  · 已知误报: 45                   │
+│  · 自动可修复: 30                  │
+│  · Notes 自动申辩: 85              │
+│  · Total auto-resolved: 160        │
+│                                    │
+│ Human workload reduction: 64%      │
+└───────────────────────────────────┘
+```
+
+### 2.4 Review Protocol 触发点
+
+```
+触发条件:
+  · 双编程差异 ≥1% → ReviewFinding(category=compliance, severity=critical)
+  · P21 Error 无法自动修复 → ReviewFinding(category=compliance, severity=critical)
+  · P21 Warning 无法自动申辩 → ReviewFinding(category=terminology, severity=warning)
+
+QC Review Packet (review_type=tfl_qc):
+  ┌─ TFL QC Review: T14.3.1 ──────────────────────────────────┐
+  │ TFL: TEAE Summary                                         │
+  │ Source: ADSL, ADAE                                        │
+  │───────────────────────────────────────────────────────────│
+  │ Double Programming Comparison:                            │
+  │   Program 1: t14_3_1_v1.sas (245 lines)                  │
+  │   Program 2: t14_3_1_v2.sas (238 lines)                  │
+  │   Match: 99.2%                                           │
+  │───────────────────────────────────────────────────────────│
+  │ Discrepancies:                                            │
+  │ # │Sev  │Location   │ Prog1  │ Prog2  │ Recommend │Dec   │
+  │───┼─────┼───────────┼────────┼────────┼───────────┼──────│
+  │ 1 │⚠crit│Row 42     │ 84     │ 87     │ Re-run    │[A    │
+  │   │     │n(%) calc  │ (42.0%)│ (43.5%)│ denom     │ E R] │
+  │───┴─────┴───────────┴────────┴────────┴───────────┴──────│
+  │ [Submit Decisions]                                        │
+  └───────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 3. Submission Packaging (递交打包)
+
+### 3.1 调用方式
+
+**Capability Domain**: TFLQCSubmission → `submission_packaging`
+**MCP Tools**: `define_xml_build`, `cdisc_validate` (final check)
+**Review**: 完整性检查 → Review Packet (review_type=submission, urgency=blocking)
+
+### 3.2 eCTD Module 5 准备
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  eCTD Module 5: Clinical Study Reports                      │
+│                                                              │
+│  m5/datasets/{study}/                                        │
+│  ├── analysis/                                               │
+│  │   └── adam/                                               │
+│  │       ├── adsl.xpt          — Subject-Level               │
+│  │       ├── adae.xpt          — Adverse Events              │
+│  │       ├── adtte.xpt         — Time-to-Event               │
+│  │       ├── adlb.xpt          — Laboratory                  │
+│  │       ├── define.xml        — ADaM metadata               │
+│  │       └── define.pdf        — Define-XML rendered         │
+│  │                                                           │
+│  └── tabulations/                                            │
+│      └── sdtm/                                               │
+│          ├── dm.xpt             — Demographics               │
+│          ├── ae.xpt             — Adverse Events             │
+│          ├── cm.xpt, lb.xpt, ...— All SDTM domains          │
+│          ├── suppae.xpt         — Supplemental AE            │
+│          ├── relrec.xpt         — Related Records            │
+│          └── define.xml         — SDTM metadata              │
+│                                                              │
+│  m5/programs/{study}/                                        │
+│  ├── sdtm/                     — All SDTM SAS programs       │
+│  ├── adam/                     — All ADaM SAS programs       │
+│  └── tfl/                      — All TFL SAS programs        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 3.3 define.xml 生成
+
+```
+SDTM + ADaM Datasets Metadata
         │
         ▼
-┌─────────────────────────────────────────────────────┐
-│ 3. 双编程比对 (Level 3)                               │
-│                                                      │
-│ 独立程序员的全量比对:                                 │
-│                                                      │
-│ Program A (Primary)  │  Program B (QC)               │
-│ ────────────────────┼────────────────────            │
-│ N=342 Mean=52.3     │  N=343 Mean=52.4   ← DIFF!     │
-│                                                      │
-│ AI 差异分析:                                          │
-│  1. 识别差异位置: T14.1.2, Row "Age", Col "Mean"     │
-│  2. 追踪源数据: ADSL.AGE                              │
-│  3. 分析原因:                                        │
-│     · Program A: 使用 AGE at screening               │
-│     · Program B: 使用 AGE at randomization           │
-│     · SAP Spec: 基准定义为 randomization 日期        │
-│  4. 裁定: Program B 正确 (符合 SAP 定义)              │
-│  5. 建议: 修改 Program A 的 AGE 来源变量              │
-└─────────────────────────────────────────────────────┘
+┌───────────────────────────────────┐
+│ MCP: define_xml_build             │
+│                                    │
+│ 每个数据集生成:                     │
+│  · ItemGroupDef (数据集描述)       │
+│  · ItemDef (变量定义)              │
+│  · CodeList (控制术语)             │
+│  · MethodDef (衍生方法)            │
+│                                    │
+│ Schema 验证:                       │
+│  xml_validates: true/false         │
+│  验证标准: define-xml-2.0.xsd      │
+└───────────────────────────────────┘
 ```
 
-### 2.4 P21 验证 AI 分类
-
-```python
-# AI 自动分类 P21 发现
-def triage_p21(findings):
-    """
-    目标: 将 250+ P21 发现自动分类
-    减少人工审核 60-70%
-    """
-    auto_resolved = []   # AI 可自动处理
-    needs_review  = []   # 需要人工判断
-
-    for f in findings:
-        if f.severity == "Note":
-            # AI 生成标准申辩理由
-            f.justification = generate_justification(f)
-            auto_resolved.append(f)
-        elif f.severity == "Warning" and is_known_false_positive(f):
-            # 已知误报模式 → 自动处理
-            f.justification = get_canned_justification(f.rule_id)
-            auto_resolved.append(f)
-        elif f.severity == "Warning" and has_auto_fix(f):
-            # 可自动修复 → 执行修复 + 记录
-            fix_and_validate(f)
-            auto_resolved.append(f)
-        else:
-            # Error 级别 → 必须人工审核
-            needs_review.append(f)
-
-    return {
-        "total": len(findings),
-        "auto_resolved": len(auto_resolved),
-        "needs_review": len(needs_review),
-        "review_queue": needs_review,
-    }
-```
-
-### 2.5 双编程差异分析 — AI 核心能力
+### 3.4 ADRG / SDRG 审评指南
 
 ```
-差异检测 → 根因推断 → 裁定建议 → 自动修复
+Agent 自动起草:
+  · ADRG (Analysis Data Reviewer's Guide)
+  · SDRG (Study Data Reviewer's Guide)
 
-┌──────────────────────────────────────────────────────┐
-│ 差异类型         │ AI 处理策略                         │
-├──────────────────────────────────────────────────────┤
-│ N 计数差异       │ 追溯 Inclusion/Exclusion 条件差异  │
-│ 均数差异         │ 检查衍生公式、数据选择、缺失值处理  │
-│ % 差异           │ 检查分母定义 (FAS vs Safety)        │
-│ p 值差异         │ 检查分析模型 (固定效应 vs 混合效应)  │
-│ 小数精度差异     │ 检查舍入规则 (ROUND vs CEIL)        │
-│ 缺失输出         │ 检查数据筛选 (SUBSET WHERE 条件)    │
-└──────────────────────────────────────────────────────┘
+  内容包括:
+  · 研究设计和计划
+  · 数据标准遵从声明
+  · 衍生变量说明
+  · 已知数据问题
+  · P21 申辩理由汇总
 ```
 
-### 2.6 Human Gate: QC Validation
+### 3.5 Review Protocol — Submission (最终 Gate)
 
 ```
-╔══════════════════════════════╗
-║  HUMAN GATE: QC Validation   ║
-║  Reviewers:                  ║
-║  · QC Programmer             ║
-║  · Lead Programmer           ║
-║                              ║
-║  Checklist (4 items):        ║
-║  1. All pivotal TFLs         ║
-║     double-programmed        ║
-║  2. Discrepancies resolved   ║
-║     or documented             ║
-║  3. Pinnacle 21 errors       ║
-║     triaged (0 open errors)  ║
-║  4. Log files clean          ║
-║     (no unhandled exceptions)║
-╚══════════════════════════════╝
+触发条件:
+  · 所有产出物就绪 → 强制构建 Review Packet (review_type=submission)
+  · 完整性检查 → ReviewFinding(category=compliance)
+  · urgency=blocking → Agent 必须等待
+
+Submission Review 关注:
+  · 所有必需数据集都存在?
+  · define.xml Schema 验证通过?
+  · ADRG/SDRG 完整?
+  · eCTD 结构正确?
+  · 所有 P21 findings 已解决或已申辩?
+  · 所有 Review Packet 已归档?
+  · 审计追踪完整?
+
+Agent 会列出:
+  · 全量产出物清单 (文件数、大小、最后修改时间)
+  · 所有 Review 决策汇总
+  · 变更记录摘要
+  · Git log (最近 50 条)
+
+人工只需确认 → APPROVED → 锁定, 不再修改
 ```
 
 ---
 
-## 3. Stage 12: Submission Package (递交打包)
-
-### 3.1 负责组件
-
-**Agent**: `SubmissionPackager`
-**Human Gate**: Yes
-
-### 3.2 递交包组成
+## 4. Change Management 集成 (保留 v2.1 + Git)
 
 ```
-eCTD Module 5 (Clinical Study Reports)
-│
-├── datasets/
-│   ├── sdtm/
-│   │   ├── dm.xpt          (SDTM Demographics)
-│   │   ├── ae.xpt          (SDTM Adverse Events)
-│   │   ├── cm.xpt          (SDTM Concomitant Meds)
-│   │   ├── lb.xpt          (SDTM Lab Results)
-│   │   ├── vs.xpt          (SDTM Vital Signs)
-│   │   ├── ex.xpt          (SDTM Exposure)
-│   │   ├── ds.xpt          (SDTM Disposition)
-│   │   ├── suppae.xpt      (SUPPQUAL for AE)
-│   │   ├── suppdm.xpt      (SUPPQUAL for DM)
-│   │   └── relrec.xpt      (Related Records)
-│   │
-│   ├── adam/
-│   │   ├── adsl.xpt        (ADaM Subject-Level)
-│   │   ├── adae.xpt        (ADaM Adverse Events)
-│   │   ├── adtte.xpt       (ADaM Time-to-Event)
-│   │   ├── adlb.xpt        (ADaM Lab Analysis)
-│   │   ├── advs.xpt        (ADaM Vital Signs)
-│   │   ├── adtr.xpt        (ADaM Tumor Response — 肿瘤)
-│   │   └── adef.xpt        (ADaM Efficacy)
-│   │
-│   └── tfls/
-│       ├── tables/         (RTF/PDF)
-│       ├── figures/        (PDF)
-│       └── listings/       (RTF/PDF)
-│
-├── define_xml/
-│   ├── define_sdtm.xml     (SDTM define.xml 2.0)
-│   └── define_adam.xml     (ADaM define.xml 2.0)
-│
-├── reviewers_guides/
-│   ├── sdrg.pdf            (Study Data Reviewer's Guide)
-│   └── adrg.pdf            (Analysis Data Reviewer's Guide)
-│
-└── programs/
-    ├── sdtm/               (SDTM 生成程序)
-    ├── adam/               (ADaM 生成程序)
-    └── tfls/               (TFL 生成程序)
-```
+触发条件                              处理方式
+─────────────────────────────────────────────────────────────────
+Human Decision 返回 REJECTED       →   ChangeRecord(type=HUMAN_REVIEW)
+                                      →   VersionManager.bump(MINOR)
+                                      →   Agent 重做 + 重新提交 Review
 
-### 3.3 AI 辅助递交文档生成
+Human Decision 返回 MODIFIED       →   ChangeRecord + 版本升级
+                                      →   modified_value 写入产出物
 
-#### define.xml 2.0 生成
+Protocol Amendment                 →   ChangeRecord(type=PROTOCOL_AMEND)
+                                      →   ImpactAnalyzer → 全链路影响
+                                      →   VersionManager.bump(MAJOR)
+                                      →   回退到最早受影响产出物
 
-```python
-# MCP Tool: define_xml_build — 自动生成 define.xml 2.0 元数据
+Data Refresh                       →   ChangeRecord(type=DATA_REFRESH)
+                                      →   全链路重跑 (Spec 不变)
 
-# Input: ADaM 数据集元数据
-adam_metadata = {
-    "ADSL": adsl_varlist,  # 33 个变量及其元数据
-    "ADAE": adae_varlist,  # 27 个变量
-    "ADTTE": adtte_varlist, # 15 个变量
-    ...
-}
+CDISC 标准更新                     →   ChangeRecord(type=STANDARD_UPDATE)
+                                      →   SDTM + ADaM Spec 重生成
 
-# AI 生成 define.xml XML 结构
-define_xml = generate_define_xml_metadata("ADSL", adam_metadata["ADSL"])
-# 包含: ItemGroupDef, ItemDef, CodeList, ValueLevelDef, MethodDef, CommentDef
-```
-
-#### ADRG/SDRG 审评指南自动起草
-
-```
-AI Role: 从 Spec/define.xml/程序日志 自动填充 ADRG:
-
-### ADRG Template Sections:
-1. Introduction
-2. Protocol Description
-3. Analysis Datasets
-  3.1 ADSL — [AI 填充: 33 个变量, 人群定义, 衍生规则]
-  3.2 ADAE — [AI 填充: TEAE 定义, 分析期定义, 关联性归类]
-  ...
-4. Analysis Considerations
-  4.1 Missing Data Handling [AI 从 SAP 提取]
-  4.2 Imputation Methods [AI 从 ADaM Spec 提取]
-  ...
-5. Data Conformance
-  5.1 P21 Validation Summary [AI 从 triage 结果生成]
-  5.2 Known Issues and Justifications [AI 从 auto_resolved 生成]
-  ...
-```
-
-### 3.4 Human Gate: Submission
-
-```
-╔══════════════════════════════╗
-║  HUMAN GATE: Submission       ║
-║  Reviewers:                  ║
-║  · Lead Programmer           ║
-║  · Regulatory Affairs        ║
-║                              ║
-║  Checklist (4 items):        ║
-║  1. define.xml validates     ║
-║     against CDISC schema     ║
-║  2. ADRG/SDRG narrative      ║
-║     complete and accurate    ║
-║  3. XPT files conform to     ║
-║     v5 transport spec        ║
-║  4. eCTD folder structure    ║
-║     follows FDA/NMPA spec    ║
-╚══════════════════════════════╝
+Git 审计:
+  每次变更 → git commit
+  commit message = [agent/human] + description + change_id
+  git log = 完整操作历史, 法规审阅友好
 ```
 
 ---
 
-## 4. 全流程 QA 审计追踪
-
-### 4.1 审计日志结构
+## 5. 最终状态校验
 
 ```
-workflow_audit.log:
-  [2026-04-28T10:00:00] STUDY-ABC123 | Stage: PROTOCOL → Agent: ProtocolAnalyzer
-  [2026-04-28T10:15:23] STUDY-ABC123 | Stage: SAP → Skill: sap-review
-  [2026-04-28T10:45:00] STUDY-ABC123 | Stage: SAP → HUMAN APPROVED by Dr. Li
-  [2026-04-28T11:00:00] STUDY-ABC123 | Stage: SDTM_SPEC → Agent: SDTMSpecBuilder
-  [2026-04-28T11:30:00] STUDY-ABC123 | Stage: SDTM_SPEC → HUMAN APPROVED
-  [2026-04-28T11:35:00] STUDY-ABC123 | Stage: SDTM_PROG → Agent: SDTMMapper (AUTO)
-  [2026-04-28T12:00:00] STUDY-ABC123 | Stage: SDTM_PROG → Complete
-  [2026-04-28T12:00:00] STUDY-ABC123 | Artifact: sdtm/dm.xpt (18 vars, 342 rows)
-  [2026-04-28T12:00:01] STUDY-ABC123 | Artifact: sdtm/ae.xpt (25 vars, 1247 rows)
-  ...
-  [2026-04-29T09:00:00] STUDY-ABC123 | Stage: QC_VALIDATION → P21: 245 findings
-  [2026-04-29T09:05:00] STUDY-ABC123 | Stage: QC_VALIDATION → AI triage: 140 auto
-  [2026-04-29T09:30:00] STUDY-ABC123 | Stage: QC_VALIDATION → HUMAN APPROVED
-  ...
-  [2026-04-30T16:00:00] STUDY-ABC123 | Stage: SUBMISSION → HUMAN APPROVED
-  [2026-04-30T16:00:00] STUDY-ABC123 | PIPELINE COMPLETE (2.5 days)
-```
+递交前 Agent 强制执行:
 
-### 4.2 版本追踪
+  □ 所有 SDTM domains generate 并 validated
+  □ 所有 ADaM datasets generate 并 validated
+  □ 所有 TFL 编程完成并 QC 通过
+  □ 双编程比对完成 (关键 TFL)
+  □ P21 验证: 0 Error (或全部已申辩)
+  □ define.xml Schema 验证: PASS
+  □ ADRG/SDRG: 已起草
+  □ eCTD 文件夹结构: 完整
+  □ 所有 Review Packet: 已归档 (archived)
+  □ 审计追踪: audit_trail.jsonl 完整
+  □ Git history: 无未提交变更 (clean working tree)
+  □ 变更记录: 所有 change 状态 = completed
 
-```
-每个产出物都带版本号:
-  sdtm/ae.spec.v1.yaml     → Spec 初稿 (AI 生成)
-  sdtm/ae.spec.v2.yaml     → Spec 修改 (人工审核后)
-  sdtm/ae.prog.v1.sas      → 程序初稿 (AI 生成)
-  sdtm/ae.prog.v1.log      → 程序日志 (AI 分析)
-  sdtm/ae.v1.xpt           → 数据集 v1
-  sdtm/ae.v1.p21.txt       → P21 验证记录 v1
-  sdtm/ae.v2.xpt           → 数据集 v2 (修复后)
-  sdtm/ae.v2.p21.txt       → P21 验证记录 v2 (0 errors)
+  任何 □ 未打勾 → Review Finding → Submission Review Packet
 ```
 
 ---
 
-## 5. 法规参考
+## 6. 法规参考
 
-| 标准 | 说明 |
+| 法规/指南 | 适用主题 | 关键要求 |
+|----------|---------|---------|
+| FDA TCG v5.0 | Submission Standards | eCTD 结构, XPT 格式, define.xml 要求 |
+| CDISC Define-XML v2.0 | Metadata | 数据集和变量元数据结构 |
+| 21 CFR Part 11 | eRecords | 电子记录和电子签名合规 |
+| ICH E3 | CSR Structure | 递交数据的完整性 |
+| Pinnacle 21 | Validation | SDTM/ADaM 合规性检查规则 |
+| eCTD v4.0 | Submission Format | Module 5 文件夹和文件命名 |
+
+---
+
+## 7. 交叉引用
+
+| 主题 | 文档 |
 |------|------|
-| FDA eCTD | 电子通用技术文件 (Module 5) 结构规范 |
-| FDA TCG | Study Data Technical Conformance Guide |
-| define.xml v2.0 | CDISC 数据集元数据 XML 标准 |
-| ADRG | Analysis Data Reviewer's Guide 模板 |
-| SDRG | Study Data Reviewer's Guide 模板 |
-| 21 CFR Part 11 | 电子记录和电子签名法规 |
-| ICH E6 (GCP) | 数据完整性和质量标准 |
-| Pinnacle 21 | CDISC 合规性验证工具 |
+| 总体架构 v3.0 | [SPEC-00](00-Overview.md) |
+| TFLQCSubmission Capability Domain | [SPEC-08](08-Agent-Design.md) §5 |
+| TFL Shell + 编程 | [SPEC-04](04-TFL.md) |
+| 变更管理 + Git 审计 | [SPEC-11](11-Change-Management.md) |
+| Review Protocol | [SPEC-15](15-Review-Protocol.md) |
+| MCP 工具 API | [SPEC-09](09-MCP-Tools-Design.md) |

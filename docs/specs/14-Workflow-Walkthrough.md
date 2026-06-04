@@ -1,8 +1,11 @@
 # 工作流实际走查：从 Study 初始化到 Submission 全流程
 
 ## 文档编号: SPEC-14
-## 版本: 1.0
-## 主题: 文件夹演变、每个阶段的操作步骤、人类交互点
+## 版本: 3.0
+## 主题: Agent Loop 实际走查 — 文件演变、人工交互点、Git 审计
+
+> **v3.0 更新**: 走查流程从 "12 阶段固定管线" 改为 "Agent 动态决策循环 + Review Protocol".
+> 人工不再在固定 Gate 等待, 而是通过 Review Panel 批量审批. 详见 [SPEC-10](10-Workflow-Updated.md).
 
 ---
 

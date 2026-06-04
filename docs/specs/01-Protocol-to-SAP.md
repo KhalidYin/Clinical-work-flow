@@ -1,57 +1,77 @@
-# 阶段 1-4: Protocol → SAP → CRF → 数据采集
+# Protocol → SAP — 方案解析与统计分析计划
 
 ## 文档编号: SPEC-01
-## 版本: 2.1
-## 管线阶段: Protocol / SAP / CRF Design / Data Collection
-## 负责组件: ProtocolSAPAgent (Executor 1) + ReviewerAgent + GATE_CHECKLISTS["sap"]
+## 版本: 3.0
+## 能力域: ProtocolSAP Domain (方案解析 + SAP 生成 + CRF 预映射)
+## 负责组件: ProtocolSAP Capability Domain + Agent Runtime + Review Protocol
 
-> **v2.1 架构说明**: 
-> - 本阶段由 **ProtocolSAPAgent** (Claude Opus) 执行, 专注 Protocol+SAP+CRF Design 三个上游阶段
-> - SAP 阶段有独立的 **11 项强制审核清单** (GATE_CHECKLISTS["sap"]), Agent 必须逐项标注 evidence
-> - **ReviewerAgent** (Claude Sonnet) 独立交叉审阅, Heavy 级别
-> - 详见 [SPEC-08](08-Agent-Design.md) Executor 1 设计 和 [SPEC-10](10-Workflow-Updated.md)
+> **v3.0 架构说明**:
+> - 由 **ProtocolSAP Capability Domain** (Claude Opus) 提供深度方案解析能力
+> - Agent Runtime 动态路由: 根据 protocol 内容自主决定需要哪些能力
+> - 不再预设 "Stage 1→2→3→4" 的顺序 — Agent 根据实际情况推进
+> - **Review Protocol** (v3.0): Agent 在不确定时提交 Review Packet → 人工批量审批
+> - 详见 [SPEC-08](08-Agent-Design.md) Capability Domain 1, [SPEC-15](15-Review-Protocol.md)
 
 ---
 
-## 1. 阶段概述
+## 1. 能力域概述
 
 ```
-┌──────────┐     ┌──────────┐     ┌──────────┐     ┌──────────────┐
-│ ①Protocol│────→│  ② SAP   │────→│③CRF Design│────→│④Data Collection│
-│  方案分析 │     │  计划生成 │     │  表单设计  │     │   数据采集     │
-└──────────┘     └──────────┘     └──────────┘     └──────────────┘
-  AI Agent          AI Agent         AI Agent          AI Agent
-  + Skill           + Skill
-  (Auto)            [Human Gate]     (Auto)            (Auto)
+┌─────────────────────────────────────────────────────────────┐
+│              ProtocolSAP Capability Domain                   │
+│                                                              │
+│  能力:                                                       │
+│  ┌─────────────┐  ┌─────────────┐  ┌──────────────────┐    │
+│  │ Protocol    │  │ SAP         │  │ CRF pre-mapping  │    │
+│  │ Analysis    │  │ Generation  │  │                  │    │
+│  └──────┬──────┘  └──────┬──────┘  └────────┬─────────┘    │
+│         │                │                  │               │
+│         ▼                ▼                  ▼               │
+│   结构化终点列表     SAP 草案 +          CRF → SDTM         │
+│   分析人群定义       TFL Shell 目录      预映射建议          │
+│   Estimands 推导    样本量计算                              │
+│                                                              │
+│  Agent Runtime 动态路由 → 按需调用能力, 不预设阶段顺序         │
+│  遇到不确定 → Review Packet → 人工批量审批 → 继续             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### 1.1 数据流
+### 1.1 逻辑流 (非固定顺序)
 
-| 输入 | 处理 | 输出 |
+| 输入 | 能力 | 输出 |
 |------|------|------|
-| Clinical Study Protocol (PDF/DOCX) | AI 解析方案结构 | 结构化终点清单 |
-| Protocol → Endpoint Map | SAP 骨架生成 | Statistical Analysis Plan 初稿 |
-| SAP → Sample Size | 统计方法模板填充 | TFL Shell 目录 |
-| SAP → Data Collection Plan | CRF 变量→SDTM 预映射 | 注释型 CRF (aCRF) |
+| Clinical Study Protocol (PDF/DOCX) | protocol_analysis | 结构化终点清单 + 人群定义 |
+| 终点清单 + ICH E9/E9(R1) | sap_generation | SAP 草案 + TFL Shell 目录 |
+| Protocol + CDISC 知识库 | endpoint_classification | 终点分类 + 分析方法建议 |
+| 终点 + ICH E9(R1) | estimands_derivation | Estimands 五要素 |
+| CRF 字段列表 | crf_pre_mapping | CRF → SDTM 预映射, aCRF 建议 |
+
+### 1.2 Review Protocol 触发点
+
+```
+触发条件:
+  · SAP 生成完成 → 自动构建 Review Packet (review_type=sap_review)
+  · CRF 预映射存在不确定项 → ReviewFinding(category=mapping, severity=warning)
+  · 终点分类置信度 LOW → ReviewFinding(category=population, severity=critical)
+  · Estimands ICE 策略有歧义 → ReviewFinding(category=compliance)
+
+  不是预设 Gate → Agent 只在不确定时提交
+  人工一次审批所有 findings → 批量勾选 → Submit
+```
 
 ---
 
-## 2. Stage 1: Protocol Analysis (方案分析)
+## 2. 能力 1: Protocol Analysis (方案解析)
 
-### 2.1 负责组件
-
-**Agent**: `ProtocolAnalyzerAgent`
-**Skill**: `protocol-analyze`
-
-### 2.2 AI 工作流
+### 2.1 工作流
 
 ```
 Protocol Document (PDF/DOCX)
         │
         ▼
 ┌─────────────────────┐
-│ 1. LLM 解析方案结构   │  提取: 试验设计、终点定义、人群
-│                      │  技术: RAG + CDISC知识库
+│ 1. 方案结构解析       │  提取: 试验设计、终点定义、人群
+│    RAG + CDISC 知识库 │  技术: LLM + domain knowledge
 └─────────────────────┘
         │
         ▼
@@ -69,14 +89,14 @@ Protocol Document (PDF/DOCX)
 │ 3. 分析人群定义        │
 │                      │
 │  ITT  = 所有随机化    │
-│  FAS  = ITT ∩ >=1剂  │
-│  Safety = >=1剂      │
+│  FAS  = ITT ∩ ≥1剂  │
+│  Safety = ≥1剂      │
 │  PP   = FAS - PD     │
 └─────────────────────┘
         │
         ▼
 ┌─────────────────────┐
-│ 4. 生成建议            │  → 推荐 ADaM 数据集
+│ 4. 建议生成            │  → 推荐 ADaM 数据集
 │                      │  → 推荐 TFL 清单
 │  SAP 输入:           │  → 分析方法建议
 │  - 统计方法           │  → 样本量依赖参数
@@ -84,7 +104,7 @@ Protocol Document (PDF/DOCX)
 └─────────────────────┘
 ```
 
-### 2.3 输出规范
+### 2.2 输出规范
 
 ```python
 {
@@ -117,14 +137,9 @@ Protocol Document (PDF/DOCX)
 
 ---
 
-## 3. Stage 2: SAP Generation (统计分析计划)
+## 3. 能力 2: SAP Generation (统计分析计划)
 
-### 3.1 负责组件
-
-**Agent**: `SAPBuilder`
-**Skill**: `sap-review` ← **Human Gate**
-
-### 3.2 AI 工作流
+### 3.1 工作流
 
 ```
 Protocol Analysis Output
@@ -145,7 +160,7 @@ Protocol Analysis Output
 ┌──────────────────────────────┐
 │ 2. Estimands 框架 (ICH E9 R1) │  对每个终点:
 │                               │  · Treatment (治疗策略)
-│  AI 从 Protocol 推导          │  · Population (分析人群)
+│  从 Protocol 推导             │  · Population (分析人群)
 │  Estimands 五要素             │  · Endpoint (终点定义)
 │                               │  · Intercurrent Events (伴发事件处理)
 │                               │  · Population-Level Summary
@@ -162,72 +177,59 @@ Protocol Analysis Output
 └──────────────────────────────┘
         │
         ▼
-   ╔══════════════════════════╗
-   ║  HUMAN GATE: SAP Review  ║
-   ║  Reviewers:              ║
-   ║  · Lead Biostatistician  ║
-   ║  · Lead Programmer       ║
-   ║                          ║
-   ║  Checklist (11 items):   ║
-   ║  1. Endpoints match      ║
-   ║  2. Populations defined  ║
-   ║  3. Multiplicity spec    ║
-   ║  4. Missing data handling║
-   ║  5. Estimands per E9(R1) ║
-   ║  6. Sample size calc     ║
-   ║  7. Interim analysis plan║
-   ║  8. Subgroup analyses    ║
-   ║  9. Sensitivity analyses ║
-   ║  10. TFL shells complete ║
-   ║  11. Safety analyses     ║
-   ╚══════════════════════════╝
-        │ (Approved)
-        ▼
-   SAP Final + TFL Shell Catalog
+┌──────────────────────────────┐
+│ 4. Review Protocol            │
+│                               │
+│  SAP 草案完成 → 构建 Review    │
+│  Packet (review_type=         │
+│  sap_review)                  │
+│                               │
+│  Agent 自我检查发现:           │
+│  · 11 项自动检查 (内化到      │
+│    Finding schema)            │
+│  · 不确定项 → Finding         │
+│  · 确定项 → auto_approved=True│
+│                               │
+│  → 提交到 .review_queue/      │
+│  → 人工批量审批               │
+│  → Agent 读取 Decision        │
+│  → 应用, 继续                 │
+└──────────────────────────────┘
 ```
 
-### 3.3 sap-review Skill 详细规格
+### 3.2 v3.0 vs v2.1 差异
 
-**触发条件**: 用户加载 Protocol 和 SAP 文档后,调用 `/sap-review`
-
-**系统提示词**:
 ```
-You are an expert clinical biostatistician reviewing a SAP.
-Your task is to verify the SAP is complete, consistent with the protocol,
-and follows ICH E9/E9(R1) guidelines.
+v2.1:
+  · 11 项独立强制审核清单 (GATE_CHECKLISTS["sap"])
+  · Agent 逐项标注 evidence
+  · 程序化校验: validate_checklist_completion()
+  · Human Gate → 对话式审核
 
-For each review item, flag:
-- COMPLIANT: The SAP section is complete and correct
-- GAP: Information is missing or incomplete
-- CONFLICT: The SAP contradicts the protocol or itself
-- CLARIFY: The SAP wording is ambiguous and needs clarification
+v3.0:
+  · 11 项关注点内化到 ReviewFinding schema
+  · Agent 自检 → 不确定的才成为 Finding, 确定的 auto_approved
+  · Schema required fields 替代程序化校验
+  · Review Panel → 批量审批
 
-When you find an issue, provide:
-1. The exact SAP section number
-2. A clear description of the problem
-3. A suggested fix with example wording
-```
-
-**输出格式**:
-```
-## SAP Review Results
-### Critical Issues (must fix before finalization)
-### Recommendations
-### Confirmed Compliant Items
-### Next Steps
+  关键区别:
+    旧: 人工必须逐一审核 11 项 (即使其中 9 项确定)
+    新: 人工只需审核 Agent 不确定的项 (通常 2-3 项)
+    旧: Agent 被强制 "找问题" (可能制造假问题)
+    新: Agent 只在真有不确定性时才提交
 ```
 
 ---
 
-## 4. Stage 3-4: CRF Design & Data Collection
+## 4. 能力 3: CRF Design & Data Collection (CRF 设计与预映射)
 
-### 4.1 AI 辅助 CRF 设计
+### 4.1 CRF 辅助能力
 
-| AI 能力 | 描述 |
-|---------|------|
-| CRF 页面→SDTM 变量注释 | AI 自动标注 CRF 页面上的字段对应哪些 SDTM 域和变量 |
-| 控制术语推荐 | 根据变量类型自动推荐 CDISC 控制术语(NCI Thesaurus) |
-| 表单完整性检查 | 检查 CRF 是否覆盖了 Protocol 中所有需要采集的数据项 |
+| 能力 | 描述 |
+|------|------|
+| CRF 页面→SDTM 变量注释 | Agent 自动标注 CRF 字段对应的 SDTM 域和变量 |
+| 控制术语推荐 | 根据变量类型自动推荐 CDISC CT (NCI Thesaurus) |
+| 表单完整性检查 | 检查 CRF 是否覆盖 Protocol 中所有需采集的数据项 |
 | 跨表单一致性 | 检查同一变量在不同 CRF 页面中的定义是否一致 |
 
 ### 4.2 原始数据→SDTM 预映射
@@ -246,7 +248,7 @@ EDC Raw Data Export (.csv/.sas7bdat)
 
 ---
 
-## 5. ICH E9(R1) Estimands 框架 — AI 处理逻辑
+## 5. ICH E9(R1) Estimands 框架 — AI 处理逻辑 (保留不变)
 
 ### 5.1 Estimands 五要素推导
 
@@ -291,3 +293,16 @@ Protocol: "The primary endpoint is change from baseline in HbA1c at Week 24.
 | ICH E10 | Control Group | 对照组选择、非劣效界值 |
 | FDA TCG | Data Standards | CDISC 合规要求、电子递交标准 |
 | NMPA 统计指南 | Endpoints | 中国 NMPA 终点和分析方法要求 |
+
+---
+
+## 7. 交叉引用
+
+| 主题 | 文档 |
+|------|------|
+| 总体架构 v3.0 | [SPEC-00](00-Overview.md) |
+| AI 架构 — Agent-Native | [SPEC-06](06-AI-Architecture.md) |
+| ProtocolSAP Capability Domain | [SPEC-08](08-Agent-Design.md) §3 |
+| 工作流编排 — 动态路由 | [SPEC-10](10-Workflow-Updated.md) |
+| Review Protocol | [SPEC-15](15-Review-Protocol.md) |
+| Phase/TA 知识库 | [SPEC-07](07-Phase-TA-Config.md) |

@@ -1,415 +1,285 @@
-# Phase I-III 与 肿瘤/非肿瘤 配置手册
+# Phase/TA 知识库 — 动态配置与差异化
 
 ## 文档编号: SPEC-07
-## 版本: 2.1
-## 主题: 试验分期和治疗领域的差异化配置 + Executor 路由
+## 版本: 3.0
+## 主题: 知识库替代硬编码模板 — Agent 动态加载 TA/Phase 知识
 
-> **v2.1 架构说明**: 试验配置通过 `OrchestratorConfig(trial_phase, therapeutic_area)` 注入, 影响:
-> - **Executor 行为**: ProtocolSAPAgent 加载不同 SAP 模板, DataStandardsAgent 加载不同 SDTM 域, TFLQCSubmissionAgent 加载不同 TFL Shell
-> - **审阅强度**: Phase I 快速审阅 (LIGHT/MEDIUM), Phase III 全面审阅 (HEAVY)
-> - **变更管理**: Phase I 轻量追踪, Phase III 全量审计
+> **v3.0 架构说明**:
+> - **重大变更**: `templates/` 废弃 → `knowledge/` 动态加载
+> - 不再有 `OrchestratorConfig(trial_phase, therapeutic_area)` 硬编码路由
+> - Agent 根据 intent + context 自动检索合适的 TA 知识
+> - 知识库是只读的结构化数据 (JSON/YAML), Agent 按需读取
+> - 详见 [SPEC-00](00-Overview.md) §4.2, [SPEC-08](08-Agent-Design.md)
 
 ---
 
-## 1. 配置体系设计
-
-### 1.1 设计原则
+## 1. 设计哲学转变
 
 ```
-同一框架 + 差异化配置 ≠ 不同系统
+v2.1: 硬编码模板 (templates/)
+  ┌───────────────────────────────────────┐
+  │  templates/                            │
+  │  ├── phase1_config.py                  │
+  │  ├── phase2_oncology.py   ← 死脚本     │
+  │  ├── phase2_diabetes.py   ← 死脚本     │
+  │  ├── phase3_oncology.py   ← 死脚本     │
+  │  └── ...                              │
+  │                                         │
+  │  OrchestratorConfig(trial_phase,        │
+  │    therapeutic_area)                    │
+  │  → if/elif/elif 无限增长               │
+  │                                         │
+  │  问题:                                  │
+  │  · 2 TA × 3 Phase = 6 个配置脚本       │
+  │  · 每个脚本 ~200 行 = 1200 行维护      │
+  │  · + TA 扩展: 每加一个 TA → 3 个新脚本 │
+  └───────────────────────────────────────┘
 
-┌───────────────────────────────────────┐
-│        核心工作流引擎 (不变)            │
-│  · 12阶段状态机                        │
-│  · 6个人工审核门控                     │
-│  · 三层AI架构                          │
-├───────────────────────────────────────┤
-│        配置层 (可变)                    │
-│  · Phase I / II / III 模板            │
-│  · Oncology / Non-Oncology 模板       │
-│  · 域/数据集/TFL 清单                  │
-│  · AI Prompt 调优参数                 │
-└───────────────────────────────────────┘
+v3.0: 动态知识库 (knowledge/)
+  ┌───────────────────────────────────────┐
+  │  knowledge/                            │
+  │  ├── clinical_standards.py  — CDISC   │
+  │  ├── oncology_ta.json       — 肿瘤    │
+  │  ├── cardiovascular_ta.json — 心血管  │
+  │  ├── diabetes_ta.json       — 糖尿病  │
+  │  ├── phase_knowledge.json   — Phase   │
+  │  └── regulatory.json        — 法规    │
+  │                                         │
+  │  Agent 根据 intent 检索:               │
+  │  "Phase III NSCLC"                      │
+  │  → 读取 oncology_ta.json               │
+  │  → 读取 phase_knowledge.json["phase_iii"]│
+  │  → 组合为运行时 context                  │
+  │                                         │
+  │  优势:                                  │
+  │  · 知识库独立于代码, 可单独更新        │
+  │  · TA 知识用 JSON 描述, 不需要 Python  │
+  │  · Agent 按需加载, 不是预先 switch     │
+  └───────────────────────────────────────┘
 ```
 
-### 1.2 配置注入方式
+---
+
+## 2. 知识库结构
+
+### 2.1 Phase Knowledge
+
+```json
+{
+  "phase_i": {
+    "primary_focus": "Safety, tolerability, PK, PD",
+    "sample_size_range": "20-80 subjects",
+    "tfl_volume": "20-50 TFLs",
+    "cdisc_rigor": "Optional — full SDTM/ADaM may not be required",
+    "special_tools": ["Phoenix WinNonlin", "NONMEM"],
+    "key_analyses": [
+      "PK parameters (Cmax, AUC, Tmax, t1/2)",
+      "Dose proportionality",
+      "Food effect",
+      "QT/QTc interval analysis"
+    ],
+    "timeline": "Days to weeks from DBL to TFL delivery",
+    "review_intensity": "light",
+    "typical_domains": ["DM", "AE", "CM", "LB", "VS", "EX", "DS", "EG"]
+  },
+  "phase_ii": {
+    "primary_focus": "Dose-finding, proof-of-concept, preliminary efficacy",
+    "sample_size_range": "100-300 subjects",
+    "tfl_volume": "50-150 TFLs",
+    "cdisc_rigor": "Moderate — many Phase II in regulatory packages",
+    "key_analyses": [
+      "Dose-response modeling (MCP-Mod)",
+      "Proof-of-concept efficacy",
+      "Dose selection decision support",
+      "Subgroup analyses for dose optimization"
+    ],
+    "timeline": "Weeks to months",
+    "review_intensity": "medium",
+    "typical_domains": ["DM", "AE", "CM", "LB", "VS", "EX", "DS", "MH", "EG", "QS"]
+  },
+  "phase_iii": {
+    "primary_focus": "Confirmatory efficacy, comprehensive safety",
+    "sample_size_range": "300-3,000+ subjects",
+    "tfl_volume": "200-500+ TFLs",
+    "cdisc_rigor": "Full CDISC compliance required",
+    "key_analyses": [
+      "Primary endpoint confirmatory",
+      "Key secondary endpoints (hierarchical testing)",
+      "Comprehensive safety (TEAE, SAE, labs, vitals, ECG)",
+      "Subgroup analyses",
+      "Sensitivity analyses",
+      "ISS/ISE pooling across studies"
+    ],
+    "timeline": "6-18 months from DBL to submission",
+    "review_intensity": "heavy",
+    "typical_domains": ["DM", "AE", "CM", "LB", "VS", "EX", "DS", "MH", "EG", "QS", "TU", "TR", "RS"]
+  }
+}
+```
+
+### 2.2 TA Knowledge (以 Oncology 为例)
+
+```json
+{
+  "oncology": {
+    "key_endpoints": ["OS", "PFS", "ORR", "DOR", "DCR", "TTR"],
+    "response_criteria": "RECIST 1.1 (solid) / iRECIST / Lugano (lymphoma) / RANO (CNS)",
+    "specialized_adam": {
+      "ADTR": "Tumor Response — visit-level assessments, derived BOR/ORR",
+      "ADTTE": "Time-to-Event — OS/PFS with complex censoring rules"
+    },
+    "key_figures": [
+      "Kaplan-Meier curves (OS, PFS) with at-risk table",
+      "Waterfall plot (best % change in tumor size)",
+      "Swimmer plot (treatment duration + response + events)",
+      "Spider plot (longitudinal tumor burden)",
+      "Forest plot (subgroup hazard ratios)"
+    ],
+    "safety_specifics": [
+      "NCI CTCAE v5.0 toxicity grading",
+      "Treatment-emergent AE flagging for complex regimens",
+      "Prior/concomitant anti-cancer therapy capture",
+      "IRC (Independent Review Committee) reconciliation"
+    ],
+    "dictionary": "MedDRA",
+    "sdmt_domains_extra": ["TU", "TR", "RS", "SUPPTR"],
+    "adam_datasets_extra": ["ADTR"],
+    "tfl_sections_extra": {
+      "14.2.1": "Tumor Response (RECIST 1.1)",
+      "14.2.2": "Progression-Free Survival",
+      "14.2.3": "Overall Survival"
+    }
+  },
+  "non_oncology": {
+    "key_endpoints": "Varies by indication",
+    "sub_types": {
+      "cardiovascular": {
+        "endpoints": ["MACE", "blood pressure", "lipid panels"],
+        "special_datasets": ["ADEG (QT/QTc)"],
+        "dictionary": "MedDRA"
+      },
+      "diabetes": {
+        "endpoints": ["HbA1c", "FPG", "hypoglycemic events"],
+        "special_datasets": [],
+        "dictionary": "MedDRA"
+      },
+      "respiratory": {
+        "endpoints": ["FEV1", "exacerbation rate", "SGRQ"],
+        "special_datasets": [],
+        "dictionary": "MedDRA"
+      }
+    }
+  }
+}
+```
+
+### 2.3 Agent 如何加载知识
 
 ```python
-# 在 Orchestrator 初始化时注入配置
-orchestrator = Orchestrator(
-    config=OrchestratorConfig(
-        trial_phase=TrialPhase.PHASE_III,
-        therapeutic_area=TherapeuticArea.ONCOLOGY,
-    )
-)
+# Agent Runtime 在 ASSESS 阶段自动检索知识库
 
-# 配置影响:
-#   · SDTM 域加载哪些 (肿瘤: 标准域; 非肿瘤: 标准域)
-#   · ADaM 数据集加载哪些 (肿瘤: +ADTR; 非肿瘤: -ADTR)
-#   · TFL 清单加载哪些 (肿瘤: +瀑布图+泳道图+RECIST表)
-#   · QC 强度 (Phase I: 轻; Phase III: 全双编程)
-#   · AI 行为优先级 (Phase I: 速度; Phase III: 准确度)
+context = {
+    ...
+    "knowledge": {
+        "phase": load_json(f"knowledge/phase_knowledge.json")[trial_phase],
+        "ta": load_json(f"knowledge/{therapeutic_area}_ta.json"),
+        "cdisc": CDISC_KNOWLEDGE,  # from clinical_standards.py
+        "regulatory": REGULATORY_GUIDANCE,
+    }
+}
 ```
 
 ---
 
-## 2. Phase I 配置
+## 3. 差异化的影响
 
-### 2.1 概览
+### 3.1 对 SDTM Domain 选择的影响
 
 ```
-Phase I = First-in-Human / Dose-Finding
+Phase I (First-in-Human):
+  Agent 读取 phase_knowledge.phase_i.cdisc_rigor = "Optional"
+  → 只生成必需域: DM, AE, CM, LB, VS, EX
+  → 不生成完整 SUPPQUAL/RELREC
+  → Review intensity: light
 
-特征:
-  样本量:   20-80 subjects
-  重点:     Safety + PK/PD
-  CDISC:    可选 (越来越标准化)
-  时间线:   极快 (days to weeks)
-  TFL 量:   20-50
-  QC 强度:  标准QC (非全双编程)
+Phase III (Confirmatory):
+  Agent 读取 phase_knowledge.phase_iii.cdisc_rigor = "Full"
+  → 生成全部标准域 + TA 特殊域 (如肿瘤: TU, TR, RS)
+  → 完整 SUPPQUAL + RELREC
+  → Review intensity: heavy
+
+Oncology vs Non-Oncology:
+  Agent 读取 oncology_ta.json.sdmt_domains_extra = ["TU","TR","RS","SUPPTR"]
+  → 额外生成这 4 个域
+  → ADAM: +ADTR dataset
+  → TFL: +肿瘤专属图 (瀑布图, 泳道图, 蜘蛛图)
 ```
 
-### 2.2 配置参数
+### 3.2 对 TFL Shell 数量的影响
 
-```yaml
-phase_i:
-  domains:
-    - DM      # 必须
-    - AE      # 安全核心
-    - CM      # 合并用药
-    - LB      # 安全性实验室
-    - VS      # 生命体征
-    - EX      # 给药暴露 (剂量爬坡cohort)
-    - DS      # 受试者处置
-    # 省略: MH, EG, QS (Phase I 可选)
+```
+Phase I:    ~20-50  TFLs (安全 + PK)
+Phase II:   ~50-150 TFLs (+ 初步疗效)
+Phase III:  ~200-500 TFLs (+ 确证性分析 + ISS/ISE)
+  + Oncology: ~+30 TFLs (肿瘤评估专用)
+  + Cardiovascular: ~+15 TFLs (QT/QTc 专用)
 
-  adam_datasets:
-    - ADSL    # 必须
-    - ADAE    # 安全核心
-    - ADLB    # 安全性实验室
-    - ADPP    # PK 参数 (Phase I 特有)
-    # 省略: ADTTE, ADCM, ADVS, ADEF
-
-  mandatory_tfls:
-    - T14.1.1  Disposition
-    - T14.1.2  Demographics
-    - T14.3.1  TEAE Overview
-    - T14.3.2  TEAEs by SOC/PT
-    - L16.2.1  Disposition Listing
-    - L16.2.4  AE Listing
-    # 共计 ~20-50 TFLs
-
-  special_analyses:
-    - DLT (Dose-Limiting Toxicity) evaluation
-    - PK parameter summary (Cmax, AUC, Tmax, t1/2)
-    - MTD/MAD determination support
-    - Dose proportionality analysis
-
-  ai_instructions:
-    sdtm_priority: "Focus on AE (DLT), EX (dose cohorts), LB (safety labs)"
-    adam_priority: "Derive DLT flags, cohort assignment, cumulative dose"
-    tfl_priority: "Rapid turnaround — minimize TFL count, focus on safety"
-    qc_intensity: "Standard QC (spot check; not full double programming)"
-
-  timeline: "2-4 weeks from DBL to TFL delivery"
+Agent 调用 tfl_shells_list(trial_phase, therapeutic_area) →
+  MCP 工具根据 Phase + TA 自动返回正确的 TFL 目录
 ```
 
-### 2.3 Phase I 特有 ADaM 数据集: ADPP (PK Parameters)
+### 3.3 对 Review Protocol 的影响
 
-```python
-# ADPP: 每个受试者每个PK参数一个分析记录 (BDS结构)
-PARAMCD  → "CMAX" | "AUC_LAST" | "AUC_INF" | "TMAX" | "T_HALF" | "CL" | "VZ"
-AVAL     → PK parameter value
-AVALU     → Units (ng/mL, hr*ng/mL, hr, L/hr, L)
-DOSNO    → Dose number (for multiple-dose studies)
+```
+不是预设 "有多少个 Gate", 而是 Agent 根据知识决定 "何时 review":
+
+  Phase I:   可能只有 1 次 Review (SAP or safety summary)
+  Phase II:  2-3 次 Review (SAP + key efficacy + safety)
+  Phase III: 4-6 次 Review (full pipeline with regulatory scrutiny)
+
+  Oncology:  +1 Review (RECIST 响应评估, IRC reconciliation)
+  Cardio:    +1 Review (QT/QTc analysis)
+
+  Review intensity 跟随 Phase:
+  · Phase I:  light (快速扫一眼)
+  · Phase II: medium (关注关键决策点)
+  · Phase III: heavy (全量审阅, 法规递交标准)
 ```
 
 ---
 
-## 3. Phase II 配置
-
-### 3.1 概览
+## 4. 迁移清单
 
 ```
-Phase II = Dose-Ranging / Proof-of-Concept
+templates/                          → knowledge/
+──────────────────────────────────────────────────────────
+templates/trial_configs.py          → knowledge/phase_knowledge.json
+  (PHASE_KNOWLEDGE dict)              (每个 Phase 的独立 JSON)
 
-特征:
-  样本量:   100-300 subjects
-  重点:     剂量探索 + 初步疗效
-  CDISC:    中等 (越来越多Phase II被纳入递交包)
-  时间线:   适中 (weeks to months)
-  TFL 量:   50-150
-  QC 强度:  关键TFL双编程
-```
+templates/trial_configs.py          → knowledge/oncology_ta.json
+  (TA_KNOWLEDGE["oncology"])          (肿瘤专有知识)
 
-### 3.2 配置参数
+templates/trial_configs.py          → knowledge/non_oncology_ta.json
+  (TA_KNOWLEDGE["non_oncology"])      (扩展为多个 TA JSON)
 
-```yaml
-phase_ii:
-  domains:
-    - DM, AE, CM, LB, VS, EX, DS, MH  # +MH (病史)
-    # 可选: EG, QS (根据终点)
+config/workflow_config.py           → Agent Runtime 参数
+  (OrchestratorConfig)                (project_dir, study_id, trial_phase, ...)
 
-  adam_datasets:
-    - ADSL, ADAE, ADLB, ADVS, ADEF, ADCM
-    # 新增: ADEF (疗效), ADCM (合并用药)
-    # 可选: ADTTE (如果有TTE终点)
-
-  special_analyses:
-    - Dose-response modeling (MCP-Mod)
-    - Proof-of-concept efficacy comparison
-    - Dose selection decision support
-    - Subgroup analyses for dose optimization
-    - Adaptive design support (sample size re-estimation)
-
-  ai_instructions:
-    sdtm_priority: "Complete SDTM coverage including MH for prior conditions"
-    adam_priority: "Derive dose groups, cumulative exposure, multiple dose comparisons"
-    tfl_priority: "Dose-response tables and figures. Subgroup tables for dose optimization."
-    qc_intensity: "Double programming for primary and key secondary endpoint TFLs"
-
-  timeline: "6-12 weeks from DBL to TFL delivery"
+src/knowledge/clinical_standards.py → 保留, 无变更
+  (CDISC_KNOWLEDGE, REGULATORY)
 ```
 
 ---
 
-## 4. Phase III 配置 (核心场景)
+## 5. 交叉引用
 
-### 4.1 概览
-
-```
-Phase III = Confirmatory / Pivotal
-
-特征:
-  样本量:   300-3,000+ subjects
-  重点:     确证性疗效 + 全面安全性
-  CDISC:    严格合规, 法规递交级
-  时间线:   长 (6-18 月)
-  TFL 量:   200-500+
-  QC 强度:  所有关键TFL全双编程, P21严格模式
-```
-
-### 4.2 配置参数
-
-```yaml
-phase_iii:
-  domains:           # 全量标准域
-    - DM, AE, CM, LB, VS, EX, DS, MH, EG, QS
-
-  adam_datasets:     # 全量分析数据集
-    non_oncology:
-      - ADSL, ADAE, ADLB, ADVS, ADEF, ADCM, ADTTE, ADQS
-    oncology:
-      - ADSL, ADAE, ADLB, ADVS, ADEF, ADTTE, ADTR, ADCM
-
-  mandatory_tfls:    # 200-500+ TFLs
-    - 14.1  Disposition, Demographics, Baseline (~10 tables)
-    - 14.2  Efficacy (~50-150 tables/figures)
-    - 14.3  Safety (~80-200 tables)
-    - 16.2  Listings (~30-100 listings)
-
-  special_analyses:
-    - Primary endpoint confirmatory analysis
-    - Key secondary endpoints (hierarchical testing)
-    - Comprehensive safety (TEAE, SAE, labs, vitals, ECG)
-    - Subgroup analyses (pre-specified)
-    - Sensitivity analyses
-    - ISS/ISE (Integrated Summary of Safety/Efficacy)
-
-  ai_instructions:
-    sdtm_priority: "Full CDISC compliance — all domains, full SUPPQUAL, RELREC cross-domain"
-    adam_priority: "Precise derivation logic. Every variable traceable to SDTM or SAP."
-    tfl_priority: "Submission quality. Cross-table consistency is critical."
-    qc_intensity: "Full double programming for all pivotal TFLs. Pinnacle 21 strict mode."
-
-  timeline: "6-18 months from DBL to submission (ISS/ISE adds 3-6 months)"
-```
-
----
-
-## 5. Oncology (肿瘤) 配置
-
-### 5.1 肿瘤试验特有要求
-
-```yaml
-oncology:
-  key_endpoints:
-    - OS   (Overall Survival)
-    - PFS  (Progression-Free Survival)
-    - ORR  (Objective Response Rate)
-    - DOR  (Duration of Response)
-    - DCR  (Disease Control Rate)
-    - TTR  (Time to Response)
-
-  response_criteria:
-    solid_tumors: "RECIST 1.1"
-    immunotherapy: "iRECIST"
-    lymphoma: "Lugano Classification"
-    cns_tumors: "RANO Criteria"
-
-  specialized_adam:
-    ADTR:  # Tumor Response — 核心肿瘤数据集
-      structure: "BDS (one row per subject per visit per parameter)"
-      parameters:
-        - SOD     (Sum of Diameters)
-        - PCHG    (Percent Change from Baseline)
-        - BOR     (Best Overall Response: CR/PR/SD/PD/NE)
-        - OBJRESP (Objective Response: Y/N)
-      derivation:
-        BOR: "Algorithm per RECIST 1.1 — requires confirmation assessment"
-        ORR: "100 * (CR + PR) / N"
-
-    ADTTE: # 肿瘤试验的特殊删失规则
-      OS_censoring:
-        - "Censor at last known alive date if no death"
-      PFS_censoring:
-        - "Censor at last adequate tumor assessment without PD"
-        - "Censor if >2 consecutive missed assessments before PD"
-        - "Censor if new anti-cancer therapy started before PD"
-
-  key_figures:
-    - Kaplan-Meier curves for OS and PFS (with at-risk table)
-    - Waterfall plot (best percent change in tumor size, per subject)
-    - Swimmer plot (treatment duration + response + events)
-    - Spider plot (longitudinal tumor burden over time)
-    - Forest plot (subgroup hazard ratios with 95% CI)
-
-  safety_specifics:
-    - NCI CTCAE v5.0 toxicity grading (ADAE.ATOXGR)
-    - IRC vs Investigator assessment reconciliation (ADTR)
-    - Prior/concomitant anti-cancer therapy capture (CM.PRIORFL)
-    - Treatment discontinuation due to PD vs toxicity
-
-  dictionaries:
-    ae_coding: "MedDRA (current version)"
-    cm_coding: "WHODrug (current version)"
-```
-
-### 5.2 肿瘤 vs 非肿瘤 对比
-
-```
-┌────────────────────────────────┬──────────────────────────────────┐
-│ ONCOLOGY                       │ NON-ONCOLOGY                     │
-├────────────────────────────────┼──────────────────────────────────┤
-│ Endpoint: TTE为主 (OS, PFS)     │ Endpoint: 连续型为主 (HbA1c, FEV1)│
-│ ADaM核心: ADTTE + ADTR         │ ADaM核心: ADEF (BDS)             │
-│ Figures重: 30-60+图形          │ Figures轻: 10-20图形             │
-│ CTCAE毒性分级                   │ 标准AE分析                       │
-│ RECIST肿瘤评估                  │ 无肿瘤评估                       │
-│ IRC盲态独立审核                 │ 一般无IRC                        │
-│ 多年随访 (OS成熟)               │ 数周-数月随访                    │
-│ IDMC中期分析 (O'Brien-Fleming)  │ 较少中期分析                     │
-│ 跨线治疗复杂                     │ 治疗简单                         │
-└────────────────────────────────┴──────────────────────────────────┘
-```
-
----
-
-## 6. 非肿瘤各治疗领域配置
-
-### 6.1 终点模板
-
-```
-Cardiovascular (心血管):
-  Primary:    MACE (Major Adverse Cardiovascular Events) — TTE
-  Secondary:  Blood pressure, Lipid panels, hsCRP
-  Safety:     QT/QTc (ECG), hypotension, bleeding events
-  ADaM:       ADSL + ADAE + ADTTE (MACE) + ADEG (ECG) + ADLB
-
-Diabetes (糖尿病):
-  Primary:    Change from baseline in HbA1c at Week 24 — Continuous
-  Secondary:  FPG, body weight, hypoglycemic events
-  Safety:     Hypoglycemia (ADA category), pancreatic safety
-  ADaM:       ADSL + ADAE + ADLB (HbA1c, FPG) + ADEF
-
-Respiratory (呼吸):
-  Primary:    Change from baseline in FEV1 at Week 12 — Continuous
-  Secondary:  Exacerbation rate, SGRQ score
-  Safety:     Respiratory infections, cardiovascular safety
-  ADaM:       ADSL + ADAE + ADEF (FEV1, SGRQ) + ADTTE (exacerbation)
-
-Dermatology (皮肤):
-  Primary:    PASI 75 responder at Week 16 — Binary
-  Secondary:  IGA 0/1, DLQI change
-  Safety:     Injection site reactions, infections
-  ADaM:       ADSL + ADAE + ADEF (PASI, IGA, DLQI)
-
-Neuroscience (神经):
-  Primary:    Change from baseline in ADAS-Cog at Week 24 — Continuous
-  Secondary:  CDR-SB, MMSE, NPI
-  Safety:     ARIA (amyloid-related imaging abnormalities), falls
-  ADaM:       ADSL + ADAE + ADEF (ADAS-Cog, CDR-SB) + ADEG (MRI)
-```
-
----
-
-## 7. 配置切换示例
-
-### 7.1 肿瘤 Phase III 配置加载
-
-```python
-from src.templates.trial_configs import get_template
-
-config = get_template("phase_iii", "oncology")
-# → PHASE_III_ONCOLOGY template
-
-print(config.domains)
-# → ["DM","AE","CM","LB","VS","EX","DS","MH","EG","QS"]
-
-print(config.adam_datasets)
-# → ["ADSL","ADAE","ADTTE","ADTR","ADLB","ADVS","ADCM"]
-
-print(config.special_analyses[0])
-# → "OS/PFS primary analysis (stratified log-rank, Cox PH)"
-
-print(config.ai_instructions["qc_intensity"])
-# → "Full double programming for all pivotal TFLs. Pinnacle 21 strict mode."
-```
-
-### 7.2 Phase I 肿瘤配置加载
-
-```python
-config = get_template("phase_i", "oncology")
-
-print(config.domains)
-# → ["DM","AE","CM","LB","VS","EX","DS"]  # 较少域
-
-print(config.tfl_volume)  # 6个核心TFL
-print(config.ai_instructions["tfl_priority"])
-# → "Rapid turnaround — minimize TFL count, focus on safety"
-```
-
----
-
-## 8. 未来扩展
-
-### 8.1 更多治疗领域
-
-```
-支持扩展的治疗领域模板:
-  · Ophthalmology (眼科) — ETDRS, IOP
-  · Gastroenterology (消化) — Mayo Score, CDAI
-  · Rheumatology (风湿) — ACR20, DAS28
-  · Infectious Disease (感染) — Microbiological response
-  · Rare Disease (罕见病) — 复合终点, N-of-1设计
-```
-
-### 8.2 更多递变标准
-
-```
-支持扩展的递交目标:
-  · FDA (CDER/CBER) — 标准 eCTD
-  · EMA (EU) — Module 5 适配
-  · PMDA (Japan) — 日语标签适配
-  · NMPA (China) — 中文递交包适配
-```
-
-### 8.3 自适应设计支持
-
-```
-新增分析模式:
-  · Group Sequential Design (组序贯设计)
-  · Adaptive Randomization (适应性随机化)
-  · Population Enrichment (人群富集)
-  · Seamless Phase II/III (无缝II/III期)
-```
+| 主题 | 文档 |
+|------|------|
+| 总体架构 v3.0 | [SPEC-00](00-Overview.md) |
+| Agent 设计 — Capability Domains | [SPEC-08](08-Agent-Design.md) |
+| Protocol → SAP | [SPEC-01](01-Protocol-to-SAP.md) |
+| SDTM 规范 | [SPEC-02](02-SDTM.md) |
+| ADaM 规范 | [SPEC-03](03-ADaM.md) |
+| TFL | [SPEC-04](04-TFL.md) |
+| 变更管理 | [SPEC-11](11-Change-Management.md) |
+| MCP 工具 API | [SPEC-09](09-MCP-Tools-Design.md) |
