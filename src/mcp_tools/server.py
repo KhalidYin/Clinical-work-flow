@@ -31,6 +31,10 @@ from .cdisc_validator import (
     validate_sdtm, validate_adam, triage_pinnacle21_findings,
     generate_define_xml_metadata, CDISC_RULES,
 )
+from .ctgov_fetcher import (
+    search_ctgov, get_study_details, download_study_documents,
+    check_document_availability, CTGovClient, CTGovDocument, CTGovStudy,
+)
 
 
 # ── MCP Tool Definitions ────────────────────────────────────────
@@ -94,6 +98,41 @@ TOOLS = [
             "findings": "List of P21 validation findings",
         },
     },
+    {
+        "name": "ctgov_search",
+        "description": "Search ClinicalTrials.gov for clinical trials by condition/phase/status.",
+        "parameters": {
+            "condition": "Disease/condition (e.g. 'Non-Small Cell Lung Cancer')",
+            "phase": "Trial phase (e.g. 'Phase 3')",
+            "status": "Overall status (e.g. 'RECRUITING', 'COMPLETED')",
+            "term": "Free-text search query",
+            "page_size": "Results per page (default 20, max 1000)",
+            "max_pages": "Max pages to fetch (default 5)",
+        },
+    },
+    {
+        "name": "ctgov_study_detail",
+        "description": "Get full details of a single clinical trial, including downloadable documents (Protocol, SAP, ICF).",
+        "parameters": {
+            "nct_id": "NCT identifier (e.g. 'NCT04205812')",
+        },
+    },
+    {
+        "name": "ctgov_download_docs",
+        "description": "Download study documents (Protocol, SAP, ICF) from ClinicalTrials.gov to local storage.",
+        "parameters": {
+            "nct_id": "NCT identifier",
+            "doc_types": "Optional list of doc types to download: ['PROTOCOL', 'SAP', 'ICF']. None = all.",
+            "output_dir": "Optional output directory. Default: downloads/ctgov/{NCT_ID}/",
+        },
+    },
+    {
+        "name": "ctgov_check_docs",
+        "description": "Batch check which NCT studies have downloadable Protocol/SAP documents.",
+        "parameters": {
+            "nct_ids": "List of NCT identifiers to check",
+        },
+    },
 ]
 
 
@@ -109,6 +148,10 @@ def handle_tool_call(tool_name: str, arguments: dict[str, Any]) -> dict[str, Any
         "cdisc_validate": _handle_cdisc_validate,
         "define_xml_build": _handle_define_xml_build,
         "triage_p21": _handle_triage_p21,
+        "ctgov_search": _handle_ctgov_search,
+        "ctgov_study_detail": _handle_ctgov_study_detail,
+        "ctgov_download_docs": _handle_ctgov_download_docs,
+        "ctgov_check_docs": _handle_ctgov_check_docs,
     }
     handler = handlers.get(tool_name)
     if handler is None:
@@ -168,6 +211,34 @@ def _handle_define_xml_build(args: dict) -> dict:
 
 def _handle_triage_p21(args: dict) -> dict:
     return triage_pinnacle21_findings(args["findings"])
+
+
+def _handle_ctgov_search(args: dict) -> dict:
+    return search_ctgov(
+        condition=args.get("condition"),
+        phase=args.get("phase"),
+        status=args.get("status"),
+        term=args.get("term"),
+        page_size=args.get("page_size", 20),
+        max_pages=args.get("max_pages", 5),
+    )
+
+
+def _handle_ctgov_study_detail(args: dict) -> dict:
+    return get_study_details(args["nct_id"])
+
+
+def _handle_ctgov_download_docs(args: dict) -> dict:
+    return download_study_documents(
+        nct_id=args["nct_id"],
+        doc_types=args.get("doc_types"),
+        output_dir=args.get("output_dir"),
+    )
+
+
+def _handle_ctgov_check_docs(args: dict) -> dict:
+    results = check_document_availability(args["nct_ids"])
+    return {"checked": len(results), "results": results}
 
 
 # ── MCP Server entry point ───────────────────────────────────────
