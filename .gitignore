@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+*.egg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Claude Code workspace
+.claude/
+
+# Runtime state (not source code)
+.review_queue/
+.workflow/
+
+# Generated outputs (not version-controlled)
+project/outputs/
+outputs/
+
+# Audit trail (runtime log, regenerated)
+audit_trail.jsonl
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Environment
+.env
+.env.local
