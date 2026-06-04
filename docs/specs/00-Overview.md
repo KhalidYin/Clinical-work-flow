@@ -469,6 +469,7 @@ Agent Runtime (继续):
 | SPEC-12~14 | 操作模型 / 环境 / 走查 | v1.0-v2.1 | ⚠️ 需配合 v3.0 更新 |
 | [SPEC-15](15-Review-Protocol.md) | Review Protocol 规格 — Agent↔Human 结构化交互 | v1.0 | **已完成** |
 | [SPEC-16](16-Review-Panel.md) | Review Panel 前端规格 — VSCode 侧边栏审核界面 | v1.0 | **已完成** |
+| [SPEC-17](17-Code-Generation.md) | Code Generation — SAS/R 双后端 + 跨语言 QC | v1.0 | **已完成** |
 
 ---
 
