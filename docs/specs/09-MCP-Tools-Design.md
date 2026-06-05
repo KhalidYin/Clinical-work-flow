@@ -2,9 +2,9 @@
 
 ## 文档编号: SPEC-09
 ## 主题: 6个 MCP 工具的详细 API 设计与实现约束
-## 版本: 2.1
+## 版本: 3.0
 
-> **v2.1 架构说明**: MCP 工具层在 v2.1 中完全保留, 无变更。这 6 个确定性纯函数被 3 个 Executor Agent 和 ReviewerAgent 调用。原则2 (确定性操作走 MCP, 推理走 LLM) 是本层存在的核心理由。详见 [SPEC-06](06-AI-Architecture.md) 和 [SPEC-08](08-Agent-Design.md)。
+> **v3.0 架构说明**: MCP 工具层在 v3.0 中完全保留, 无变更。这 6 个确定性纯函数由 Runtime 代理统一调度, 通过能力域 (ProtocolSAP / DataStandards / TFLQCSubmission) 的 Action 列表驱动调用。原则2 (确定性操作走 MCP, 推理走 LLM) 是本层存在的核心理由。详见 [SPEC-06](06-AI-Architecture.md), [SPEC-08](08-Agent-Design.md) 和 [SPEC-18](18-P0-Alignment.md)。
 
 ---
 
@@ -502,9 +502,9 @@ OUTPUT:
 ```
 ─────────────────────────────────────────────
 TOOL ID:    triage_p21
-PURPOSE:    AI 辅助分类 Pinnacle 21 验证发现
-DETERMINISTIC: PARTIALLY (规则引擎部分确定; LLM 辅助申辩理由生成可选)
-LLM-FREE:   YES (核心分类逻辑)
+PURPOSE:    确定性分类 Pinnacle 21 验证发现 (规则引擎, 无 LLM 依赖)
+DETERMINISTIC: YES
+LLM-FREE:   YES (全部逻辑为规则引擎)
 ─────────────────────────────────────────────
 
 INPUT:
@@ -524,7 +524,7 @@ OUTPUT:
     "auto_resolution_details": {
       "known_false_positives": 45,
       "auto_fixable": 30,
-      "notes_auto_justified": 85
+      "notes_rule_matched": 85
     },
     "review_queue": [
       {
@@ -532,8 +532,8 @@ OUTPUT:
         "severity": "error",
         "priority": "HIGH",
         "category": "SDTM Conformance",
-        "auto_analysis": "This is NOT a known false positive. Date format issue requires data investigation.",
-        "suggested_approach": "Check source EDC export date format settings.",
+        "matched_rule": null,
+        "rule_based_suggestion": "Check source EDC export date format settings.",
         "estimated_fix_time": "1-2 hours"
       }
       // ... 其余需要审核的
@@ -547,73 +547,134 @@ OUTPUT:
 
 ## 3. 工具调用模式
 
-### 3.1 MainAgent 的标准调用顺序
+### 3.1 Runtime 代理调用模式
 
-```python
-# SDTM Spec 阶段的典型工具调用链
-async def sdtm_spec_stage(domains=["DM","AE","CM","LB","VS","EX","DS"]):
-    
-    for domain in domains:
-        # Step 1: 生成规范
-        spec = sdtm_spec_build(
-            domain_code=domain,
-            trial_phase=state.trial_phase,
-            therapeutic_area=state.therapeutic_area,
-            crf_mappings=load_crf_mappings(domain),
-        )
-        save_spec(spec)  # 持久化
-        
-    for domain in domains:
-        # Step 2: 验证规范
-        validation = cdisc_validate(
-            type="sdtm",
-            domain_or_dataset=domain,
-            data_metadata=load_spec(domain),
-        )
-        
-        # Step 3: 如果有 Error → 修复或标记
-        if validation.has_errors():
-            # ... 修复逻辑
-        
-    # Step 4: 全部完成后 triage
-    all_findings = collect_all_findings(domains)
-    triage = triage_p21(findings=all_findings)
-    
-    return {"specs": [...], "triage": triage}
+```text
+能力域 (DataStandards) 生成 Action 列表 → Runtime 逐个执行 MCP 工具调用
+
+调用链 (以 SDTM Spec 阶段为例):
+
+  DataStandards 能力域
+    ├── 分析上下文, 决定需要哪些工具
+    └── 返回 Action 列表:
+          [{tool: "sdtm_spec_build", args: {domain: "AE", ...}},
+           {tool: "sdtm_spec_build", args: {domain: "CM", ...}},
+           ...
+           {tool: "cdisc_validate",   args: {domain: "AE", ...}},
+           ...
+           {tool: "triage_p21",       args: {findings: [...]}}]
+
+  Runtime (agent_loop.py)
+    ├── 逐个执行 Action
+    ├── 记录到 audit_trail.jsonl
+    ├── 收集结果
+    └── 打包 → ReviewPacket / 直接写入 outputs/
 ```
 
-### 3.2 ReviewerAgent 可选调用
+```python
+# Runtime 执行能力域返回的 Action 列表 (伪代码)
+async def execute_actions(actions: list[Action], runtime: AgentRuntime):
+    results = []
+    for action in actions:
+        if action.type == "call_tool":
+            result = await runtime.call_mcp_tool(action.tool, action.args)
+            runtime.write_audit_line(action, result)
+            results.append(result)
+    return results
+
+# DataStandards 能力域返回的 Action 列表 (示例)
+def sdtm_spec_generation_actions(context) -> list[Action]:
+    actions = []
+    for domain in context["domains"]:
+        actions.append(Action(
+            tool="sdtm_spec_build",
+            args={
+                "domain_code": domain,
+                "trial_phase": context["trial_phase"],
+                "therapeutic_area": context["therapeutic_area"],
+                "crf_mappings": load_crf_mappings(domain),
+            }
+        ))
+    for domain in context["domains"]:
+        actions.append(Action(
+            tool="cdisc_validate",
+            args={
+                "type": "sdtm",
+                "domain_or_dataset": domain,
+                "data_metadata": f"outputs/sdtm_specs/{domain}_spec.json",
+            }
+        ))
+    return actions
+```
+
+### 3.2 验证子代理调用模式
+
+```text
+验证子代理 (Validation Subagent) 与 MCP 工具验证并行执行, 各自覆盖不同验证维度:
+
+  能力域生成产出
+    ↓
+  Runtime 发起验证 (并行)
+    ├── 确定性验证: 调用 MCP 工具 (cdisc_validate) — 规则类检查
+    └── 逻辑验证:   验证子代理 (不同 prompt, 专职找错) — 逻辑类检查
+    ↓
+  合并主产出 + MCP 验证结果 + 子代理 findings
+    ↓
+  打包为 ReviewPacket → 写入 .review_queue/
+```
 
 ```python
-# ReviewerAgent 可以独立调用 MCP 工具验证 MainAgent 的结果
-# 关键: 使用独立的工具实例, 不共享状态
+# Runtime 在能力域生成完成后, 按需触发验证子代理
+# 触发条件: 置信度非 HIGH, 或处于合规关键节点 (SPEC-18 决策2)
 
-async def reviewer_verify_sdtm_spec(domain, main_agent_spec):
-    """Reviewer：独立调用工具验证"""
-    
-    # 1. 独立生成 spec (看结果是否一致)
-    reviewer_spec = sdtm_spec_build(
-        domain_code=domain,
-        trial_phase=main_agent_spec["trial_phase"],
-        therapeutic_area=main_agent_spec["therapeutic_area"],
-        # 注意: 这里不传 crf_mappings — 纯从标准生成
-        # 然后与 MainAgent 的比对差异
+async def trigger_validation_subagent(
+    domain: str,
+    primary_output: dict,
+    confidence: str,
+    stage_type: str,
+) -> list[ReviewFinding]:
+    """Runtime 发起验证子代理, 与 MCP 验证并行执行"""
+
+    # 判断是否需要验证子代理 (参照 SPEC-18 触发规则)
+    validation_subagent_required = {
+        "sdtm_spec": True,       # 始终触发 (合规关键)
+        "adam_spec": True,       # 始终触发 (合规关键)
+        "tfl_shell": True,       # 始终触发 (业务关键)
+        "sdtm_program": False,   # 用 cdisc_validate MCP 工具替代
+        "adam_program": False,   # 用 cdisc_validate MCP 工具替代
+        "tfl_program": False,    # 用双编程对比替代 (SPEC-17)
+        "sap": True,             # 始终触发 (业务关键)
+    }
+
+    if not validation_subagent_required.get(stage_type, False):
+        return []
+
+    # 并行: MCP 确定性验证 + 子代理逻辑验证
+    mcp_findings, subagent_findings = await asyncio.gather(
+        run_mcp_validation(domain, primary_output),
+        run_validation_subagent(domain, primary_output),
     )
-    
-    # 2. 独立验证
-    reviewer_validation = cdisc_validate(
+
+    return merge_findings(mcp_findings, subagent_findings)
+
+
+async def run_mcp_validation(domain: str, output: dict) -> list[ReviewFinding]:
+    """确定性 MCP 验证 — 规则类检查"""
+    return cdisc_validate(
         type="sdtm",
         domain_or_dataset=domain,
-        data_metadata=main_agent_spec["variables"],
+        data_metadata=output["variables"],
     )
-    
-    # 3. 比对
-    differences = compare(main_agent_spec, reviewer_spec)
-    
-    return {
-        "differences": differences,
-        "independent_validation": reviewer_validation,
-    }
+
+
+async def run_validation_subagent(domain: str, output: dict) -> list[ReviewFinding]:
+    """验证子代理 — 逻辑类检查 (同模型, 不同 prompt)"""
+    # prompt: "审查这份 spec, 找出所有与 CDISC IG 不一致的地方"
+    # 输出: ReviewFinding 数组
+    return await agent_runtime.invoke_subagent(
+        prompt_template="validation/sdtm_spec_review",
+        context={"domain": domain, "spec": output},
+    )
 ```
 
 ---

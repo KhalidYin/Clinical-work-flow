@@ -17,7 +17,7 @@ from .base import (
     BaseAgent, AgentConfig, AgentContext,
     Confidence, Severity, ReviewLevel, AgentRole,
 )
-from .arbitration import ArbitrationHistory
+from ..legacy.arbitration import ArbitrationHistory
 
 
 # ── Executor 1: ProtocolSAPAgent ───────────────────────────────

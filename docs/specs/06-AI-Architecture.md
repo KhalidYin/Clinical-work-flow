@@ -2,7 +2,7 @@
 
 ## 文档编号: SPEC-06
 ## 版本: 3.0
-## 主题: Agent-Native Runtime + Structured Review Protocol + Deterministic Toolbelt
+## 主题: 固定管线 + 动态审核策略 + Structured Review Protocol + Deterministic Toolbelt
 
 ---
 
@@ -36,9 +36,9 @@ v2.1  3 Executor + Reviewer + Checklist      v3.0  Agent-Native Runtime
 ──────                                      ──────
 
 ┌─────────────────────────────┐            ┌─────────────────────────────┐
-│  ReviewerAgent (Sonnet)     │            │  AGENT RUNTIME (动态决策)    │
-│  独立审阅, 强制找问题        │            │  context → decide → execute  │
-├─────────────────────────────┤            │  不预设阶段, 自主路由         │
+│  ReviewerAgent (Sonnet)     │            │  AGENT RUNTIME (固定管线)     │
+│  独立审阅, 强制找问题        │            │  pipeline stage → execute    │
+├─────────────────────────────┤            │  固定顺序, 动态审核策略       │
 │  Checklist Layer (独立)      │            ├─────────────────────────────┤
 │  6 Gate × 4-11 items        │            │  STRUCTURED REVIEW PROTOCOL  │
 │  强制逐项校验                │            │  ReviewPacket ↔ Decision     │
@@ -65,11 +65,11 @@ v2.1  3 Executor + Reviewer + Checklist      v3.0  Agent-Native Runtime
 
 | 维度 | v1.0 | v2.0 | v2.1 | v3.0 |
 |------|------|------|------|------|
-| **管线模型** | 5个独立Agent | 1 Main + 1 Reviewer | 3 Executor + Reviewer | Agent 动态决策 |
+| **管线模型** | 5个独立Agent | 1 Main + 1 Reviewer | 3 Executor + Reviewer | 固定管线 + 动态审核策略 |
 | **状态管理** | 无 | 内存 | State Machine | **文件系统 + Git** |
 | **人工交互** | Skills (独立进程) | 内化到 Agent | Gate 暂停 + 对话 | **Review Protocol (批量)** |
 | **格式保证** | 无 | Prompt 约束 | Prompt + Checklist | **JSON Schema enforced** |
-| **审核机制** | Skills 手动调用 | Reviewer 交叉审阅 | Reviewer + Checklist 层 | **Schema required fields** |
+| **审核机制** | Skills 手动调用 | Reviewer 交叉审阅 | Reviewer + Checklist 层 | **验证子代理 + Schema required fields** |
 | **模板/配置** | 分散 | 分散 | templates/ 硬编码 | **knowledge/ 动态加载** |
 | **版本控制** | 无 | 文件头注释 | 文件头注释 | **Git (每次变更一个commit)** |
 | **审计追踪** | 无 | 无 | ChangeRecord JSONL | **JSONL + Git history 双层** |
@@ -78,33 +78,43 @@ v2.1  3 Executor + Reviewer + Checklist      v3.0  Agent-Native Runtime
 
 ## 3. v3.0 核心设计决策
 
-### 3.1 为什么放弃固定管线
+### 3.1 为什么用"固定管线 + 动态审核策略"
 
 ```
-12 阶段固定管线的问题:
+v3.0 的管线模型: 固定管线顺序 + 动态审核触发
 
-1. 维护成本指数增长
-   2 TA × 3 Phase × 12 stages × N 个规范 = 无法维护的脚本矩阵
-   每个阶段预置脚本, 每次 protocol 差异都要手动调整
+  管线顺序是刚性的 (不可跳步、不可重排):
+    Protocol Analysis
+      → SAP Generation
+        → SDTM Spec → SDTM Programming
+          → ADaM Spec → ADaM Programming
+            → TFL Shell Design → TFL Programming
+              → QC Validation → Submission Packaging
 
-2. 与实际工作流脱节
-   不是说每个项目都必须走完 12 个阶段
-   Phase I 不需要全套 CDISC, Phase III 必须
-   → 硬编码管线要么过于死板, 要么充满 if/else
+  动态行为仅限以下三方面:
 
-3. 人工 Gate 变成瓶颈
-   6 个固定 Gate → 每个 Gate 都有 4-11 项清单
-   → 大量时间花在逐一审核上
-   → 实际上很多项目不需要全部 Gate
+  1. 审核策略 (不是每个节点都停)
+     置信度 HIGH → 自动通过, 不生成 ReviewPacket
+     置信度 MEDIUM → 正常 ReviewPacket, Agent 可继续其他工作
+     置信度 LOW → blocking ReviewPacket, Agent 必须等待人类决策
 
-4. 管线与 Agent 能力不匹配
-   "SDTM 编程" 在 "ADaM 规范" 之前 → 但很多项目是先出 spec, 再编程
-   正确顺序是领域知识 (SDTM 域在 ADaM 前), 但这不应该硬化在代码里
+  2. 知识加载 (Phase/TA 不同, 加载不同 knowledge JSON)
+     project.yaml 中的 trial_phase + therapeutic_area 决定知识载荷
 
-v3.0 替代方案:
-  Agent 自主决策 → 根据 context + intent 动态选择下一步
-  文件系统是状态 → 不用预设"现在在哪个阶段"
-  Review 按需触发 → 不是每个 Gate 都要走一遍
+  3. 错误恢复 (人类 reject 后 Agent 自动修复并重新提交)
+     DecisionReceipt 中有 rejected 项 → Agent 自主修正
+
+  为什么不用"完全动态路由":
+  1. 管线顺序必须符合 CDISC 领域依赖 (SDTM 在 ADaM 前, ADaM 在 TFL 前)
+     动态路由可能产生违反依赖的操作序列
+  2. 固定顺序使审计和合规验证更简单
+  3. 人类 reviewer 可以预期下一步是什么, 降低认知负担
+  4. 审核策略已经是动态的 — 不需要在管线顺序上也动态
+
+v2.1 固定管线的真正问题不在于"固定", 而在于:
+  · 每个 Gate 都必须停 → 效率瓶颈 (已通过置信度驱动审核解决)
+  · Checklist 硬编码维护成本高 (已通过 JSON Schema required fields 解决)
+  · 对话式审核 (已通过 Structured Review Protocol 解决)
 ```
 
 ### 3.2 为什么用 Structured Review Protocol 替代对话式审核
@@ -167,37 +177,44 @@ v3.0 不做任何更改:
 ### 4.1 循环结构
 
 ```
-┌─────────────────────────────────────────────┐
-│              AGENT DECISION LOOP             │
-│                                              │
-│  ┌──────────┐                                │
-│  │ ASSESS    │ ← 读文件系统, 构建 context     │
-│  │ What's    │   有哪些文件? 哪些 pending?    │
-│  │ the state?│   上一步做了什么?              │
-│  └────┬─────┘                                │
-│       │                                      │
-│  ┌────▼─────┐                                │
-│  │ CHECK     │ ← 有没有 blocking review?     │
-│  │ Blockers? │   有没有 unrecoverable error?  │
-│  └────┬─────┘                                │
-│       │                                      │
-│  ┌────▼─────┐                                │
-│  │ DECIDE    │ ← LLM 推理: 根据 context +     │
-│  │ Next step │   intent, 决定下一步           │
-│  └────┬─────┘   路由到正确的 capability domain│
-│       │                                      │
-│  ┌────▼─────┐                                │
-│  │ EXECUTE   │ ← call MCP tool /              │
-│  │ Action    │   submit review packet /       │
-│  └────┬─────┘   wait for human               │
-│       │                                      │
-│  ┌────▼─────┐                                │
-│  │ RECORD    │ ← audit_trail.jsonl +         │
-│  │ Audit     │   git commit                   │
-│  └────┬─────┘                                │
-│       │                                      │
-│       └────→ 循环, 直到 done 或 blocked       │
-└─────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│              AGENT DECISION LOOP (固定管线 + 动态审核)     │
+│                                                          │
+│  ┌──────────┐                                            │
+│  │ ASSESS    │ ← 读文件系统, 构建 context                 │
+│  │ Pipeline  │   扫描 outputs/ 确定当前阶段               │
+│  │ Progress  │   扫描 .review_queue/ 确定 pending review  │
+│  └────┬─────┘                                            │
+│       │                                                  │
+│  ┌────▼─────┐                                            │
+│  │ CHECK     │ ← 有没有 blocking review pending?         │
+│  │ Blockers? │   有没有 unrecoverable error?              │
+│  └────┬─────┘                                            │
+│       │                                                  │
+│  ┌────▼─────┐                                            │
+│  │ IDENTIFY  │ ← 按固定管线顺序确定下一个待完成阶段        │
+│  │ Next Stage│   Protocol → SDTM → ADaM → TFL → QC → Sub │
+│  └────┬─────┘                                            │
+│       │                                                  │
+│  ┌────▼─────┐                                            │
+│  │ EXECUTE   │ ← 调用能力域 → 执行 Action 列表            │
+│  │ + VALIDATE│   [可选] 发起验证子代理                     │
+│  └────┬─────┘                                            │
+│       │                                                  │
+│  ┌────▼──────────┐                                       │
+│  │ REVIEW DECISION│ ← 置信度驱动:                         │
+│  │ HIGH → auto-pass│   HIGH: 直接写入 outputs/           │
+│  │ MED  → normal   │   MEDIUM: ReviewPacket (非阻塞)     │
+│  │ LOW  → blocking │   LOW: ReviewPacket (阻塞, 等人类)   │
+│  └────┬──────────┘                                       │
+│       │                                                  │
+│  ┌────▼─────┐                                            │
+│  │ RECORD    │ ← audit_trail.jsonl +                     │
+│  │ Audit     │   git commit                               │
+│  └────┬─────┘                                            │
+│       │                                                  │
+│       └────→ 循环, 直到所有阶段完成 或 blocked             │
+└─────────────────────────────────────────────────────────┘
 ```
 
 ### 4.2 决策优先级
@@ -211,15 +228,19 @@ Agent 在每个循环中按以下优先级决策:
 
 2. DEPENDENCY CHECK
    - 下一步需要的前置文件存在吗?
-   - 不存在 → 先生成前置文件
+   - 不存在 → 按管线顺序先生成前置文件
 
-3. PROGRESS CHECK
-   - 什么产出物还没有? → 生成
-   - 按逻辑依赖顺序: Protocol → SDTM → ADaM → TFL → QC → Submission
+3. PIPELINE PROGRESS CHECK (固定管线顺序)
+   - 扫描 outputs/ 确定当前管线位置
+   - 按固定顺序推进: Protocol → SDTM Spec → SDTM Prog → ADaM Spec →
+     ADaM Prog → TFL Shell → TFL Prog → QC → Submission
+   - 不可跳步, 不可重排
 
-4. QUALITY CHECK
+4. QUALITY CHECK (动态审核策略)
    - 生成的内容有不确定项? → 提交 Review Packet
-   - 不确定项的数量和严重性 → 决定 urgency (normal vs blocking)
+   - 置信度 HIGH → 自动通过, 直接写入 outputs/
+   - 置信度 MEDIUM → ReviewPacket (urgency=normal), Agent 继续
+   - 置信度 LOW → ReviewPacket (urgency=blocking), Agent 等待人类决策
 
 5. COMPLETION CHECK
    - 所有产出物都存在且通过审核? → done
@@ -250,19 +271,46 @@ v2.1: 固定配对 — Executor 用 Opus, Reviewer 用 Sonnet
       关键 Gate 审阅也用 Opus
       问题是: 这是在预设哪些阶段需要审阅
 
-v3.0: Agent 自主决策
-  · Agent Runtime 决定何时需要 second opinion
-  · 不确定时 (Confidence < MEDIUM) → 自动触发 cross-check
-  · 不是每个阶段都审阅 → 审阅资源集中在真正需要的地方
+v3.0: 固定管线执行 + 置信度驱动验证
+  · 管线阶段按固定顺序执行
+  · 置信度 HIGH → 跳过验证子代理, 直接通过
+  · 置信度 MEDIUM/LOW → 触发验证子代理
+  · 验证子代理使用不同 prompt (验证型, 非生成型)
+
+验证子代理机制:
+  能力域生成产出
+    ↓
+  Runtime 发起验证 (并行)
+    ├── 确定性验证: 调用 MCP 工具 (cdisc_validate)
+    └── 逻辑验证: 验证子代理 (不同 prompt, 专职找错)
+    ↓
+  合并主产出 + MCP 验证结果 + 子代理 findings
+    ↓
+  打包为 ReviewPacket → 写入 .review_queue/
+
+验证子代理 vs 主代理:
+  · 模型: 同模型 (Claude Opus)
+  · Prompt: 验证型 ("审查这份 spec, 找出所有与 CDISC IG 不一致的地方")
+  · 任务: 审查产出物, 输出 ReviewFinding 数组
+  · 触发时机: 主代理生成完成后, 置信度 < HIGH 时自动触发
+  · 可跳过: 置信度 HIGH 时可跳过
+
+触发规则:
+  · SDTM spec 生成: 始终触发 (合规关键)
+  · ADaM spec 生成: 始终触发 (合规关键)
+  · TFL shell 设计: 仅当存在 oncology-specific TFL 时触发
+  · SDTM/ADaM 编程: 用 cdisc_validate MCP 工具替代
+  · TFL 编程: 用双编程对比替代 (见 SPEC-17)
+  · SAP 生成: 始终触发 (业务关键)
 
 模型使用原则 (继承 v2.1):
   · 执行: Opus (深度推理, 复杂推导)
-  · 审阅: Sonnet (不同盲区, 快速精审)
+  · 验证: Opus (同模型不同 prompt — 生成 vs 验证是不同认知任务)
   · 批量: Haiku (抽样检查, 格式化/术语)
 
 关键区别:
   v2.1: "SAP 和 Submission 阶段必须用 Opus 审阅" — 预设
-  v3.0: Agent 根据实际产出物的不确定性决定 — 动态
+  v3.0: 验证子代理按置信度触发 — 不同 prompt, 同模型, 专注找错
 ```
 
 ## 6. 与 v2.1 的兼容性
@@ -280,7 +328,7 @@ v3.0: Agent 自主决策
   ❌ StateMachine (12 阶段)
   ❌ StageChecklist + ChecklistItem (独立校验层)
   ❌ STAGE_EXECUTOR_MAP (固定路由表)
-  ❌ ReviewerAgent 固定配对
+  ❌ ReviewerAgent 固定配对 (DEPRECATED, 被验证子代理替代)
   ❌ OrchestratorConfig (管线配置)
   ❌ templates/ 硬编码配置
 
@@ -288,6 +336,7 @@ v3.0: Agent 自主决策
   ✨ ReviewPacket + DecisionReceipt + ReviewQueue
   ✨ AgentRuntime + LoopState
   ✨ Router + CAPABILITY_REGISTRY
+  ✨ 验证子代理 (validation subagent, 替代 ReviewerAgent)
   ✨ Review Panel (VSCode Extension)
   ✨ JSON Schema (REVIEW_PACKET_SCHEMA, etc.)
   ✨ OUTPUT_FORMAT_SPECS
@@ -301,7 +350,7 @@ v3.0: Agent 自主决策
 |------|------|
 | 总体架构 v3.0 | [SPEC-00](00-Overview.md) |
 | Agent 设计 — 能力域模型 | [SPEC-08](08-Agent-Design.md) (待更新) |
-| 工作流编排 — 动态路由 | [SPEC-10](10-Workflow-Updated.md) (待更新) |
+| 工作流编排 — 固定管线 + 动态审核 | [SPEC-10](10-Workflow-Updated.md) (待更新) |
 | MCP 工具 API (不变) | [SPEC-09](09-MCP-Tools-Design.md) |
 | Review Protocol 详细规格 | [SPEC-15](15-Review-Protocol.md) |
 | Review Panel 前端规格 | [SPEC-16](16-Review-Panel.md) |

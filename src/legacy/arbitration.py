@@ -1,13 +1,31 @@
 """
-Arbitration — 当 MainAgent 和 ReviewerAgent 无法达成一致时的
-人类仲裁流程 (原则3 和 原则6 的实现)
+Arbitration — archived from src/agents/arbitration.py (v2.1).
+
+When MainAgent and ReviewerAgent cannot reach consensus, this module
+provides the human arbitration flow (Principles 3 and 6).
+
+NOTE: ArbitrationItem was originally imported from review_package.py.
+      It is inlined here since review_package.py has been retired.
 """
 
 from dataclasses import dataclass, field
 from typing import Any
 from datetime import datetime, timezone
 
-from .review_package import ArbitrationItem
+
+# ── ArbitrationItem (inlined from review_package.py) ──────────
+
+
+@dataclass
+class ArbitrationItem:
+    """Dual-agent dispute item."""
+    arbitration_id: str
+    contested_item: str
+    severity: str
+    main_agent_position: dict
+    reviewer_position: dict
+    authoritative_reference: str
+    recommendation: str = ""
 
 
 # ── Arbitration Case ────────────────────────────────────────────
@@ -16,35 +34,35 @@ from .review_package import ArbitrationItem
 @dataclass
 class ArbitrationCase:
     """
-    需要人类裁决的争议。
+    Dispute requiring human adjudication.
 
-    展示:
-      · MainAgent 的主张 + 理由 + 引用的标准
-      · ReviewerAgent 的主张 + 理由 + 引用的标准
-      · 权威标准参考
-      · AI 建议的裁决方向
+    Displays:
+      · MainAgent position + rationale + standard reference
+      · ReviewerAgent position + rationale + standard reference
+      · Authoritative standard reference
+      · AI recommended direction
     """
     arbitration_id: str = ""
     stage: str = ""
     severity: str = ""
     rounds_attempted: int = 0
 
-    # 争议的内容
+    # Contested content
     contested_item: str = ""
 
-    # 双方的立场 (不暴露推理过程)
+    # Positions of both parties (no reasoning process exposed)
     main_agent_position: dict = field(default_factory=dict)
     # { "value": ..., "rationale": ..., "standard_ref": ..., "confidence": ... }
 
     reviewer_position: dict = field(default_factory=dict)
     # { "value": ..., "rationale": ..., "standard_ref": ..., "confidence": ... }
 
-    # 帮助人类裁决的上下文
-    authoritative_reference: str = ""   # 最权威的标准来源
-    impact_assessment: str = ""         # 不同裁决方向的影响
-    ai_recommendation: str = ""         # AI 的推荐方向
+    # Context to help humans decide
+    authoritative_reference: str = ""   # Most authoritative standard source
+    impact_assessment: str = ""         # Impact of different decisions
+    ai_recommendation: str = ""         # AI's recommended direction
 
-    # 裁决结果
+    # Decision result
     human_decision: str = ""            # "main" | "reviewer" | "custom"
     custom_value: Any = None
     decided_by: str = ""
@@ -65,7 +83,7 @@ class ArbitrationCase:
             self.custom_value = custom_value
 
     def display_for_human(self) -> dict[str, Any]:
-        """生成人类仲裁界面所需的数据"""
+        """Generate data for the human arbitration interface."""
         return {
             "arbitration_id": self.arbitration_id,
             "stage": self.stage,
@@ -96,9 +114,9 @@ class ArbitrationCase:
 @dataclass
 class ArbitrationHistory:
     """
-    仲裁历史知识库。
-    用于防止重复争议 — 下次遇到类似情况可以引用历史裁决。
-    但不自动应用 (每个案例仍然需要人类判断)。
+    Arbitration history knowledge base.
+    Used to prevent duplicate disputes — similar cases can reference
+    past decisions. But never auto-applied (each case still needs human judgment).
     """
     cases: list[ArbitrationCase] = field(default_factory=list)
 
@@ -106,7 +124,7 @@ class ArbitrationHistory:
         self.cases.append(case)
 
     def search(self, query: str) -> list[ArbitrationCase]:
-        """搜索相关历史裁决"""
+        """Search related historical decisions."""
         return [c for c in self.cases
                 if query.lower() in c.contested_item.lower()
                 or query.lower() in c.stage.lower()]
@@ -123,7 +141,7 @@ class ArbitrationHistory:
         }
 
 
-# ── 跨审阅轮次管理 ──────────────────────────────────────────────
+# ── Cross-Review Cycle Management ────────────────────────────────
 
 
 MAX_REVIEW_ROUNDS = 2
@@ -132,13 +150,13 @@ MAX_REVIEW_ROUNDS = 2
 @dataclass
 class CrossReviewCycle:
     """
-    管理 MainAgent ↔ ReviewerAgent 的审阅循环。
+    Manages the MainAgent <-> ReviewerAgent review cycle.
 
-    流程:
-      MainAgent 产物 → Reviewer 审阅
-      → 有 Critical/Major → MainAgent 修复 → Reviewer 重审
-      → 最多 2 轮
-      → 2 轮后仍有未解决 → 触发 Arbitration
+    Flow:
+      MainAgent output -> Reviewer review
+      -> has Critical/Major -> MainAgent fix -> Reviewer re-review
+      -> max 2 rounds
+      -> after 2 rounds still unresolved -> trigger Arbitration
     """
     stage: str
     max_rounds: int = MAX_REVIEW_ROUNDS

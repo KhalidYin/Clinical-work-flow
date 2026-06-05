@@ -4,8 +4,10 @@
 ## 版本: 3.0
 ## 主题: EDC 数据导入、目录结构、文档格式、运行环境
 
-> **v3.0 更新**: 文件结构重大变化 — `.review_queue/` 替代 `.workflow/`, `templates/` → `knowledge/`,
-> 项目文件夹新增 `outputs/` 和 `audit_trail.jsonl`. 详见 [SPEC-00](00-Overview.md) §6.
+> **v3.0 更新**: 文件结构重大变化 — `.workflow/` 完全移除，改用 `.review_queue/` + 文件系统状态推导。
+> 新增 `project.yaml` 项目配置文件（替代 `.workflow/pipeline/state.yaml` 元数据）。
+> `templates/` → `knowledge/`，项目文件夹新增 `outputs/` 和 `audit_trail.jsonl`。
+> 详见 [SPEC-18](18-P0-Alignment.md) 决策 3。
 
 ---
 
@@ -32,13 +34,15 @@
 │  │                   Study Directory                             │    │
 │  │                                                                │    │
 │  │  study_template/{STUDY-ID}/                                   │    │
-│  │  ├── input/edc/        ← EDC 导出 (CSV/XPT)                  │    │
+│  │  ├── project.yaml       ← 项目配置 (study_id, phase, TA)      │    │
+│  │  ├── input/edc/         ← EDC 导出 (CSV/XPT)                  │    │
 │  │  ├── output/sdtm/      → SDTM 产出物                          │    │
 │  │  ├── output/adam/      → ADaM 产出物                          │    │
 │  │  ├── output/tfl/       → TFL 产出物                           │    │
 │  │  ├── output/define_xml/ → define.xml                          │    │
 │  │  ├── output/reviewers_guides/ → ADRG/SDRG                     │    │
-│  │  └── .workflow/         → AI 管线状态 + 审计日志               │    │
+│  │  ├── .review_queue/    → Agent↔Human 审核交互                  │    │
+│  │  └── audit_trail.jsonl → 完整操作审计日志                      │    │
 │  └─────────────────────────────────────────────────────────────┘    │
 │                                                                       │
 │  所有处理在本地 (无云调用, 无网络传输)                                 │
@@ -72,11 +76,6 @@ Claude Code:
 CLINICAL_WORKFLOW_HOME="G:/Project/Python/Clinical work flow"
 STUDY_ROOT="${CLINICAL_WORKFLOW_HOME}/study_template/{STUDY-ID}"
 
-# Study 配置
-TRIAL_PHASE="phase_iii"
-THERAPEUTIC_AREA="oncology"
-PROTOCOL_ID="PROT-ONC-301"
-
 # CDISC CT 版本
 CDISC_CT_VERSION="2024-03"
 
@@ -84,6 +83,9 @@ CDISC_CT_VERSION="2024-03"
 SAS_EXEC="/opt/sas/SASHome/SASFoundation/9.4/sas"
 SAS_GRID="sasgrid.company.com"
 ```
+
+> **注意**: Study 级别配置（study_id, trial_phase, therapeutic_area 等）不再通过环境变量传递，
+> 而是统一写入 `project.yaml`（见 §3.5）。Agent 启动时自动读取 `project.yaml`。
 
 ---
 
@@ -192,8 +194,8 @@ _meta:
   domain: "AE"
   generated_by: "DataStandardsAgent (claude-opus-4-7)"
   generated_at: "2026-04-28T10:00:00Z"
-  reviewed_by: "ReviewerAgent (claude-sonnet-4-6)"
-  review_score: 94.2
+  validated_by: "ValidationSubAgent (claude-opus-4-7)"
+  validation_findings: 3
   human_approved: true
   approved_by: "Zhang (Lead Programmer)"
   approved_at: "2026-04-28T14:00:00Z"
@@ -262,7 +264,7 @@ cross_domain_relationships:
  * DOMAIN:      SDTM.AE
  * GENERATED:   2026-04-28T10:30:00Z
  * BY:          DataStandardsAgent (claude-opus-4-7)
- * REVIEWED BY: ReviewerAgent (claude-sonnet-4-6)
+ * VALIDATED BY: ValidationSubAgent (claude-opus-4-7)
  * SPEC:        sdtm/specs/ae_spec.yaml v1.0.0
  ****************************************************************/
 
@@ -355,69 +357,92 @@ Reviewed: 2026-05-02 (Human Review)
 ### 3.4 审计日志 (JSONL)
 
 ```jsonl
-{"change_id":"CHG-20260428-001","type":"reviewer_feedback","triggered_by":"ReviewerAgent","triggered_by_role":"AI","description":"AESEV controlled_terms incomplete","files_count":1,"impact_type":"stage_local","stages_impacted":1,"status":"completed","requires_re_approval":false,"gxp_relevant":true}
+{"change_id":"CHG-20260428-001","type":"validation_feedback","triggered_by":"ValidationSubAgent","triggered_by_role":"AI","description":"AESEV controlled_terms incomplete","files_count":1,"impact_type":"stage_local","stages_impacted":1,"status":"completed","requires_re_approval":false,"gxp_relevant":true}
 {"change_id":"CHG-20260428-002","type":"human_review","triggered_by":"Zhang","triggered_by_role":"Lead Programmer","description":"ADSL missing AGEGR2 variable","files_count":1,"impact_type":"stage_local","stages_impacted":1,"status":"completed","requires_re_approval":true,"gxp_relevant":true}
 {"change_id":"CHG-20260429-001","type":"protocol_amendment","triggered_by":"Dr. Chen","triggered_by_role":"Sponsor","reference_id":"Amendment #3","description":"Add TTPP as secondary endpoint","impact_type":"full_pipeline","stages_impacted":7,"status":"completed","gxp_relevant":true}
 ```
 
-### 3.5 Pipeline State (YAML)
+### 3.5 项目配置 — `project.yaml`
+
+`project.yaml` 是 Study 的唯一配置文件，创建 Study 时写入，运行期间只读。
+替代了旧的 `.workflow/pipeline/state.yaml` 中的元数据部分。
 
 ```yaml
-# .workflow/pipeline/state.yaml
+# project.yaml — Study 项目配置
 
 study_id: "STUDY-ABC123"
 protocol_id: "PROT-ONC-301"
-trial_phase: "phase_iii"
-therapeutic_area: "oncology"
-current_stage: "adam_spec"
-created_at: "2026-04-28T09:00:00Z"
-updated_at: "2026-04-30T11:00:00Z"
+trial_phase: "phase_iii"          # phase_i | phase_ii | phase_iii | phase_iv
+therapeutic_area: "oncology"       # oncology | cardiovascular | diabetes | respiratory | other
+primary_language: "sas"            # sas | r
+qc_language: "r"                   # 用于双编程 QC 的对照语言 (SPEC-17)
+sponsor: "Sponsor Name"
+created_at: "2026-01-15T10:00:00Z"
+```
 
-stage_history:
-  - stage: "protocol"
-    status: "complete"
-    executor: "ProtocolSAPAgent"
-    completed_at: "2026-04-28T09:30:00Z"
+**字段说明：**
 
-  - stage: "sap"
-    status: "approved"
-    executor: "ProtocolSAPAgent"
-    reviewer: "ReviewerAgent (sonnet-4-6)"
-    review_score: 92.5
-    gate_approved_by: "Dr. Li (Lead Biostatistician)"
-    gate_approved_at: "2026-04-28T14:00:00Z"
+| 字段 | 类型 | 必须 | 说明 |
+|------|------|------|------|
+| `study_id` | string | 是 | Study 唯一标识 |
+| `protocol_id` | string | 是 | Protocol 编号 |
+| `trial_phase` | enum | 是 | 临床试验阶段 |
+| `therapeutic_area` | enum | 是 | 治疗领域 — 决定加载哪些 knowledge JSON |
+| `primary_language` | enum | 是 | 主编程语言 |
+| `qc_language` | enum | 是 | QC 对照语言（双编程） |
+| `sponsor` | string | 是 | 申办方名称 |
+| `created_at` | ISO 8601 | 是 | Study 创建时间 |
 
-  - stage: "sdtm_spec"
-    status: "approved"
-    executor: "DataStandardsAgent"
-    reviewer: "ReviewerAgent (sonnet-4-6)"
-    review_score: 94.2
-    gate_approved_by: "Zhang (Lead Programmer)"
-    gate_approved_at: "2026-04-29T16:00:00Z"
-    artifacts:
-      - "output/sdtm/specs/dm_spec.yaml"
-      - "output/sdtm/specs/ae_spec.yaml"
-      # ...
+> **设计原则**: `project.yaml` 不存储管线状态。管线进度完全由文件系统推导（见 §3.6）。
 
-  - stage: "sdtm_programming"
-    status: "complete"
-    executor: "DataStandardsAgent"
-    completed_at: "2026-04-30T09:00:00Z"
-    artifacts:
-      - "output/sdtm/datasets/dm.xpt"
-      - "output/sdtm/datasets/ae.xpt"
-      # ...
+### 3.6 状态推导规则（替代集中式状态文件）
 
-pendings:
-  approvals:
-    - stage: "adam_spec"
-      gate_id: "Gate 3"
-      reviewers: ["Lead Biostatistician", "Lead Programmer"]
-      submitted_at: "2026-04-30T10:00:00Z"
-      status: "awaiting_review"
-  arbitrations: []
+Agent 不再维护集中的状态文件，而是通过扫描文件系统推导当前状态。
 
-changes_tracked: 4
+| 需要知道的信息 | 推导方式 |
+|--------------|---------|
+| 当前走到哪一步 | 扫描 `output/` 目录，检查哪些产出物已存在，按固定管线顺序确定下一个缺失的阶段 |
+| 有什么在等审核 | 扫描 `.review_queue/` 中有 `.json` 但无对应 `_decision.json` 的文件 |
+| 审核历史 | 扫描 `.review_queue/archive/` + `audit_trail.jsonl` |
+| 某个产出物的版本 | 查看 `audit_trail.jsonl` 中该文件的变更记录 |
+| 上次操作是什么 | `audit_trail.jsonl` 的最后一行 |
+
+**固定管线顺序（不可跳步、不可重排）：**
+
+```
+Protocol Analysis
+  → SAP Generation
+    → SDTM Spec
+      → SDTM Programming
+        → ADaM Spec
+          → ADaM Programming
+            → TFL Shell Design
+              → TFL Programming
+                → QC Validation
+                  → Submission Packaging
+```
+
+**置信度 → 审核策略映射：**
+
+| 能力域返回的 confidence | Runtime 行为 |
+|------------------------|-------------|
+| `HIGH` (>=95%) | 自动通过，不生成 ReviewPacket，直接写入 `output/` |
+| `MEDIUM` (70-95%) | 生成 ReviewPacket (urgency=normal)，Agent 继续其他工作 |
+| `LOW` (<70%) | 生成 ReviewPacket (urgency=blocking)，Agent 等待人类决策 |
+
+**Agent 恢复逻辑（替代 `/workflow-resume`）：**
+
+```python
+def resume():
+    """Agent 从文件系统状态恢复，无需读取任何状态文件"""
+    project = load_yaml("project.yaml")
+    outputs = scan_outputs("output/")
+    pending_reviews = scan_pending_reviews(".review_queue/")
+    audit = tail_jsonl("audit_trail.jsonl", last_n=50)
+
+    # 决定下一步（固定管线顺序 + 条件门控）
+    next_step = determine_next_step(outputs, pending_reviews)
+    return next_step
 ```
 
 ---
@@ -464,17 +489,19 @@ changes_tracked: 4
 | `output/reviewers_guides/sdrg.docx` | DOCX | TFLQCSubmissionAgent | SDRG |
 | `output/reviewers_guides/adrg.docx` | DOCX | TFLQCSubmissionAgent | ADRG |
 
-### 4.3 `.workflow/` 内部文件
+### 4.3 审核与审计文件
 
 | 文件 | 格式 | 说明 |
 |------|------|------|
-| `.workflow/pipeline/state.yaml` | YAML | 当前管线状态 |
-| `.workflow/audit/change_log.jsonl` | JSONL | 变更日志 |
-| `.workflow/audit/approvals.jsonl` | JSONL | 审批记录 |
-| `.workflow/audit/tool_calls.jsonl` | JSONL | MCP 工具调用记录 |
-| `.workflow/versions/` | YAML | 每版本完整保存 |
-| `.workflow/diffs/` | TXT | 版本差异 |
-| `.workflow/arbitrations/` | JSON | 仲裁案例 |
+| `project.yaml` | YAML | 项目配置（study_id, phase, TA 等） |
+| `.review_queue/{review_id}.json` | JSON | ReviewPacket — Agent 提交的审核包 |
+| `.review_queue/{review_id}_decision.json` | JSON | DecisionReceipt — 人类审核决策 |
+| `.review_queue/archive/` | JSON | 已完成的审核对（packet + decision） |
+| `audit_trail.jsonl` | JSONL | 完整操作审计日志（每 action 一行） |
+
+> **v3.0 变更**: `.workflow/` 目录已完全移除。原 `.workflow/pipeline/state.yaml` 的元数据移入 `project.yaml`，
+> 状态信息改为文件系统推导（见 §3.6）。原 `.workflow/audit/` 的多个日志统一为 `audit_trail.jsonl`。
+> 原 `.workflow/versions/` 和 `.workflow/diffs/` 由 Git 版本控制替代。
 
 ---
 
@@ -570,16 +597,23 @@ m5/datasets/{study-id}/
 # 1. 从模板创建 Study 目录
 cp -r study_template/ study_template/STUDY-ABC123
 
-# 2. 放置 EDC 数据
+# 2. 创建 project.yaml（Study 配置）
+cat > study_template/STUDY-ABC123/project.yaml << 'EOF'
+study_id: "STUDY-ABC123"
+protocol_id: "PROT-ONC-301"
+trial_phase: "phase_iii"
+therapeutic_area: "oncology"
+primary_language: "sas"
+qc_language: "r"
+sponsor: "Sponsor Name"
+created_at: "2026-01-15T10:00:00Z"
+EOF
+
+# 3. 放置 EDC 数据
 #    将 EDC 导出 CSV 放入 input/edc/
 
-# 3. 放置方案文档
+# 4. 放置方案文档
 #    将 protocol.pdf, sap.pdf 放入 protocol/
-
-# 4. 配置环境变量
-export STUDY_ID="STUDY-ABC123"
-export TRIAL_PHASE="phase_iii"
-export THERAPEUTIC_AREA="oncology"
 
 # 5. 启动 Claude Code
 cd study_template/STUDY-ABC123
@@ -588,12 +622,12 @@ claude
 # 6. 在 Claude Code 中启动管线
 /workflow-start
 
-# AI 将:
-#   1. 验证 EDC 数据完整性
-#   2. 加载 Protocol
-#   3. 开始 Protocol Analysis
-#   4. 进入 SAP 生成阶段
-#   5. 在第一个 Human Gate 等待审核
+# Agent 将:
+#   1. 读取 project.yaml 加载 Study 配置
+#   2. 验证 EDC 数据完整性
+#   3. 加载 Protocol
+#   4. 开始 Protocol Analysis
+#   5. 进入 SAP 生成阶段
 ```
 
 ### 7.2 恢复一个已有 Study
@@ -602,10 +636,17 @@ claude
 cd study_template/STUDY-ABC123
 claude
 
-/workflow-resume
-# AI 将读取 .workflow/pipeline/state.yaml
-# 从 current_stage 继续
+/workflow-start
+# Agent 自动检测已有产出物，从断点继续:
+#   1. 读取 project.yaml 加载 Study 配置
+#   2. 扫描 output/ 目录确定已完成的阶段
+#   3. 扫描 .review_queue/ 确定待处理的审核
+#   4. 扫描 audit_trail.jsonl 获取最近操作上下文
+#   5. 按固定管线顺序确定下一步，继续执行
 ```
+
+> **设计原则**: 无需特殊的 `/workflow-resume` 命令。Agent 通过扫描文件系统即可推导当前状态，
+> 所以 `/workflow-start` 同时支持新 Study 和恢复已有 Study。
 
 ### 7.3 处理 Protocol Amendment
 

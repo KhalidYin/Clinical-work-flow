@@ -46,8 +46,8 @@
 │     · "请补充XX亚组分析"                                        │
 │     · "请解释YY推导逻辑"                                        │
 │                                                                   │
-│  ⑥ ReviewerAgent 发现的问题     ReviewerAgent   当前阶段         │
-│     · MainAgent 修复后重新生成                                    │
+│  ⑥ 验证子代理 findings            验证子代理      当前阶段         │
+│     · 主代理修复后重新生成                                        │
 │                                                                   │
 │  ⑦ 标准更新                      行业            SDTM Spec +     │
 │     · CDISC CT 季度更新           CDISC           ADaM Spec       │
@@ -74,7 +74,7 @@
 │ Regulatory IR        │ 新增 TFL       │ 不改变已有管线,              │
 │                      │                │ 创建"增量修订包"             │
 ├──────────────────────┼────────────────┼──────────────────────────────┤
-│ ReviewerAgent 发现问题│ 当前阶段        │ Fix → Re-review → 增量版本  │
+│ 验证子代理 findings   │ 当前阶段        │ Fix → Re-review → 增量版本  │
 ├──────────────────────┼────────────────┼──────────────────────────────┤
 │ 标准更新              │ Spec 层面       │ 重新验证 → 标记合规差异     │
 └──────────────────────┴────────────────┴──────────────────────────────┘
@@ -91,13 +91,13 @@
 
   PATCH (修订):  同一阶段内的小修改
     · 修正拼写/格式
-    · ReviewerAgent 发现的小问题
+    · 验证子代理发现的小问题
     · Human Gate 返回的局部修改
     例: sdtm/ae_spec v1.0.0 → v1.0.1
 
   MINOR (小版本):  同一阶段内的实质性修改
     · Human Gate 返回要求重做某部分
-    · 修复 ReviewerAgent 发现的 Major 问题
+    · 修复验证子代理发现的 Major 问题
     · 补充遗漏的变量
     例: sdtm/ae_spec v1.0.0 → v1.1.0
 
@@ -123,7 +123,7 @@ class ChangeRecord:
     
     # 变更来源
     triggered_by: str           # 谁/什么触发的变更
-    triggered_by_role: str      # "Sponsor" | "Biostatistician" | "Lead Programmer" | "FDA" | "ReviewerAgent"
+    triggered_by_role: str      # "Sponsor" | "Biostatistician" | "Lead Programmer" | "FDA" | "验证子代理"
     reference_id: str = ""      # 引用的外部 ID (如 Protocol Amendment #3, IR #2026-045)
     
     # 变更内容
@@ -208,12 +208,12 @@ Change Chain:
 ┌─────────────────────────────────────────────────────────────────┐
 │              Human Gate Review → 修改 → 重审                     │
 │                                                                   │
-│  Step 1: MainAgent 提交审核包                                     │
-│      审核包内容:                                                  │
+│  Step 1: Agent 提交 ReviewPacket                                   │
+│      ReviewPacket 内容:                                           │
 │        · 产物 (Spec/TFL/代码)                                    │
 │        · Checklist 结果                                          │
-│        · ReviewerAgent 报告                                      │
-│        · 问题标记                                                │
+│        · 验证子代理 findings                                     │
+│        · MCP 工具验证结果                                        │
 │                                                                   │
 │  Step 2: 人类审核                                                 │
 │      Lead Programmer 审查后回复:                                  │
@@ -245,7 +245,7 @@ Change Chain:
 │      · 自动更新版本号 (PATCH)                                     │
 │      · 生成 Change Diff (变更前后对比)                             │
 │      · 重新跑 CDISC 验证                                          │
-│      · 重新提交 ReviewerAgent (如果是 Major 修改)                  │
+│      · 重新触发验证子代理 (如果是 Major 修改)                      │
 │                                                                   │
 │  Step 5: 重新提交审核                                             │
 │      · 只展示变更部分 (不是全部重审)                               │
@@ -294,6 +294,9 @@ Change Chain:
 ## 4. 下游影响自动分析
 
 ### 4.1 产物依赖图
+
+> **注意**: 此依赖图表示**逻辑层面的产物依赖** (SDTM → ADaM → TFL), 不是文件级别的引用关系。
+> ImpactAnalyzer 在管线阶段粒度上进行 BFS 遍历, 而非逐文件追踪。
 
 ```
           protocol_endpoints.yaml
@@ -400,13 +403,13 @@ def analyze_impact(changed_file: str, dependency_graph: dict) -> ImpactReport:
    ① 2026-04-28 10:00 | MCP:sdtm_spec_build 生成 v1.0.0 
       → 工具调用 ID: TC-001, 输入哈希: a3f2e...
    
-   ② 2026-04-28 10:05 | ReviewerAgent (Sonnet) 独立审阅
+   ② 2026-04-28 10:05 | 验证子代理逻辑审查 + MCP 工具确定性验证
       → 发现 3 个问题 (2 MAJOR, 1 MINOR), 审阅报告 REV-001
    
-   ③ 2026-04-28 10:20 | MainAgent 修复 → v1.0.1
+   ③ 2026-04-28 10:20 | 主代理修复 → v1.0.1
       → 修复了全部 3 个问题, 工具调用 ID: TC-002
    
-   ④ 2026-04-28 10:25 | ReviewerAgent 重审 → PASS
+   ④ 2026-04-28 10:25 | 验证子代理重审 → PASS
       → 审阅报告 REV-002, Score: 98.5
    
    ⑤ 2026-04-28 14:00 | Lead Programmer Zhang 审核批准
@@ -418,7 +421,7 @@ def analyze_impact(changed_file: str, dependency_graph: dict) -> ImpactReport:
 ### 5.3 变更日志 JSONL 格式示例
 
 ```jsonl
-{"change_id":"CHG-20260428-001","type":"REVIEWER_FEEDBACK","triggered_by":"ReviewerAgent (Sonnet)","triggered_by_role":"AI","description":"AESEV controlled_terms incomplete per CDISC CT 2024-03","files_changed":[{"path":"sdtm/ae_spec.yaml","old_version":"1.0.0","new_version":"1.0.1","diff":"CHG-001_diff"}],"impacted_stages":["sdtm_spec"],"status":"completed","resolved_by":"MainAgent (Opus)","resolved_at":"2026-04-28T10:20:00Z","gxp_relevant":true,"requires_re_approval":true}
+{"change_id":"CHG-20260428-001","type":"VALIDATION_FEEDBACK","triggered_by":"验证子代理","triggered_by_role":"AI","description":"AESEV controlled_terms incomplete per CDISC CT 2024-03","files_changed":[{"path":"sdtm/ae_spec.yaml","old_version":"1.0.0","new_version":"1.0.1","diff":"CHG-001_diff"}],"impacted_stages":["sdtm_spec"],"status":"completed","resolved_by":"主代理 (Opus)","resolved_at":"2026-04-28T10:20:00Z","gxp_relevant":true,"requires_re_approval":true}
 {"change_id":"CHG-20260428-002","type":"HUMAN_REVIEW","triggered_by":"Zhang (Lead Programmer)","triggered_by_role":"Human","description":"ADSL 缺少 AGEGR2 变量 (≥75岁亚组), 补充","files_changed":[{"path":"adam/adsl_spec.yaml","old_version":"1.0.0","new_version":"1.0.1","diff":"CHG-002_diff"}],"impacted_stages":["adam_spec"],"status":"completed","resolved_by":"MainAgent (Opus)","resolved_at":"2026-04-28T14:30:00Z","gxp_relevant":true,"requires_re_approval":true}
 {"change_id":"CHG-20260429-001","type":"PROTOCOL_AMEND","triggered_by":"Dr. Chen (Medical Lead)","triggered_by_role":"Sponsor","reference_id":"Protocol Amendment #3","description":"Add Time to Pain Progression as secondary endpoint","files_changed":[{"path":"protocol/endpoints.yaml","old_version":"1.0.0","new_version":"1.1.0","diff":"CHG-003_diff"},{"path":"sap/draft.yaml","old_version":"1.1.0","new_version":"1.2.0","diff":"CHG-003b_diff"}],"impacted_stages":["sap","adam_spec","tfl_shell","tfl_programming"],"status":"in_progress","gxp_relevant":true,"requires_re_approval":true}
 ```
@@ -436,9 +439,9 @@ def analyze_impact(changed_file: str, dependency_graph: dict) -> ImpactReport:
     → 如果有: 下游产物也需要回滚 (级联回滚)
   · 记录: 回滚本身也是一个 ChangeRecord
 
-场景 2: "ReviewerAgent 的审阅方向是错的, 忽略它的修改建议"
+场景 2: "验证子代理的审阅方向是错的, 忽略它的修改建议"
   · 操作: Revert CHG-20260428-001
-  · 记录: "Human decided ReviewAgent's suggestion was incorrect because..."
+  · 记录: "Human decided validation subagent's suggestion was incorrect because..."
   · 这个决策本身也存入知识库
 
 场景 3: "Data Refresh 后结果异常, 需要回到上一次数据切割的结果"
@@ -525,72 +528,82 @@ src/
 │       └── regulatory_ir.py
 ```
 
-### 7.2 与现有组件的集成
+### 7.2 与 Agent Runtime 的集成
 
 ```python
-# orchestrator 中集成变更追踪
+# Agent Runtime 中集成变更追踪 (替代 v2.1 Orchestrator)
 
-class Orchestrator:
-    
-    async def handle_human_review_feedback(
-        self, stage: Stage, feedback: ReviewFeedback
-    ) -> dict:
+class AgentRuntime:
+    """
+    Agent Runtime 通过文件系统驱动变更管理, 不依赖集中式编排器。
+    所有状态推导自 .review_queue/ + audit_trail.jsonl + outputs/ 目录。
+    """
+
+    async def process_review_decisions(self) -> list[ChangeRecord]:
         """
-        处理人工审核返回的修改要求。
-        
-        1. 创建 ChangeRecord
-        2. 更新受影响产物
-        3. 重新执行验证
-        4. 重新提交审阅 (增量)
-        5. 记录审计日志
+        扫描 .review_queue/ 中的 DecisionReceipt, 应用审核反馈。
+
+        1. 扫描 .review_queue/ 中有 _decision.json 但未处理的审核对
+        2. 解析 DecisionReceipt (approved / rejected / modified items)
+        3. 对 rejected/modified 项:
+           - 创建 ChangeRecord (type=HUMAN_REVIEW)
+           - 调用对应能力域修复产物
+           - 触发验证子代理重审 (Major 修改时)
+           - 增量版本号 bump (PATCH 或 MINOR)
+        4. 将修复后的产物重新打包为 ReviewPacket (增量审核)
+        5. 记录审计日志 → audit_trail.jsonl + git commit
         """
-        change = ChangeRecord(
-            change_id=f"CHG-{timestamp()}",
-            change_type="HUMAN_REVIEW",
-            triggered_by=feedback.reviewer,
-            description=feedback.summary,
-            impact_type="STAGE_LOCAL",  # 只影响当前阶段
-        )
-        
-        self.audit_logger.log(change)
-        
-        # 修复产物
-        updated = await self.main_agent.apply_review_feedback(
-            stage=stage, feedback=feedback
-        )
-        
-        # 增量重审
-        re_review = await self.prepare_incremental_review(
-            stage=stage,
-            previous_package=self.last_review_package,
-            changes=updated.changes,
-        )
-        
-        return {"status": "updated", "change": change, "new_review": re_review}
-    
+        changes = []
+        pending = scan_pending_decisions(".review_queue/")
+
+        for receipt in pending:
+            rejected = [i for i in receipt.items if i.status == "rejected"]
+            if not rejected:
+                mark_review_completed(receipt.review_id)
+                continue
+
+            change = ChangeRecord(
+                change_id=f"CHG-{timestamp()}",
+                change_type="HUMAN_REVIEW",
+                triggered_by=receipt.reviewer,
+                description=receipt.summary,
+                impact_type="STAGE_LOCAL",
+            )
+            audit_logger.log(change)
+
+            # 调用能力域修复产物
+            for item in rejected:
+                await fix_artifact(item)
+                version_manager.bump_version(item.file_path, "PATCH")
+
+            # 增量重审: 只展示变更部分
+            await republish_incremental_review(receipt.review_id, rejected)
+            changes.append(change)
+
+        return changes
+
     async def handle_protocol_amendment(
         self, amendment: ProtocolAmendment
     ) -> dict:
         """
-        处理方案修改。
-        
-        1. 分析影响范围 (全链路)
-        2. 标记所有受影响产物
-        3. 从最早受影响的阶段开始重新执行
-        4. 需要重新走 Human Gate
+        处理方案修改 (由 ImpactAnalyzer 驱动)。
+
+        1. 调用 ImpactAnalyzer 分析影响范围 (管线阶段级 BFS)
+        2. 对所有受影响阶段的产物执行 MAJOR 版本升级
+        3. 从最早受影响的阶段开始重新执行管线
+        4. 重新执行的阶段会触发验证子代理 + 重新提交 ReviewPacket
+        5. 记录审计日志 → audit_trail.jsonl + git commit
         """
-        impact = self.impact_analyzer.analyze(amendment)
-        
-        # 回退到最早受影响的阶段
-        earliest_stage = impact.earliest_affected_stage()
-        self.state.current_stage = earliest_stage
-        
+        impact = impact_analyzer.analyze(amendment)
+
         # 标记所有受影响产物的 MAJOR 版本升级
-        for file_path in impact.affected_files:
-            self.version_manager.bump_version(file_path, "MAJOR")
-        
-        # 重新执行管线
-        return await self.run_pipeline(start_stage=earliest_stage)
+        for stage in impact.affected_stages:
+            for artifact in artifacts_for_stage(stage):
+                version_manager.bump_version(artifact, "MAJOR")
+
+        # 从最早受影响的阶段开始重新执行
+        earliest = impact.earliest_affected_stage()
+        return await run_pipeline(start_stage=earliest)
 ```
 
 ---

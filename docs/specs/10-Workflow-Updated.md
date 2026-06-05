@@ -1,8 +1,12 @@
-# 工作流编排 v3.0 — 动态 Agent Loop + 文件系统状态
+# 工作流编排 v3.0 — 固定管线 + 动态审核 + 文件系统状态
 
 ## 文档编号: SPEC-10
 ## 版本: 3.0
-## 主题: Agent 动态路由 + Review Protocol + Git 审计 (替代 12 阶段状态机)
+
+## 主题: 固定管线顺序 + 动态审核策略 + Review Protocol + Git 审计 (替代 12 阶段状态机)
+
+> **SPEC-18 对齐**: 工作流模型为"固定管线 + 动态审核", 不是"完全动态路由"。
+> 管线顺序不可跳步、不可重排; 仅审核策略、知识加载、错误恢复三方面为动态行为。
 
 ---
 
@@ -20,30 +24,43 @@ v2.1: 固定管线编排 (Deterministic Pipeline)
        维护成本: Phase × TA × Stage = 组合爆炸
 
 
-v3.0: 动态 Agent 编排 (Dynamic Agent Loop)
+v3.0: 固定管线 + 动态审核 (Fixed Pipeline + Dynamic Review)
 
-  Intent: "生成 Phase III NSCLC 的 SDTM 规范"
-        │
-        ▼
+  ┌───────────────────────────────────────────────────────┐
+  │  固定管线顺序 (不可跳步、不可重排)                         │
+  │                                                       │
+  │  Protocol → SAP → SDTM Spec → SDTM Prog → ADaM Spec  │
+  │    → ADaM Prog → TFL Shell → TFL Prog → QC → SubPkg  │
+  │                                                       │
+  │  动态行为 (仅限以下三方面):                               │
+  │  ┌─────────────────────────────────────────────────┐  │
+  │  │ 审核策略: 置信度高自动通过, 低才提交 ReviewPacket │  │
+  │  │ 知识加载: Phase/TA 不同 → 加载不同 knowledge JSON │  │
+  │  │ 错误恢复: reject 后 Agent 自动修复并重新提交       │  │
+  │  └─────────────────────────────────────────────────┘  │
+  └───────────────────────────────────────────────────────┘
+
+  Agent Runtime 循环 (每个管线阶段内部):
+
   ┌─────────────────────────────────────────┐
   │           AGENT RUNTIME                  │
   │                                          │
   │  ┌────────┐    ┌────────┐    ┌────────┐ │
-  │  │ASSESS  │ →  │DECIDE  │ →  │ROUTE   │ │
-  │  │读文件   │    │选下一步 │    │到能力域 │ │
+  │  │ASSESS  │ →  │DECIDE  │ →  │EXECUTE │ │
+  │  │读文件   │    │置信度?  │    │调MCP   │ │
   │  └────────┘    └────────┘    └────────┘ │
   │       ▲                          │       │
   │       │    ┌────────┐            │       │
   │       └────│RECORD  │←───────────┘       │
   │            │审计+Git│    ┌──────────┐    │
-  │            └────────┘    │EXECUTE   │    │
-  │                          │调MCP/审阅│    │
+  │            └────────┘    │VALIDATE  │    │
+  │                          │子代理+MCP│    │
   │                          └──────────┘    │
   └─────────────────────────────────────────┘
 
-  优势: Agent 根据实际情况自主路由
-       不需要预设 "Stage 5 必须在 Stage 2 之后"
-       Review 按需触发, 不是每个 Gate 都要
+  优势: 管线顺序保证产出物依赖关系正确
+       审核按需触发, 简单项目少审核, 复杂项目多审核
+       置信度 HIGH 时自动通过, 减少人工等待
 ```
 
 ---
@@ -54,7 +71,7 @@ v3.0: 动态 Agent 编排 (Dynamic Agent Loop)
 
 ```python
 async def agent_loop(intent: str, project_dir: Path) -> dict:
-    """v3.0 Agent 主循环 — 动态决策, 不预设阶段"""
+    """v3.0 Agent 主循环 — 固定管线顺序 + 动态审核策略"""
 
     runtime = AgentRuntime(project_dir)
     state = LoopState.from_project(project_dir)
@@ -65,7 +82,7 @@ async def agent_loop(intent: str, project_dir: Path) -> dict:
         # 从文件系统构建完整上下文快照
         context = assess_context(project_dir, intent)
         # context 包含: 有哪些文件? 缺什么? 有什么 pending review?
-        #             上一步做了什么? 有哪些可用工具?
+        #             管线当前在哪个阶段? 置信度如何?
 
         # ── Step 2: CHECK BLOCKERS ──────────────────────
         # 有 blocking review pending → 必须等待人工
@@ -80,62 +97,116 @@ async def agent_loop(intent: str, project_dir: Path) -> dict:
             return {"status": "error", ...}
 
         # ── Step 3: DECIDE ──────────────────────────────
-        # Router 根据 context + intent 选择下一步
-        routes = router.route(intent, context)
-        best = router.best_route(intent, context)
-
-        if best is None or best.capability == "done":
-            break  # 工作完成
+        # 固定管线顺序: 根据文件系统推导当前阶段, 不可跳步
+        current_stage = determine_pipeline_stage(context)
+        if current_stage is None:
+            break  # 全部完成
 
         # ── Step 4: EXECUTE ─────────────────────────────
-        # 执行决定: call MCP tool | submit review | wait
-        result = await execute_action(best, runtime)
+        # 调用对应能力域, 获取 Action 列表并执行
+        actions = invoke_capability_domain(current_stage, context)
+        results = await execute_actions(actions, runtime)
 
-        # ── Step 5: RECORD ──────────────────────────────
-        # 记录审计日志 + git commit
-        write_audit_line(result)
+        # ── Step 5: VALIDATE ────────────────────────────
+        # 验证子代理 + MCP 验证 (参照 SPEC-18 决策2)
+        validation_findings = await trigger_validation(
+            stage=current_stage,
+            output=results,
+            confidence=actions.confidence,
+            runtime=runtime,
+        )
+
+        # ── Step 6: REVIEW GATE ─────────────────────────
+        # 动态审核: 置信度决定是否需要人工审核
+        if needs_review(actions.confidence, validation_findings):
+            packet = build_review_packet(results, validation_findings)
+            runtime.submit_to_review_queue(packet)
+            if packet.urgency == BLOCKING:
+                state.blocking_review = packet.review_id
+
+        # ── Step 7: RECORD ──────────────────────────────
+        write_audit_line(results)
         if git_auto_commit:
-            git_commit(result)
+            git_commit(results)
 
         state.iteration += 1
 
     return {"status": "complete", "iterations": state.iteration}
+
+
+async def trigger_validation(stage, output, confidence, runtime):
+    """触发验证子代理 + MCP 确定性验证 (SPEC-18 决策2)"""
+
+    # 验证子代理触发规则
+    subagent_triggers = {
+        "sdtm_spec": True,       # 始终触发 (合规关键)
+        "adam_spec": True,       # 始终触发 (合规关键)
+        "tfl_shell": "onco",     # 仅 oncology-specific TFL 时触发
+        "sdtm_program": False,   # 用 cdisc_validate MCP 替代
+        "adam_program": False,   # 用 cdisc_validate MCP 替代
+        "tfl_program": False,    # 用双编程对比替代 (SPEC-17)
+        "sap": True,             # 始终触发 (业务关键)
+        "qc": False,             # QC 阶段已有独立验证
+    }
+
+    trigger = subagent_triggers.get(stage.type, False)
+    if trigger is False:
+        return []
+    if trigger == "onco" and not stage.has_oncology_specific:
+        return []
+
+    # 并行执行: MCP 确定性验证 + 子代理逻辑验证
+    mcp_findings, subagent_findings = await asyncio.gather(
+        run_mcp_validation(stage, output),
+        run_validation_subagent(stage, output),
+    )
+
+    return merge_findings(mcp_findings, subagent_findings)
 ```
 
-### 2.2 决策树 (Phase 1: Rule-based)
+### 2.2 决策树 (Phase 1: 固定管线 + 条件门控)
 
 ```
-DECIDE(context, intent):
+DECIDE(context):
   │
-  ├── protocol.pdf 不存在?
+  │  固定管线顺序 (不可跳步):
+  │
+  ├── Step 1: protocol.pdf 不存在?
   │   → WAIT: "Place protocol.pdf in project directory"
   │
-  ├── outputs/sdtm_specs/ 为空?
-  │   → ROUTE: DataStandards.sdtm_spec_generation
-  │   → TOOLS: sdtm_spec_build × inferred_domains
+  ├── Step 2: outputs/sdtm_specs/ 为空?
+  │   → 执行: DataStandards.sdtm_spec_generation
+  │   → 工具: sdtm_spec_build × domains
+  │   → 验证: cdisc_validate + 验证子代理 (合规关键, 始终触发)
+  │   → 门控: confidence < threshold → 提交 ReviewPacket
   │
-  ├── outputs/adam_specs/ 为空?
-  │   → ROUTE: DataStandards.adam_spec_generation
-  │   → TOOLS: adam_spec_build × inferred_datasets
+  ├── Step 3: outputs/adam_specs/ 为空?
+  │   → 执行: DataStandards.adam_spec_generation
+  │   → 工具: adam_spec_build × datasets
+  │   → 验证: cdisc_validate + 验证子代理 (合规关键, 始终触发)
+  │   → 门控: confidence < threshold → 提交 ReviewPacket
   │
-  ├── 产出物已生成, 有不确定项?
-  │   → SUBMIT_REVIEW: build_review_packet(findings)
-  │   → urgency: blocking (if downstream depends on this)
-  │       or normal (if agent can work on other things)
+  ├── Step 4: outputs/tfl_shells/ 为空?
+  │   → 执行: TFLQCSubmission.tfl_shell_generation
+  │   → 工具: tfl_shells_list
+  │   → 验证: 验证子代理 (仅 oncology-specific TFL 时触发)
+  │   → 门控: shells 完成后 → 提交 ReviewPacket (downstream 依赖)
   │
-  ├── outputs/tfl_shells/ 为空?
-  │   → ROUTE: TFLQCSubmission.tfl_shell_generation
-  │   → TOOLS: tfl_shells_list
+  ├── Step 5: TFL shells 已审核通过, programs 未生成?
+  │   → 执行: TFLQCSubmission.tfl_programming
+  │   → 工具: tfl_renderer × shells
+  │   → 验证: cdisc_validate (数据验证) + 双编程对比 (SPEC-17)
+  │   → 门控: confidence < threshold → 提交 ReviewPacket
   │
-  ├── TFL shells 已审核通过?
-  │   → ROUTE: TFLQCSubmission.tfl_programming
-  │   → TOOLS: tfl_renderer × shells
+  ├── Step 6: 所有产出物存在且已审核?
+  │   → 执行: QC Validation → Submission Packaging
+  │   → 门控: 强制提交 ReviewPacket (合规要求)
   │
-  ├── 所有产出物都存在且已审核?
+  ├── Step 7: 全部完成
   │   → DONE
   │
-  └── 其他情况?
-      → LLM fallback (Phase 2): 发送 context 给 Claude 推理
+  └── blocking review pending?
+      → WAIT: 等待人类决策, 不推进到下一步
 ```
 
 ### 2.3 决策上下文快照
@@ -190,27 +261,34 @@ context = {
 ### 3.1 触发时机
 
 ```
-Agent 自主决定何时提交 Review Packet, 不是预设 Gate:
+管线阶段固定, 审核触发动态 — 管线顺序不可跳步, 但审核不是每个阶段都停:
 
 触发条件:
-  1. Agent confidence < threshold
-     某个 SDTM mapping 不确定 → ReviewFinding(category=mapping)
+  1. 置信度门控 (动态)
+     Agent confidence < threshold → 提交 ReviewPacket
+     confidence >= threshold → 自动通过, 不停顿
 
   2. CDISC 标准存在多种合理解释
      如: AEACN vs AEACNOTH 的 mapping 选择 → 需要人工基于 CRF 设计决定
 
-  3. 产出物生成完成, 下游工作依赖此产出物
+  3. 下游依赖门控 (动态)
+     产出物生成完成, 下游工作依赖此产出物
      如: TFL shells 完成后, 编程前 → 提交 shells 审核
 
-  4. 合规关键节点
+  4. 合规关键节点 (强制)
      如: Submission package 必须人工审核 → 强制提交 Review Packet
+     此类节点不看置信度, 始终需要人工确认
 
-  5. Agent 自检发现 warning/error
+  5. 验证子代理/MCP 验证发现 error
      如: cdisc_validate 返回 error → 无法自动修复 → 提交人工
+
+  6. 验证子代理 findings
+     验证子代理 (SPEC-18 决策2) 发现逻辑类问题 → 合并到 ReviewPacket
 
 对比 v2.1:
   旧: 预设 6 个 Gate → 每个都必须审核
-  新: Agent 按需提交 → 复杂的项目多审核, 简单的项目少审核
+  新: 箮线阶段固定 (保证依赖顺序) + 审核按需触发 (置信度驱动)
+  效果: 简单项目少审核, 复杂项目多审核, 但管线顺序始终一致
 ```
 
 ### 3.2 审阅流程集成
@@ -384,7 +462,7 @@ v2.1 (3 Executor+Checklist): ~4-8 周
 v3.0 (Agent-Native):         ~3-6 周 (预估)
 
 v3.0 额外节省来源:
-  · 无固定 Gate → 简单项目不浪费时间
+  · 固定管线 + 动态审核 → 高置信度阶段自动通过, 简单项目少停顿
   · 批量审批 (Review Protocol) → 人工审核从逐条对话变为一次性
   · 文件系统 + Git → 跨 session 无缝恢复, 不丢进度
   · Agent 可并发处理非依赖产出物 (不同 SDTM 域可同时生成)
@@ -409,3 +487,4 @@ v3.0 额外节省来源:
 | Review Protocol | [SPEC-15](15-Review-Protocol.md) |
 | Review Panel | [SPEC-16](16-Review-Panel.md) |
 | 变更管理 + Git 审计 | [SPEC-11](11-Change-Management.md) |
+| P0 架构对齐决策 | [SPEC-18](18-P0-Alignment.md) |

@@ -4,8 +4,10 @@
 ## 版本: 3.0
 ## 主题: Agent Loop 实际走查 — 文件演变、人工交互点、Git 审计
 
-> **v3.0 更新**: 走查流程从 "12 阶段固定管线" 改为 "Agent 动态决策循环 + Review Protocol".
-> 人工不再在固定 Gate 等待, 而是通过 Review Panel 批量审批. 详见 [SPEC-10](10-Workflow-Updated.md).
+> **v3.0 更新**: 走查流程采用 "固定管线 + 动态审核策略"。管线顺序固定不可跳步，
+> 但审核触发由 Agent 置信度决定（HIGH 自动通过，MEDIUM/LOW 提交 ReviewPacket）。
+> 人工通过 Review Panel 批量审批 ReviewPacket，不再在固定 Gate 等待。
+> 状态由文件系统推导，不再使用 `state.yaml`。详见 [SPEC-18](18-P0-Alignment.md)。
 
 ---
 
@@ -35,6 +37,7 @@ claude
 
 ```
 PROT-ONC-301/
+├── project.yaml                 ← 项目配置 (study_id, phase, TA)
 ├── input/
 │   ├── edc/
 │   │   ├── dm.csv               ← 342 行受试者数据
@@ -51,7 +54,7 @@ PROT-ONC-301/
 │   ├── sap.pdf
 │   └── tfl_shells.pdf
 ├── output/                      ← 全是空目录
-└── .workflow/                   ← 全是空目录
+└── .review_queue/               ← 全是空目录
 ```
 
 ### Agent 启动
@@ -102,10 +105,10 @@ PROT-ONC-301/
 │   ├── specs/
 │   │   └── endpoint_map.yaml     ← NEW: AI 提取的终点清单
 │   └── ...
-└── .workflow/
-    └── pipeline/
-        └── state.yaml            ← NEW: current_stage=sap
+└── audit_trail.jsonl             ← UPDATED: Protocol 分析完成记录
 ```
+
+> 状态推导: Agent 扫描 `output/` 发现 `endpoint_map.yaml` 已存在 → Protocol 阶段完成 → 下一步 SAP。
 
 ```
 # output/specs/endpoint_map.yaml
@@ -149,7 +152,7 @@ populations:
 │  │   §6 Sample Size / §7 Interim Analysis / §8 TFL Specs        │
 │  ├── 推导 Estimands (每个终点五要素)                              │
 │  ├── 生成 TFL Shell 目录 (按 CSR 章节组织)                       │
-│  └── 填充 11 项 SAP Gate 审核清单                                │
+│  └── 自检 11 项 SAP 清单                                        │
 │                                                                   │
 │  SELF-REVIEW                                                     │
 │  ├── 自检清单: 逐项确认                                          │
@@ -158,47 +161,46 @@ populations:
 │  │   SAP-03: [PASS] 4 populations defined                        │
 │  │   SAP-04: [FLAGGED] Multiplicity order not explicitly listed  │
 │  │   SAP-05~11: [PASS]                                          │
-│  └── 提交 ReviewerAgent                                          │
+│  └── 置信度: MEDIUM → 需要审核                                   │
 │                                                                   │
-│  ReviewerAgent (Sonnet, Heavy, ~5 min)                           │
-│  ├── 审阅发现: 2 issues                                          │
+│  Runtime 发起验证子代理 (SAP 始终触发)                             │
+│  ├── 验证子代理 审阅发现: 2 issues                                │
 │  │   REV-001 [MAJOR]: Multiplicity testing order not specified   │
 │  │   REV-002 [MINOR]: Sample size section missing dropout rate   │
-│  ├── MainAgent 修复 → 第二轮 → PASS                              │
-│  └── Review Score: 92.5                                          │
+│  ├── 主代理 修复 → 验证子代理 第二轮 → PASS                      │
+│  └── 打包为 ReviewPacket (sap_review)                            │
 │                                                                   │
-│  ╔══════════════════════════════════════════╗                     │
-│  ║  HUMAN GATE 1: SAP 审核                  ║                     │
-│  ║  ─────────────────────────────────────  ║                     │
-│  ║  审核包已生成, 等待:                     ║                     │
-│  ║    · Lead Biostatistician  签字          ║                     │
-│  ║    · Lead Programmer       签字          ║                     │
-│  ╚══════════════════════════════════════════╝                     │
+│  ╔═══════════════════════════════════════════════════════════════╗│
+│  ║  Agent 提交 ReviewPacket → .review_queue/                     ║│
+│  ║  review_type: sap_review  |  urgency: blocking               ║│
+│  ║  findings: 2 (1 critical, 1 warning)                         ║│
+│  ╚═══════════════════════════════════════════════════════════════╝│
 │                                                                   │
-│  [人类操作]                                                       │
-│  Lead Biostatistician 打开审核包:                                  │
-│    SAP-01~03: 扫描确认 ✓                                         │
-│    SAP-04: 补充 "测试顺序: OS → PFS → ORR → DOR"                │
-│    SAP-02~11: 扫描确认 ✓                                         │
-│    决定: CONDITIONAL (1 item needs fix)                          │
+│  [人类操作 — Review Panel]                                        │
+│  Lead Biostatistician 打开 Review Panel:                          │
+│    F-001 [critical]: Multiplicity order → 补充                    │
+│      "测试顺序: OS → PFS → ORR → DOR"                            │
+│    F-002 [warning]: Dropout rate → approved                      │
+│    决定: 1 modified, 1 approved → Submit                         │
 │                                                                   │
-│  AI 收到反馈:                                                     │
+│  Panel 写入 DecisionReceipt → .review_queue/                     │
+│                                                                   │
+│  Agent 读取 DecisionReceipt:                                     │
 │    → ChangeRecord CHG-001 自动生成                               │
-│    → 修复 SAP-04                                                │
-│    → 增量重新提交                                                 │
+│    → 应用 modified 值 (SAP-04 补充测试顺序)                      │
+│    → 增量重新提交 ReviewPacket                                    │
 │                                                                   │
-│  Lead Biostatistician 二次审核 (只看 SAP-04):                     │
-│    [→] SAP-04: MODIFIED → 现在 PASS                              │
-│    决定: APPROVED                                                │
+│  Lead Biostatistician 二次审核 (只看 F-001):                      │
+│    F-001: MODIFIED → 现在 approved                               │
+│    决定: Submit                                                  │
 │                                                                   │
 │  Lead Programmer 审核:                                            │
-│    全部 11 项扫描确认 → APPROVED                                  │
+│    全部扫描确认 → Submit                                          │
 │                                                                   │
-│  ╔══════════════════════════════════════════╗                     │
-│  ║  GATE 1 APPROVED                         ║                     │
-│  ║  Dr. Li (Biostat) + Zhang (Prog)        ║                     │
-│  ║  2026-04-29 14:00                        ║                     │
-│  ╚══════════════════════════════════════════╝                     │
+│  ╔═══════════════════════════════════════════════════════════════╗│
+│  ║  SAP 审核完成                                                  ║│
+│  ║  Dr. Li (Biostat) + Zhang (Prog) — DecisionReceipt 已归档     ║│
+│  ╚═══════════════════════════════════════════════════════════════╝│
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -213,18 +215,14 @@ PROT-ONC-301/
 │   │   ├── sap_draft.yaml        ← NEW: SAP 完整草案
 │   │   └── tfl_shells_catalog.yaml ← NEW: TFL Shell 目录
 │   └── ...
-├── .workflow/
-│   ├── pipeline/
-│   │   └── state.yaml            ← UPDATED: current_stage=sdtm_spec
-│   ├── audit/
-│   │   ├── change_log.jsonl      ← NEW: CHG-001
-│   │   ├── approvals.jsonl       ← NEW: Gate 1 approval ×2
-│   │   └── tool_calls.jsonl      ← NEW: read_document ×3
-│   ├── versions/
-│   │   └── sap_draft.v1.1.0.yaml ← NEW: 修复后版本
-│   └── diffs/
-│       └── CHG-001_diff.txt      ← NEW: SAP-04 修改前后对比
+├── .review_queue/
+│   ├── sap_review_v1_001.json           ← ReviewPacket (已归档)
+│   ├── sap_review_v1_001_decision.json  ← DecisionReceipt (已归档)
+│   └── archive/                         ← 已完成的审核对
+└── audit_trail.jsonl             ← UPDATED: CHG-001 + 审核记录
 ```
+
+> 状态推导: Agent 扫描 `output/specs/` 发现 `sap_draft.yaml` 已存在 → SAP 阶段完成 → 下一步 SDTM Spec。
 
 ---
 
@@ -245,42 +243,42 @@ PROT-ONC-301/
 │  │   · MCP:cdisc_validate(sdtm, domain)           ← 确定性纯函数 │
 │  │   · 生成 {domain}_spec.yaml                                   │
 │  ├── 7 个域, 121 个变量, 全部生成完成                             │
-│  └── 填充 5 项 SDTM Gate 审核清单                                │
+│  └── 自检 5 项 SDTM 清单                                        │
 │                                                                   │
-│  ReviewerAgent (Sonnet, Heavy, ~10 min)                          │
-│  ├── 审阅 121 个变量                                             │
+│  Runtime 发起验证子代理 (SDTM Spec 始终触发)                       │
+│  ├── 验证子代理 审阅 121 个变量                                   │
 │  ├── 发现 3 issues:                                              │
 │  │   REV-003 [MAJOR]: AESEV CT should include LIFE_THREATENING   │
 │  │   REV-004 [MAJOR]: DM.AGEU missing YEARS in controlled_terms  │
 │  │   REV-005 [MINOR]: LB.LBNRIND 变量标签拼写                    │
-│  ├── MainAgent 修复 → 第二轮 → PASS                              │
-│  └── Review Score: 94.2                                          │
+│  ├── 主代理 修复 → 验证子代理 第二轮 → PASS                      │
+│  └── 打包为 ReviewPacket (sdtm_spec)                             │
 │                                                                   │
-│  ╔══════════════════════════════════════════╗                     │
-│  ║  HUMAN GATE 2: SDTM Spec 审核            ║                     │
-│  ║  ─────────────────────────────────────  ║                     │
-│  ║  审核人:                                 ║                     │
-│  ║    · Lead Programmer    签字             ║                     │
-│  ║    · Data Manager       签字             ║                     │
-│  ╚══════════════════════════════════════════╝                     │
+│  ╔═══════════════════════════════════════════════════════════════╗│
+│  ║  Agent 提交 ReviewPacket → .review_queue/                     ║│
+│  ║  review_type: sdtm_spec  |  urgency: blocking                ║│
+│  ║  findings: 3 (2 critical, 1 warning)                         ║│
+│  ╚═══════════════════════════════════════════════════════════════╝│
 │                                                                   │
-│  [人类操作]                                                       │
+│  [人类操作 — Review Panel]                                        │
 │  Data Manager (1 小时):                                           │
 │    · 逐域确认 CRF → SDTM 映射                                    │
 │    · 检查 AE domain: "AETERM 源确认是 AE_FORM.AE_TERM"           │
 │    · 检查 LB domain: "LBSTRESU 单位映射一致"                     │
-│    · 5/5 清单项 PASS → 签字                                      │
+│    · 全部 findings → Submit                                      │
 │                                                                   │
 │  Lead Programmer (2 小时):                                        │
 │    · 重点检查控制术语: AESEV, SEX, AEOUT, LBNRIND                │
 │    · 检查 SUPPQUAL 使用: AERELTX 可保留                          │
 │    · 检查 RELREC: AE↔LB 无必要 (删除)                           │
-│    · 5/5 清单项 PASS → 签字                                      │
+│    · 全部 findings → Submit                                      │
 │                                                                   │
-│  ╔══════════════════════════════════════════╗                     │
-│  ║  GATE 2 APPROVED                         ║                     │
-│  ║  Zhang (Prog) + Wang (DM)               ║                     │
-│  ╚══════════════════════════════════════════╝                     │
+│  DecisionReceipt 写入 → Agent 归档                               │
+│                                                                   │
+│  ╔═══════════════════════════════════════════════════════════════╗│
+│  ║  SDTM Spec 审核完成                                            ║│
+│  ║  Zhang (Prog) + Wang (DM) — DecisionReceipt 已归档             ║│
+│  ╚═══════════════════════════════════════════════════════════════╝│
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -301,19 +299,14 @@ PROT-ONC-301/
 │   │   │   └── ds_spec.yaml      ← 8 variables
 │   │   └── ...
 │   └── ...
-├── .workflow/
-│   ├── pipeline/
-│   │   └── state.yaml            ← UPDATED: current_stage=sdtm_programming
-│   ├── audit/
-│   │   ├── change_log.jsonl      ← UPDATED: CHG-002 (Gate 2 fix)
-│   │   ├── approvals.jsonl       ← UPDATED: Gate 2 approval ×2
-│   │   └── tool_calls.jsonl      ← UPDATED: sdtm_spec_build ×7, cdisc_validate ×7
-│   └── versions/
-│       ├── sdtm/
-│       │   ├── ae_spec.v1.0.0.yaml
-│       │   ├── ae_spec.v1.0.1.yaml  ← FIXED: AESEV CT
-│       │   └── ae_spec.latest.yaml  → v1.0.1
+├── .review_queue/
+│   ├── sdtm_spec_ae_v1_001.json          ← ReviewPacket (已归档)
+│   ├── sdtm_spec_ae_v1_001_decision.json ← DecisionReceipt (已归档)
+│   └── archive/                          ← 已完成的审核对
+└── audit_trail.jsonl             ← UPDATED: CHG-002 + 审核记录
 ```
+
+> 状态推导: Agent 扫描 `output/sdtm/specs/` 发现 7 个 spec 已存在 → SDTM Spec 阶段完成 → 下一步 SDTM Programming。
 
 ---
 
@@ -323,7 +316,7 @@ PROT-ONC-301/
 ┌─────────────────────────────────────────────────────────────────┐
 │  DataStandardsAgent.plan("sdtm_programming")                     │
 │                                                                   │
-│  这是 AI_AUTO 阶段 — 无需人类审核                                 │
+│  置信度: HIGH (≥95%) — 可自动通过，不生成 ReviewPacket            │
 │                                                                   │
 │  EXECUTE                                                         │
 │  ├── 对每个 Spec 生成 SAS 代码:                                   │
@@ -332,7 +325,7 @@ PROT-ONC-301/
 │  ├── 自动在 SAS 环境执行:                                        │
 │  │   sas ae.sas → ae.xpt                                       │
 │  │   sas cm.sas → cm.xpt, ...                                  │
-│  ├── 自动 P21 验证:                                              │
+│  ├── Runtime 自动验证 (cdisc_validate MCP 工具):                 │
 │  │   · DM:  0 Error, 2 Warning                                 │
 │  │   · AE:  0 Error, 3 Warning                                 │
 │  │   · CM:  0 Error, 1 Warning                                 │
@@ -342,13 +335,10 @@ PROT-ONC-301/
 │  │   · CM Warning: 1/1 auto-fixed                              │
 │  └── 生成 P21 验证报告                                          │
 │                                                                   │
-│  ReviewerAgent (Sonnet, Medium, ~15 min)                         │
-│  ├── 检查代码逻辑 + P21 结果                                     │
-│  └── Review Score: 95.8 → PASS                                  │
-│                                                                   │
 │  ╔══════════════════════════════════════════════╗                 │
-│  ║  AI_AUTO — 自动推进到下一个阶段               ║                 │
-│  ║  无需人工审核                                ║                 │
+│  ║  AUTO-PASS (confidence=HIGH)                  ║                 │
+│  ║  cdisc_validate 验证通过，直接写入 output/     ║                 │
+│  ║  无需人工审核，无需 ReviewPacket               ║                 │
 │  ╚══════════════════════════════════════════════╝                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -395,41 +385,41 @@ PROT-ONC-301/
 │  ├── MCP:adam_spec_build("ADTTE")  → adtte_spec.yaml 15 vars    │
 │  ├── MCP:adam_spec_build("ADLB")   → adlb_spec.yaml  ...        │
 │  ├── MCP:cdisc_validate(adam, each)                              │
-│  └── 填充 5 项 ADaM Gate 审核清单                                 │
+│  └── 自检 5 项 ADaM 清单                                        │
 │                                                                   │
 │  SELF-REVIEW:                                                     │
 │    ADAM-01: [PASS] ADSL flags match SAP populations              │
 │    ADAM-02: [FLAGGED] ADTTE CNSR rule #3 wording ambiguous       │
 │    ADAM-03~05: [PASS]                                           │
 │                                                                   │
-│  ReviewerAgent (Sonnet, Heavy, ~15 min)                          │
-│  ├── 发现 2 issues + 确认 ADAM-02 确实歧义                        │
-│  └── Review Score: 93.1                                          │
+│  Runtime 发起验证子代理 (ADaM Spec 始终触发)                       │
+│  ├── 验证子代理 发现 2 issues + 确认 ADAM-02 确实歧义             │
+│  └── 打包为 ReviewPacket (adam_spec)                             │
 │                                                                   │
-│  ╔══════════════════════════════════════════╗                     │
-│  ║  HUMAN GATE 3: ADaM Spec 审核            ║                     │
-│  ║  ─────────────────────────────────────  ║                     │
-│  ║  审核人:                                 ║                     │
-│  ║    · Lead Biostatistician  签字          ║                     │
-│  ║    · Lead Programmer       签字          ║                     │
-│  ╚══════════════════════════════════════════╝                     │
+│  ╔═══════════════════════════════════════════════════════════════╗│
+│  ║  Agent 提交 ReviewPacket → .review_queue/                     ║│
+│  ║  review_type: adam_spec  |  urgency: blocking                ║│
+│  ║  findings: 2 (1 critical, 1 warning)                         ║│
+│  ╚═══════════════════════════════════════════════════════════════╝│
 │                                                                   │
-│  [人类操作]                                                       │
+│  [人类操作 — Review Panel]                                        │
 │  Lead Biostatistician (2-3 小时):                                 │
 │    · 逐项审核 ADTTE 衍生逻辑:                                     │
 │      "CNSR for PFS: 新抗肿瘤治疗前最后无PD评估应为删失"           │
 │      "确认这个逻辑和 SAP §5.3 一致"                               │
 │    · 审核 ADaM 数据集是否覆盖所有终点                             │
 │    · ADAM-02: 本人决定 "保留现有措辞, 与 SAP 一致"               │
-│    · 5/5 PASS → 签字                                             │
+│    · 全部 findings → Submit                                      │
 │                                                                   │
 │  Lead Programmer (1 小时):                                        │
-│    · 快速全量扫描 → 确认                                          │
-│    · 签字                                                         │
+│    · 快速全量扫描 → Submit                                       │
 │                                                                   │
-│  ╔══════════════════════════════════════════╗                     │
-│  ║  GATE 3 APPROVED                         ║                     │
-│  ╚══════════════════════════════════════════╝                     │
+│  DecisionReceipt 写入 → Agent 归档                               │
+│                                                                   │
+│  ╔═══════════════════════════════════════════════════════════════╗│
+│  ║  ADaM Spec 审核完成                                            ║│
+│  ║  Dr. Li (Biostat) + Zhang (Prog) — DecisionReceipt 已归档     ║│
+│  ╚═══════════════════════════════════════════════════════════════╝│
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -449,12 +439,14 @@ PROT-ONC-301/
 │   │   │   └── adef_spec.yaml
 │   │   └── ...
 │   └── ...
-├── .workflow/
-│   ├── pipeline/
-│   │   └── state.yaml            ← current_stage=adam_programming
-│   └── audit/
-│       └── approvals.jsonl       ← Gate 3 approval ×2
+├── .review_queue/
+│   ├── adam_spec_adsl_v1_001.json          ← ReviewPacket (已归档)
+│   ├── adam_spec_adsl_v1_001_decision.json ← DecisionReceipt (已归档)
+│   └── archive/
+└── audit_trail.jsonl             ← UPDATED: 审核记录
 ```
+
+> 状态推导: Agent 扫描 `output/adam/specs/` 发现 6 个 spec 已存在 → ADaM Spec 阶段完成 → 下一步 ADaM Programming。
 
 ---
 
@@ -462,11 +454,18 @@ PROT-ONC-301/
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  DataStandardsAgent (AI_AUTO)                                    │
+│  DataStandardsAgent                                                │
 │                                                                   │
-│  生成 SAS 程序 → 执行 → 生成 XPT → P21 验证 → 修复 → PASS        │
+│  置信度: HIGH (≥95%) — 可自动通过，不生成 ReviewPacket            │
 │                                                                   │
-│  无需人类审核                                                     │
+│  生成 SAS 程序 → 执行 → 生成 XPT                                 │
+│  Runtime 自动验证 (cdisc_validate) → 修复 → PASS                 │
+│                                                                   │
+│  ╔══════════════════════════════════════════════╗                 │
+│  ║  AUTO-PASS (confidence=HIGH)                  ║                 │
+│  ║  cdisc_validate 验证通过，直接写入 output/     ║                 │
+│  ║  无需人工审核，无需 ReviewPacket               ║                 │
+│  ╚══════════════════════════════════════════════╝                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -506,25 +505,27 @@ output/adam/
 │  │   · Tables:  6 (T14.1.1 ~ T14.3.2 + T14.2.3 [肿瘤])         │
 │  │   · Figures: 5 (F14.1.2 ~ F14.2.4 [肿瘤])                    │
 │  │   · Listings: 2 (L16.2.1, L16.2.4)                           │
-│  └── 填充 4 项 TFL Gate 审核清单                                  │
+│  └── 自检 4 项 TFL 清单                                         │
 │                                                                   │
-│  ╔══════════════════════════════════════════╗                     │
-│  ║  HUMAN GATE 4: TFL Shell 审核            ║                     │
-│  ║  ─────────────────────────────────────  ║                     │
-│  ║  审核人:                                 ║                     │
-│  ║    · Lead Biostatistician  签字          ║                     │
-│  ║    · Medical Writer        签字          ║                     │
-│  ╚══════════════════════════════════════════╝                     │
+│  Runtime 发起验证子代理 (仅当存在 oncology-specific TFL 时触发)    │
+│  └── 打包为 ReviewPacket (tfl_shell)                             │
 │                                                                   │
-│  [人类操作]                                                       │
+│  ╔═══════════════════════════════════════════════════════════════╗│
+│  ║  Agent 提交 ReviewPacket → .review_queue/                     ║│
+│  ║  review_type: tfl_shell  |  urgency: normal                  ║│
+│  ╚═══════════════════════════════════════════════════════════════╝│
+│                                                                   │
+│  [人类操作 — Review Panel]                                        │
 │  Medical Writer (1-2 小时):                                       │
 │    TFL-01: 逐表检查标题 → "和 SAP Mock Shell 一致"                │
 │    TFL-03: 检查脚注完整性 → 补充 MedDRA 版本号                   │
 │    TFL-04: 人群标题 → 确认                                    │
-│    4/4 PASS → 签字                                               │
+│    全部 findings → Submit                                        │
 │                                                                   │
 │  Lead Biostatistician (1 小时):                                   │
-│    快速确认 → 签字                                                │
+│    快速确认 → Submit                                             │
+│                                                                   │
+│  DecisionReceipt 写入 → Agent 归档                               │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -542,16 +543,20 @@ output/tfl/
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  TFLQCSubmissionAgent (AI_AUTO)                                   │
+│  TFLQCSubmissionAgent                                              │
+│                                                                   │
+│  置信度: HIGH (≥95%) — 可自动通过，不生成 ReviewPacket            │
 │                                                                   │
 │  对每个 TFL Shell:                                                │
 │    生成 SAS 代码 → 执行 → 输出 RTF/PDF                            │
 │                                                                   │
-│  ReviewerAgent (Sonnet, LIGHT, 抽样 20%)                         │
-│  ├── 抽查 3/13 TFL                                               │
-│  └── 0 issues → PASS                                            │
+│  Runtime 自动验证: 抽查 3/13 TFL → 0 issues → PASS               │
 │                                                                   │
-│  无需人类审核 — AI_AUTO                                          │
+│  ╔══════════════════════════════════════════════╗                 │
+│  ║  AUTO-PASS (confidence=HIGH)                  ║                 │
+│  ║  自动验证通过，直接写入 output/                ║                 │
+│  ║  无需人工审核，无需 ReviewPacket               ║                 │
+│  ╚══════════════════════════════════════════════╝                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -594,17 +599,17 @@ output/tfl/
 │  ├── 运行双编程比对 → 差异报告                                    │
 │  ├── 运行 P21 全量验证 (SDTM + ADaM)                             │
 │  ├── P21 triage: 247 findings → 160 auto-resolved, 87 人工审     │
-│  └── 填充 4 项 QC Gate 审核清单                                   │
+│  └── 自检 4 项 QC 清单                                           │
 │                                                                   │
-│  ╔══════════════════════════════════════════╗                     │
-│  ║  HUMAN GATE 5: QC 验证                   ║                     │
-│  ║  ─────────────────────────────────────  ║                     │
-│  ║  审核人:                                 ║                     │
-│  ║    · QC Programmer       签字            ║                     │
-│  ║    · Lead Programmer     签字            ║                     │
-│  ╚══════════════════════════════════════════╝                     │
+│  打包为 ReviewPacket (tfl_qc)                                    │
 │                                                                   │
-│  [人类操作]                                                       │
+│  ╔═══════════════════════════════════════════════════════════════╗│
+│  ║  Agent 提交 ReviewPacket → .review_queue/                     ║│
+│  ║  review_type: tfl_qc  |  urgency: blocking                   ║│
+│  ║  findings: 包含双编程差异 + P21 triage items                  ║│
+│  ╚═══════════════════════════════════════════════════════════════╝│
+│                                                                   │
+│  [人类操作 — Review Panel]                                        │
 │  QC Programmer (4-6 小时):                                        │
 │    · 审阅双编程差异报告:                                          │
 │      3 个 TFL 有差异:                                            │
@@ -614,10 +619,12 @@ output/tfl/
 │    · 审阅 P21 triage: 87 items 人工确认                           │
 │        → 12 个真正需要修复 (AI 自动修复 10)                       │
 │        → 2 个需要文档化申辩                                       │
-│    · 4/4 PASS → 签字                                             │
+│    · 全部 findings → Submit                                      │
 │                                                                   │
 │  Lead Programmer (1 小时):                                        │
-│    · 确认差异报告 + P21 终态 → 签字                               │
+│    · 确认差异报告 + P21 终态 → Submit                            │
+│                                                                   │
+│  DecisionReceipt 写入 → Agent 归档                               │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -635,32 +642,33 @@ output/tfl/
 │  ├── 生成 ADRG.docx + SDRG.docx (AI 起草)                       │
 │  ├── 验证 XPT 格式合规                                          │
 │  ├── 构建 eCTD 文件夹结构                                       │
-│  └── 填充 4 项 Submission Gate 审核清单                           │
+│  └── 自检 4 项 Submission 清单                                   │
 │                                                                   │
-│  ╔══════════════════════════════════════════╗                     │
-│  ║  HUMAN GATE 6: Submission 审核           ║                     │
-│  ║  ─────────────────────────────────────  ║                     │
-│  ║  审核人:                                 ║                     │
-│  ║    · Lead Programmer     签字            ║                     │
-│  ║    · Regulatory Affairs   签字            ║                     │
-│  ╚══════════════════════════════════════════╝                     │
+│  打包为 ReviewPacket (submission)                                │
 │                                                                   │
-│  [人类操作]                                                       │
+│  ╔═══════════════════════════════════════════════════════════════╗│
+│  ║  Agent 提交 ReviewPacket → .review_queue/                     ║│
+│  ║  review_type: submission  |  urgency: blocking               ║│
+│  ║  findings: 4 (define.xml + XPT + eCTD + ADRG/SDRG)          ║│
+│  ╚═══════════════════════════════════════════════════════════════╝│
+│                                                                   │
+│  [人类操作 — Review Panel]                                        │
 │  Lead Programmer (2 小时):                                        │
 │    · define.xml Schema 验证 ✓                                    │
 │    · XPT 文件完整性检查 ✓                                        │
-│    · 4/4 PASS → 签字                                             │
+│    · 全部 findings → Submit                                      │
 │                                                                   │
 │  Regulatory Affairs (2 小时):                                     │
 │    · eCTD 结构符合 FDA 规范 ✓                                    │
 │    · ADRG/SDRG 内容完整 ✓                                        │
-│    · 4/4 PASS → 签字                                             │
+│    · 全部 findings → Submit                                      │
 │                                                                   │
-│  ╔══════════════════════════════════════════╗                     │
-│  ║  GATE 6 APPROVED                         ║                     │
-│  ║  全管线完成                               ║                     │
-│  ║  Study PROT-ONC-301 递交包就绪            ║                     │
-│  ╚══════════════════════════════════════════╝                     │
+│  DecisionReceipt 写入 → Agent 归档                               │
+│                                                                   │
+│  ╔═══════════════════════════════════════════════════════════════╗│
+│  ║  全管线完成                                                    ║│
+│  ║  Study PROT-ONC-301 递交包就绪                                ║│
+│  ╚═══════════════════════════════════════════════════════════════╝│
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -668,37 +676,32 @@ output/tfl/
 
 ```
 PROT-ONC-301/
-├── input/edc/             (7 CSV)
-├── input/external/        (按需)
-├── protocol/              (protocol.pdf, sap.pdf, tfl_shells.pdf)
+├── project.yaml             (项目配置 — 只读)
+├── input/edc/               (7 CSV)
+├── input/external/          (按需)
+├── protocol/                (protocol.pdf, sap.pdf, tfl_shells.pdf)
 ├── output/
-│   ├── specs/             (endpoint_map, sap_draft, tfl_catalog)
+│   ├── specs/               (endpoint_map, sap_draft, tfl_catalog)
 │   ├── sdtm/
-│   │   ├── specs/         (7 YAML)
-│   │   ├── programs/      (7 SAS)
-│   │   ├── datasets/      (7 XPT)
-│   │   └── validation/    (P21 report)
+│   │   ├── specs/           (7 YAML)
+│   │   ├── programs/        (7 SAS)
+│   │   ├── datasets/        (7 XPT)
+│   │   └── validation/      (P21 report)
 │   ├── adam/
-│   │   ├── specs/         (6 YAML)
-│   │   ├── programs/      (6 SAS)
-│   │   ├── datasets/      (6 XPT)
-│   │   └── validation/    (P21 report)
+│   │   ├── specs/           (6 YAML)
+│   │   ├── programs/        (6 SAS)
+│   │   ├── datasets/        (6 XPT)
+│   │   └── validation/      (P21 report)
 │   ├── tfl/
-│   │   ├── tables/        (6 RTF)
-│   │   ├── figures/       (5 PDF)
-│   │   ├── listings/      (2 RTF)
-│   │   └── programs/      (13 SAS)
-│   ├── define_xml/        (define_sdtm.xml, define_adam.xml)
-│   └── reviewers_guides/  (sdrg.docx, adrg.docx)
-└── .workflow/
-    ├── pipeline/state.yaml
-    ├── audit/
-    │   ├── change_log.jsonl     (8 changes)
-    │   ├── approvals.jsonl      (12 approvals)
-    │   └── tool_calls.jsonl     (40+ tool calls)
-    ├── versions/          (所有版本历史)
-    ├── diffs/             (每版本差异)
-    └── arbitrations/      (2 仲裁记录)
+│   │   ├── tables/          (6 RTF)
+│   │   ├── figures/         (5 PDF)
+│   │   ├── listings/        (2 RTF)
+│   │   └── programs/        (13 SAS)
+│   ├── define_xml/          (define_sdtm.xml, define_adam.xml)
+│   └── reviewers_guides/    (sdrg.docx, adrg.docx)
+├── .review_queue/
+│   └── archive/             (所有已完成的审核 packet + decision 对)
+└── audit_trail.jsonl        (完整操作审计日志 — 每 action 一行)
 ```
 
 ---
@@ -706,20 +709,23 @@ PROT-ONC-301/
 ## 全流程总结
 
 ```
-Stage 1:  Protocol          AI Auto      30 min     endpoint_map.yaml
-Stage 2:  SAP               Gate 1 ★★★   2-3 天     sap_draft.yaml + tfl_shells_catalog.yaml
-Stage 5:  SDTM Spec         Gate 2 ★★★   3-5 天     7 x {domain}_spec.yaml
-Stage 6:  SDTM Programming  AI Auto      1-2 天     7 SAS + 7 XPT + P21 report
-Stage 7:  ADaM Spec         Gate 3 ★★★   3-5 天     6 x {dataset}_spec.yaml
-Stage 8:  ADaM Programming  AI Auto      2-3 天     6 SAS + 6 XPT + P21 report
-Stage 9:  TFL Shell         Gate 4 ★★    2-3 天     tfl_catalog.yaml
-Stage 10: TFL Programming   AI Auto      3-5 天     6 RTF + 5 PDF + 2 RTF + 13 SAS
-Stage 11: QC Validation     Gate 5 ★★★   3-5 天     QC 差异报告 + P21 final
-Stage 12: Submission        Gate 6 ★★★   3-5 天     define.xml ×2 + ADRG + SDRG
-──────────────────────────────────────────────────────────────────────
+阶段            名称               审核方式              时间        产出物
+──────────────────────────────────────────────────────────────────────────────
+Stage 1:  Protocol          Auto-Pass (HIGH)        30 min     endpoint_map.yaml
+Stage 2:  SAP               ReviewPacket ★★★        2-3 天     sap_draft.yaml + tfl_shells_catalog.yaml
+Stage 5:  SDTM Spec         ReviewPacket ★★★        3-5 天     7 x {domain}_spec.yaml
+Stage 6:  SDTM Programming  Auto-Pass (HIGH)        1-2 天     7 SAS + 7 XPT + P21 report
+Stage 7:  ADaM Spec         ReviewPacket ★★★        3-5 天     6 x {dataset}_spec.yaml
+Stage 8:  ADaM Programming  Auto-Pass (HIGH)        2-3 天     6 SAS + 6 XPT + P21 report
+Stage 9:  TFL Shell         ReviewPacket ★★          2-3 天     tfl_catalog.yaml
+Stage 10: TFL Programming   Auto-Pass (HIGH)        3-5 天     6 RTF + 5 PDF + 2 RTF + 13 SAS
+Stage 11: QC Validation     ReviewPacket ★★★        3-5 天     QC 差异报告 + P21 final
+Stage 12: Submission        ReviewPacket ★★★        3-5 天     define.xml ×2 + ADRG + SDRG
+──────────────────────────────────────────────────────────────────────────────
 总计: 11-18 周 (vs 传统 34-49 周)
 
 人类总审核时间: ~20-30 小时 (vs 传统 ~1000+ 小时手动编程)
-6 个 Human Gate (法规必须)
-3 个 AI Auto 编程阶段 (无需人类)
+6 个 ReviewPacket 审核点 (法规必须: SAP, SDTM Spec, ADaM Spec, TFL Shell, QC, Submission)
+4 个 Auto-Pass 编程阶段 (置信度 HIGH, 无需人工: Protocol, SDTM Prog, ADaM Prog, TFL Prog)
+状态推导: 文件系统扫描 (output/ + .review_queue/ + audit_trail.jsonl)
 ```

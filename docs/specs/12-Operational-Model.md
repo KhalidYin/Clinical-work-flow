@@ -113,6 +113,11 @@ Week  13+:  Maintenance (Protocol Amendments, Data Refreshes)
 
 ### 2.2 各阶段详细操作流程
 
+> **审核模型说明**: 以下 6 个审核检查点 (SAP, SDTM Spec, ADaM Spec, TFL Shell, QC, Submission)
+> 是**推荐的审核节点**, 而非强制暂停点。当 Agent 置信度为 HIGH (≥95%) 时, 对应阶段可自动通过,
+> 无需提交 ReviewPacket。置信度为 MEDIUM/LOW 时, Agent 生成 ReviewPacket 写入 `.review_queue/`,
+> 等待人类在 Review Panel 中批量审核。
+
 #### 阶段 0: 准备期 (Study Kick-off 前 2-4 周)
 
 ```
@@ -155,8 +160,8 @@ Week  13+:  Maintenance (Protocol Amendments, Data Refreshes)
 │  ProtocolSAPAgent.PLAN("sap")                                     │
 │    → AI 基于 endpoint_map 生成 SAP 草案                           │
 │    → 填充 11 项 Gate 审核清单的 agent evidence                    │
-│    → ReviewerAgent 独立审阅                                      │
-│    → 生成 ReviewPackage                                         │
+│    → 验证子代理逻辑审查 + MCP 工具确定性验证                      │
+│    → 生成 ReviewPacket                                          │
 │                                                                   │
 │  ⏳ 系统状态: awaiting_human_approval                              │
 ├─────────────────────────────────────────────────────────────────┤
@@ -196,7 +201,7 @@ Week  13+:  Maintenance (Protocol Amendments, Data Refreshes)
 │    → 对每个 SDTM 域 (DM/AE/CM/LB/VS/EX/DS):                     │
 │      · call MCP:sdtm_spec_build(domain)                          │
 │      · call MCP:cdisc_validate(sdtm, domain)                     │
-│    → ReviewerAgent HEAVY 审阅                                    │
+│    → 验证子代理逻辑审查 + MCP 工具确定性验证                      │
 │    → 生成 5 项 Gate 审核清单                                      │
 │                                                                   │
 │  产物:                                                            │
@@ -222,7 +227,7 @@ Week  13+:  Maintenance (Protocol Amendments, Data Refreshes)
 │    · 逐域检查: DM → AE → CM → LB → VS → EX → DS                 │
 │    · 重点检查控制术语 (AESEV, SEX, AEOUT 等)                     │
 │    · 检查 RELREC 跨域关系                                         │
-│    · 如果 ReviewerAgent 有争议 → 逐项裁决                        │
+│    · 如果验证子代理有争议 → 逐项裁决                              │
 │                                                                   │
 │  典型发现:                                                        │
 │    "AE SUPPQUAL 中 AERELTX 变量考虑保留争议"                      │
@@ -274,7 +279,7 @@ Week  13+:  Maintenance (Protocol Amendments, Data Refreshes)
   · TFL Programming 为 AI_AUTO
 
 TFL Programming (AI Auto) 的抽样审阅:
-  · ReviewerAgent LIGHT: 随机抽取 20% TFL 检查
+  · 验证子代理 LIGHT: 随机抽取 20% TFL 检查
   · 如果发现 ≥2 个问题 → 升级为 MEDIUM, 扩展抽样到 50%
   · 如果发现 Critical → 全量 HEAVY 审阅
 ```
@@ -387,7 +392,7 @@ AI 辅助流程 (v2.1):
   · Slack/Teams Channel: 每个 Study 一个专属频道
   · AI 自动推送:
     - "Stage sdtm_spec completed. Review package ready."
-    - "ReviewerAgent found 3 issues in adam_spec. Fix cycle started."
+    - "验证子代理发现 3 个问题 in adam_spec. Fix cycle started."
     - "Gate 3 (ADaM Spec) awaiting approval from Lead Biostatistician."
 
 每周例会 (30 min):
@@ -466,7 +471,7 @@ AI 辅助流程 (v2.1):
   │    → DataStandardsAgent 修复 2 个问题                     │
   │    → re-execute SDTM AE spec generation                   │
   │    → re-validate with cdisc_validate                      │
-  │    → ReviewerAgent re-review                              │
+  │    → 验证子代理重审                                        │
   │                                                           │
   │ 3. 增量重新提交:                                           │
   │    → sdtm/ae_spec v1.0.0 → v1.1.0                        │
@@ -645,7 +650,7 @@ AI 不是"安装即忘记"的工具。在 GxP 环境中:
 成功指标:
   · 人工审核时间减少 >50%
   · Gate 一次通过率 >70% (不需要驳回修改)
-  · 仲裁率 <10% (MainAgent vs ReviewerAgent)
+  · 仲裁率 <10% (主代理 vs 验证子代理)
 
 团队:
   · 2-3 个 Study + 核心团队
@@ -684,7 +689,7 @@ AI 不是"安装即忘记"的工具。在 GxP 环境中:
 
 | 风险 | 严重程度 | 缓解措施 |
 |------|---------|---------|
-| AI 产生幻觉并逃过审阅 | 高 | 双 Agent 交叉审阅 + 强制清单校验 + Human Gate |
+| AI 产生幻觉并逃过审阅 | 高 | 验证子代理逻辑审查 + MCP 工具确定性验证 + Review Protocol 结构化审核 |
 | 团队过度依赖 AI | 中 | Phase 1 影子运行建立判断基准; 培训强调 "AI 是工具不是决策者" |
 | AI 知识过时 (CDISC 标准更新) | 中 | 季度 CT 更新; AI System Owner 监控 CDISC 发布 |
 | 模型升级导致行为变化 | 中 | System Prompt 版本化; 回归测试集; 升级前先影子对比 |

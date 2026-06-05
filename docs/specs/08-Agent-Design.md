@@ -2,7 +2,7 @@
 
 ## 文档编号: SPEC-08
 ## 版本: 3.0
-## 主题: Capability Domains + Agent Runtime (替代固定管线节点)
+## 主题: Capability Domains + Agent Runtime (固定管线 + 动态审核策略)
 
 ---
 
@@ -19,18 +19,23 @@ v2.1 模型: Agent = 管线节点
         Stage 1 的决策无法直接传给 Stage 6
         每个 Agent 必须按预设顺序执行
 
-v3.0 模型: Agent = 能力域
+v3.0 模型: 固定管线 + 能力域
 
+  管线顺序 (刚性, 不可跳步):
+    Protocol Analysis → SAP → SDTM Spec → SDTM Prog → ADaM Spec →
+    ADaM Prog → TFL Shell → TFL Prog → QC → Submission
+
+  能力域按管线阶段被调用:
   ProtocolSAP        ──→ 能力: 方案解析, SAP生成, 终点分类
   DataStandards      ──→ 能力: SDTM映射, ADaM衍生, CDISC合规
   TFLQCSubmission    ──→ 能力: TFL设计, 编程QC, 递交打包
 
-  Agent Runtime      ──→ 动态路由到正确的能力域
-                         context + intent → decide → route
+  Agent Runtime      ──→ 按固定管线推进, 动态决定审核策略
+                         管线阶段 → 调用能力域 → 执行 Actions
 
-  优势: 能力域关注 "我能做什么"
-        Runtime 关注 "现在该做什么"
-        两者解耦 → 能力域可以独立进化
+  优势: 管线顺序保证 CDISC 领域依赖
+        审核策略动态化 → 置信度高自动通过, 低则阻塞等待
+        能力域返回 Action 列表, Runtime 代理执行 → 调用链可审计
 ```
 
 ### 六项核心原则 (继承 v2.1, 微调 #6)
@@ -50,15 +55,17 @@ v3.0 模型: Agent = 能力域
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    AGENT RUNTIME (决策层)                     │
+│              AGENT RUNTIME (固定管线 + 动态审核)                │
 │                                                              │
-│  Agent Loop: ASSESS → DECIDE → ROUTE → EXECUTE → RECORD     │
+│  Agent Loop: ASSESS → IDENTIFY STAGE → EXECUTE → VALIDATE    │
+│              → REVIEW DECISION → RECORD                      │
 │                                                              │
 │  职责:                                                       │
-│    · 读取文件系统, 构建 context                               │
-│    · 根据 context + intent 决策下一步                         │
-│    · 路由到正确的能力域                                       │
-│    · 调用 MCP 工具执行确定性操作                               │
+│    · 读取文件系统, 构建 context, 确定管线进度                  │
+│    · 按固定管线顺序推进到下一阶段                              │
+│    · 调用能力域, 获取 Action 列表, 代理执行                    │
+│    · 发起验证子代理 (置信度 < HIGH 时)                        │
+│    · 根据置信度决定审核策略 (auto-pass / normal / blocking)   │
 │    · 构建 Review Packet 提交人工审核                          │
 │    · 读取 Decision Receipt 并应用                             │
 │    · 记录 audit_trail.jsonl + git commit                     │
@@ -69,7 +76,7 @@ v3.0 模型: Agent = 能力域
 │    · 人工审核界面的渲染 (那是 Review Panel 的活)               │
 └─────────────────────────────────────────────────────────────┘
         │                │                │
-        │ 动态路由        │                │
+        │ 按管线阶段      │                │
         ▼                ▼                ▼
 ┌──────────────┐ ┌──────────────┐ ┌──────────────────┐
 │ ProtocolSAP  │ │DataStandards │ │ TFLQCSubmission  │
@@ -306,51 +313,74 @@ Runtime → Domain:
     "requested_capability": "sdtm_spec_generation"
   }
 
-Domain → Runtime:
+Domain → Runtime (Action 列表, 能力域不直接调用工具):
   {
-    "action": "call_tool",
-    "tool": "sdtm_spec_build",
-    "args": { "domain_code": "AE", ... }
-  }
-  或:
-  {
-    "action": "submit_review",
-    "packet": ReviewPacket(...)
-  }
-  或:
-  {
-    "action": "done",
-    "artifacts": ["outputs/sdtm_specs/ae_spec.xlsx", ...]
+    "actions": [
+      {
+        "type": "call_tool",
+        "tool": "sdtm_spec_build",
+        "args": {
+          "domain_code": "AE",
+          "trial_phase": "phase_iii",
+          "therapeutic_area": "oncology",
+          "crf_mappings": [...]
+        }
+      }
+    ],
+    "confidence": "HIGH",
+    "notes": "AE domain mapping straightforward, CRF fields clearly map to standard SDTM variables"
   }
 
-Runtime 的角色: 传令官 + 质量控制
+Runtime 逐个执行 Action:
+  · 记录到 audit_trail.jsonl
+  · 调用 MCP 工具
+  · 记录结果
+  · [可选] 发起验证子代理 (置信度 < HIGH 时)
+  · 打包 ReviewPacket → .review_queue/
+
+Runtime 的角色: 管线推进者 + 质量控制
   · 不会替 Domain 做 CDISC 决策
-  · 但会校验 Domain 的输出格式 (JSON Schema)
+  · 代理执行 Domain 声明的 Action 列表 (能力域不直接调用 MCP 工具)
+  · 校验 Domain 的输出格式 (JSON Schema)
+  · 根据 confidence 决定审核策略
   · 确保 audit trail 完整
 ```
 
 ---
 
-## 7. Confidence 体系 (保留 v2.1)
+## 7. Confidence 体系 (v3.0 — 置信度驱动审核策略)
 
 ```
-HIGH (95%+):
+HIGH (≥95%):
   基于明确的 CDISC 标准条文 → 直接使用
   示例: "AE.AETERM maps from CRF AE_TERM (SDTMIG v3.4 §6.1, Table 6.1.1)"
+  审核策略: 自动通过, 不生成 ReviewPacket, 不触发验证子代理
+             直接写入 outputs/
 
 MEDIUM (70-95%):
   基于常规实践推断 → 标注后使用
   示例: "Based on common oncology practice, add ADTR for tumor response"
+  审核策略: 生成 ReviewPacket (urgency=normal), 触发验证子代理
+             Agent 可继续其他工作, 不阻塞
 
 LOW (<70%):
-  不确定 → STOP → 构建 Review Finding → 提交 Review Packet
+  不确定 → 构建 Review Finding → 提交 Review Packet
   示例: "CRF field AE_ACTION_TAKEN could map to AEACN or AEACNOTH —
          need human decision based on study-specific CRF annotation"
+  审核策略: 生成 ReviewPacket (urgency=blocking), 触发验证子代理
+             Agent 必须等待人类决策, 阻塞管线推进
 
-v3.0 变化:
-  · LOW confidence 不再触发 "stop and wait" → 而是 "submit review packet"
-  · Normal urgency: Agent 可继续其他工作
-  · Blocking urgency: Agent 必须等待 (仅用于下游依赖此决策的 critical findings)
+置信度 → 审核策略映射表:
+  | confidence | ReviewPacket | 验证子代理 | Agent 行为 |
+  |------------|-------------|-----------|-----------|
+  | HIGH (≥95%)| 不生成      | 跳过      | 直接写入 outputs/ |
+  | MEDIUM (70-95%)| 生成 (normal)| 触发  | Agent 继续其他工作 |
+  | LOW (<70%) | 生成 (blocking)| 触发    | Agent 等待人类决策 |
+
+v3.0 与 v2.1 的区别:
+  · v2.1: LOW confidence → "stop and wait" (阻塞一切)
+  · v3.0: MEDIUM → non-blocking review (Agent 可并行推进其他阶段)
+  · v3.0: 验证子代理 (同模型不同 prompt) 替代独立 ReviewerAgent
 ```
 
 ---
@@ -359,21 +389,31 @@ v3.0 变化:
 
 ```
 src/runtime/
-├── agent_loop.py               ← Agent Runtime (循环 + 决策 + 协调)
-├── router.py                   ← 路由逻辑 (Phase 1: rule-based)
+├── agent_loop.py               ← Agent Runtime (固定管线循环 + 动态审核)
+├── router.py                   ← 管线阶段识别 (Phase 1: rule-based)
 └── review_protocol.py          ← Review Packet / Decision Receipt
 
 src/agents/
 ├── base.py                     ← BaseAgent + Confidence + enums (保留)
-├── executors.py                ← 3 Capability Domains (重构: 去掉 stage 映射)
+├── executors.py                ← 3 Capability Domains (返回 Action 列表, 不直接调用工具)
+├── validation_subagent.py      ← 验证子代理 (验证型 prompt, 输出 ReviewFinding 数组)
 ├── prompts/                    ← YAML prompt 模板 (保留, 按能力域重组)
+│   ├── generation/             ← 生成型 prompt (能力域使用)
+│   └── validation/             ← 验证型 prompt (验证子代理使用)
 ├── review_package.py           ← 旧版 ReviewPackage (DEPRECATED)
-└── reviewer_agent.py           ← ReviewerAgent (DEPRECATED, Runtime 替代)
+└── reviewer_agent.py           ← ReviewerAgent (DEPRECATED, 被 validation_subagent 替代)
 
 src/change_management/          ← 保留
 src/mcp_tools/                  ← 保留, 完全不变
 src/knowledge/                  ← 保留 + 从 templates/ 迁移内容
 ```
+
+验证子代理说明:
+  · 使用不同于生成的 prompt (验证型: "审查这份 spec, 找出所有与 CDISC IG 不一致的地方")
+  · 触发时机: 能力域生成完成后, 置信度 < HIGH 时由 Runtime 自动触发
+  · 输出: ReviewFinding 数组, 合并到 ReviewPacket 中
+  · 与 MCP 确定性验证 (cdisc_validate) 并行执行, 互为补充
+  · 置信度 HIGH 时可跳过, 节省计算资源
 
 ---
 
@@ -383,7 +423,7 @@ src/knowledge/                  ← 保留 + 从 templates/ 迁移内容
 |------|------|
 | 总体架构 v3.0 | [SPEC-00](00-Overview.md) |
 | AI 架构深度分析 | [SPEC-06](06-AI-Architecture.md) |
-| 工作流编排 — 动态路由 | [SPEC-10](10-Workflow-Updated.md) (待更新) |
+| 工作流编排 — 固定管线 + 动态审核 | [SPEC-10](10-Workflow-Updated.md) (待更新) |
 | MCP 工具 API (不变) | [SPEC-09](09-MCP-Tools-Design.md) |
 | Review Protocol | [SPEC-15](15-Review-Protocol.md) |
 | Phase/TA 知识库 | [SPEC-07](07-Phase-TA-Config.md) (待更新) |
