@@ -57,20 +57,27 @@ ReviewPanelExtension (activation: workspace contains .review_queue/)
 │
 ├── ReviewQueueWatcher        — fs.watch .review_queue/ 目录变化
 │   ├── onPacketAdded()       → 刷新 ReviewList
-│   ├── onDecisionWritten()   → 标记为 "已决定"
+│   ├── onDecisionWritten()   → 标记为 "已决定", 检查多人完成状态
+│   ├── onClarificationReply() → 更新 FindingRow 澄清卡片
+│   ├── onConfirmationReceipt() → 更新应用状态 badge
 │   └── onPacketArchived()    → 从列表中移除
 │
 ├── ReviewList                — 待审核包列表 (左侧导航)
-│   ├── ReviewListItem        — 单个 review 卡片
-│   └── Badge                 — pending/decided/blocking 状态
+│   ├── ReviewListItem        — 单个 review 卡片 (含超时左边框颜色)
+│   ├── Badge                 — pending/decided/blocking 状态
+│   ├── TimeoutBadge          — Active/Reminder/Escalated/Stalled 计时
+│   └── ApplicationBadge      — applied/adjusted/failed 应用状态 (decided 后显示)
 │
 ├── ReviewDetail              — 单个 review 的完整审核界面 (右侧主区域)
-│   ├── ReviewHeader          — review_id, urgency, source docs
+│   ├── ReviewHeader          — review_id, urgency, source docs, timeout, reviewers
 │   ├── FindingFilterBar      — 按 category/severity 过滤
 │   ├── FindingTable          — findings 表格 (核心渲染区)
 │   │   ├── FindingRow        — 单行 (可展开)
 │   │   ├── InlineEditor      — Edit 模式下的约束输入
+│   │   ├── RejectForm        — Reject 展开表单 (rejection_reason, correction, ref)
+│   │   ├── ClarificationBox  — 澄清请求输入 + Agent 回复卡片
 │   │   └── BatchActionBar    — Approve All / Approve Visible
+│   ├── ConflictView          — 多人审核冲突视图 (side-by-side reviewer decisions)
 │   ├── DecisionSummary       — 底部汇总: N approved, M rejected
 │   └── SubmitButton          — Submit All Decisions
 │
@@ -115,7 +122,7 @@ Web UI 的劣势:
 ### 3.1 ReviewQueueWatcher
 
 ```
-功能: 监听 .review_queue/ 目录, 检测新 packet / 新 decision
+功能: 监听 .review_queue/ 目录, 检测新 packet / 新 decision / 澄清回复 / 确认回执
 
 实现:
   const watcher = vscode.workspace.createFileSystemWatcher(
@@ -123,9 +130,17 @@ Web UI 的劣势:
   );
 
   watcher.onDidCreate(uri => {
-    if (uri.fsPath.endsWith('_decision.json')) {
-      // Human (可能是另一个 VSCode 实例) 提交了 decision
+    const filename = uri.fsPath;
+    if (filename.includes('_decision')) {
+      // Human 提交了 decision (多人审核时: {id}_decision_{role}.json)
       refreshReviewList();
+      checkMultiReviewerCompletion(reviewId);
+    } else if (filename.includes('_clarification_') && filename.endsWith('_response.json')) {
+      // Agent 回复了澄清请求
+      updateFindingClarification(uri);
+    } else if (filename.includes('_confirmation.json')) {
+      // Agent 提交了应用确认回执
+      updateApplicationStatus(uri);
     } else {
       // Agent 提交了新 review packet
       addToReviewList(uri);
@@ -145,6 +160,9 @@ Web UI 的劣势:
 行为:
   · 检测到新 packet → 自动添加到列表 + 通知 (blocking 时才弹窗)
   · 检测到新 decision → 标记对应 packet 为 "已决定"
+  · 检测到 clarification response → 更新 FindingRow 的澄清卡片
+  · 检测到 confirmation receipt → 更新 ReviewList 的应用状态 badge
+  · 多人审核时检测到所有 decision → 合并状态, 检查冲突
   · Agent 不在线时也能正常工作 (等待人工审核)
 ```
 
@@ -156,14 +174,21 @@ Web UI 的劣势:
 │    ⚠ critical · 2 warning · 1 info               │
 │    Source: protocol.pdf, crf_ae.xlsx              │
 │    Created: 2026-06-04 14:30 UTC                  │
+│    ⏱ Time Waiting: 2h 15m                        │
 │                                                    │
-│ 🟡 ADaM Spec: ADSL               5 findings       │  ← normal
+│ 🟡 ADaM Spec: ADSL               5 findings       │  ← normal (timeout: reminder)
 │    1 critical · 3 warning · 1 info                │
 │    Source: protocol.pdf, sdtm_specs/dm.xlsx       │
+│    ⏰ Time Waiting: 26h 0m                        │
 │                                                    │
 │ 🟢 TFL Shell Review             12/18 approved    │  ← decided
 │    Decision by Dr. Zhang                           │
 │    12 approved · 0 rejected · 0 modified          │
+│    ✅ All applied                                  │  ← application status
+│                                                    │
+│ 🟠 ADaM Spec: ADSL (v2)         5 findings       │  ← escalated (timeout)
+│    1 critical · 3 warning · 1 info                │
+│    🔺 Time Waiting: 80h 0m                        │
 │                                                    │
 │ ── ARCHIVED ─────────────────────────────────────  │
 │ ✓ SDTM Spec: DM                  3/3 approved     │
@@ -171,6 +196,21 @@ Web UI 的劣势:
 └────────────────────────────────────────────────────┘
 
 点击任一 card → ReviewDetail webview 渲染完整审核表
+```
+
+**超时状态颜色 (左竖条)**:
+```
+Active (< 24h):     无额外样式
+Reminder (24-72h):  左边框黄色
+Escalated (72-168h): 左边框橙色
+Stalled (> 168h):   左边框红色
+```
+
+**应用状态 (decided 卡片)**:
+```
+✅ All applied — 绿色 badge
+⚠️ Some adjusted — 黄色 badge, 点击可查看调整详情
+❌ Some failed — 红色 badge, Agent 已自动重新提交
 ```
 
 ### 3.3 ReviewDetail (Webview)
@@ -187,6 +227,24 @@ Web UI 的劣势:
       <span class="urgency {urgency}">{urgency_label}</span>
       <span class="timestamp">{created_at}</span>
       <span class="generator">{generated_by}</span>
+    </div>
+    <div class="timeout-badge" v-if="timeout_status">
+      <!-- TimeoutBadge: 基于等待时间显示不同状态 -->
+      <span class="timeout {timeout_status}">
+        {timeout_icon} Time Waiting: {hours_waiting}h {minutes_waiting}m
+      </span>
+      <!-- 状态: Active(<24h,灰色) / Reminder(24-72h,黄色) / Escalated(72-168h,橙色) / Stalled(>168h,红色) -->
+    </div>
+    <div class="reviewer-progress" v-if="required_reviewers">
+      <!-- ReviewerProgress: 多人审核进度 -->
+      <span class="progress-counter">{completed_count}/{required_count} reviewers completed</span>
+      <span class="consensus-rule">Consensus: {consensus_rule_label}</span>
+      <ul class="reviewer-list">
+        <li v-for="r in required_reviewers" class="reviewer-item {r.status}">
+          <!-- status: submitted → ✅ {name} / pending → ⏳ / conflict → ⚠️ -->
+          {reviewer_status_icon} {r.display_name}
+        </li>
+      </ul>
     </div>
     <div class="source-docs">
       Source: {source_documents.join(', ')}
@@ -258,29 +316,30 @@ Web UI 的劣势:
 ```
 每条 finding 渲染为一个可展开行:
 
-┌─ Collapsed (默认) ──────────────────────────────────────────────┐
-│ ⚠crit │ mapping │ AE.AEACN │ (new) → AEACN        │ [Approve]  │
-│       │         │          │                        │ [Edit]     │
-│       │         │          │                        │ [Reject]   │
-└─────────────────────────────────────────────────────────────────┘
+┌─ Collapsed (默认) ──────────────────────────────────────────────────────┐
+│ ⚠crit │ mapping │ AE.AEACN │ (new) → AEACN        │ [Approve]  [?]    │
+│       │         │          │                        │ [Edit]            │
+│       │         │          │                        │ [Reject]          │
+└─────────────────────────────────────────────────────────────────────────┘
+  [?] = Clarification 按钮 (详见下方 §3.3.2b)
 
-┌─ Expanded (点击行或 severity icon) ─────────────────────────────┐
-│ ⚠crit │ mapping │ AE.AEACN │ (new field)           │ [Approve]  │
-│       │         │          │ → AEACN                │ [Edit]     │
-│       │         │          │                        │ [Reject]   │
-│       │         │          │ ─────────────────────  │            │
-│       │         │          │ Rationale:             │            │
-│       │         │          │ CRF page AE_FORM has   │            │
-│       │         │          │ field AE_ACTION_TAKEN  │            │
-│       │         │          │ which maps to SDTM     │            │
-│       │         │          │ AEACN per CDISC        │            │
-│       │         │          │ SDTMIG v3.4 §6.1.      │            │
-│       │         │          │                        │            │
-│       │         │          │ Evidence:              │            │
-│       │         │          │ · CDISC SDTMIG v3.4    │            │
-│       │         │          │   §6.1                 │            │
-│       │         │          │ · CDISC CT C66789      │            │
-└─────────────────────────────────────────────────────────────────┘
+┌─ Expanded (点击行或 severity icon) ─────────────────────────────────────┐
+│ ⚠crit │ mapping │ AE.AEACN │ (new field)           │ [Approve]  [?]    │
+│       │         │          │ → AEACN                │ [Edit]            │
+│       │         │          │                        │ [Reject]          │
+│       │         │          │ ─────────────────────  │                   │
+│       │         │          │ Rationale:             │                   │
+│       │         │          │ CRF page AE_FORM has   │                   │
+│       │         │          │ field AE_ACTION_TAKEN  │                   │
+│       │         │          │ which maps to SDTM     │                   │
+│       │         │          │ AEACN per CDISC        │                   │
+│       │         │          │ SDTMIG v3.4 §6.1.      │                   │
+│       │         │          │                        │                   │
+│       │         │          │ Evidence:              │                   │
+│       │         │          │ · CDISC SDTMIG v3.4    │                   │
+│       │         │          │   §6.1                 │                   │
+│       │         │          │ · CDISC CT C66789      │                   │
+└─────────────────────────────────────────────────────────────────────────┘
 
 Severity 颜色:
   critical: #E53E3E (红)  左竖条 + icon
@@ -288,10 +347,108 @@ Severity 颜色:
   info:     #3182CE (蓝)  左竖条 + icon, 默认折叠且隐藏
 
 Decision 按钮状态:
-  未操作:   三个按钮均 active
+  未操作:   三个按钮均 active, [?] 澄清按钮始终可见
   Approved: [✓ Approved]  绿色, 其他按钮隐藏
-  Rejected: [✗ Rejected]  红色, 其他按钮隐藏
+  Rejected: [✗ Rejected]  红色, 其他按钮隐藏, 展开 RejectForm
   Modified: [✏ Modified]  橙色, 点击可重新编辑
+```
+
+#### 3.3.2a Reject 展开表单 (RejectForm)
+
+```
+点击 [Reject] → 行展开, 显示结构化拒绝表单:
+
+┌─ Reject Form ─────────────────────────────────────────────────────┐
+│ ⚠crit │ mapping │ AE.AEACN │ (new field)           │ [Cancel]    │
+│       │         │          │                        │ [Confirm]   │
+│       │         │          │ ─────────────────────  │             │
+│       │         │          │ Rejection Reason:      │             │
+│       │         │          │ ┌────────────────────┐ │             │
+│       │         │          │ │ incorrect_derivation▼│ ← 9 枚举值  │
+│       │         │          │ └────────────────────┘ │             │
+│       │         │          │                        │             │
+│       │         │          │ Correction (required): │             │
+│       │         │          │ ┌────────────────────┐ │             │
+│       │         │          │ │ AESTDY 应基于 RFSTDTC│ ← 多行文本  │
+│       │         │          │ │ 而不是 TRTSDT       │              │
+│       │         │          │ └────────────────────┘ │             │
+│       │         │          │                        │             │
+│       │         │          │ Reference (optional):  │             │
+│       │         │          │ ┌────────────────────┐ │             │
+│       │         │          │ │ SAP Section 5.2    │ │ ← 单行文本  │
+│       │         │          │ └────────────────────┘ │             │
+│       │         │          │                        │             │
+│       │         │          │ Comment (optional):    │             │
+│       │         │          │ ┌────────────────────┐ │             │
+│       │         │          │ │                    │ │ ← 单行文本  │
+│       │         │          │ └────────────────────┘ │             │
+└───────────────────────────────────────────────────────────────────┘
+
+rejection_reason 枚举 (9 值):
+  wrong_domain_assignment       — 域分配错误
+  incorrect_variable_mapping    — 变量映射错误
+  incorrect_derivation          — 派生逻辑错误
+  wrong_ct_value                — 受控术语值错误
+  missing_variable              — 缺少变量
+  incorrect_population          — 分析人群定义错误
+  incorrect_method              — 统计方法错误
+  insufficient_evidence         — 证据不足
+  other                         — 其他
+
+约束:
+  · rejection_reason 必选
+  · human_correction: 当 reason ≠ insufficient_evidence 时必填, minLength 10
+  · reference: 可选
+  · comment: 可选, maxLength 500
+  · 实时验证: reason 已选但 correction 为空时, correction 输入框红色边框
+
+状态切换:
+  [Reject] click → 展开 RejectForm, [Approve]/[Edit]/[?] 隐藏
+  [Cancel] → 收起表单, 恢复按钮
+  [Confirm] → 校验通过 → FindingRow 显示 "✗ Rejected" (红色), 表单收起
+```
+
+#### 3.3.2b 澄清按钮 (ClarificationBox)
+
+```
+[?] 按钮位于决策按钮右侧, 始终可见 (无论 finding 状态):
+
+1. 点击 [?] → 弹出文本输入框:
+   ┌─ Request Clarification ────────────────────────┐
+   │ What would you like clarified?                 │
+   │ ┌────────────────────────────────────────────┐ │
+   │ │ 为什么 AE 域应映射到 ADAE 而不是 ADSL?      │ │
+   │ └────────────────────────────────────────────┘ │
+   │ [Cancel]  [Submit]                             │
+   └────────────────────────────────────────────────┘
+
+2. 提交后 → FindingRow 进入 "等待澄清" 状态:
+   ┌─ Waiting for Clarification ───────────────────────────────────┐
+   │ ⚠crit │ mapping │ AE.AEACN │ 🔄 Waiting for clarification...│
+   │       │         │          │ (蓝色边框 + spinner)             │
+   └──────────────────────────────────────────────────────────────┘
+
+3. Agent 回复后 → FindingRow 展开区域增加 "Agent Clarification" 卡片:
+   ┌─ Agent Clarification ──────────────────────────────────────────┐
+   │ Summary (粗体):                                                 │
+   │   AE 事件级数据应使用 ADAE 数据集, 因为 ADSL 是受试者级          │
+   │                                                                 │
+   │ ▸ Detail (可展开):                                              │
+   │   根据 SDTM IG 3.4 §4.1, AE 域的观测级别是 Event...             │
+   │                                                                 │
+   │ IG Reference (可点击跳转):                                      │
+   │   SDTM IG 3.4 Section 4.1.3                                    │
+   │                                                                 │
+   │ Example (代码块样式):                                           │
+   │   AE001: AE=Asthma, AESEV=Moderate → ADAE.AESEV=Moderate       │
+   │                                                                 │
+   │ Confidence: [HIGH] (badge)                                      │
+   └─────────────────────────────────────────────────────────────────┘
+
+约束:
+  · 每个 finding 最多 2 次澄清请求
+  · 超过 2 次后, [?] 按钮禁用, tooltip: "Maximum clarifications reached"
+  · 澄清请求不阻塞其他 finding 的审核
 ```
 
 #### 3.3.3 Inline Editor (Edit 模式)
@@ -338,6 +495,44 @@ Decision 按钮状态:
   Free Text (title, rationale, etc.):
     · 单行或多行文本框
     · 长度限制 (matching schema maxLength)
+```
+
+### 3.3.4 ConflictView (多人审核冲突视图)
+
+```
+当多人审核同一 ReviewPacket 且产生冲突时, ConflictView 组件渲染冲突详情:
+
+触发条件:
+  · required_reviewers 中多人对同一 finding 给出不同决策
+  · 例如: lead_programmer approved, data_manager rejected
+
+布局:
+  ┌─ CONFLICT: F-003 ──────────────────────────────────────────────┐
+  │ Finding: AE.AEACN — (new field) → AEACN                       │
+  │                                                                 │
+  │ ┌─ Side-by-side Reviewer Decisions ───────────────────────────┐ │
+  │ │ lead_programmer (Dr. Zhang)        data_manager (Jane Smith)│ │
+  │ │ Decision: ✅ Approved              Decision: ✗ Rejected     │ │
+  │ │                              vs                             │ │
+  │ │                              │ correction:                  │ │
+  │ │                              │ "应该用 AESEQ 而不是 AEACN"  │ │
+  │ └─────────────────────────────────────────────────────────────┘ │
+  │                                                                 │
+  │ Differences highlighted:                                        │
+  │   · Decision: approved vs rejected                              │
+  │   · Value: AEACN vs AESEQ (from correction)                    │
+  │                                                                 │
+  │ Escalated to: Dr. Smith (lead_biostatistician)                 │
+  │ Status: ⏳ pending_arbitration                                  │
+  │                                                                 │
+  │ [View Agent's Original Rationale]                               │
+  └─────────────────────────────────────────────────────────────────┘
+
+行为:
+  · 冲突行在 FindingTable 中用红色边框 + "CONFLICT" badge 标记
+  · 点击行展开 → ConflictView 渲染 side-by-side 对比
+  · "View Agent's Original Rationale" → 展开 Agent 最初的 rationale + evidence
+  · 仲裁人的 DecisionReceipt 到达后, 冲突解决, ConflictView 收起
 ```
 
 ---
@@ -449,6 +644,89 @@ interface SapReviewTemplate {
 }
 ```
 
+### 4.4 ADaM Spec Review 模板
+
+```typescript
+interface AdamSpecReviewTemplate {
+  reviewType: 'adam_spec';
+  dataset: string;  // 从 source_documents 或 findings[0].location 提取
+
+  columns: [
+    { key: 'severity',  width: 40,  template: 'severity-icon' },
+    { key: 'category',  width: 80,  template: 'badge' },
+    { key: 'location',  width: 160, template: 'variable-link' },  // dataset.variable
+    { key: 'detail',    width: '*', template: 'current-proposed-diff' },
+    { key: 'decision',  width: 180, template: 'decision-buttons' },
+  ];
+
+  filterPresets: [
+    { label: 'Critical derivations', severity: 'critical', category: 'derivation' },
+    { label: 'Population flags', category: 'population' },
+    { label: 'All critical', severity: 'critical' },
+  ];
+
+  linkedOutput: {
+    type: 'excel';
+    path: 'outputs/adam_specs/{dataset}_spec.xlsx';
+    preview: 'first-10-rows';
+  };
+}
+```
+
+### 4.5 TFL QC Review 模板
+
+```typescript
+interface TflQcReviewTemplate {
+  reviewType: 'tfl_qc';
+
+  columns: [
+    { key: 'severity',   width: 40,  template: 'severity-icon' },
+    { key: 'tfl_id',     width: 80,  template: 'code' },
+    { key: 'match_rate', width: 80,  template: 'percentage' },
+    { key: 'sas_value',  width: '*', template: 'text' },
+    { key: 'r_value',    width: '*', template: 'text' },
+    { key: 'decision',   width: 180, template: 'decision-buttons' },
+  ];
+
+  linkedOutput: {
+    type: 'comparison';
+    path: 'outputs/qc/{tfl_id}_qc.yaml';
+  };
+}
+```
+
+### 4.6 Submission Review 模板
+
+```typescript
+interface SubmissionReviewTemplate {
+  reviewType: 'submission';
+
+  columns: [
+    { key: 'severity',       width: 40,  template: 'severity-icon' },
+    { key: 'checklist_item', width: '*', template: 'text' },
+    { key: 'decision',       width: 180, template: 'decision-buttons' },
+  ];
+
+  checklistView: {
+    items: [
+      'Define-XML complete and valid',
+      'SDTM datasets match Define-XML',
+      'ADaM datasets match Define-XML',
+      'SDTM domain sequence and relationships correct',
+      'ADaM traceability to SDTM verified',
+      'Controlled terminology aligned with NCI CT',
+      'TFL outputs match SAP',
+      'Reviewer comments addressed',
+      'Submission data package structure correct',
+      'Transport files (.xpt) validated',
+      'Pinnacle 21 / OpenCDISC checks pass',
+      'Audit trail complete',
+    ];
+    // 每项对应到 findings, 未覆盖的项自动标红
+  };
+}
+```
+
 ---
 
 ## 5. Decision 提交流程
@@ -469,9 +747,17 @@ interface SapReviewTemplate {
      → CDISC CT: 必须在已知 codelist 中或标记 sponsor-defined
      → Derivation: 非空
 
-  4. 严重性约束:
+  4. decision=rejected 必须有 rejection_reason
+     → 当 reason ≠ insufficient_evidence 时, human_correction 必填且 minLength 10
+     → reference 和 comment 可选
+
+  5. 严重性约束:
      → critical findings 未决策 → 提交可继续但弹出确认:
        "您有 {n} 个 critical findings 未做决策。Agent 将被阻塞直到您决策。"
+
+  6. 多人审核约束:
+     → 当 ReviewPacket 定义了 required_reviewers 时, reviewer_role 必选
+     → 同一 role 不可重复提交 (文件已存在时提示)
 ```
 
 ### 5.2 提交流程
@@ -484,22 +770,23 @@ Pre-submit validation (前端)
   ↓ 通过
   ↓
 Confirmation dialog:
-  ┌─────────────────────────────────────────┐
-  │ Confirm Submission                       │
-  │                                          │
-  │ You are about to submit:                 │
-  │   ✓ 12 Approved                         │
-  │   ✗ 1 Rejected                          │
-  │   ✏ 2 Modified                          │
-  │                                          │
-  │ This action writes decision_receipt.json │
-  │ and cannot be undone through the panel.   │
-  │ (Git revert is available for rollback)   │
-  │                                          │
-  │ Reviewer: [Dr. Zhang          ]          │
-  │                                          │
-  │     [Cancel]         [Confirm Submit]    │
-  └─────────────────────────────────────────┘
+  ┌─────────────────────────────────────────────┐
+  │ Confirm Submission                           │
+  │                                              │
+  │ You are about to submit:                     │
+  │   ✓ 12 Approved                             │
+  │   ✗ 1 Rejected                              │
+  │   ✏ 2 Modified                              │
+  │                                              │
+  │ This action writes decision_receipt.json     │
+  │ and cannot be undone through the panel.       │
+  │ (Git revert is available for rollback)       │
+  │                                              │
+  │ Reviewer: [Dr. Zhang          ]              │
+  │ Role:     [lead_programmer    ▼]  ← 当 ReviewPacket 定义了 required_reviewers 时显示 │
+  │                                              │
+  │     [Cancel]         [Confirm Submit]        │
+  └─────────────────────────────────────────────┘
   ↓ Confirm
   ↓
 Serialize to DecisionReceipt JSON
@@ -509,6 +796,7 @@ Validate against DECISION_RECEIPT_SCHEMA (ajv)
   ↓ 通过
   ↓
 Write .review_queue/{review_id}_decision.json
+  (多人审核时: .review_queue/{review_id}_decision_{role}.json)
   ↓
 Success notification: "Decision submitted for {review_id}"
   ↓
@@ -523,6 +811,7 @@ Agent detects _decision.json → reads → applies → archives
 {
   "review_id": "sdtm_spec_ae_v2_001",
   "reviewer": "Dr. Zhang",
+  "reviewer_role": "lead_programmer",
   "timestamp": "2026-06-04T15:30:00Z",
   "decisions": [
     {
@@ -538,7 +827,10 @@ Agent detects _decision.json → reads → applies → archives
     {
       "finding_id": "F-003",
       "decision": "rejected",
-      "comment": "AEOUT mapping is correct as-is. Do not change to AESEV."
+      "rejection_reason": "incorrect_derivation",
+      "human_correction": "AESTDY should be based on RFSTDTC, not TRTSDT",
+      "reference": "SAP Section 5.2",
+      "comment": "see correction above"
     }
   ],
   "general_notes": "AE domain looks good overall. Fix F-002 per CTCAE v5.0, keep F-003 as-is."
@@ -606,6 +898,21 @@ Agent detects _decision.json → reads → applies → archives
         "command": "clinicalReview.refreshQueue",
         "title": "Refresh Review Queue",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "clinicalReview.requestClarification",
+        "title": "Request Clarification on Finding",
+        "icon": "$(question)"
+      },
+      {
+        "command": "clinicalReview.viewConflicts",
+        "title": "View Review Conflicts",
+        "icon": "$(warning)"
+      },
+      {
+        "command": "clinicalReview.viewConfirmation",
+        "title": "View Application Confirmation",
+        "icon": "$(check)"
       }
     ],
     "keybindings": [
@@ -647,6 +954,11 @@ Agent detects _decision.json → reads → applies → archives
           "type": "boolean",
           "default": true,
           "description": "Auto-commit decision receipts to git"
+        },
+        "clinicalReview.reviewAssignments": {
+          "type": "object",
+          "default": {},
+          "description": "Map review_type to {reviewers: string[], consensus: string} for multi-reviewer support"
         }
       }
     }
@@ -676,6 +988,19 @@ clinicalReview.showAutoApproved:
 clinicalReview.gitAutoCommit:
   true → Submit decision 后自动 git commit
   false → 人工手动 commit
+
+clinicalReview.reviewAssignments:
+  对象映射, key = review_type, value = { reviewers: string[], consensus: string }
+  示例:
+    {
+      "sdtm_spec": { "reviewers": ["lead_programmer", "data_manager"], "consensus": "all_must_approve" },
+      "adam_spec": { "reviewers": ["lead_biostatistician", "lead_programmer"], "consensus": "all_must_approve" },
+      "tfl_qc":    { "reviewers": ["qc_programmer", "lead_programmer"], "consensus": "all_must_approve" }
+    }
+  当配置了 reviewers 时:
+    · Submit 时弹出 reviewer_role 下拉选择
+    · DecisionReceipt 文件名变为 {review_id}_decision_{role}.json
+    · ReviewList 显示多人审核进度
 ```
 
 ---
@@ -706,10 +1031,11 @@ ReviewDetail 内嵌的 Git 操作:
   4. Auto-commit on Submit:
      · 如果 clinicalReview.gitAutoCommit = true
      · Submit decision 后自动执行:
-       git add .review_queue/{review_id}_decision.json
+       单审核人: git add .review_queue/{review_id}_decision.json
+       多审核人: git add .review_queue/{review_id}_decision_{role}.json
        git commit -m "[human] Review decision: {review_id}
-       
-       Reviewer: {reviewer}
+
+       Reviewer: {reviewer} ({role})
        Summary: {approved} approved, {rejected} rejected, {modified} modified"
 ```
 
@@ -779,11 +1105,17 @@ Decision JSON 写入失败             显示错误 toast, 保留表单状态
 Submit 时发现 packet 已被修改      重新加载 packet, 显示 diff
 (Agent 在人工审核期间更新了)        人工确认后再提交
 
-多人同时审核同一 packet            先提交者胜出 (文件系统保证原子性)
-                                  后提交者看到 "Decision already exists"
+同一 role 重复提交                  阻止提交, 提示 "Decision already submitted for this role"
+(多人审核模式)                      显示已有 decision 的内容 (只读)
+
+无 required_reviewers 时多人提交    先提交者胜出 (文件系统保证原子性)
+(单审核人模式)                      后提交者看到 "Decision already exists"
 
 Edit 输入值不符合约束              实时红色边框 + 错误提示
                                   阻止 Save (不是 Submit)
+
+Clarification 请求超次 (>2)        [?] 按钮禁用
+                                  tooltip: "Maximum clarifications reached"
 
 ReviewPanel 打开时 Agent 被 kill   不影响 — Panel 只读写文件, 不依赖 Agent 进程
 ```
@@ -820,6 +1152,9 @@ src/review_panel/
 ├── views/
 │   ├── reviewList.ts         — TreeView: 待审核列表
 │   ├── reviewDetail.ts       — Webview: 单个 review 的完整审核界面
+│   ├── conflictView.ts       — 多人审核冲突视图 (side-by-side)
+│   ├── clarificationBox.ts   — 澄清请求输入 + Agent 回复卡片
+│   ├── rejectionForm.ts      — Reject 展开表单 (reason, correction, ref)
 │   └── outputPreview.ts      — 关联产出物预览
 │
 ├── templates/

@@ -1,7 +1,7 @@
 # Review Protocol 详细规格 — Agent↔Human 结构化交互层
 
 ## 文档编号: SPEC-15
-## 版本: 1.0
+## 版本: 1.1 (P1 Review Loop Enhancement)
 ## 依赖: SPEC-00 (v3.0 总体架构)
 
 ---
@@ -159,8 +159,16 @@
 │                                 opus-4-7)"                    │
 │  auto_approved_count: int      Agent 自动批准的数量 (透明度)     │
 │                                                               │
+│  [可选] 多人审核:                                              │
+│  required_reviewers: []{role, name, decision, decided_at}     │
+│  consensus_rule:     enum  all_must_approve|majority|any_one   │
+│                                                               │
+│  [可选] 超时配置:                                              │
+│  timeout_config:     {reminder_hours, escalation_hours,       │
+│                       stale_hours, escalation_contacts}       │
+│                                                               │
 │  Schema: REVIEW_PACKET_SCHEMA                                 │
-│  所有字段 REQUIRED | additionalProperties: false               │
+│  required 字段强制 | additionalProperties: false               │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -170,14 +178,26 @@
 ┌──────────────────────────────────────────────────────────────┐
 │ FindingDecision                                               │
 │                                                               │
-│  finding_id:      string   对应 ReviewFinding.id               │
-│  decision:        enum     approved|rejected|modified         │
-│  modified_value:  string?  仅 decision=modified 时必填          │
-│  comment:         string?  可选补充说明 (≤500 chars)            │
+│  finding_id:        string   对应 ReviewFinding.id             │
+│  decision:          enum     approved|rejected|modified       │
+│  modified_value:    string?  仅 decision=modified 时必填        │
+│  rejection_reason:  enum?    仅 decision=rejected 时必填       │
+│    wrong_domain_assignment | incorrect_variable_mapping |     │
+│    incorrect_derivation | wrong_ct_value | missing_variable | │
+│    incorrect_population | incorrect_method |                  │
+│    insufficient_evidence | other                              │
+│  human_correction:  string?  rejection_reason≠                │
+│                              insufficient_evidence 时必填     │
+│  reference:         string?  可选权威来源引用                   │
+│  comment:           string?  可选补充说明 (≤500 chars)          │
 │                                                               │
 │  Schema constraint (allOf/if-then):                           │
 │    if decision == "modified"                                  │
 │    → modified_value 必须存在且非空                              │
+│    if decision == "rejected"                                  │
+│    → rejection_reason 必须存在                                 │
+│    → if rejection_reason != "insufficient_evidence"           │
+│      → human_correction 必须存在 (minLength 10)                │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -186,7 +206,7 @@
 | Decision | Agent 行为 |
 |----------|-----------|
 | `approved` | 直接采用 proposed_value, 写入正式产物 |
-| `rejected` | 标记为 unresolved, 重新推理, 下一轮 review 重提 |
+| `rejected` | 读取 rejection_reason 和 human_correction, 以 human_correction 为约束重新生成, 增量提交 |
 | `modified` | 用 modified_value 覆盖, 写入正式产物 |
 
 ### 3.4 DecisionReceipt — 决策回执
@@ -197,6 +217,7 @@
 │                                                               │
 │  review_id:      string   对应 ReviewPacket.review_id          │
 │  reviewer:       string   审核人标识                            │
+│  reviewer_role:  string?  审核人角色 (多人审核时必填)            │
 │  timestamp:      ISO 8601                                     │
 │  decisions:      []FindingDecision 至少 1 条                   │
 │  general_notes:  string?  整体备注 (≤1000 chars)               │
@@ -219,7 +240,7 @@
   "required": [
     "id", "category", "severity", "location",
     "title", "current_value", "proposed_value",
-    "rationale", "evidence_refs"
+    "rationale", "evidence_refs", "auto_approved"
   ],
   "properties": {
     "id": {
@@ -271,7 +292,8 @@
   "type": "object",
   "required": [
     "review_id", "review_type", "source_documents",
-    "agent_summary", "findings", "urgency"
+    "agent_summary", "findings", "urgency",
+    "created_at", "generated_by", "auto_approved_count"
   ],
   "properties": {
     "review_id": {
@@ -302,7 +324,45 @@
     },
     "created_at": { "type": "string", "format": "date-time" },
     "generated_by": { "type": "string" },
-    "auto_approved_count": { "type": "integer", "minimum": 0 }
+    "auto_approved_count": { "type": "integer", "minimum": 0 },
+    "required_reviewers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "role":       { "type": "string" },
+          "name":       { "type": ["string", "null"] },
+          "decision":   { "type": ["string", "null"], "enum": ["approved", "rejected", "modified", null] },
+          "decided_at": { "type": ["string", "null"], "format": "date-time" }
+        },
+        "required": ["role"],
+        "additionalProperties": false
+      }
+    },
+    "consensus_rule": {
+      "enum": ["all_must_approve", "majority", "any_one"]
+    },
+    "timeout_config": {
+      "type": "object",
+      "properties": {
+        "reminder_hours":       { "type": "integer", "minimum": 1 },
+        "escalation_hours":     { "type": "integer", "minimum": 1 },
+        "stale_hours":          { "type": "integer", "minimum": 1 },
+        "escalation_contacts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "role": { "type": "string" },
+              "name": { "type": "string" }
+            },
+            "required": ["role", "name"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    }
   },
   "additionalProperties": false
 }
@@ -315,10 +375,11 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://clinical-workflow/schemas/decision-receipt",
   "type": "object",
-  "required": ["review_id", "reviewer", "decisions"],
+  "required": ["review_id", "reviewer", "timestamp", "decisions"],
   "properties": {
     "review_id": { "type": "string" },
     "reviewer": { "type": "string", "minLength": 2 },
+    "reviewer_role": { "type": "string" },
     "timestamp": { "type": "string", "format": "date-time" },
     "decisions": {
       "type": "array",
@@ -326,10 +387,20 @@
         "type": "object",
         "required": ["finding_id", "decision"],
         "properties": {
-          "finding_id": { "type": "string" },
-          "decision": { "enum": ["approved", "rejected", "modified"] },
-          "modified_value": { "type": "string" },
-          "comment": { "type": "string", "maxLength": 500 }
+          "finding_id":       { "type": "string" },
+          "decision":         { "enum": ["approved", "rejected", "modified"] },
+          "modified_value":   { "type": "string" },
+          "rejection_reason": {
+            "enum": [
+              "wrong_domain_assignment", "incorrect_variable_mapping",
+              "incorrect_derivation", "wrong_ct_value", "missing_variable",
+              "incorrect_population", "incorrect_method",
+              "insufficient_evidence", "other"
+            ]
+          },
+          "human_correction": { "type": "string", "minLength": 10 },
+          "reference":        { "type": "string" },
+          "comment":          { "type": "string", "maxLength": 500 }
         },
         "additionalProperties": false,
         "allOf": [
@@ -342,12 +413,114 @@
               "required": ["modified_value"],
               "properties": { "modified_value": { "minLength": 1 } }
             }
+          },
+          {
+            "if": {
+              "properties": { "decision": { "const": "rejected" } },
+              "required": ["decision"]
+            },
+            "then": {
+              "required": ["rejection_reason"],
+              "allOf": [
+                {
+                  "if": {
+                    "properties": { "rejection_reason": { "not": { "const": "insufficient_evidence" } } },
+                    "required": ["rejection_reason"]
+                  },
+                  "then": { "required": ["human_correction"] }
+                }
+              ]
+            }
           }
         ]
       },
       "minItems": 1
     },
     "general_notes": { "type": "string", "maxLength": 1000 }
+  },
+  "additionalProperties": false
+}
+```
+
+### 4.4 CLARIFICATION_REQUEST_SCHEMA
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://clinical-workflow/schemas/clarification-request",
+  "type": "object",
+  "required": ["request_id", "review_id", "finding_id", "question", "requested_by", "requested_at"],
+  "properties": {
+    "request_id":   { "type": "string", "pattern": "^CRQ-[a-z0-9_]+$" },
+    "review_id":    { "type": "string" },
+    "finding_id":   { "type": "string" },
+    "question":     { "type": "string", "minLength": 10, "maxLength": 500 },
+    "requested_by": { "type": "string", "minLength": 2 },
+    "requested_at": { "type": "string", "format": "date-time" }
+  },
+  "additionalProperties": false
+}
+```
+
+### 4.5 CLARIFICATION_RESPONSE_SCHEMA
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://clinical-workflow/schemas/clarification-response",
+  "type": "object",
+  "required": ["request_id", "finding_id", "explanation", "responded_at"],
+  "properties": {
+    "request_id":   { "type": "string" },
+    "finding_id":   { "type": "string" },
+    "explanation":  {
+      "type": "object",
+      "required": ["summary", "detail"],
+      "properties": {
+        "summary":      { "type": "string", "minLength": 10, "maxLength": 300 },
+        "detail":       { "type": "string", "minLength": 20, "maxLength": 2000 },
+        "ig_reference": { "type": "string" },
+        "example":      { "type": "string" },
+        "confidence":   { "type": "string", "enum": ["HIGH", "MEDIUM", "LOW"] }
+      },
+      "additionalProperties": false
+    },
+    "responded_at": { "type": "string", "format": "date-time" },
+    "generated_by": { "type": "string" }
+  },
+  "additionalProperties": false
+}
+```
+
+### 4.6 CONFIRMATION_RECEIPT_SCHEMA
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://clinical-workflow/schemas/confirmation-receipt",
+  "type": "object",
+  "required": ["review_id", "applied_at", "results"],
+  "properties": {
+    "review_id":    { "type": "string" },
+    "applied_at":   { "type": "string", "format": "date-time" },
+    "generated_by": { "type": "string" },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["finding_id", "original_decision", "application_status"],
+        "properties": {
+          "finding_id":         { "type": "string" },
+          "original_decision":  { "enum": ["approved", "rejected", "modified"] },
+          "application_status": { "enum": ["applied", "applied_with_adjustment", "failed"] },
+          "actual_value":       { "type": "string" },
+          "adjustment_note":    { "type": "string" },
+          "error_message":      { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "minItems": 1
+    }
   },
   "additionalProperties": false
 }
@@ -508,12 +681,43 @@ project/
               │   (等人审批)       │
               └────────┬─────────┘
                        │
-              Human submits decision
-                       │
+         ┌─────────────┼──────────────────┐
+         │             │                  │
+   人类请求澄清    人类提交决策      超时触发
+         │             │                  │
+         ▼             │                  ▼
+  ┌──────────────────┐ │         ┌──────────────────┐
+  │ CLARIFICATION_   │ │         │   REMINDER        │
+  │ REQUESTED        │ │         │   (已提醒)         │
+  │ (等待Agent回复)   │ │         └────────┬─────────┘
+  └────────┬─────────┘ │                  │
+           │           │           72h 无响应
+   Agent 回复澄清       │                  │
+           │           │                  ▼
+           ▼           │         ┌──────────────────┐
+  ┌──────────────────┐ │         │   ESCALATED       │
+  │ CLARIFICATION_   │ │         │   (已升级)         │
+  │ RESPONDED        │ │         └────────┬─────────┘
+  │ (人类继续审核)    │ │                  │
+  └────────┬─────────┘ │          168h 无响应
+           │           │                  │
+           └──→ PENDING │                  ▼
+                       │         ┌──────────────────┐
+              Human submits      │   STALLED         │
+              decision           │   (已停滞)         │
+                       │         └──────────────────┘
                        ▼
               ┌──────────────────┐
               │   DECIDED         │  两个文件都存在
               │   (Agent 读取后)   │
+              └────────┬─────────┘
+                       │
+              Agent 应用决策并写入 confirmation
+                       │
+                       ▼
+              ┌──────────────────┐
+              │   CONFIRMED       │  confirmation_receipt 存在
+              │   (应用已确认)     │
               └────────┬─────────┘
                        │
               Agent calls archive_completed()
@@ -539,6 +743,24 @@ project/
   · 如果 _decision.json 已存在, Agent 不应重新提交同名 packet
   · Review Panel 检测到 .json 和 _decision.json 同时存在 → 显示为 "已决定"
   · 如果 packet 内容损坏 (JSON parse error) → 移动至 archive/{id}_corrupt.json
+```
+
+### 6.4 文件命名规范
+
+```
+.review_queue/
+├── {review_id}.json                                      ← Agent ReviewPacket
+├── {review_id}_decision.json                             ← 单审核人 DecisionReceipt
+├── {review_id}_decision_{role}.json                      ← 多审核人 DecisionReceipt (按角色)
+├── {review_id}_clarification_{finding_id}.json           ← ClarificationRequest (人类写入)
+├── {review_id}_clarification_{finding_id}_response.json  ← ClarificationResponse (Agent 写入)
+├── {review_id}_confirmation.json                         ← ConfirmationReceipt (Agent 写入)
+└── {review_id}_conflict.json                             ← 冲突检测结果 (多人审核)
+
+命名规则:
+  · review_id: {review_type}_{domain/dataset}_v{version}_{seq:03d}
+  · role: reviewer_role 的小写形式, 如 lead_programmer, data_manager
+  · finding_id: F-001, F-002 等
 ```
 
 ---
@@ -772,7 +994,7 @@ Decision JSON 格式错误          Review Panel 前端拦截 (提交前校验)
 人工只审批部分 findings         允许 — 未审批的保持 pending
 人工关闭 Panel 未提交            未提交 = 无 decision_receipt → Agent 继续等待
                                 (面板可加 "有未保存的决定" 提示)
-人工拒绝所有 findings            Agent 需重新推理, 下一轮 review 重提
+人工拒绝所有 findings            Agent 读取 rejection_reason + human_correction, 以人类修正为约束重新生成, 增量提交
 人工 modified 值不合法           Panel 前端校验拦截 (如 variable name 不符合 CDISC 规范)
 ```
 
