@@ -12,6 +12,14 @@ Usage:
 """
 
 from .agent_loop import AgentRuntime, LoopState, AgentAction
+from .decision_application import (
+    ApplicationResult,
+    ApplicationStatus,
+    ConfirmationReceipt,
+    DecisionApplicationError,
+    ReworkDirective,
+    apply_decision_receipt,
+)
 from .router import Router, RouteResult, CAPABILITY_REGISTRY, parse_intent
 from .review_protocol import (
     ReviewPacket, ReviewFinding,
@@ -30,6 +38,13 @@ __all__ = [
     "AgentRuntime",
     "LoopState",
     "AgentAction",
+    # Decision Application
+    "ApplicationResult",
+    "ApplicationStatus",
+    "ConfirmationReceipt",
+    "DecisionApplicationError",
+    "ReworkDirective",
+    "apply_decision_receipt",
     # Router
     "Router",
     "RouteResult",

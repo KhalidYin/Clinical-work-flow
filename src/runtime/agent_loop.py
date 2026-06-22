@@ -35,10 +35,11 @@ from typing import Any, Callable
 
 from src.config.project import ProjectConfig, load_project_config, resolve_project_path
 
+from .decision_application import DecisionApplicationError, apply_decision_receipt
 from .review_protocol import (
     ReviewPacket, ReviewFinding, DecisionReceipt,
     ReviewQueue, FindingCategory, Severity,
-    Decision, Urgency, ReviewType,
+    Urgency, ReviewType,
     OUTPUT_FORMAT_SPECS,
     new_review_packet, make_finding_id,
 )
@@ -572,28 +573,49 @@ class AgentRuntime:
                 f"{decision.rejected_count()} rejected, "
                 f"{decision.modified_count()} modified"
             )
-            self.review_queue.archive_completed(decision.review_id)
             return decision
 
         return None
 
     def _apply_decisions(self, receipt: DecisionReceipt) -> None:
-        """Apply human decisions to the project state."""
-        for fd in receipt.decisions:
-            if fd.decision == Decision.APPROVED:
-                logger.info(f"  ✓ {fd.finding_id}: approved")
-            elif fd.decision == Decision.MODIFIED:
-                logger.info(f"  ✏ {fd.finding_id}: modified → '{fd.modified_value}'")
-            elif fd.decision == Decision.REJECTED:
-                logger.warning(f"  ✗ {fd.finding_id}: rejected — needs re-work")
-                if fd.rejection_reason:
-                    logger.warning(f"    Reason: {fd.rejection_reason.value}")
-                if fd.human_correction:
-                    logger.warning(f"    Correction: {fd.human_correction}")
-                if fd.reference:
-                    logger.warning(f"    Reference: {fd.reference}")
-                if fd.comment:
-                    logger.warning(f"    Comment: {fd.comment}")
+        """Apply human decisions, write confirmation, then archive review files."""
+        packet = self.review_queue.load_packet(receipt.review_id)
+        if packet is None:
+            logger.error("Cannot apply decisions; ReviewPacket not found: %s", receipt.review_id)
+            self.state.change_log.append({
+                "type": "human_decision_application_failed",
+                "review_id": receipt.review_id,
+                "error": "ReviewPacket not found",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+            return
+
+        try:
+            confirmation = apply_decision_receipt(
+                project_dir=self.project_dir,
+                review_queue_dir=self.review_queue.queue_dir,
+                packet=packet,
+                receipt=receipt,
+                generated_by="AgentRuntime",
+            )
+        except DecisionApplicationError as exc:
+            logger.error("Decision application failed for %s: %s", receipt.review_id, exc)
+            self.state.change_log.append({
+                "type": "human_decision_application_failed",
+                "review_id": receipt.review_id,
+                "error": str(exc),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+            return
+
+        for result in confirmation.results:
+            logger.info(
+                "  %s: %s",
+                result.finding_id,
+                result.application_status.value,
+            )
+
+        self.review_queue.archive_completed(receipt.review_id)
 
         # Record in change log
         self.state.change_log.append({
@@ -601,6 +623,7 @@ class AgentRuntime:
             "review_id": receipt.review_id,
             "reviewer": receipt.reviewer,
             "summary": receipt.summary(),
+            "application_summary": confirmation.summary(),
             "timestamp": receipt.timestamp,
         })
 

@@ -1,8 +1,8 @@
 # P1 风险收敛计划
 
 > 日期: 2026-06-22
-> 状态: Draft — P1-0/P1-A/P1-B completed
-> 范围: 只定义实施顺序、契约边界和验收门禁；暂不实现业务逻辑。
+> 状态: Draft — P1-0/P1-A/P1-B/P1-C completed
+> 范围: 记录实施顺序、契约边界和验收门禁；暂不扩展 Review Panel UI 或 Web Relay。
 
 ## 目标
 
@@ -17,8 +17,8 @@ P1 的首要目标不是继续扩展 UI，而是先把三个基础合同固定�
 | 风险 | 当前状态 | 影响 | 收敛动作 |
 |------|----------|------|----------|
 | Review schema 三份定义漂移 | 已完成 P1-B；`schemas/review/review-protocol.schema.json` 为权威源，Python 常量从该文件加载，TS drift tests 已覆盖 | 前后端漂移风险已纳入测试门禁 | P1-D 再让 Review Panel 运行时直接消费 schema |
-| Review Panel 只写回文件 | Runtime 目前主要记录日志，没有按决策修改产物或写 confirmation | 审核闭环未完成，流程停在“收件箱” | 先设计 decision application service，再接 Runtime |
-| `project.yaml` 太薄 | 已完成 P1-A；schema、loader、minimal fixture 已落地 | 后续 Runtime/Review 功能可共享同一配置合同 | P1-B/P1-C 继续基于该配置合同扩展 |
+| Review Panel 只写回文件 | 已完成 P1-C；Runtime 可应用 YAML/spec 类 DecisionReceipt，写出 ConfirmationReceipt 和 rework directive | 初始闭环已打通；程序代码、XPT、define.xml 尚未自动 patch | P1-D 让 Panel 直接消费 schema；后续单独扩展非 YAML artifact adapter |
+| `project.yaml` 太薄 | 已完成 P1-A；schema、loader、minimal fixture 已落地 | 后续 Runtime/Review 功能可共享同一配置合同 | P1-D/P1-E 继续基于该配置合同扩展 |
 | 测试环境依赖全局状态 | 普通 `pytest` 会加载不兼容的全局 `pytest_asyncio` | 新人或 CI 直接失败 | 在仓库 pytest 配置中禁用该插件，并把 ruff 纳入门禁 |
 | ruff 尚无干净基线 | 已完成 P1-0；`python -m ruff check src tests` 通过 | 直接设为硬门禁的阻塞已解除 | 后续所有批次把 ruff 纳入验证门禁 |
 
@@ -79,22 +79,28 @@ P1 的首要目标不是继续扩展 UI，而是先把三个基础合同固定�
 
 ### Step 3: DecisionReceipt 应用闭环
 
-**建议新增模块**
+**已新增模块**
 
 - `src/runtime/decision_application.py`
 - `tests/test_decision_application.py`
 
-**核心流程**
+**已实现核心流程**
 
 1. 读取 `ReviewPacket` 和对应 `DecisionReceipt`。
 2. 校验 receipt 覆盖所有非 `auto_approved` findings。
-3. 按 `review_type` 选择 artifact adapter。
+3. 按 `review_type` 选择 YAML/spec artifact adapter。
 4. 对每个 finding 生成 `ApplicationResult`：
    - `approved`: 采用 `proposed_value`。
    - `modified`: 校验 `modified_value` 后写入。
    - `rejected`: 不直接写入旧 proposed value；根据 `rejection_reason` 创建 rework directive。
 5. 写入 `.review_queue/{review_id}_confirmation.json`。
-6. 只有 confirmation 写入成功后，才归档 packet + decision + confirmation。
+6. 只有 confirmation 写入成功后，才归档 packet + decision + confirmation + rework。
+
+**定位合同**
+
+- YAML artifact 位置使用 `ReviewFinding.location = "<relative-path>.yaml#<field.path>"`。
+- `field.path` 支持点路径和数组索引，如 `title`、`metadata.page_layout`、`footnotes[0]`。
+- 路径必须解析在 study project 目录内；不支持跨项目写入。
 
 **adapter 初始范围**
 
@@ -108,9 +114,9 @@ P1 的首要目标不是继续扩展 UI，而是先把三个基础合同固定�
 
 **验收标准**
 
-- approved / modified / rejected / insufficient_evidence 都有测试。
-- rejected 不会静默丢失，必须产生 rework packet 或 rework directive。
-- confirmation receipt 中能追踪每个 finding 的 `application_status`。
+- approved / modified / rejected / insufficient_evidence 都有测试。已覆盖。
+- rejected 不会静默丢失，必须产生 rework packet 或 rework directive。已覆盖 `_rework.json`。
+- confirmation receipt 中能追踪每个 finding 的 `application_status`。已覆盖。
 
 ### Step 4: Review Panel 只消费 schema，不再维护业务规则
 

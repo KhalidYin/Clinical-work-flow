@@ -416,6 +416,8 @@ class ReviewQueue:
       .review_queue/
         {review_id}.json          ← Agent writes ReviewPacket
         {review_id}_decision.json ← Human writes DecisionReceipt
+        {review_id}_confirmation.json ← Agent writes application result
+        {review_id}_rework.json   ← Agent writes rejected-finding rework directives
         archive/                  ← Completed reviews moved here
     """
 
@@ -446,7 +448,7 @@ class ReviewQueue:
         """List review_ids that have a packet but no decision yet."""
         pending = []
         for p in sorted(self.queue_dir.glob("*.json")):
-            if p.name.endswith("_decision.json"):
+            if not self._is_packet_file(p):
                 continue
             decision_file = self.queue_dir / f"{p.stem}_decision.json"
             if not decision_file.exists():
@@ -519,18 +521,36 @@ class ReviewQueue:
     # ── Lifecycle ────────────────────────────────────────────
 
     def archive_completed(self, review_id: str) -> None:
-        """Move completed packet+decision to archive."""
-        packet_file = self.queue_dir / f"{review_id}.json"
-        decision_file = self.queue_dir / f"{review_id}_decision.json"
-        for f in [packet_file, decision_file]:
-            if f.exists():
-                f.rename(self.archive_dir / f.name)
+        """Move completed packet, decision, confirmation, and rework files to archive."""
+        files = [
+            self.queue_dir / f"{review_id}.json",
+            self.queue_dir / f"{review_id}_decision.json",
+            self.queue_dir / f"{review_id}_confirmation.json",
+            self.queue_dir / f"{review_id}_rework.json",
+        ]
+        for review_file in files:
+            if review_file.exists():
+                review_file.rename(self.archive_dir / review_file.name)
 
     def list_archived(self) -> list[str]:
         """List all completed/archived review IDs."""
-        return sorted({f.stem.replace("_decision", "")
-                       for f in self.archive_dir.glob("*.json")
-                       if not f.stem.endswith("_corrupt")})
+        return sorted(
+            f.stem
+            for f in self.archive_dir.glob("*.json")
+            if self._is_packet_file(f)
+        )
+
+    def _is_packet_file(self, path: Path) -> bool:
+        """Return true only for ReviewPacket JSON files."""
+        name = path.name
+        return not (
+            name.endswith("_decision.json")
+            or name.endswith("_confirmation.json")
+            or name.endswith("_rework.json")
+            or name.endswith("_conflict.json")
+            or name.endswith("_corrupt.json")
+            or "_clarification_" in name
+        )
 
     def queue_stats(self) -> dict[str, Any]:
         return {

@@ -290,3 +290,46 @@
 - `docs/dep/P1-RISK-REDUCTION-PLAN.md` (modified, uncommitted)
 - `docs/dep/DEVLOG.md` (modified, uncommitted)
 - `docs/dep/TASK_STATE.md` (temporary checkpoint, removed)
+
+---
+
+### Round 8 [14:43]
+
+#### Done
+- 提交 P1-B：`7aa2c40 Add review schema authority and drift tests`。
+- 完成 P1-C：新增 `src/runtime/decision_application.py`，实现 DecisionReceipt application service。
+- Runtime 现在会在收到 DecisionReceipt 后加载原 ReviewPacket，应用决策，写出 `.review_queue/{review_id}_confirmation.json`，再归档 packet / decision / confirmation / rework 文件。
+- YAML/spec 类 artifact 初始支持 `sdtm_spec`、`adam_spec`、`tfl_shell`；`ReviewFinding.location` 使用 `<relative-path>.yaml#<field.path>` 定位字段，支持点路径和数组索引。
+- `approved` 写入 `proposed_value`，`modified` 写入 `modified_value`，`rejected` 不改 artifact，而写出 `.review_queue/{review_id}_rework.json`。
+- 新增 `tests/test_decision_application.py`，覆盖 approved / modified / rejected / insufficient_evidence、缺失 artifact 的 failed result、ReviewQueue 归档和 Runtime 接入。
+- 更新 SPEC-15 和 P1 风险收敛计划，将 P1-C 标记为已完成。
+
+#### Issues / Blockers
+- P1-C 只覆盖 YAML/spec 类产物；SAS/R 程序、XPT、Define-XML 仍需独立 adapter，不能直接用字符串 patch。
+- YAML 写入当前按 ReviewFinding/DecisionReceipt 的字符串值落盘，尚未做类型推断或 schema-aware casting。
+- ReviewFinding.location 必须由生成侧提供明确 YAML 字段路径；如果后续 packet 仍只写 `AE.AESEV` 这种业务位置，Runtime 无法自动应用。
+
+#### Validation
+- `python -B -m pytest tests/test_decision_application.py` (5 passed)
+- `python -m ruff check src/runtime tests/test_decision_application.py` (success)
+- `python -m ruff check src tests` (success)
+- `python -B -m pytest` (29 passed)
+- `npm run compile` (success, in `src/review_panel/`)
+- `rg --files -g '*.pyc' -g '__pycache__'` (no results)
+- `git diff --check` (no whitespace errors; only LF/CRLF warnings)
+
+#### Next
+1. P1-D: Review Panel 运行时直接消费 `schemas/review/review-protocol.schema.json`，接入 Ajv 校验和 fixture 流程。
+2. 让 packet 生成侧为 YAML/spec review findings 写入可应用的 `location` 路径。
+3. 后续单独扩展非 YAML artifact adapter：SAS/R 程序、XPT、Define-XML。
+
+#### Files Changed / Commits
+- `src/runtime/decision_application.py` (added, uncommitted)
+- `src/runtime/agent_loop.py` (modified, uncommitted)
+- `src/runtime/review_protocol.py` (modified, uncommitted)
+- `src/runtime/__init__.py` (modified, uncommitted)
+- `tests/test_decision_application.py` (added, uncommitted)
+- `docs/specs/15-Review-Protocol.md` (modified, uncommitted)
+- `docs/dep/P1-RISK-REDUCTION-PLAN.md` (modified, uncommitted)
+- `docs/dep/DEVLOG.md` (modified, uncommitted)
+- `docs/dep/TASK_STATE.md` (temporary checkpoint, removed)

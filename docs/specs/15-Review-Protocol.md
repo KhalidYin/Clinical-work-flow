@@ -209,6 +209,26 @@
 | `rejected` | 读取 rejection_reason 和 human_correction, 以 human_correction 为约束重新生成, 增量提交 |
 | `modified` | 用 modified_value 覆盖, 写入正式产物 |
 
+**P1-C YAML/spec artifact 应用定位约定：**
+
+P1-C 初始只支持 `sdtm_spec`、`adam_spec`、`tfl_shell` 三类 YAML/spec
+产物。`ReviewFinding.location` 必须能定位到具体 YAML 字段：
+
+```text
+<relative-artifact-path>.yaml#<field.path>
+```
+
+示例：
+
+- `output/tfl/shells/t14_1_1.yaml#title`
+- `output/tfl/shells/t14_1_1.yaml#metadata.page_layout`
+- `output/tfl/shells/t14_1_1.yaml#footnotes[0]`
+
+`approved` 写入 `proposed_value`；`modified` 写入 `modified_value`；
+`rejected` 不改写 artifact，而是在 `.review_queue/{review_id}_rework.json`
+中写入 rework directive，并在 ConfirmationReceipt 中标记
+`application_status=applied_with_adjustment`。
+
 ### 3.4 DecisionReceipt — 决策回执
 
 ```
@@ -665,6 +685,8 @@ project/
 └── .review_queue/
     ├── sdtm_spec_ae_v2_001.json          ← Agent 写的 ReviewPacket
     ├── sdtm_spec_ae_v2_001_decision.json ← Human 写的 DecisionReceipt
+    ├── sdtm_spec_ae_v2_001_confirmation.json ← Agent 写的 ConfirmationReceipt
+    ├── sdtm_spec_ae_v2_001_rework.json   ← rejected findings 的 rework directives
     ├── adam_adsl_v1_001.json
     ├── adam_adsl_v1_001_decision.json
     ├── tfl_shells_v1_001.json
@@ -672,6 +694,7 @@ project/
     └── archive/
         ├── sdtm_spec_dm_v1_001.json      ← 已完成 (两个文件配对)
         ├── sdtm_spec_dm_v1_001_decision.json
+        ├── sdtm_spec_dm_v1_001_confirmation.json
         └── ...
 ```
 
@@ -718,6 +741,7 @@ project/
               └────────┬─────────┘
                        │
               Agent 应用决策并写入 confirmation
+              rejected finding 同时写入 _rework.json
                        │
                        ▼
               ┌──────────────────┐
@@ -760,6 +784,7 @@ project/
 ├── {review_id}_clarification_{finding_id}.json           ← ClarificationRequest (人类写入)
 ├── {review_id}_clarification_{finding_id}_response.json  ← ClarificationResponse (Agent 写入)
 ├── {review_id}_confirmation.json                         ← ConfirmationReceipt (Agent 写入)
+├── {review_id}_rework.json                               ← ReworkDirective 集合 (Agent 写入)
 └── {review_id}_conflict.json                             ← 冲突检测结果 (多人审核)
 
 命名规则:
