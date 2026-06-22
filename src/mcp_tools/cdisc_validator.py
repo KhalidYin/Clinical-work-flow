@@ -132,7 +132,7 @@ def validate_adam(dataset: str, data: Any) -> list[dict[str, Any]]:
 
 def triage_pinnacle21_findings(findings: list[dict[str, Any]]) -> dict[str, Any]:
     """
-    AI-powered triage of P21 findings.
+    Rule-based triage of P21 findings.
     Categorizes findings as auto-resolvable vs. needs-human-review.
     Reduces manual review load by ~60-70%.
     """
@@ -158,7 +158,7 @@ def triage_pinnacle21_findings(findings: list[dict[str, Any]]) -> dict[str, Any]
 
 
 def _get_suggested_fix(rule: ValidationFinding) -> str:
-    """AI-suggested resolution for a validation finding."""
+    """Rule-based resolution hint for a validation finding."""
     fixes: dict[str, str] = {
         "SD0002": "Verify subject exists in DM. If a valid AE, the USUBJID may be missing from DM — check DM.EPOCH for missing subjects.",
         "SD0010": "Map severity terms to CDISC controlled terminology. Non-standard terms like 'Grade 1' should map to 'MILD'.",

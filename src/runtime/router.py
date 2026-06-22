@@ -1,16 +1,16 @@
 """
-Dynamic Router v3.0 — Context-aware capability routing.
+Pipeline Router v3.0 — context-aware fixed-stage routing.
 
-Replaces the fixed STAGE_EXECUTOR_MAP with a router that:
+Replaces the old persisted STAGE_EXECUTOR_MAP with a router that:
   1. Analyzes intent + project context
-  2. Selects the right capability domain (executor agent)
+  2. Selects the next capability domain in the fixed clinical order
   3. Returns a ranked list of actions
 
 Phase 1: Rule-based (this implementation)
 Phase 2: LLM-powered (Claude API call with context + schema)
 
-The router is the "brain" that replaces the orchestrator's stage
-dispatcher. It decides WHAT to do; agent_loop decides WHEN.
+The router helps infer the next action, but it does not permit arbitrary
+reordering of the Protocol → SDTM → ADaM → TFL dependency chain.
 """
 
 from __future__ import annotations

@@ -355,7 +355,7 @@ HIGH (≥95%):
   基于明确的 CDISC 标准条文 → 直接使用
   示例: "AE.AETERM maps from CRF AE_TERM (SDTMIG v3.4 §6.1, Table 6.1.1)"
   审核策略: 自动通过, 不生成 ReviewPacket, 不触发验证子代理
-             直接写入 outputs/
+             直接写入 output/
 
 MEDIUM (70-95%):
   基于常规实践推断 → 标注后使用
@@ -373,7 +373,7 @@ LOW (<70%):
 置信度 → 审核策略映射表:
   | confidence | ReviewPacket | 验证子代理 | Agent 行为 |
   |------------|-------------|-----------|-----------|
-  | HIGH (≥95%)| 不生成      | 跳过      | 直接写入 outputs/ |
+  | HIGH (≥95%)| 不生成      | 跳过      | 直接写入 output/ |
   | MEDIUM (70-95%)| 生成 (normal)| 触发  | Agent 继续其他工作 |
   | LOW (<70%) | 生成 (blocking)| 触发    | Agent 等待人类决策 |
 

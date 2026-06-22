@@ -3,8 +3,11 @@ __pycache__/
 *.py[cod]
 *.pyo
 *.egg-info/
+.pytest_cache/
+.ruff_cache/
 dist/
 build/
+node_modules/
 .venv/
 venv/
 *.egg
@@ -24,7 +27,11 @@ venv/
 
 # Generated outputs (not version-controlled)
 project/outputs/
+project/output/
 outputs/
+output/
+downloads/ctgov/
+src/review_panel/out/
 
 # Audit trail (runtime log, regenerated)
 audit_trail.jsonl

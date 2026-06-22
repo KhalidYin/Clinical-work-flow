@@ -536,7 +536,7 @@ src/
 class AgentRuntime:
     """
     Agent Runtime 通过文件系统驱动变更管理, 不依赖集中式编排器。
-    所有状态推导自 .review_queue/ + audit_trail.jsonl + outputs/ 目录。
+    所有状态推导自 .review_queue/ + audit_trail.jsonl + output/ 目录。
     """
 
     async def process_review_decisions(self) -> list[ChangeRecord]:
@@ -638,7 +638,7 @@ Auto-commit 格式:
   git log --grep="Review decision" --grep="sdtm_spec_ae"
 
   # 从 protocol 到 submission, ADSL spec 改了多少次?
-  git log --oneline -- outputs/adam_specs/adsl_spec.xlsx
+  git log --oneline -- output/adam/specs/adsl_spec.xlsx
 
   # FDA 审查时: 导出完整操作历史
   git log --format="%H %ai %s" > submission_audit.txt

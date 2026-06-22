@@ -20,7 +20,7 @@ Review Panel 是人工审核的操作界面。它不参与 Agent 推理, 不做�
 │ │ 📁 project/    │ │                                        │ │
 │ │  ├ protocol.pdf│ │                                        │ │
 │ │  ├ .review_q/  │ │                                        │ │
-│ │  └ outputs/    │ │                                        │ │
+│ │  └ output/     │ │                                        │ │
 │ └────────────────┘ └────────────────────────────────────────┘ │
 │ ┌─ Review Panel (侧边栏) ───────────────────────────────────┐ │
 │ │ ▸ SDTM Spec Review: AE (pending)                          │ │
@@ -568,7 +568,7 @@ interface SdtmSpecReviewTemplate {
   // 关联的产出物预览
   linkedOutput: {
     type: 'excel';
-    path: 'outputs/sdtm_specs/{domain}_spec.xlsx';
+    path: 'output/sdtm/specs/{domain}_spec.xlsx';
     preview: 'first-10-rows';
   };
 }
@@ -602,7 +602,7 @@ interface TflShellReviewTemplate {
 
   linkedOutput: {
     type: 'yaml';
-    path: 'outputs/tfl_shells/{tfl_id}.yaml';
+    path: 'output/tfl/shells/{tfl_id}.yaml';
   };
 }
 ```
@@ -667,7 +667,7 @@ interface AdamSpecReviewTemplate {
 
   linkedOutput: {
     type: 'excel';
-    path: 'outputs/adam_specs/{dataset}_spec.xlsx';
+    path: 'output/adam/specs/{dataset}_spec.xlsx';
     preview: 'first-10-rows';
   };
 }
@@ -690,7 +690,7 @@ interface TflQcReviewTemplate {
 
   linkedOutput: {
     type: 'comparison';
-    path: 'outputs/qc/{tfl_id}_qc.yaml';
+    path: 'output/qc/{tfl_id}_qc.yaml';
   };
 }
 ```

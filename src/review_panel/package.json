@@ -1,0 +1,52 @@
+{
+  "name": "clinical-review-panel",
+  "displayName": "Clinical Review Panel",
+  "description": "VSCode review panel for structured clinical review packets.",
+  "version": "0.1.0",
+  "publisher": "clinical-ai-workflow",
+  "engines": {
+    "vscode": "^1.88.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:clinicalReviewPanel.open",
+    "onView:clinicalReviewPanel.reviewQueue"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "clinicalReviewPanel.open",
+        "title": "Clinical Review Panel: Open"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "clinicalReviewPanel",
+          "title": "Clinical Review",
+          "icon": "media/review.svg"
+        }
+      ]
+    },
+    "views": {
+      "clinicalReviewPanel": [
+        {
+          "id": "clinicalReviewPanel.reviewQueue",
+          "name": "Review Queue"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.88.0",
+    "typescript": "^5.4.0"
+  }
+}

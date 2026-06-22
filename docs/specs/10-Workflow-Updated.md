@@ -174,19 +174,19 @@ DECIDE(context):
   ├── Step 1: protocol.pdf 不存在?
   │   → WAIT: "Place protocol.pdf in project directory"
   │
-  ├── Step 2: outputs/sdtm_specs/ 为空?
+  ├── Step 2: output/sdtm/specs/ 为空?
   │   → 执行: DataStandards.sdtm_spec_generation
   │   → 工具: sdtm_spec_build × domains
   │   → 验证: cdisc_validate + 验证子代理 (合规关键, 始终触发)
   │   → 门控: confidence < threshold → 提交 ReviewPacket
   │
-  ├── Step 3: outputs/adam_specs/ 为空?
+  ├── Step 3: output/adam/specs/ 为空?
   │   → 执行: DataStandards.adam_spec_generation
   │   → 工具: adam_spec_build × datasets
   │   → 验证: cdisc_validate + 验证子代理 (合规关键, 始终触发)
   │   → 门控: confidence < threshold → 提交 ReviewPacket
   │
-  ├── Step 4: outputs/tfl_shells/ 为空?
+  ├── Step 4: output/tfl/shells/ 为空?
   │   → 执行: TFLQCSubmission.tfl_shell_generation
   │   → 工具: tfl_shells_list
   │   → 验证: 验证子代理 (仅 oncology-specific TFL 时触发)

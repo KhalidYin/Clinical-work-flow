@@ -8,7 +8,7 @@ Provides structured tools for:
   - TFL shell catalog
   - CDISC validation
   - define.xml generation
-  - P21 finding triage
+  - P21 finding triage (rule-based)
 
 These tools are designed to be called by AI agents (Executors + Reviewer)
 as part of the clinical workflow pipeline.
@@ -16,6 +16,7 @@ as part of the clinical workflow pipeline.
 
 import json
 import sys
+from dataclasses import asdict
 from typing import Any
 
 
@@ -38,6 +39,23 @@ from .ctgov_fetcher import (
 
 
 # ── MCP Tool Definitions ────────────────────────────────────────
+
+CORE_TOOL_NAMES = [
+    "sdtm_spec_build",
+    "adam_spec_build",
+    "tfl_shells_list",
+    "cdisc_validate",
+    "define_xml_build",
+    "triage_p21",
+]
+
+AUXILIARY_TOOL_NAMES = [
+    "edc_import",
+    "ctgov_search",
+    "ctgov_study_detail",
+    "ctgov_download_docs",
+    "ctgov_check_docs",
+]
 
 
 TOOLS = [
@@ -93,7 +111,7 @@ TOOLS = [
     },
     {
         "name": "triage_p21",
-        "description": "AI-powered triage of Pinnacle 21 validation findings.",
+        "description": "Rule-based triage of Pinnacle 21 validation findings.",
         "parameters": {
             "findings": "List of P21 validation findings",
         },
@@ -142,6 +160,7 @@ TOOLS = [
 def handle_tool_call(tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     """Route tool calls to the correct handler."""
     handlers = {
+        "edc_import": _handle_edc_import,
         "sdtm_spec_build": _handle_sdtm_spec_build,
         "adam_spec_build": _handle_adam_spec_build,
         "tfl_shells_list": _handle_tfl_shells_list,
@@ -157,6 +176,44 @@ def handle_tool_call(tool_name: str, arguments: dict[str, Any]) -> dict[str, Any
     if handler is None:
         raise ValueError(f"Unknown tool: {tool_name}. Available: {list(handlers)}")
     return handler(arguments)
+
+
+def _handle_edc_import(args: dict) -> dict:
+    manifest = _load_edc_manifest(args.get("manifest_path"))
+    results = import_edc_data(manifest)
+    validation = validate_edc_import(results)
+    return {
+        "manifest": {
+            "study_id": manifest.study_id,
+            "edc_system": manifest.edc_system,
+            "export_format": manifest.export_format,
+            "domain_count": len(manifest.domains),
+        },
+        "validation": validation,
+        "results": [asdict(result) for result in results],
+        "report": generate_import_report(results, manifest),
+    }
+
+
+def _load_edc_manifest(manifest_path: str | None) -> EDCManifest:
+    if not manifest_path or manifest_path == "default":
+        return STANDARD_MANIFEST
+
+    with open(manifest_path, "r", encoding="utf-8") as f:
+        if manifest_path.endswith((".yaml", ".yml")):
+            import yaml
+            data = yaml.safe_load(f)
+        else:
+            data = json.load(f)
+
+    return EDCManifest(
+        study_id=data["study_id"],
+        edc_system=data.get("edc_system", "Medidata Rave"),
+        export_date=data.get("export_date", ""),
+        export_format=data.get("export_format", "csv"),
+        domains=data.get("domains", []),
+        data_dictionary_path=data.get("data_dictionary_path", ""),
+    )
 
 
 def _handle_sdtm_spec_build(args: dict) -> dict:

@@ -6,7 +6,7 @@
 
 > **v3.0 更新**: 文件结构重大变化 — `.workflow/` 完全移除，改用 `.review_queue/` + 文件系统状态推导。
 > 新增 `project.yaml` 项目配置文件（替代 `.workflow/pipeline/state.yaml` 元数据）。
-> `templates/` → `knowledge/`，项目文件夹新增 `outputs/` 和 `audit_trail.jsonl`。
+> `templates/` → `knowledge/`，项目文件夹新增 `output/` 和 `audit_trail.jsonl`。
 > 详见 [SPEC-18](18-P0-Alignment.md) 决策 3。
 
 ---

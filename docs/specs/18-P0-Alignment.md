@@ -1,7 +1,7 @@
 # SPEC-18: P0 架构对齐 — 统一设计决策
 
 > **版本**: v1.0
-> **状态**: 待确认
+> **状态**: 已确认（2026-06-22）
 > **依赖**: SPEC-00 ~ SPEC-17 全部
 > **目的**: 解决文档间的矛盾和歧义，形成单一权威设计
 
@@ -157,7 +157,7 @@ created_at: "2026-01-15T10:00:00Z"
 
 | 需要知道的信息 | 推导方式 |
 |--------------|---------|
-| 当前走到哪一步 | 扫描 `outputs/` 目录，看哪些产出物已存在 |
+| 当前走到哪一步 | 扫描 `output/` 目录，看哪些产出物已存在 |
 | 有什么在等审核 | 扫描 `.review_queue/` 中没有对应 `_decision.json` 的 `.json` 文件 |
 | 审核历史 | 扫描 `.review_queue/archive/` + `audit_trail.jsonl` |
 | 某个产出物的版本 | 查看 `audit_trail.jsonl` 中该文件的变更记录 |
@@ -192,6 +192,17 @@ def resume():
 ### 决策
 
 **Runtime 是 MCP 工具的唯一调用入口。能力域声明需求，Runtime 代理执行。**
+
+### 工具分组
+
+核心临床工作流仍以 6 个确定性 MCP 工具为合同边界：
+
+| 分组 | 工具 | 说明 |
+|------|------|------|
+| 核心工具 | `sdtm_spec_build`, `adam_spec_build`, `tfl_shells_list`, `cdisc_validate`, `define_xml_build`, `triage_p21` | 参与 Protocol → Submission 主工作流，可作为审核与审计边界 |
+| 辅助工具 | `edc_import`, `ctgov_search`, `ctgov_study_detail`, `ctgov_download_docs`, `ctgov_check_docs` | 用于输入资料获取、导入或预检查，不计入核心 6 个 MCP gate |
+
+`triage_p21` 必须保持确定性：它只按规则归类 P21 findings，不调用 LLM；如果后续需要智能解释，应由 Runtime/验证子代理在工具外生成 ReviewFinding。
 
 ### 调用链
 
@@ -241,7 +252,7 @@ Agent Runtime (agent_loop.py)
 
 | 能力域返回的 confidence | Runtime 行为 |
 |------------------------|-------------|
-| `HIGH` (≥95%) | 自动通过，不生成 ReviewPacket，直接写入 `outputs/` |
+| `HIGH` (≥95%) | 自动通过，不生成 ReviewPacket，直接写入 `output/` |
 | `MEDIUM` (70-95%) | 生成 ReviewPacket (urgency=normal)，Agent 继续其他工作 |
 | `LOW` (<70%) | 生成 ReviewPacket (urgency=blocking)，Agent 等待人类决策 |
 

@@ -1,10 +1,10 @@
 # MCP 工具层设计规格
 
 ## 文档编号: SPEC-09
-## 主题: 6个 MCP 工具的详细 API 设计与实现约束
+## 主题: 核心 6 个 MCP 工具的详细 API 设计与实现约束
 ## 版本: 3.0
 
-> **v3.0 架构说明**: MCP 工具层在 v3.0 中完全保留, 无变更。这 6 个确定性纯函数由 Runtime 代理统一调度, 通过能力域 (ProtocolSAP / DataStandards / TFLQCSubmission) 的 Action 列表驱动调用。原则2 (确定性操作走 MCP, 推理走 LLM) 是本层存在的核心理由。详见 [SPEC-06](06-AI-Architecture.md), [SPEC-08](08-Agent-Design.md) 和 [SPEC-18](18-P0-Alignment.md)。
+> **v3.0 架构说明**: MCP 工具层在 v3.0 中保留为确定性工具合同。核心临床工作流只以 6 个确定性纯函数作为审计边界；EDC/CTGov 等资料获取能力属于辅助工具，不计入核心 6 个 workflow gate。所有工具由 Runtime 代理统一调度, 通过能力域 (ProtocolSAP / DataStandards / TFLQCSubmission) 的 Action 列表驱动调用。原则2 (确定性操作走 MCP, 推理走 LLM) 是本层存在的核心理由。详见 [SPEC-06](06-AI-Architecture.md), [SPEC-08](08-Agent-Design.md) 和 [SPEC-18](18-P0-Alignment.md)。
 
 ---
 
@@ -38,6 +38,13 @@ MCP 工具的核心价值: 确定性
 ---
 
 ## 2. 工具 API 完整规格
+
+### 2.0 工具分组
+
+| 分组 | 工具 | 约束 |
+|------|------|------|
+| 核心 MCP 工具 | `sdtm_spec_build`, `adam_spec_build`, `tfl_shells_list`, `cdisc_validate`, `define_xml_build`, `triage_p21` | 必须确定性、无状态、无 LLM、可作为审计边界 |
+| 辅助 MCP 工具 | `edc_import`, `ctgov_search`, `ctgov_study_detail`, `ctgov_download_docs`, `ctgov_check_docs` | 用于输入资料导入/发现；可被 Runtime 调用，但不改变核心工作流阶段定义 |
 
 ### Tool 1: sdtm_spec_build
 
@@ -568,7 +575,7 @@ OUTPUT:
     ├── 逐个执行 Action
     ├── 记录到 audit_trail.jsonl
     ├── 收集结果
-    └── 打包 → ReviewPacket / 直接写入 outputs/
+    └── 打包 → ReviewPacket / 直接写入 output/
 ```
 
 ```python
@@ -601,7 +608,7 @@ def sdtm_spec_generation_actions(context) -> list[Action]:
             args={
                 "type": "sdtm",
                 "domain_or_dataset": domain,
-                "data_metadata": f"outputs/sdtm_specs/{domain}_spec.json",
+                "data_metadata": f"output/sdtm/specs/{domain}_spec.json",
             }
         ))
     return actions

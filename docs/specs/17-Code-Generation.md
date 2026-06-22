@@ -334,7 +334,7 @@ OUTPUT:
 │     └────────────────────────────────────────────────────┘   │
 │                                                              │
 │  5. SELECT FINAL VERSION                                     │
-│     · 两个版本都保留在 outputs/programs/                     │
+│     · 两个版本都保留在 output/programs/                      │
 │     · 主版本用于 submission                                  │
 │     · 备选版本记录为 "QC validation passed"                  │
 │     · cross_lang_validate 报告归档到 audit                   │
@@ -397,14 +397,14 @@ SAS 版本:
 ### 6.2 QC 验证报告格式
 
 ```yaml
-# outputs/qc/cross_lang_{dataset}_{timestamp}.yaml
+# output/qc/cross_lang_{dataset}_{timestamp}.yaml
 
 qc_id: "QC-CROSS-20260604-AE-001"
 dataset: "AE"
-sas_program: "outputs/programs/sdtm/ae.sas"
-r_program: "outputs/programs/sdtm/ae.R"
-sas_output: "outputs/data/ae_sas.xpt"
-r_output: "outputs/data/ae_r.xpt"
+sas_program: "output/programs/sdtm/ae.sas"
+r_program: "output/programs/sdtm/ae.R"
+sas_output: "output/data/ae_sas.xpt"
+r_output: "output/data/ae_r.xpt"
 
 result:
   match: false
@@ -452,7 +452,7 @@ async def generate_program(spec, config):
     else:
         primary_prog = sas_program_render(spec)
 
-    write_program(primary_prog)  # → outputs/programs/
+    write_program(primary_prog)  # → output/programs/
 
     # 2. QC decision
     if not spec.is_pivotal and config.qc_strategy != "cross_lang":

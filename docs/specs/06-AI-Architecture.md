@@ -165,7 +165,7 @@ v3.0 不做任何更改:
 文件系统即状态 (v3.0):
 
   · .review_queue/ 有没有未处理文件 = 是否在等人工
-  · outputs/ 目录有什么 = 完成了什么
+  · output/ 目录有什么 = 完成了什么
   · Git HEAD = 进度快照
   · 任何进程 (Agent, Review Panel, 人工) 都可以独立读写
   · 不需要恢复逻辑 — 读目录就行
@@ -182,7 +182,7 @@ v3.0 不做任何更改:
 │                                                          │
 │  ┌──────────┐                                            │
 │  │ ASSESS    │ ← 读文件系统, 构建 context                 │
-│  │ Pipeline  │   扫描 outputs/ 确定当前阶段               │
+│  │ Pipeline  │   扫描 output/ 确定当前阶段                │
 │  │ Progress  │   扫描 .review_queue/ 确定 pending review  │
 │  └────┬─────┘                                            │
 │       │                                                  │
@@ -203,7 +203,7 @@ v3.0 不做任何更改:
 │       │                                                  │
 │  ┌────▼──────────┐                                       │
 │  │ REVIEW DECISION│ ← 置信度驱动:                         │
-│  │ HIGH → auto-pass│   HIGH: 直接写入 outputs/           │
+│  │ HIGH → auto-pass│   HIGH: 直接写入 output/            │
 │  │ MED  → normal   │   MEDIUM: ReviewPacket (非阻塞)     │
 │  │ LOW  → blocking │   LOW: ReviewPacket (阻塞, 等人类)   │
 │  └────┬──────────┘                                       │
@@ -231,14 +231,14 @@ Agent 在每个循环中按以下优先级决策:
    - 不存在 → 按管线顺序先生成前置文件
 
 3. PIPELINE PROGRESS CHECK (固定管线顺序)
-   - 扫描 outputs/ 确定当前管线位置
+   - 扫描 output/ 确定当前管线位置
    - 按固定顺序推进: Protocol → SDTM Spec → SDTM Prog → ADaM Spec →
      ADaM Prog → TFL Shell → TFL Prog → QC → Submission
    - 不可跳步, 不可重排
 
 4. QUALITY CHECK (动态审核策略)
    - 生成的内容有不确定项? → 提交 Review Packet
-   - 置信度 HIGH → 自动通过, 直接写入 outputs/
+   - 置信度 HIGH → 自动通过, 直接写入 output/
    - 置信度 MEDIUM → ReviewPacket (urgency=normal), Agent 继续
    - 置信度 LOW → ReviewPacket (urgency=blocking), Agent 等待人类决策
 

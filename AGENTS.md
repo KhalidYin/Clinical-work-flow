@@ -1,4 +1,4 @@
-# Clinical AI Workflow — Claude Code Project Guide
+# Clinical AI Workflow — Codex Project Guide
 
 ## Overview
 
@@ -98,7 +98,7 @@ python -m src.mcp_tools.server
 Cmd+Shift+P → "Clinical Review Panel: Open"
 ```
 
-### Claude Code Terminal
+### Codex Terminal
 
 ```
 > analyze protocol, generate SDTM specs for Phase III NSCLC

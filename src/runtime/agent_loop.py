@@ -1,12 +1,13 @@
 """
-Agent Runtime v3.0 — Dynamic decision loop.
+Agent Runtime v3.0 — fixed pipeline with dynamic review strategy.
 
-Replaces the fixed 12-stage pipeline with an agent that dynamically
-decides what to do next based on context and intent.
+Replaces the old in-memory 12-stage state machine with a runtime that
+derives progress from the file system and advances through the fixed
+clinical dependency order.
 
 Core loop:
   1. ASSESS  — read project state from file system
-  2. DECIDE  — agent chooses next action
+  2. DECIDE  — choose next fixed-pipeline action from file state
   3. EXECUTE — call MCP tools or submit review packet
   4. REVIEW  — if human input needed, wait for decision receipt
   5. RECORD  — git commit + audit trail
@@ -14,7 +15,7 @@ Core loop:
 
 Design principles:
   - File system IS the state — no in-memory pipeline state
-  - Agent decides next step — no predefined stage ordering
+  - Fixed clinical ordering; dynamic behavior is review, knowledge loading, and recovery
   - Human interaction via ReviewQueue protocol — no chat
   - Every action recorded in audit trail
   - Git as version control backbone
@@ -151,8 +152,8 @@ class AgentRuntime:
     """
     v3.0 Agent Runtime.
 
-    Replaces Orchestrator (v2.1). Instead of a 12-stage state machine,
-    the agent dynamically decides what to do next.
+    Replaces Orchestrator (v2.1). Instead of a persisted 12-stage state
+    machine, the runtime infers the next fixed-pipeline stage from files.
 
     Usage:
         runtime = AgentRuntime(project_dir="./project")
@@ -225,8 +226,8 @@ class AgentRuntime:
         """
         Execute the agent loop until done or blocked.
 
-        The agent dynamically routes based on intent + context —
-        no fixed pipeline stages.
+        The runtime follows the fixed clinical dependency pipeline and
+        dynamically decides whether review is needed.
         """
         logger.info(f"AgentRuntime starting: intent='{intent[:80]}...'")
         self.state.iteration = 0
@@ -280,7 +281,6 @@ class AgentRuntime:
 
         This is what the agent "sees" when deciding what to do next.
         """
-        outputs_dir = self.project_dir / "outputs"
         context: dict[str, Any] = {
             "intent": intent,
             "study_id": self.study_id,
@@ -291,22 +291,10 @@ class AgentRuntime:
             # What exists on disk?
             "files": {
                 "protocol": list((self.project_dir).glob("protocol*")),
-                "sdtm_specs": (
-                    list((outputs_dir / "sdtm_specs").glob("*"))
-                    if (outputs_dir / "sdtm_specs").exists() else []
-                ),
-                "adam_specs": (
-                    list((outputs_dir / "adam_specs").glob("*"))
-                    if (outputs_dir / "adam_specs").exists() else []
-                ),
-                "tfl_shells": (
-                    list((outputs_dir / "tfl_shells").glob("*"))
-                    if (outputs_dir / "tfl_shells").exists() else []
-                ),
-                "programs": (
-                    list((outputs_dir / "programs").glob("*"))
-                    if (outputs_dir / "programs").exists() else []
-                ),
+                "sdtm_specs": self._collect_output_files(("sdtm", "specs"), ("sdtm_specs",)),
+                "adam_specs": self._collect_output_files(("adam", "specs"), ("adam_specs",)),
+                "tfl_shells": self._collect_output_files(("tfl", "shells"), ("tfl_shells",)),
+                "programs": self._collect_output_files(("programs",), ("programs",)),
             },
 
             # What reviews are pending?
@@ -325,6 +313,19 @@ class AgentRuntime:
             "output_format_specs": OUTPUT_FORMAT_SPECS,
         }
         return context
+
+    def _collect_output_files(self, canonical_parts: tuple[str, ...],
+                              legacy_parts: tuple[str, ...]) -> list[Path]:
+        """Read canonical output/ paths and legacy outputs/ paths during migration."""
+        files: list[Path] = []
+        for root, parts in [
+            (self.project_dir / "output", canonical_parts),
+            (self.project_dir / "outputs", legacy_parts),
+        ]:
+            path = root.joinpath(*parts)
+            if path.exists():
+                files.extend(sorted(path.glob("*")))
+        return files
 
     # ── Blocker Detection ──────────────────────────────────────
 
@@ -346,7 +347,7 @@ class AgentRuntime:
     async def _decide_next_action(self, intent: str,
                                   context: dict[str, Any]) -> AgentAction:
         """
-        Agent decides what to do next.
+        Decide the next fixed-pipeline action.
 
         This is where the LLM call happens in production. For now,
         we implement a rule-based decision engine as the foundation
@@ -361,8 +362,8 @@ class AgentRuntime:
         6. If programs exist but no QC → route for QC
         7. If all done → signal done
 
-        In Phase 2, this is replaced by an LLM call that reasons
-        about the full context.
+        In Phase 2, this can be assisted by an LLM, but it must still
+        respect the fixed clinical dependency order.
         """
         files = context["files"]
         pending = context["pending_reviews"]
@@ -491,6 +492,12 @@ class AgentRuntime:
         if tool_name not in self.tool_registry:
             return {"status": "error", "error": f"Tool '{tool_name}' not registered"}
 
+        if tool_name == "sdtm_spec_build" and "domain_codes" in args:
+            return self._call_tool_batch(tool_name, args, "domain_codes", "domain_code")
+
+        if tool_name == "adam_spec_build" and "datasets" in args:
+            return self._call_tool_batch(tool_name, args, "datasets", "dataset_name")
+
         try:
             tool_fn = self.tool_registry[tool_name]
             result = tool_fn(**args)
@@ -498,6 +505,28 @@ class AgentRuntime:
         except Exception as e:
             logger.exception(f"Tool '{tool_name}' failed")
             return {"status": "error", "error": str(e)}
+
+    def _call_tool_batch(self, tool_name: str, args: dict[str, Any],
+                         plural_key: str, singular_key: str) -> dict[str, Any]:
+        """Expand a runtime batch request into deterministic single-tool calls."""
+        values = args.get(plural_key, [])
+        results: dict[str, Any] = {}
+        errors: dict[str, str] = {}
+
+        for value in values:
+            single_args = {k: v for k, v in args.items() if k != plural_key}
+            single_args[singular_key] = value
+            single = self._call_tool(tool_name, single_args)
+            if single.get("status") == "success":
+                results[value] = single.get("tool_result")
+            else:
+                errors[value] = single.get("error", "unknown error")
+
+        return {
+            "status": "error" if errors else "success",
+            "tool_result": results,
+            "errors": errors,
+        }
 
     # ── Review Handling ────────────────────────────────────────
 
@@ -529,6 +558,12 @@ class AgentRuntime:
                 logger.info(f"  ✏ {fd.finding_id}: modified → '{fd.modified_value}'")
             elif fd.decision == Decision.REJECTED:
                 logger.warning(f"  ✗ {fd.finding_id}: rejected — needs re-work")
+                if fd.rejection_reason:
+                    logger.warning(f"    Reason: {fd.rejection_reason.value}")
+                if fd.human_correction:
+                    logger.warning(f"    Correction: {fd.human_correction}")
+                if fd.reference:
+                    logger.warning(f"    Reference: {fd.reference}")
                 if fd.comment:
                     logger.warning(f"    Comment: {fd.comment}")
 
@@ -828,16 +863,18 @@ async def main() -> None:
 def _load_mcp_tools(runtime: AgentRuntime) -> None:
     """Load MCP tools from the tools package."""
     try:
-        from src.mcp_tools.sdtm_spec_builder import build_sdtm_spec
-        from src.mcp_tools.adam_spec_builder import build_adam_spec
-        from src.mcp_tools.cdisc_validator import validate_cdisc
-        from src.mcp_tools.tfl_renderer import render_tfl
+        from src.mcp_tools.server import (
+            AUXILIARY_TOOL_NAMES,
+            CORE_TOOL_NAMES,
+            handle_tool_call,
+        )
+
+        def make_tool(tool_name: str) -> Callable[..., dict[str, Any]]:
+            return lambda **kwargs: handle_tool_call(tool_name, kwargs)
 
         runtime.register_tools({
-            "sdtm_spec_build": build_sdtm_spec,
-            "adam_spec_build": build_adam_spec,
-            "cdisc_validate": validate_cdisc,
-            "tfl_renderer": render_tfl,
+            name: make_tool(name)
+            for name in [*CORE_TOOL_NAMES, *AUXILIARY_TOOL_NAMES]
         })
     except ImportError:
         logger.warning("MCP tools not fully available — running with empty tool registry")

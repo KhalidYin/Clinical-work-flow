@@ -29,15 +29,15 @@
 │  │                    CLINICAL AGENT RUNTIME                            │ │
 │  │                                                                      │ │
 │  │  ┌─────────────────────────┐  ┌──────────────────────────────────┐  │ │
-│  │  │  Dynamic Router          │  │  Structured Review Protocol       │  │ │
+│  │  │  Pipeline Router         │  │  Structured Review Protocol       │  │ │
 │  │  │                         │  │                                    │  │ │
-│  │  │  Agent 自主决策下一步     │  │  Review Packet (agent → human)    │  │ │
-│  │  │  context.decide(intent)  │  │  Decision Receipt (human → agent) │  │ │
-│  │  │  不预设 pipeline 阶段    │  │  JSON Schema enforced             │  │ │
+│  │  │  固定管线顺序推进         │  │  Review Packet (agent → human)    │  │ │
+│  │  │  动态决定审核策略         │  │  Decision Receipt (human → agent) │  │ │
+│  │  │  文件状态推导下一阶段     │  │  JSON Schema enforced             │  │ │
 │  │  └─────────────────────────┘  └──────────────────────────────────┘  │ │
 │  │                                                                      │ │
 │  │  ┌───────────────────────────────────────────────────────────────┐  │ │
-│  │  │  MCP TOOLS (确定性, 纯函数, 可审计)                              │  │ │
+│  │  │  CORE MCP TOOLS (确定性, 纯函数, 可审计)                         │  │ │
 │  │  │  sdtm_spec_build | adam_spec_build | tfl_shells_list            │  │ │
 │  │  │  cdisc_validate | define_xml_build | triage_p21                 │  │ │
 │  │  └───────────────────────────────────────────────────────────────┘  │ │
@@ -56,11 +56,11 @@
 │  │  ├── .review_queue/                    ← Agent↔人工 消息队列         │ │
 │  │  │   ├── review_sdtm_spec_v2_001.json                                │ │
 │  │  │   └── decision_sdtm_spec_v2_001.json                              │ │
-│  │  ├── outputs/                          ← 产出物                      │ │
-│  │  │   ├── sdtm_specs/                                                │ │
-│  │  │   ├── adam_specs/                                                │ │
-│  │  │   ├── tfl_shells/                                                │ │
-│  │  │   └── programs/                                                  │ │
+│  │  ├── output/                           ← 产出物                      │ │
+│  │  │   ├── sdtm/                                                      │ │
+│  │  │   ├── adam/                                                      │ │
+│  │  │   ├── tfl/                                                       │ │
+│  │  │   └── define_xml/                                                │ │
 │  │  └── audit_trail.jsonl                 ← 全量操作记录                │ │
 │  └──────────────────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────────────┘
@@ -70,7 +70,7 @@
 
 | 维度 | v2.1 | v3.0 |
 |------|------|------|
-| **工作流模型** | 12阶段固定管线 | Agent 动态路由 (context → decide → execute) |
+| **工作流模型** | 12阶段固定状态机 | 固定依赖管线 + 动态审核策略 |
 | **状态管理** | State Machine (内存+JSON) | 文件系统即状态 (Git 版本控制) |
 | **人工交互** | Gate 暂停 → 对话式审核 | Structured Review Protocol (Review Packet ↔ Decision Receipt) |
 | **格式保证** | Prompt 约束 (不可靠) | JSON Schema enforced (Agent SDK 层强制) |
@@ -84,10 +84,10 @@
 
 ```
 旧思路 (v2.1): 每个人工 gate 预置脚本和清单 → 维护成本高, 灵活性差
-新思路 (v3.0): Agent 自主推进, 遇到不确定就提交结构化审阅包 → 人工批量审批, 一次搞定
+新思路 (v3.0): Runtime 按固定临床依赖顺序推进, 遇到不确定就提交结构化审阅包 → 人工批量审批, 一次搞定
 
 旧:  Pipeline → Stage → Gate → Review → Pipeline → ...
-新:  Agent Loop → 出问题才停 → 结构化审阅包 → 批量决定 → 继续
+新:  Fixed Pipeline → 动态审核策略 → 结构化审阅包 → 批量决定 → 继续
 
 预置不是完全消失, 而是从"硬编码脚本"变为"动态加载的知识":
   放弃: templates/phase2_oncology.py     # 死脚本
@@ -101,7 +101,7 @@
 
 | 层 | 职责 | 确定性 | 输出格式 |
 |----|------|--------|---------|
-| **Agent Runtime** | 动态决策下一步, 调用 MCP 工具, 生成产出物, 提交审阅包 | 非确定 (LLM) | 文件 + Review Packet JSON |
+| **Agent Runtime** | 按固定依赖顺序确定下一阶段, 调用 MCP 工具, 生成产出物, 动态提交审阅包 | 非确定 (LLM) | 文件 + Review Packet JSON |
 | **Structured Review Protocol** | Agent↔人工之间的合同格式, JSON Schema 强制一致性 | **完全确定** | Review Packet + Decision Receipt |
 | **MCP Tools** | 确定性操作 (spec 生成, CDISC 校验, define.xml) | **完全确定** | JSON (固定 schema) |
 | **Knowledge Base** | CDISC 标准, TA 知识, 法规指南 | **完全确定** (只读) | JSON/YAML, 动态加载 |
@@ -281,7 +281,7 @@ MCP 工具的核心价值不变: 确定性
 
 | 放弃项 | 理由 |
 |--------|------|
-| **12 阶段固定管线** | Protocol/SAP/SDTM 的逻辑关系是领域知识, 不应该硬化在状态机里; Agent 应该动态推理下一步 |
+| **12 阶段内存状态机** | 进度不再存放在集中 state machine 中; Runtime 仍按固定临床依赖顺序推进, 但状态由文件系统推导 |
 | **独立 Checklist Layer** | 清单内容内化到 ReviewFinding schema, schema 本身的 required fields 就是强制清单; 不需要单独的程序化校验层 |
 | **硬编码 Phase/TA 模板** | `templates/` 下的脚本维护成本指数增长; 改为 `knowledge/` 下的结构化数据, Agent 自行检索 |
 | **Skills 独立进程** | `/sap-review` 等 Skill 是对话式交互的原型; 被 Review Panel 的批量审批界面取代 |
@@ -295,7 +295,7 @@ MCP 工具的核心价值不变: 确定性
 ```
 src/
 ├── runtime/
-│   ├── agent_loop.py          — Agent Runtime 主循环 (动态决策, 非固定管线)
+│   ├── agent_loop.py          — Agent Runtime 主循环 (固定管线 + 动态审核)
 │   ├── router.py              — 根据 context + intent 路由到正确的能力域
 │   └── review_protocol.py     — Review Packet / Decision Receipt 数据模型 + JSON Schema
 
@@ -339,11 +339,11 @@ src/
 project/                       — 项目文件夹 (文件系统即状态)
 ├── protocol.pdf
 ├── .review_queue/             — Agent↔人工 消息队列
-├── outputs/
-│   ├── sdtm_specs/
-│   ├── adam_specs/
-│   ├── tfl_shells/
-│   └── programs/
+├── output/
+│   ├── sdtm/
+│   ├── adam/
+│   ├── tfl/
+│   └── define_xml/
 ├── audit_trail.jsonl          — 全量操作记录
 └── .git/                      — 版本控制
 ```
@@ -377,7 +377,7 @@ Agent Runtime:
 
 Agent Runtime (继续):
   11. Agent 读取 decision_receipt.json
-  12. 应用决策, 写入 outputs/sdtm_specs/
+  12. 应用决策, 写入 output/sdtm/specs/
   13. git commit -m "SDTM specs: 15 domains, human approved 3 findings"
   14. 继续 → ADaM spec
 ```
@@ -395,15 +395,15 @@ Agent Runtime (继续):
 
 新 (v3.0):
   > "分析 protocol, 生成 SDTM spec"
-  Agent 自主执行 (调用 MCP, 检索 knowledge)
+  Runtime 按固定管线确认前置依赖, 再调用 MCP 和检索 knowledge
   → 只在不确定时提交 Review Packet
   → 人工批量审批
   → 继续
 
 差异:
   · 3 个 finding → 一次审批, 不是 33 个清单项逐个检查
-  · 不需要走到 Gate 2 才审核 — Agent 随时可以提交审阅包
-  · 没有"必须走 12 步"的约束 — Agent 根据实际情况跳步
+  · 不需要每个旧 Gate 都停 — Runtime 只在低置信度、下游依赖或合规关键节点提交审阅包
+  · 不允许跳过领域依赖 — SDTM → ADaM → TFL 的顺序固定, 审核触发动态
 ```
 
 ---
@@ -417,7 +417,7 @@ Agent Runtime (继续):
 ✅ SPEC-15 Review Protocol 详细规格 (数据模型 + Schema + 格式规范)
 ✅ SPEC-16 Review Panel 前端规格 (VSCode 侧边栏组件设计)
 ✅ src/runtime/review_protocol.py — Python 数据模型 + JSON Schema + ReviewQueue
-✅ src/runtime/agent_loop.py — 动态决策循环框架
+✅ src/runtime/agent_loop.py — 固定管线 + 动态审核循环框架
 ✅ src/runtime/router.py — 上下文感知路由 + Intent 解析
 ✅ src/runtime/__init__.py — 包统一导出
 ✅ CLAUDE.md — 项目指南同步更新
@@ -463,10 +463,11 @@ Agent Runtime (继续):
 | SPEC-09 | MCP 工具 API 规格 | v2.1 | ✅ 保留无变更 |
 | SPEC-11 | 变更管理与审计追踪 | v2.1 | ✅ 保留, +Git 强化 |
 | SPEC-01~04 | Protocol→TFL 各阶段 | v2.1 | ⚠️ 局部重写 (去管线化) |
-| SPEC-06 | AI 架构深度分析 | v2.1 | ⚠️ 需要更新为 Agent-Native |
-| SPEC-08 | Agent 设计 | v2.1 | ⚠️ 需要更新为能力域模型 |
-| SPEC-10 | 工作流编排 | v2.1 | ⚠️ 需要更新为动态路由 |
-| SPEC-12~14 | 操作模型 / 环境 / 走查 | v1.0-v2.1 | ⚠️ 需配合 v3.0 更新 |
+| SPEC-06 | AI 架构深度分析 | v3.0 | 当前: 固定管线 + 动态审核 |
+| SPEC-08 | Agent 设计 | v3.0 | 当前: 能力域模型 |
+| SPEC-10 | 工作流编排 | v3.0 | 当前: 固定管线 + 动态审核 |
+| SPEC-12~14 | 操作模型 / 环境 / 走查 | v3.0 | 当前: 文件系统状态 + 动态审核 |
+| [SPEC-18](18-P0-Alignment.md) | P0 架构对齐 — 单一权威设计 | v1.0 | **已确认** |
 | [SPEC-15](15-Review-Protocol.md) | Review Protocol 规格 — Agent↔Human 结构化交互 | v1.0 | **已完成** |
 | [SPEC-16](16-Review-Panel.md) | Review Panel 前端规格 — VSCode 侧边栏审核界面 | v1.0 | **已完成** |
 | [SPEC-17](17-Code-Generation.md) | Code Generation — SAS/R 双后端 + 跨语言 QC | v1.0 | **已完成** |
@@ -498,7 +499,7 @@ python -m src.mcp_tools.server
 
 | 维度 | v2.1 | v3.0 |
 |------|------|------|
-| 管线模型 | 12 阶段固定状态机 | Agent 动态决策 |
+| 管线模型 | 12 阶段固定状态机 | 固定依赖管线 + 动态审核策略 |
 | 状态存储 | 内存 + JSON 文件 | 文件系统 + Git |
 | 人工交互 | Gate 暂停 + 对话 | Structured Review Protocol |
 | 交互模式 | 逐条对话 | 批量审批 |

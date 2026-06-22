@@ -954,7 +954,7 @@ Commit 格式:
   git log --grep="Review decision" --grep="sdtm_spec_ae" --format="%H %ai %s"
 
   # 从 protocol 到 submission 一共改了多少次 ADSL spec?
-  git log --oneline -- outputs/adam_specs/adsl_spec.xlsx | wc -l
+  git log --oneline -- output/adam/specs/adsl_spec.xlsx | wc -l
 ```
 
 ---
