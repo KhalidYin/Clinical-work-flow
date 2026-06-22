@@ -10,7 +10,6 @@ VersionManager — 产出物版本管理系统。
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import StrEnum
-from typing import Any
 
 from .change_record import FileChange
 

@@ -17,7 +17,6 @@ CT.Gov Fetcher — 从 ClinicalTrials.gov 检索研究文档和元数据。
 from __future__ import annotations
 
 import time
-import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional

@@ -4,7 +4,7 @@ Each agent autonomously executes a multi-step task using MCP tools.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Protocol, AsyncIterator
+from typing import Any, Protocol
 
 
 # ── Agent interface ────────────────────────────────────────────────

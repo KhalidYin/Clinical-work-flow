@@ -18,7 +18,6 @@ Design principles:
 from __future__ import annotations
 
 import json
-import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import StrEnum
@@ -681,7 +680,7 @@ class ReviewQueue:
             try:
                 data = json.loads(filepath.read_text(encoding="utf-8"))
                 packets.append(ReviewPacket.from_dict(data))
-            except (json.JSONDecodeError, KeyError) as e:
+            except (json.JSONDecodeError, KeyError):
                 # Corrupt packet — log and skip
                 filepath.rename(self.archive_dir / f"{review_id}_corrupt.json")
         return packets
@@ -783,9 +782,9 @@ def validate_review_packet(data: dict[str, Any]) -> list[str]:
         "agent_summary", "findings", "urgency",
         "created_at", "generated_by", "auto_approved_count",
     ]
-    for field in required_fields:
-        if field not in data:
-            violations.append(f"Missing required field: {field}")
+    for field_name in required_fields:
+        if field_name not in data:
+            violations.append(f"Missing required field: {field_name}")
 
     if "review_type" in data:
         valid_types = {r.value for r in ReviewType}
@@ -818,9 +817,9 @@ def _validate_finding(finding: dict[str, Any], index: int,
         "title", "current_value", "proposed_value",
         "rationale", "evidence_refs", "auto_approved",
     ]
-    for field in required:
-        if field not in finding:
-            violations.append(f"Finding[{index}]: missing required field '{field}'")
+    for field_name in required:
+        if field_name not in finding:
+            violations.append(f"Finding[{index}]: missing required field '{field_name}'")
 
     if "category" in finding:
         valid_cats = {c.value for c in FindingCategory}
@@ -842,9 +841,9 @@ def validate_decision_receipt(data: dict[str, Any]) -> list[str]:
     """Validate a decision receipt against the schema."""
     violations: list[str] = []
 
-    for field in ["review_id", "reviewer", "timestamp", "decisions"]:
-        if field not in data:
-            violations.append(f"Missing required field: {field}")
+    for field_name in ["review_id", "reviewer", "timestamp", "decisions"]:
+        if field_name not in data:
+            violations.append(f"Missing required field: {field_name}")
 
     if "decisions" in data:
         if not isinstance(data["decisions"], list):

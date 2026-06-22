@@ -4,8 +4,7 @@ Each skill defines an interactive human-AI review workflow.
 These are invoked via Claude Code's Skill tool.
 """
 
-from dataclasses import dataclass, field
-from typing import Any
+from dataclasses import dataclass
 
 # ── Skill definitions ──────────────────────────────────────────────
 

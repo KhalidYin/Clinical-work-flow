@@ -138,3 +138,78 @@
 - `src/review_panel/src/webview.ts` (added, uncommitted)
 - `src/review_panel/src/extension.ts` (added, uncommitted)
 - `tests/test_review_panel_static.py` (added, uncommitted)
+
+---
+
+### Round 4 [11:22]
+
+#### Done
+- 新增 `docs/dep/P1-RISK-REDUCTION-PLAN.md`，将 P1 风险收敛拆为 `project.yaml` schema、Review JSON Schema 单一权威源、DecisionReceipt 应用闭环、Review Panel schema consumption 和测试门禁。
+- 在 `pyproject.toml` 固化 pytest 配置，默认禁用不兼容的全局 `pytest_asyncio` 插件：`addopts = "-p no:asyncio"`。
+- 安装 `ruff 0.15.18`，确认测试文件 lint 基线干净。
+- 记录全量 ruff baseline：`python -m ruff check src tests` 当前有 42 个既有 lint findings，建议在 P1-A 前增加 `P1-0 lint-only cleanup` 批次。
+
+#### Issues / Blockers
+- 全量 ruff 尚不能作为硬门禁；需先做 lint-only cleanup，避免后续功能开发被历史未使用 import / f-string 等问题阻塞。
+- 本轮只做规划和测试环境整理，没有实现 schema 生成、project loader、decision application 等业务逻辑。
+
+#### Validation
+- `python -B -m pytest` (14 passed; no manual `PYTEST_DISABLE_PLUGIN_AUTOLOAD` required)
+- `python -m ruff check tests` (success)
+- `npm run compile` (success, in `src/review_panel/`)
+- `rg --files -g '*.pyc' -g '__pycache__'` (no results)
+- `git diff --check` (no whitespace errors; only LF/CRLF warning)
+
+#### Next
+1. P1-0: lint-only cleanup，清理 ruff baseline，不改变业务行为。
+2. P1-A: `project.yaml` schema + loader + minimal study fixture。
+3. P1-B: Review JSON Schema 单一权威源 + Python/TypeScript schema drift tests。
+4. P1-C: DecisionReceipt application service + ConfirmationReceipt 闭环。
+
+#### Files Changed / Commits
+- `pyproject.toml` (modified, uncommitted)
+- `docs/dep/P1-RISK-REDUCTION-PLAN.md` (added, uncommitted)
+
+---
+
+### Round 5 [12:50]
+
+#### Done
+- 执行 P1-0 lint-only cleanup，清理全量 ruff baseline，不改变业务行为。
+- 运行 `python -m ruff check src tests --fix` 自动修复 39 个 lint findings。
+- 手动处理 `src/runtime/review_protocol.py` 中 3 个 `F402` loop variable shadowing 问题。
+- 更新 `docs/dep/P1-RISK-REDUCTION-PLAN.md`，将 P1-0 标记为已完成，并将 `python -m ruff check src tests` 提升为后续硬门禁。
+
+#### Issues / Blockers
+- 本轮未实现 `project.yaml` schema、Review JSON Schema 单一权威源或 DecisionReceipt application；这些仍按 P1-A/P1-B/P1-C 顺序执行。
+
+#### Validation
+- `python -m ruff check src tests` (success)
+- `python -B -m pytest` (14 passed)
+- `npm run compile` (success, in `src/review_panel/`)
+- `rg --files -g '*.pyc' -g '__pycache__'` (no results)
+- `git diff --check` (no whitespace errors; only LF/CRLF warnings)
+
+#### Next
+1. P1-A: `project.yaml` schema + loader + minimal study fixture。
+2. P1-B: Review JSON Schema 单一权威源 + Python/TypeScript schema drift tests。
+3. P1-C: DecisionReceipt application service + ConfirmationReceipt 闭环。
+
+#### Files Changed / Commits
+- `docs/dep/P1-RISK-REDUCTION-PLAN.md` (added, uncommitted)
+- `docs/dep/DEVLOG.md` (modified, uncommitted)
+- `pyproject.toml` (modified, uncommitted)
+- `src/agents/domain_agents.py` (modified, uncommitted)
+- `src/agents/executors.py` (modified, uncommitted)
+- `src/agents/protocol_analyzer.py` (modified, uncommitted)
+- `src/change_management/impact_analyzer.py` (modified, uncommitted)
+- `src/change_management/version_manager.py` (modified, uncommitted)
+- `src/knowledge/clinical_standards.py` (modified, uncommitted)
+- `src/mcp_tools/cdisc_validator.py` (modified, uncommitted)
+- `src/mcp_tools/ctgov_fetcher.py` (modified, uncommitted)
+- `src/mcp_tools/edc_importer.py` (modified, uncommitted)
+- `src/mcp_tools/server.py` (modified, uncommitted)
+- `src/runtime/agent_loop.py` (modified, uncommitted)
+- `src/runtime/review_protocol.py` (modified, uncommitted)
+- `src/runtime/router.py` (modified, uncommitted)
+- `src/skills/definitions.py` (modified, uncommitted)

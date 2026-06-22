@@ -5,7 +5,7 @@ SDTM Mapping Agent — autonomously maps raw clinical data to SDTM domains.
 from dataclasses import dataclass, field
 from typing import Any
 
-from ..mcp_tools.sdtm_spec_builder import STANDARD_DOMAINS, CRF2SDTMMapping, generate_sdtm_spec
+from ..mcp_tools.sdtm_spec_builder import STANDARD_DOMAINS, generate_sdtm_spec
 
 
 @dataclass

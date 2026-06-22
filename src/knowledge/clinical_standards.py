@@ -3,7 +3,7 @@ Clinical Workflow Knowledge Base.
 Contains CDISC standards, regulatory guidance, and domain-specific knowledge.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 

@@ -35,7 +35,7 @@ from typing import Any, Callable
 
 from .review_protocol import (
     ReviewPacket, ReviewFinding, DecisionReceipt,
-    ReviewType, ReviewQueue, FindingCategory, Severity,
+    ReviewQueue, FindingCategory, Severity,
     Decision, Urgency, ReviewType,
     OUTPUT_FORMAT_SPECS,
     new_review_packet, make_finding_id,
@@ -45,14 +45,10 @@ from .review_protocol import (
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from src.agents.base import (
     BaseAgent, AgentConfig, AgentContext,
-    Confidence, AgentRole,
+    AgentRole,
 )
 from src.agents.executors import (
     ProtocolSAPAgent, DataStandardsAgent, TFLQCSubmissionAgent,
-    get_executor_for_stage,
-)
-from src.change_management.change_record import (
-    ChangeRecord, FileChange, ChangeType, ImpactType,
 )
 
 logger = logging.getLogger(__name__)

@@ -15,7 +15,7 @@ from typing import Any
 
 from .base import (
     BaseAgent, AgentConfig, AgentContext,
-    Confidence, Severity, ReviewLevel, AgentRole,
+    AgentRole,
 )
 from ..legacy.arbitration import ArbitrationHistory
 

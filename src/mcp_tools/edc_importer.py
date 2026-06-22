@@ -18,7 +18,6 @@ from dataclasses import dataclass, field
 from typing import Any
 from pathlib import Path
 import csv
-import json
 
 
 @dataclass
@@ -302,15 +301,15 @@ def generate_import_report(results: list[ImportResult],
                             manifest: EDCManifest) -> str:
     """生成人类可读的导入报告"""
     lines = [
-        f"EDC Data Import Report",
-        f"=" * 60,
+        "EDC Data Import Report",
+        "=" * 60,
         f"Study:        {manifest.study_id}",
         f"EDC System:   {manifest.edc_system}",
         f"Export Date:  {manifest.export_date or 'N/A'}",
         f"Export Format: {manifest.export_format}",
-        f"",
-        f"Domain  Source File          Rows    Vars  Missing%  Status",
-        f"-" * 60,
+        "",
+        "Domain  Source File          Rows    Vars  Missing%  Status",
+        "-" * 60,
     ]
 
     for r in results:
@@ -322,7 +321,7 @@ def generate_import_report(results: list[ImportResult],
         for err in r.errors:
             lines.append(f"         ⚠ {err}")
 
-    lines.append(f"-" * 60)
+    lines.append("-" * 60)
     total_rows = sum(r.rows_imported for r in results)
     lines.append(f"Total: {len(results)} domains, {total_rows} records imported")
 

@@ -3,7 +3,7 @@ MCP Tool: CDISC Validator
 Runs CDISC compliance checks (Pinnacle 21-style validation).
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
 

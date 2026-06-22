@@ -20,6 +20,11 @@ dev = [
     "ruff",
 ]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-p no:asyncio"
+pythonpath = ["."]
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"

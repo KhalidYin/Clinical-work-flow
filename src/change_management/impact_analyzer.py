@@ -5,8 +5,6 @@ ImpactAnalyzer — 下游影响分析引擎。
 """
 
 from dataclasses import dataclass, field
-from typing import Any
-from collections import defaultdict
 
 
 # ── 产物依赖图 (硬编码 + 可从配置文件加载) ────────────────────
