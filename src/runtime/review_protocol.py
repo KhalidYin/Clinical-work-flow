@@ -18,11 +18,33 @@ Design principles:
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
+
+
+REVIEW_PROTOCOL_SCHEMA_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "schemas"
+    / "review"
+    / "review-protocol.schema.json"
+)
+
+
+def load_review_protocol_schema() -> dict[str, Any]:
+    """Load the authoritative Review Protocol JSON Schema bundle."""
+    return json.loads(REVIEW_PROTOCOL_SCHEMA_PATH.read_text(encoding="utf-8"))
+
+
+def _schema_definition(schema_bundle: dict[str, Any], name: str) -> dict[str, Any]:
+    """Return a standalone schema definition with shared $defs available."""
+    schema = deepcopy(schema_bundle["$defs"][name])
+    schema.setdefault("$schema", schema_bundle["$schema"])
+    schema["$defs"] = deepcopy(schema_bundle["$defs"])
+    return schema
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -84,264 +106,20 @@ class Urgency(StrEnum):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# JSON Schema Definitions — the "format contract"
+# JSON Schema Definitions — loaded from the repository schema bundle
 # ═══════════════════════════════════════════════════════════════════
 
-# These schemas are used at the Agent SDK level (schema parameter)
-# to enforce structure. The agent CANNOT produce output that violates
-# these schemas — the API layer rejects it before it reaches the file.
-
-REVIEW_FINDING_SCHEMA: dict[str, Any] = {
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://clinical-workflow/schemas/review-finding",
-    "title": "ReviewFinding",
-    "description": (
-        "A single finding that requires human attention. "
-        "Every field is required — the agent cannot skip any."
-    ),
-    "type": "object",
-    "required": [
-        "id", "category", "severity", "location",
-        "title", "current_value", "proposed_value",
-        "rationale", "evidence_refs", "auto_approved",
-    ],
-    "properties": {
-        "id": {
-            "type": "string",
-            "description": "Unique finding identifier, e.g. F-001",
-            "pattern": "^F-[0-9]{3,}$",
-        },
-        "category": {
-            "type": "string",
-            "enum": [c.value for c in FindingCategory],
-            "description": "Fixed category — drives Review Panel filter tabs",
-        },
-        "severity": {
-            "type": "string",
-            "enum": [s.value for s in Severity],
-            "description": "Critical=red/blocking, Warning=yellow, Info=blue/collapsed",
-        },
-        "location": {
-            "type": "string",
-            "description": "Precise location: file:line or dataset.variable",
-            "minLength": 3,
-        },
-        "title": {
-            "type": "string",
-            "description": "One-line summary — human should understand at a glance",
-            "minLength": 5,
-            "maxLength": 200,
-        },
-        "current_value": {
-            "type": "string",
-            "description": "What's there now (or 'N/A' if new)",
-        },
-        "proposed_value": {
-            "type": "string",
-            "description": "What agent recommends",
-        },
-        "rationale": {
-            "type": "string",
-            "description": "Agent's reasoning with CDISC/regulatory citation",
-            "minLength": 10,
-        },
-        "evidence_refs": {
-            "type": "array",
-            "items": {"type": "string"},
-            "minItems": 1,
-            "description": "At least one reference to a standard/rule (e.g. 'CDISC SDTMIG v3.4 §6.1')",
-        },
-        "auto_approved": {
-            "type": "boolean",
-            "default": False,
-            "description": "True if agent auto-approved — hidden by default in panel",
-        },
-    },
-    "additionalProperties": False,
-}
-
-
-REVIEW_PACKET_SCHEMA: dict[str, Any] = {
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://clinical-workflow/schemas/review-packet",
-    "title": "ReviewPacket",
-    "description": (
-        "Complete review submission from agent to human. "
-        "Contains all findings for one review cycle. "
-        "Rendered as a single-page review form in Review Panel."
-    ),
-    "type": "object",
-    "required": [
-        "review_id", "review_type", "source_documents",
-        "agent_summary", "findings", "urgency",
-        "created_at", "generated_by", "auto_approved_count",
-    ],
-    "properties": {
-        "review_id": {
-            "type": "string",
-            "description": "Unique review identifier, e.g. 'sdtm_ae_review_v2_001'",
-            "pattern": "^[a-z]+_[a-z0-9_]+_v[0-9]+_[0-9]{3}$",
-        },
-        "review_type": {
-            "type": "string",
-            "enum": [r.value for r in ReviewType],
-        },
-        "source_documents": {
-            "type": "array",
-            "items": {"type": "string"},
-            "minItems": 1,
-            "description": "Files this review depends on (relative to project root)",
-        },
-        "agent_summary": {
-            "type": "string",
-            "description": (
-                "Natural-language overview of what was done and why review is needed. "
-                "Max 500 chars — shown at top of Review Panel as context."
-            ),
-            "minLength": 10,
-            "maxLength": 500,
-        },
-        "findings": {
-            "type": "array",
-            "items": {"$ref": "#/$defs/review_finding"},
-            "minItems": 1,
-            "description": "At least one finding. Agent cannot submit empty review.",
-        },
-        "urgency": {
-            "type": "string",
-            "enum": [u.value for u in Urgency],
-        },
-        "created_at": {
-            "type": "string",
-            "format": "date-time",
-        },
-        "generated_by": {
-            "type": "string",
-            "description": "Agent name + model that generated this",
-        },
-        "auto_approved_count": {
-            "type": "integer",
-            "minimum": 0,
-            "description": "How many decisions agent made automatically (for transparency)",
-        },
-    },
-    "$defs": {
-        "review_finding": REVIEW_FINDING_SCHEMA,
-    },
-    "additionalProperties": False,
-}
-
-
-DECISION_RECEIPT_SCHEMA: dict[str, Any] = {
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://clinical-workflow/schemas/decision-receipt",
-    "title": "DecisionReceipt",
-    "description": (
-        "Human's structured response to a ReviewPacket. "
-        "One decision per finding. Generated by Review Panel on Submit."
-    ),
-    "type": "object",
-    "required": ["review_id", "reviewer", "timestamp", "decisions"],
-    "properties": {
-        "review_id": {
-            "type": "string",
-            "description": "Matches the review_id of the ReviewPacket being responded to",
-        },
-        "reviewer": {
-            "type": "string",
-            "description": "Human reviewer identifier (name/email)",
-            "minLength": 2,
-        },
-        "timestamp": {
-            "type": "string",
-            "format": "date-time",
-        },
-        "decisions": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "required": ["finding_id", "decision"],
-                "properties": {
-                    "finding_id": {"type": "string"},
-                    "decision": {
-                        "type": "string",
-                        "enum": [d.value for d in Decision],
-                    },
-                    "modified_value": {
-                        "type": "string",
-                        "description": "Required if decision=modified, else null",
-                    },
-                    "rejection_reason": {
-                        "type": "string",
-                        "enum": [r.value for r in RejectionReason],
-                        "description": "Required if decision=rejected",
-                    },
-                    "human_correction": {
-                        "type": "string",
-                        "minLength": 10,
-                        "description": (
-                            "Human correction or direction. Required for rejected "
-                            "decisions unless rejection_reason=insufficient_evidence."
-                        ),
-                    },
-                    "reference": {
-                        "type": "string",
-                        "description": "Optional authoritative source supplied by the reviewer",
-                    },
-                    "comment": {
-                        "type": "string",
-                        "maxLength": 500,
-                        "description": "Optional context for agent",
-                    },
-                },
-                "additionalProperties": False,
-                "allOf": [
-                    {
-                        "if": {
-                            "properties": {"decision": {"const": "modified"}},
-                            "required": ["decision"],
-                        },
-                        "then": {
-                            "required": ["modified_value"],
-                            "properties": {
-                                "modified_value": {"minLength": 1},
-                            },
-                        },
-                    },
-                    {
-                        "if": {
-                            "properties": {"decision": {"const": "rejected"}},
-                            "required": ["decision"],
-                        },
-                        "then": {
-                            "required": ["rejection_reason"],
-                            "allOf": [
-                                {
-                                    "if": {
-                                        "properties": {
-                                            "rejection_reason": {
-                                                "not": {"const": "insufficient_evidence"}
-                                            }
-                                        },
-                                        "required": ["rejection_reason"],
-                                    },
-                                    "then": {"required": ["human_correction"]},
-                                },
-                            ],
-                        },
-                    },
-                ],
-            },
-            "minItems": 1,
-        },
-        "general_notes": {
-            "type": "string",
-            "maxLength": 1000,
-            "description": "Optional overall feedback",
-        },
-    },
-    "additionalProperties": False,
-}
+# The exported schema constants below are intentionally loaded from the
+# repository-level JSON Schema bundle. Keep the JSON file authoritative and use
+# tests to catch any drift in Python enums or TypeScript review-panel types.
+REVIEW_PROTOCOL_SCHEMA = load_review_protocol_schema()
+REVIEW_FINDING_SCHEMA = _schema_definition(REVIEW_PROTOCOL_SCHEMA, "review_finding")
+REVIEW_PACKET_SCHEMA = _schema_definition(REVIEW_PROTOCOL_SCHEMA, "review_packet")
+FINDING_DECISION_SCHEMA = _schema_definition(REVIEW_PROTOCOL_SCHEMA, "finding_decision")
+DECISION_RECEIPT_SCHEMA = _schema_definition(REVIEW_PROTOCOL_SCHEMA, "decision_receipt")
+CONFIRMATION_RECEIPT_SCHEMA = _schema_definition(
+    REVIEW_PROTOCOL_SCHEMA, "confirmation_receipt"
+)
 
 
 # ═══════════════════════════════════════════════════════════════════

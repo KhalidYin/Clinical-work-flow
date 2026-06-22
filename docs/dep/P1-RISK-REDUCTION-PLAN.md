@@ -1,7 +1,7 @@
 # P1 风险收敛计划
 
 > 日期: 2026-06-22
-> 状态: Draft — P1-0/P1-A completed
+> 状态: Draft — P1-0/P1-A/P1-B completed
 > 范围: 只定义实施顺序、契约边界和验收门禁；暂不实现业务逻辑。
 
 ## 目标
@@ -16,7 +16,7 @@ P1 的首要目标不是继续扩展 UI，而是先把三个基础合同固定�
 
 | 风险 | 当前状态 | 影响 | 收敛动作 |
 |------|----------|------|----------|
-| Review schema 三份定义漂移 | SPEC JSON Schema、`review_protocol.py`、`review_panel/src/schema.ts` 各自维护 | 前后端可能接受不同数据，合规记录不一致 | 引入单一 JSON Schema 源，并生成或校验 Python/TS 类型 |
+| Review schema 三份定义漂移 | 已完成 P1-B；`schemas/review/review-protocol.schema.json` 为权威源，Python 常量从该文件加载，TS drift tests 已覆盖 | 前后端漂移风险已纳入测试门禁 | P1-D 再让 Review Panel 运行时直接消费 schema |
 | Review Panel 只写回文件 | Runtime 目前主要记录日志，没有按决策修改产物或写 confirmation | 审核闭环未完成，流程停在“收件箱” | 先设计 decision application service，再接 Runtime |
 | `project.yaml` 太薄 | 已完成 P1-A；schema、loader、minimal fixture 已落地 | 后续 Runtime/Review 功能可共享同一配置合同 | P1-B/P1-C 继续基于该配置合同扩展 |
 | 测试环境依赖全局状态 | 普通 `pytest` 会加载不兼容的全局 `pytest_asyncio` | 新人或 CI 直接失败 | 在仓库 pytest 配置中禁用该插件，并把 ruff 纳入门禁 |
@@ -50,13 +50,13 @@ P1 的首要目标不是继续扩展 UI，而是先把三个基础合同固定�
 
 ### Step 2: Review schema 单一权威来源
 
-**推荐方案**
+**已采用方案**
 
 以 JSON Schema 作为权威源：
 
 - `schemas/review/review-protocol.schema.json`
-- Python Runtime 使用该 schema 做严格验证，dataclass/Pydantic 只作为便利对象。
-- TypeScript 使用该 schema 生成 types，或用 Ajv 在 extension 端运行时校验。
+- Python Runtime 导出的 `REVIEW_*_SCHEMA` 常量从该 schema bundle 加载。
+- TypeScript 当前保留轻量手写类型，但通过 drift tests 与 JSON Schema 对齐。
 - SPEC-15 保留说明，不再复制大段可漂移 schema。
 
 **不推荐方案**
@@ -72,9 +72,10 @@ P1 的首要目标不是继续扩展 UI，而是先把三个基础合同固定�
 
 **验收标准**
 
-- Python 和 TypeScript 的枚举值来自同一个 JSON Schema。
-- `rejection_reason` 条件约束只在 schema 中定义一次。
-- 测试包含 schema drift check：Python 常量、TS snapshot 和 JSON Schema 枚举必须一致。
+- Python 和 TypeScript 的枚举值来自同一个 JSON Schema。已覆盖。
+- `rejection_reason` 条件约束只在 schema 中定义一次。已覆盖。
+- 测试包含 schema drift check：Python 常量、TS snapshot 和 JSON Schema 枚举必须一致。已覆盖。
+- 运行时 Ajv 校验、schema type generation、CLI validate-review 命令延后到 P1-D 或独立工具化批次。
 
 ### Step 3: DecisionReceipt 应用闭环
 

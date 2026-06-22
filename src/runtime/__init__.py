@@ -16,9 +16,10 @@ from .router import Router, RouteResult, CAPABILITY_REGISTRY, parse_intent
 from .review_protocol import (
     ReviewPacket, ReviewFinding,
     DecisionReceipt, FindingDecision,
-    ReviewType, FindingCategory, Severity, Decision, Urgency,
+    ReviewType, FindingCategory, Severity, Decision, RejectionReason, Urgency,
     ReviewQueue,
-    REVIEW_PACKET_SCHEMA, REVIEW_FINDING_SCHEMA, DECISION_RECEIPT_SCHEMA,
+    REVIEW_PROTOCOL_SCHEMA, REVIEW_PACKET_SCHEMA, REVIEW_FINDING_SCHEMA,
+    FINDING_DECISION_SCHEMA, DECISION_RECEIPT_SCHEMA, CONFIRMATION_RECEIPT_SCHEMA,
     OUTPUT_FORMAT_SPECS,
     validate_review_packet, validate_decision_receipt,
     new_review_packet, make_review_id, make_finding_id,
@@ -44,13 +45,17 @@ __all__ = [
     "FindingCategory",
     "Severity",
     "Decision",
+    "RejectionReason",
     "Urgency",
     # Review Protocol — Queue
     "ReviewQueue",
     # Review Protocol — Schemas
+    "REVIEW_PROTOCOL_SCHEMA",
     "REVIEW_PACKET_SCHEMA",
     "REVIEW_FINDING_SCHEMA",
+    "FINDING_DECISION_SCHEMA",
     "DECISION_RECEIPT_SCHEMA",
+    "CONFIRMATION_RECEIPT_SCHEMA",
     "OUTPUT_FORMAT_SPECS",
     # Review Protocol — Validation
     "validate_review_packet",

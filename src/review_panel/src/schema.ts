@@ -1,3 +1,6 @@
+// Authoritative contract: schemas/review/review-protocol.schema.json.
+// Keep this thin TypeScript layer in sync through schema drift tests.
+
 export type ReviewType =
   | "sdtm_spec"
   | "adam_spec"

@@ -230,6 +230,11 @@
 
 ## 4. JSON Schema 定义（规范层）
 
+> **权威源**: 运行时使用的 Review Protocol JSON Schema 位于
+> `schemas/review/review-protocol.schema.json`。本节保留为规格说明，
+> Python Runtime 的 `REVIEW_*_SCHEMA` 常量应从该文件加载；Review Panel
+> TypeScript 类型必须通过 drift tests 与该文件保持一致。
+
 ### 4.1 REVIEW_FINDING_SCHEMA
 
 ```json

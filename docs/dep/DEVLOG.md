@@ -252,3 +252,41 @@
 - `docs/specs/13-Environment-Files.md` (modified, uncommitted)
 - `docs/dep/P1-RISK-REDUCTION-PLAN.md` (modified, uncommitted)
 - `docs/dep/DEVLOG.md` (modified, uncommitted)
+
+---
+
+### Round 7 [14:29]
+
+#### Done
+- 完成 P1-B：新增 `schemas/review/review-protocol.schema.json`，作为 Review Protocol 的单一 JSON Schema 权威源。
+- 更新 `src/runtime/review_protocol.py`，Python `REVIEW_*_SCHEMA` / `FINDING_DECISION_SCHEMA` / `CONFIRMATION_RECEIPT_SCHEMA` 常量均从 schema bundle 加载，并删除旧的内联 schema 字典。
+- 更新 `src/runtime/__init__.py`，导出 Review schema bundle、finding decision schema、confirmation receipt schema 和 `RejectionReason`。
+- 为 Review Panel TypeScript 类型增加权威源注释，并新增 `tests/test_review_schema_contract.py`，覆盖 Python enum、Python 导出 schema、TypeScript union 与 JSON Schema 的漂移检查。
+- 更新 SPEC-15 与 P1 风险收敛计划，将 P1-B 标记为完成，并明确 Ajv/runtime schema consumption 延后到 P1-D 或工具化批次。
+
+#### Issues / Blockers
+- Review Panel 当前仍保留轻量手写 TypeScript 类型，本轮通过 drift tests 约束它；运行时直接消费 JSON Schema、Ajv 校验和 schema type generation 尚未接入。
+- Runtime 尚未应用 DecisionReceipt 修改真实产物；Review 闭环仍需 P1-C 的 decision application service + ConfirmationReceipt。
+
+#### Validation
+- `python -m ruff check src tests` (success)
+- `python -B -m pytest` (24 passed)
+- `npm run compile` (success, in `src/review_panel/`)
+- `rg --files -g '*.pyc' -g '__pycache__'` (no results)
+- `git diff --check` (no whitespace errors; only LF/CRLF warnings)
+
+#### Next
+1. P1-C: 设计并实现 `src/runtime/decision_application.py`，先覆盖 YAML/spec 类产物的 approved / modified / rejected / insufficient_evidence。
+2. 为 P1-C 增加 fixture：ReviewPacket + DecisionReceipt + artifact input，断言写出 ConfirmationReceipt。
+3. P1-D: Review Panel 运行时直接消费 `schemas/review/review-protocol.schema.json`，并把 fixture 流程接到 extension 侧。
+
+#### Files Changed / Commits
+- `schemas/review/review-protocol.schema.json` (added, uncommitted)
+- `src/runtime/review_protocol.py` (modified, uncommitted)
+- `src/runtime/__init__.py` (modified, uncommitted)
+- `src/review_panel/src/schema.ts` (modified, uncommitted)
+- `tests/test_review_schema_contract.py` (added, uncommitted)
+- `docs/specs/15-Review-Protocol.md` (modified, uncommitted)
+- `docs/dep/P1-RISK-REDUCTION-PLAN.md` (modified, uncommitted)
+- `docs/dep/DEVLOG.md` (modified, uncommitted)
+- `docs/dep/TASK_STATE.md` (temporary checkpoint, removed)
