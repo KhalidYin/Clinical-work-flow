@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://clinical-workflow/schemas/project",
+  "title": "Clinical Workflow Project Configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "study_id",
+    "protocol_id",
+    "trial_phase",
+    "therapeutic_area",
+    "primary_language",
+    "qc_language",
+    "sponsor",
+    "created_at",
+    "standards",
+    "review_timeout",
+    "review_assignments",
+    "paths"
+  ],
+  "properties": {
+    "study_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "protocol_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "trial_phase": {
+      "enum": ["phase_i", "phase_ii", "phase_iii", "phase_iv"]
+    },
+    "therapeutic_area": {
+      "enum": ["oncology", "cardiovascular", "diabetes", "respiratory", "non_oncology", "other"]
+    },
+    "primary_language": {
+      "enum": ["sas", "r", "python"]
+    },
+    "qc_language": {
+      "enum": ["sas", "r", "python"]
+    },
+    "sponsor": {
+      "type": "string",
+      "minLength": 1
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "standards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sdtm_version",
+        "sdtmig_version",
+        "adam_version",
+        "adamig_version",
+        "ct_version"
+      ],
+      "properties": {
+        "sdtm_version": { "type": "string", "minLength": 1 },
+        "sdtmig_version": { "type": "string", "minLength": 1 },
+        "adam_version": { "type": "string", "minLength": 1 },
+        "adamig_version": { "type": "string", "minLength": 1 },
+        "ct_version": { "type": "string", "minLength": 1 }
+      }
+    },
+    "review_timeout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reminder_hours",
+        "escalation_hours",
+        "stale_hours",
+        "stale_action"
+      ],
+      "properties": {
+        "reminder_hours": { "type": "integer", "minimum": 1 },
+        "escalation_hours": { "type": "integer", "minimum": 1 },
+        "stale_hours": { "type": "integer", "minimum": 1 },
+        "stale_action": { "enum": ["continue", "pause"] }
+      }
+    },
+    "review_assignments": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sap_review",
+        "sdtm_spec",
+        "adam_spec",
+        "tfl_shell",
+        "tfl_qc",
+        "submission"
+      ],
+      "properties": {
+        "sap_review": { "$ref": "#/$defs/review_assignment" },
+        "sdtm_spec": { "$ref": "#/$defs/review_assignment" },
+        "adam_spec": { "$ref": "#/$defs/review_assignment" },
+        "tfl_shell": { "$ref": "#/$defs/review_assignment" },
+        "tfl_qc": { "$ref": "#/$defs/review_assignment" },
+        "submission": { "$ref": "#/$defs/review_assignment" }
+      }
+    },
+    "paths": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "input_dir",
+        "output_dir",
+        "review_queue_dir",
+        "audit_log"
+      ],
+      "properties": {
+        "input_dir": { "type": "string", "minLength": 1 },
+        "output_dir": { "type": "string", "minLength": 1 },
+        "review_queue_dir": { "type": "string", "minLength": 1 },
+        "audit_log": { "type": "string", "minLength": 1 }
+      }
+    }
+  },
+  "$defs": {
+    "review_assignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reviewers", "consensus"],
+      "properties": {
+        "reviewers": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "consensus": {
+          "enum": ["all_must_approve", "majority", "any_one"]
+        }
+      }
+    }
+  }
+}

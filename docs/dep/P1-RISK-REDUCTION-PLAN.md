@@ -1,7 +1,7 @@
 # P1 风险收敛计划
 
 > 日期: 2026-06-22
-> 状态: Draft — P1-0 completed
+> 状态: Draft — P1-0/P1-A completed
 > 范围: 只定义实施顺序、契约边界和验收门禁；暂不实现业务逻辑。
 
 ## 目标
@@ -18,7 +18,7 @@ P1 的首要目标不是继续扩展 UI，而是先把三个基础合同固定�
 |------|----------|------|----------|
 | Review schema 三份定义漂移 | SPEC JSON Schema、`review_protocol.py`、`review_panel/src/schema.ts` 各自维护 | 前后端可能接受不同数据，合规记录不一致 | 引入单一 JSON Schema 源，并生成或校验 Python/TS 类型 |
 | Review Panel 只写回文件 | Runtime 目前主要记录日志，没有按决策修改产物或写 confirmation | 审核闭环未完成，流程停在“收件箱” | 先设计 decision application service，再接 Runtime |
-| `project.yaml` 太薄 | 只有 study 基本字段 | 无法驱动 review timeout、review assignments、standards version、fixture | 先定 schema，再写 loader 和 fixtures |
+| `project.yaml` 太薄 | 已完成 P1-A；schema、loader、minimal fixture 已落地 | 后续 Runtime/Review 功能可共享同一配置合同 | P1-B/P1-C 继续基于该配置合同扩展 |
 | 测试环境依赖全局状态 | 普通 `pytest` 会加载不兼容的全局 `pytest_asyncio` | 新人或 CI 直接失败 | 在仓库 pytest 配置中禁用该插件，并把 ruff 纳入门禁 |
 | ruff 尚无干净基线 | 已完成 P1-0；`python -m ruff check src tests` 通过 | 直接设为硬门禁的阻塞已解除 | 后续所有批次把 ruff 纳入验证门禁 |
 
@@ -26,7 +26,7 @@ P1 的首要目标不是继续扩展 UI，而是先把三个基础合同固定�
 
 ### Step 1: 固定 `project.yaml` schema
 
-**建议新增文件**
+**已新增文件**
 
 - `schemas/project.schema.json`
 - `src/config/project.py`
@@ -44,9 +44,9 @@ P1 的首要目标不是继续扩展 UI，而是先把三个基础合同固定�
 
 **验收标准**
 
-- 缺失必填字段时 loader 明确报错。
-- Runtime 初始化可以从 `project.yaml` 覆盖 CLI 默认值。
-- fixture study 能被测试读取，不需要真实临床数据。
+- 缺失必填字段时 loader 明确报错。已覆盖。
+- Runtime 初始化可以从 `project.yaml` 覆盖 CLI 默认值。已覆盖。
+- fixture study 能被测试读取，不需要真实临床数据。已覆盖。
 
 ### Step 2: Review schema 单一权威来源
 

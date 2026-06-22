@@ -33,6 +33,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
+from src.config.project import ProjectConfig, load_project_config, resolve_project_path
+
 from .review_protocol import (
     ReviewPacket, ReviewFinding, DecisionReceipt,
     ReviewQueue, FindingCategory, Severity,
@@ -98,10 +100,14 @@ class LoopState:
         }
 
     @classmethod
-    def from_project(cls, project_dir: str | Path) -> "LoopState":
+    def from_project(
+        cls,
+        project_dir: str | Path,
+        queue_dir: str | Path | None = None,
+    ) -> "LoopState":
         """Reconstruct state from what's on disk."""
         pd = Path(project_dir)
-        queue = ReviewQueue(pd)
+        queue = ReviewQueue(pd, queue_dir=queue_dir)
         stats = queue.queue_stats()
         return cls(
             project_dir=pd,
@@ -180,15 +186,38 @@ class AgentRuntime:
     require_review_for_critical: bool = True
     git_auto_commit: bool = True
     max_iterations: int = 100
+    project_config: ProjectConfig | None = field(default=None, init=False)
+    input_dir: Path | None = field(default=None, init=False)
+    output_dir: Path | None = field(default=None, init=False)
 
     def __post_init__(self) -> None:
         if isinstance(self.project_dir, str):
             self.project_dir = Path(self.project_dir)
         self.project_dir.mkdir(parents=True, exist_ok=True)
 
-        self.review_queue = ReviewQueue(self.project_dir)
-        self.audit_log_path = self.project_dir / "audit_trail.jsonl"
-        self.state = LoopState.from_project(self.project_dir)
+        self.project_config = load_project_config(self.project_dir, required=False)
+        if self.project_config:
+            self.study_id = self.project_config.study_id
+            self.trial_phase = self.project_config.trial_phase
+            self.therapeutic_area = self.project_config.therapeutic_area
+            self.input_dir = resolve_project_path(
+                self.project_dir, self.project_config.paths.input_dir
+            )
+            self.output_dir = resolve_project_path(
+                self.project_dir, self.project_config.paths.output_dir
+            )
+            review_queue_dir = self.project_config.paths.review_queue_dir
+            self.audit_log_path = resolve_project_path(
+                self.project_dir, self.project_config.paths.audit_log
+            )
+        else:
+            self.input_dir = self.project_dir / "input"
+            self.output_dir = self.project_dir / "output"
+            review_queue_dir = ".review_queue"
+            self.audit_log_path = self.project_dir / "audit_trail.jsonl"
+
+        self.review_queue = ReviewQueue(self.project_dir, queue_dir=review_queue_dir)
+        self.state = LoopState.from_project(self.project_dir, queue_dir=review_queue_dir)
         self.state.study_id = self.study_id
         self.state.trial_phase = self.trial_phase
         self.state.therapeutic_area = self.therapeutic_area
@@ -283,6 +312,9 @@ class AgentRuntime:
             "trial_phase": self.trial_phase,
             "therapeutic_area": self.therapeutic_area,
             "iteration": self.state.iteration,
+            "project_config": (
+                self.project_config.to_runtime_context() if self.project_config else None
+            ),
 
             # What exists on disk?
             "files": {
@@ -315,7 +347,7 @@ class AgentRuntime:
         """Read canonical output/ paths and legacy outputs/ paths during migration."""
         files: list[Path] = []
         for root, parts in [
-            (self.project_dir / "output", canonical_parts),
+            (self.output_dir or self.project_dir / "output", canonical_parts),
             (self.project_dir / "outputs", legacy_parts),
         ]:
             path = root.joinpath(*parts)
@@ -759,6 +791,7 @@ class AgentRuntime:
             "study_id": self.study_id,
             "trial_phase": self.trial_phase,
             "therapeutic_area": self.therapeutic_area,
+            "project_config_loaded": self.project_config is not None,
             "iteration": self.state.iteration if self.state else 0,
             "executors": list(self.executors.keys()),
             "tools_registered": len(self.tool_registry),

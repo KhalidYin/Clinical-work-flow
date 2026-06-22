@@ -213,3 +213,42 @@
 - `src/runtime/review_protocol.py` (modified, uncommitted)
 - `src/runtime/router.py` (modified, uncommitted)
 - `src/skills/definitions.py` (modified, uncommitted)
+
+---
+
+### Round 6 [13:29]
+
+#### Done
+- 完成 P1-A：新增 `schemas/project.schema.json`，将 `project.yaml` 扩展为 Study 级配置合同。
+- 新增 `src/config/project.py`，提供 Pydantic loader、清晰错误封装和相对路径解析。
+- 更新 `AgentRuntime`，当 study 目录存在 `project.yaml` 时，以配置文件覆盖 CLI/default 的 `study_id`、`trial_phase`、`therapeutic_area`，并从配置读取 `output_dir`、`.review_queue` 和 `audit_trail.jsonl` 路径。
+- 扩展 `ReviewQueue`，允许 Runtime 传入自定义 review queue 路径，同时保留默认 `.review_queue`。
+- 新增 minimal study fixture 和 `tests/test_project_config.py`，覆盖 schema contract、loader、缺字段错误、timeout 顺序校验和 Runtime 配置覆盖。
+- 更新 SPEC-13 的 `project.yaml` 示例、字段表和 runbook；更新 P1 风险收敛计划，将 P1-A 标记为完成。
+
+#### Issues / Blockers
+- `project.yaml` schema 已定，但尚未接入 Review schema 单一权威源；下一步仍需执行 P1-B。
+- Runtime 目前只读取配置上下文和路径，不在本轮实现 DecisionReceipt application。
+
+#### Validation
+- `python -m ruff check src tests` (success)
+- `python -B -m pytest` (19 passed)
+- `npm run compile` (success, in `src/review_panel/`)
+- `rg --files -g '*.pyc' -g '__pycache__'` (no results)
+
+#### Next
+1. P1-B: Review JSON Schema 单一权威源 + Python/TypeScript schema drift tests。
+2. P1-C: DecisionReceipt application service + ConfirmationReceipt 闭环。
+3. P1-D: Review Panel schema consumption + fixture integration。
+
+#### Files Changed / Commits
+- `schemas/project.schema.json` (added, uncommitted)
+- `src/config/__init__.py` (modified, uncommitted)
+- `src/config/project.py` (added, uncommitted)
+- `src/runtime/agent_loop.py` (modified, uncommitted)
+- `src/runtime/review_protocol.py` (modified, uncommitted)
+- `tests/fixtures/studies/minimal/project.yaml` (added, uncommitted)
+- `tests/test_project_config.py` (added, uncommitted)
+- `docs/specs/13-Environment-Files.md` (modified, uncommitted)
+- `docs/dep/P1-RISK-REDUCTION-PLAN.md` (modified, uncommitted)
+- `docs/dep/DEVLOG.md` (modified, uncommitted)

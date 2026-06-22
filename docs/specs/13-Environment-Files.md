@@ -373,11 +373,50 @@ Reviewed: 2026-05-02 (Human Review)
 study_id: "STUDY-ABC123"
 protocol_id: "PROT-ONC-301"
 trial_phase: "phase_iii"          # phase_i | phase_ii | phase_iii | phase_iv
-therapeutic_area: "oncology"       # oncology | cardiovascular | diabetes | respiratory | other
-primary_language: "sas"            # sas | r
+therapeutic_area: "oncology"       # oncology | cardiovascular | diabetes | respiratory | non_oncology | other
+primary_language: "sas"            # sas | r | python
 qc_language: "r"                   # 用于双编程 QC 的对照语言 (SPEC-17)
 sponsor: "Sponsor Name"
 created_at: "2026-01-15T10:00:00Z"
+
+standards:
+  sdtm_version: "2.0"
+  sdtmig_version: "3.4"
+  adam_version: "2.1"
+  adamig_version: "1.3"
+  ct_version: "2024-03"
+
+review_timeout:
+  reminder_hours: 24
+  escalation_hours: 72
+  stale_hours: 168
+  stale_action: "continue"         # continue | pause
+
+review_assignments:
+  sap_review:
+    reviewers: ["lead_biostatistician", "lead_programmer"]
+    consensus: "all_must_approve"
+  sdtm_spec:
+    reviewers: ["lead_programmer", "data_manager"]
+    consensus: "all_must_approve"
+  adam_spec:
+    reviewers: ["lead_biostatistician", "lead_programmer"]
+    consensus: "all_must_approve"
+  tfl_shell:
+    reviewers: ["medical_writer", "lead_biostatistician"]
+    consensus: "all_must_approve"
+  tfl_qc:
+    reviewers: ["qc_programmer", "lead_programmer"]
+    consensus: "all_must_approve"
+  submission:
+    reviewers: ["lead_programmer", "regulatory_lead"]
+    consensus: "all_must_approve"
+
+paths:
+  input_dir: "input"
+  output_dir: "output"
+  review_queue_dir: ".review_queue"
+  audit_log: "audit_trail.jsonl"
 ```
 
 **字段说明：**
@@ -392,8 +431,13 @@ created_at: "2026-01-15T10:00:00Z"
 | `qc_language` | enum | 是 | QC 对照语言（双编程） |
 | `sponsor` | string | 是 | 申办方名称 |
 | `created_at` | ISO 8601 | 是 | Study 创建时间 |
+| `standards` | object | 是 | Study 锁定的 CDISC/CT 标准版本 |
+| `review_timeout` | object | 是 | blocking review 的提醒、升级与停滞策略 |
+| `review_assignments` | object | 是 | 各 review_type 的默认审核角色与 consensus rule |
+| `paths` | object | 是 | Runtime 扫描 input/output/review/audit 的路径 |
 
 > **设计原则**: `project.yaml` 不存储管线状态。管线进度完全由文件系统推导（见 §3.6）。
+> Schema 权威文件为 `schemas/project.schema.json`；Runtime loader 位于 `src/config/project.py`。
 
 ### 3.6 状态推导规则（替代集中式状态文件）
 
@@ -598,16 +642,8 @@ m5/datasets/{study-id}/
 cp -r study_template/ study_template/STUDY-ABC123
 
 # 2. 创建 project.yaml（Study 配置）
-cat > study_template/STUDY-ABC123/project.yaml << 'EOF'
-study_id: "STUDY-ABC123"
-protocol_id: "PROT-ONC-301"
-trial_phase: "phase_iii"
-therapeutic_area: "oncology"
-primary_language: "sas"
-qc_language: "r"
-sponsor: "Sponsor Name"
-created_at: "2026-01-15T10:00:00Z"
-EOF
+#    从 minimal fixture 复制后按 §3.5 填写 study_id/protocol_id/sponsor 等字段
+cp tests/fixtures/studies/minimal/project.yaml study_template/STUDY-ABC123/project.yaml
 
 # 3. 放置 EDC 数据
 #    将 EDC 导出 CSV 放入 input/edc/

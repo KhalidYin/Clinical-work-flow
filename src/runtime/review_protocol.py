@@ -641,8 +641,13 @@ class ReviewQueue:
         archive/                  ← Completed reviews moved here
     """
 
-    def __init__(self, project_dir: str | Path) -> None:
-        self.queue_dir = Path(project_dir) / ".review_queue"
+    def __init__(self, project_dir: str | Path, queue_dir: str | Path | None = None) -> None:
+        project_path = Path(project_dir)
+        if queue_dir is None:
+            self.queue_dir = project_path / ".review_queue"
+        else:
+            queue_path = Path(queue_dir)
+            self.queue_dir = queue_path if queue_path.is_absolute() else project_path / queue_path
         self.archive_dir = self.queue_dir / "archive"
         self.queue_dir.mkdir(parents=True, exist_ok=True)
         self.archive_dir.mkdir(parents=True, exist_ok=True)
