@@ -34,6 +34,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Mapping
+from urllib.parse import urlsplit
 
 import yaml
 
@@ -65,6 +66,64 @@ from src.agents.executors import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def build_runtime_context_resolver(
+    knowledge_service_url: str = "http://127.0.0.1:8787",
+    *,
+    timeout_seconds: float = 5.0,
+    require_domain: bool = False,
+) -> RuntimeContextResolver:
+    """Build the production CLI resolver from the Engine-owned bundle lock.
+
+    The P6 local release accepts only loopback service URLs.  An unavailable
+    service is handled by ``KnowledgeContextResolver`` through the Study's
+    immutable snapshot fallback; a reachable contract rejection still blocks.
+    """
+
+    parsed = urlsplit(knowledge_service_url)
+    if (
+        parsed.scheme not in {"http", "https"}
+        or parsed.hostname not in {"127.0.0.1", "::1", "localhost"}
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+        or parsed.path not in {"", "/"}
+    ):
+        raise ValueError("P6 Knowledge Service URL must be a loopback HTTP(S) origin")
+    if timeout_seconds <= 0:
+        raise ValueError("Knowledge Service timeout must be positive")
+    # Keep these imports local: knowledge.resolver consumes the Runtime
+    # pipeline contract, while the Runtime package exports AgentRuntime.
+    # Importing the resolver at module load time would create a package cycle.
+    from src.knowledge.client import HttpKnowledgeTransport, KnowledgeServiceClient
+    from src.knowledge.resolver import KnowledgeContextResolver
+
+    bundle_path = Path(__file__).resolve().parents[2] / "schemas" / "contract-bundle.json"
+    try:
+        bundle = json.loads(bundle_path.read_text(encoding="utf-8"))
+        bundle_version = str(bundle["bundle_version"])
+        bundle_sha256 = str(bundle["bundle_sha256"])
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise RuntimeContextError("Engine contract bundle lock cannot be loaded") from exc
+    if len(bundle_sha256) != 64 or any(char not in "0123456789abcdef" for char in bundle_sha256):
+        raise RuntimeContextError("Engine contract bundle hash is malformed")
+    client = KnowledgeServiceClient(
+        HttpKnowledgeTransport(
+            knowledge_service_url.rstrip("/"), timeout_seconds=timeout_seconds
+        ),
+        bundle_version=bundle_version,
+        bundle_sha256=bundle_sha256,
+    )
+    return RuntimeContextResolver(
+        KnowledgeContextResolver(
+            client,
+            bundle_version=bundle_version,
+            bundle_sha256=bundle_sha256,
+            require_domain=require_domain,
+        )
+    )
 
 
 def _artifact_paths(result: dict[str, Any]) -> tuple[str, ...]:
@@ -1125,18 +1184,38 @@ class AgentRuntime:
 
     def _git_commit(self, action: AgentAction,
                     result: dict[str, Any]) -> None:
-        """Auto-commit changes to git."""
+        """Auto-commit only the current Study, preserving unrelated monorepo state."""
         try:
             repo_root = self._find_git_root()
             if not repo_root:
                 return
 
+            resolved_root = repo_root.resolve()
+            resolved_project = self.project_dir.resolve()
+            platform_modules = (
+                "clinical-workflow", "clinical-llm-wiki", "clinical-studies"
+            )
+            if resolved_project == resolved_root and all(
+                (resolved_root / module).is_dir() for module in platform_modules
+            ):
+                raise RuntimeError("the platform monorepo root cannot be used as a Study")
+            try:
+                relative_project = resolved_project.relative_to(resolved_root)
+            except ValueError as exc:
+                raise RuntimeError("Study project is outside the discovered Git root") from exc
+            pathspec = "." if not relative_project.parts else relative_project.as_posix()
+
             status = subprocess.run(
-                ["git", "status", "--porcelain"],
+                [
+                    "git", "status", "--porcelain", "--untracked-files=all",
+                    "--", pathspec,
+                ],
                 capture_output=True, text=True, cwd=str(repo_root),
             )
+            if status.returncode != 0:
+                raise RuntimeError(status.stderr.strip() or "git status failed")
             if not status.stdout.strip():
-                return  # Nothing to commit
+                return  # Nothing changed in this Study.
 
             msg = (
                 f"[agent] {action.description[:50]}\n\n"
@@ -1144,17 +1223,25 @@ class AgentRuntime:
                 f"Iteration: {self.state.iteration}\n"
                 f"Review ID: {action.review_packet.review_id if action.review_packet else 'N/A'}"
             )
-            subprocess.run(
-                ["git", "add", "-A"],
-                capture_output=True, cwd=str(repo_root),
+            staged = subprocess.run(
+                ["git", "add", "-A", "--", pathspec],
+                capture_output=True, text=True, cwd=str(repo_root),
             )
-            subprocess.run(
-                ["git", "commit", "-m", msg],
-                capture_output=True, cwd=str(repo_root),
+            if staged.returncode != 0:
+                raise RuntimeError(staged.stderr.strip() or "git add failed")
+            committed = subprocess.run(
+                ["git", "commit", "--only", "-m", msg, "--", pathspec],
+                capture_output=True, text=True, cwd=str(repo_root),
             )
-            logger.info(f"Git commit: {msg.split(chr(10))[0]}")
-        except Exception:
-            logger.debug("Git commit skipped (not a git repo or git not available)")
+            if committed.returncode != 0:
+                raise RuntimeError(committed.stderr.strip() or committed.stdout.strip())
+            logger.info(
+                "Git commit for Study path %s: %s",
+                pathspec,
+                msg.split(chr(10))[0],
+            )
+        except Exception as exc:
+            logger.warning("Study-scoped Git commit skipped: %s", exc)
 
     def _find_git_root(self) -> Path | None:
         """Find git repository root."""
@@ -1243,6 +1330,13 @@ async def main() -> None:
         help="Disable automatic git commits",
     )
     parser.add_argument(
+        "--knowledge-service-url", default="http://127.0.0.1:8787",
+        help=(
+            "Loopback Knowledge Service origin; connection failure uses only the "
+            "manifest-locked Study snapshots"
+        ),
+    )
+    parser.add_argument(
         "intent", nargs="?", default="",
         help="Natural language intent, e.g. 'Generate SDTM specs for Phase III NSCLC'",
     )
@@ -1256,6 +1350,7 @@ async def main() -> None:
         therapeutic_area=args.therapeutic_area,
         auto_execute=not args.no_auto_execute,
         git_auto_commit=not args.no_git_commit,
+        context_resolver=build_runtime_context_resolver(args.knowledge_service_url),
     )
 
     # Load MCP tools
@@ -1270,6 +1365,7 @@ async def main() -> None:
     print(f"║  Phase:       {args.trial_phase}")
     print(f"║  TA:          {args.therapeutic_area}")
     print(f"║  Tools:       {len(runtime.tool_registry)} registered")
+    print(f"║  Knowledge:   {args.knowledge_service_url}")
     print(f"║  Git:         {'enabled' if runtime.git_auto_commit else 'disabled'}")
     print("╚══════════════════════════════════════════════════════╝")
 

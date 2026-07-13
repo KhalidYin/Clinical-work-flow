@@ -66,8 +66,8 @@ docs/                          — Platform-level specs, plans, dev logs and rev
    not additional core workflow gates.
 7. **Knowledge base replaces hardcoded templates**: Governed knowledge lives in
    `clinical-llm-wiki/vault/` and is consumed through the Knowledge Service or locked
-   snapshots. Engine `clinical-workflow/src/knowledge/` contains client and resolver
-   code only.
+   snapshots. `clinical-workflow/src/knowledge/clinical_standards.py` is a deprecated,
+   non-runtime migration source only; production modules must not import it.
 
 ## Human Interaction
 
@@ -87,7 +87,7 @@ Panel writes decision_receipt.json → Agent reads → continues
 
 ```bash
 cd clinical-workflow
-python -m src.runtime.agent_loop --project-dir ../clinical-studies/STUDY-001
+python -m src.runtime.agent_loop --project-dir ../clinical-studies/STUDY-001 --knowledge-service-url http://127.0.0.1:8787
 ```
 
 ### MCP Server

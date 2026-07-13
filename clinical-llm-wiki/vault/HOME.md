@@ -25,6 +25,7 @@ title: Clinical LLM Wiki 首页
 - [[10_MOC/Standards-MOC|标准与法规边界]]
 - [[10_MOC/Programming-MOC|编程模式与验证等级]]
 - [[10_MOC/Stage-Traceability-MOC|端到端追溯链]]
+- [[10_MOC/Toolkit-MOC|QC 检查表、问题处置与证据包]]
 - [[10_MOC/Sources-MOC|来源、页码与视觉证据]]
 - [[10_MOC/Cases-MOC|合成案例与沉淀候选]]
 

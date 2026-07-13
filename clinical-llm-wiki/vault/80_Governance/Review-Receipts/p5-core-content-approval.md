@@ -12,7 +12,7 @@
 
 ## 证据
 
-- ReviewPacket：`knowledge_p5_core_v1_001.json`
-- DecisionReceipt：`knowledge_p5_core_v1_001_decision.json`
-- ConfirmationReceipt：`knowledge_p5_core_v1_001_confirmation.json`
+- ReviewPacket：`.review_queue/archive/knowledge_p5_core_v1_001.json`
+- DecisionReceipt：`.review_queue/archive/knowledge_p5_core_v1_001_decision.json`
+- ConfirmationReceipt：`.review_queue/archive/knowledge_p5_core_v1_001_confirmation.json`
 - 生成器：`scripts/content/finalize_p5_content.py`

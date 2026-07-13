@@ -384,3 +384,11 @@ Runtime 每个 Stage 只消费一次原子 `ExecutionContextBundle`。Bundle 必
 Obsidian 不参与执行控制。它只编辑 Markdown/YAML 知识源；approved-only index、API 响应和 snapshot 均为可验证派生物。Workflow Playbook 描述“如何执行”，Pipeline Contract 决定“能执行什么、顺序是什么”，脚本/MCP 实现“实际执行”。
 
 完整的十阶段 ID、职责矩阵、API 边界、迁移清单和当前差异台账见 [SPEC-21](21-Knowledge-Workflow-Integration.md)。
+
+## 9. P6 本地发布实现态
+
+- 平台是单一 Git monorepo 下的 `clinical-workflow/`、`clinical-llm-wiki/`、`clinical-studies/` 三模块，不是三个独立仓库。
+- CLI 通过 `--knowledge-service-url` 构造 Engine-owned resolver；首版只接受 loopback origin，服务断开时只读 Study-local locked snapshot。
+- Runtime Git 自动提交使用当前 Study pathspec；Engine、Wiki、另一 Study 的脏改动和暂存状态不会进入提交，把 monorepo 根当 Study 会拒绝。
+- `clinical_standards.py` 仅为 deprecated migration source；生产路径有自动测试禁止导入。
+- 本地安装、启动、备份、恢复和回滚以仓库根 `USAGE.md` 与 `docs/deploy/DEPLOY_GUIDE.md` 为准。

@@ -1,8 +1,8 @@
 ---
 phase_index: 3
-status: in-progress
+status: done
 created: 2026-07-13
-updated: 2026-07-13
+updated: 2026-07-14
 priority: 1
 estimated_rounds: 40-59
 depends_on: []
@@ -216,7 +216,7 @@ clinical-llm-wiki/
 │   │       └── restricted-local/
 │   ├── 98_Inbox/
 │   ├── 99_Archive/
-│   └── .obsidian/
+│   └── .obsidian/                    # 仅稳定客户端配置；workspace不入Git
 ├── service/
 │   ├── api/
 │   ├── resolver/
@@ -231,9 +231,9 @@ clinical-llm-wiki/
 ├── snapshots/
 ├── tests/fixtures/
 ├── .review_queue/
-├── audit_trail.jsonl
-├── README.md
-└── USAGE.md
+│   └── archive/                      # 机器ReviewPacket/Decision/Confirmation JSON
+├── audit_trail.jsonl                 # Wiki机器审计，不进入Vault
+└── README.md
 ```
 
 ## Study Instance 最终结构
@@ -464,8 +464,8 @@ policies: live_upgrade/conflict/version/fallback行为
 | P2 | 建立机器合同与知识治理合同 | 6-9 | P1 | done |
 | P3 | 建立Obsidian Vault、来源管线和本地Knowledge Service | 8-11 | P2 | done |
 | P4 | 改造Study脚手架并接入Runtime/Review/Audit | 7-10 | P2, P3；旧P1-D/P1-E所需基础 | done |
-| P5 | 完成纵向合成试点和首版核心内容 | 10-15 | P4 | completed |
-| P6 | 全局验收、迁移、文档同步和本地发布基线 | 5-8 | P5 | in-progress |
+| P5 | 完成纵向合成试点和首版核心内容 | 10-15 | P4 | done |
+| P6 | 全局验收、迁移、文档同步和本地发布基线 | 5-8 | P5 | done |
 
 P1-P4构成平台MVP；P5-P6构成首个可用知识产品和发布基线。
 
@@ -752,16 +752,16 @@ P1-P4构成平台MVP；P5-P6构成首个可用知识产品和发布基线。
 
 ### 完成标准
 
-- [ ] 全部Python测试、ruff、Review Panel compile、Wiki测试、Schema drift和端到端fixture通过。
-- [ ] reviewed/verified/approved内容不存在坏链、重复ID、缺失来源或未知权利状态。
-- [ ] 正式知识主张来源版本/章节/页码追溯率为100%。
-- [ ] 被引用图片、表格和公式的人工视觉核验率为100%。
-- [ ] 七个场景可从HOME在三层导航内完成。
-- [ ] Wiki断开、快照损坏、合同不兼容、冲突规则、未知工具和路径越界均按合同失败。
-- [ ] 原SPEC未在映射和回归验证完成前删除。
-- [ ] 最终目录与本计划一致；任何获批偏差已记录在关键决策中。
-- [ ] 主文档只描述实际实现，计划外能力仍标记为延后。
-- [ ] 子计划完成同步、DEVLOG、Review和PLAN生命周期满足规范。
+- [x] 全部Python测试、ruff、Review Panel compile、Wiki测试、Schema drift和端到端fixture通过。
+- [x] reviewed/verified/approved内容不存在坏链、重复ID、缺失来源或未知权利状态。
+- [x] 正式知识主张来源版本/章节/页码追溯率为100%（PDF 使用 physical/printed page；HTML/发布页以 section 定位且 page N/A）。
+- [x] 被引用图片、表格和公式的人工视觉核验率为100%。
+- [x] 七个场景可从HOME在三层导航内完成。
+- [x] Wiki断开、快照损坏、合同不兼容、冲突规则、未知工具和路径越界均按合同失败。
+- [x] 原SPEC未在映射和回归验证完成前删除。
+- [x] 最终目录与本计划一致；任何获批偏差已记录在关键决策中。
+- [x] 主文档只描述实际实现，计划外能力仍标记为延后。
+- [x] 子计划完成同步、DEVLOG、Review和PLAN生命周期满足规范。
 
 ### 边界（本Phase明确不做）
 
@@ -845,6 +845,10 @@ P1-P4构成平台MVP；P5-P6构成首个可用知识产品和发布基线。
 | D9 | ADAE builder 曾硬编码 `TRTEDT + 30 days`，无法证明来自当前 Study 批准决定 | P5机器切片 | 已解决（P5-B） | 删除默认值；新增结构化 `TEAEWindowRule`、Study Decision 三证加载、Context/hash/provenance 投影，缺失或歧义均在产物前阻断 |
 | D10 | 结构化 Study rule 改变 ExecutionContext 合同，旧 bundle 1.0.0 无法表达且跨模块镜像会漂移 | P5机器切片 | 已解决（P5-B） | Engine bundle 升至 1.1.0 并重算 canonical hash，Wiki JSON 镜像逐文件一致；manifest exact lock 测试拒绝旧版本 |
 | D11 | 若生成的 ADaM draft 直接落入 canonical specs，Router 会在人工审核前误判 Stage 完成 | P5审核闭环 | 已解决（P5-C） | Runtime 先写 `output/adam/drafts/` 和 provenance，blocking ADAM_SPEC review 应用成功后才提升到 `output/adam/specs/` |
+| D12 | Runtime CLI 未实例化 Knowledge resolver，文档命令无法实际消费 Wiki/snapshot，ADAE 会缺结构化 Study rule | P6本地发布 | 已解决（P6） | CLI 新增 loopback-only `--knowledge-service-url` 并从 Engine bundle 构造 resolver；在线/离线 ADAE fixture 共用该工厂 |
+| D13 | 即使 pathspec 限定，误把 monorepo 根作为 Study 仍会用 `.` 提交整仓 | P6 Git 隔离 | 已解决（P6） | 检测三模块平台根并拒绝自动提交；standalone Study Git root 仍允许 `.` |
+| D14 | machine/agent visual QA 与 non-human receipt 不能满足 P6 人工视觉和七场景签字 | P6人工Gate | 已解决（P6） | 人类平台所有者于 2026-07-14 批准 F-001/F-002；DecisionReceipt 与 ConfirmationReceipt 限定为本地合成发布基线，不扩展为 GxP/生产批准 |
+| D15 | Obsidian 配置位于 Wiki 模块根且 Vault 内混有机器 JSON/JSONL，与最终目录边界不一致 | P6最终结构Gate | 已解决（P6） | Obsidian 改为直接打开 `vault/`；稳定 `.obsidian` 配置迁入 Vault，机器 Review JSON/JSONL 与审计迁到模块外层；新增边界测试与 restricted-local 防提交规则 |
 
 ## 关键决策记录
 
@@ -861,6 +865,7 @@ P1-P4构成平台MVP；P5-P6构成首个可用知识产品和发布基线。
 | 2026-07-13 | 内容建设 | 先铺百科 / 先纵向闭环 | 先纵向闭环 | 尽早验证实际工作价值 |
 | 2026-07-13 | 来源处理 | 原件直接OCR / 原件与派生分层 | 原件与派生分层 | 保持证据完整性和可重建性 |
 | 2026-07-13 | 首个机器试点 | 全管线 / ADAE Spec / 全TFL | ADAE Spec | 最小切片覆盖规则、Playbook、工具、审核和审计 |
+| 2026-07-14 | Obsidian物理根 | 打开Wiki模块根 / 直接打开`vault/` / 独立仓库 | 直接打开`vault/`，机器资产留在模块外层 | 保持人类知识编辑面纯净，同时用同一Git提交约束知识、审核合同、服务和Workflow一致性 |
 
 ## 同步记录
 
@@ -871,3 +876,4 @@ P1-P4构成平台MVP；P5-P6构成首个可用知识产品和发布基线。
 | 2026-07-13 | SPEC-21、`clinical-llm-wiki/`（原独立仓 commit `57e1802`，现已迁入单仓） | P3：本地 Obsidian Vault、受控来源派生、审批门禁、SQLite FTS 与 loopback Knowledge Service |
 | 2026-07-13 | SPEC-21、`clinical-workflow/study_template/`、`clinical-workflow/src/runtime/`、`clinical-workflow/src/knowledge/`、Review/Audit | P4：最终Study树、十阶段Router/AgentLoop、锁定上下文与快照、Action Policy、artifact provenance和共享Review策略 |
 | 2026-07-13 | SPEC-21、Engine/Wiki bundle 1.1、ADAE Runtime、Study Decision/Promotion、68篇受治理内容 | P5：锁定snapshot与applicability、结构化TEAE规则、ADAE draft→review→canonical闭环、在线/离线一致性及合成纵向内容 Gate |
+| 2026-07-14 | SPEC-06/07/09/13/14/15/18/21、USAGE、部署/迁移/验收报告、P6 tests | P6完成：CLI知识接线、Study Git隔离、七场景/来源/失败模式、本地运维、Obsidian纯Vault边界与人类 Review 均已闭环 |

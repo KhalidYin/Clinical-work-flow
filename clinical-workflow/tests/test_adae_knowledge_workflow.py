@@ -23,7 +23,11 @@ from src.knowledge.resolver import KnowledgeContextResolver
 from src.knowledge.models import WorkflowStage
 from src.knowledge.promotion import create_promotion_candidate
 from src.knowledge.study_decisions import load_study_decisions
-from src.runtime.agent_loop import AgentRuntime, _load_mcp_tools
+from src.runtime.agent_loop import (
+    AgentRuntime,
+    _load_mcp_tools,
+    build_runtime_context_resolver,
+)
 from src.runtime.context_resolver import RuntimeContextError, RuntimeContextResolver
 from src.runtime.pipeline_contract import PipelineStage
 from src.runtime.review_protocol import Decision, DecisionReceipt, FindingDecision
@@ -80,6 +84,7 @@ class _OfflineTransport:
 def _prepare_wiki(tmp_path: Path) -> tuple[TestClient, dict[str, Any], dict[str, Any]]:
     root = tmp_path / "wiki"
     shutil.copytree(WIKI_ROOT / "vault", root / "vault")
+    shutil.copytree(WIKI_ROOT / ".review_queue", root / ".review_queue")
     shutil.copytree(WIKI_ROOT / "schemas" / "engine", root / "schemas")
     client = TestClient(create_app(WikiServiceConfig(vault_root=root, schemas_dir=root / "schemas")))
     workflow = client.post(
@@ -217,6 +222,32 @@ def test_adae_online_and_offline_use_identical_locked_references_and_artifact(
     assert "study_decision" in {
         item["source_kind"] for item in provenance["knowledge_provenance"]
     }
+
+
+def test_cli_resolver_factory_reproduces_adae_from_locked_snapshots(tmp_path: Path) -> None:
+    wiki, workflow, domain = _prepare_wiki(tmp_path)
+    bundle = wiki.get("/api/v1/version").json()
+    study = _prepare_study(tmp_path, workflow, domain, bundle, name="cli-offline-study")
+    runtime = AgentRuntime(
+        project_dir=study,
+        context_resolver=build_runtime_context_resolver(
+            "http://127.0.0.1:1", timeout_seconds=0.2, require_domain=True
+        ),
+        git_auto_commit=False,
+    )
+    _load_mcp_tools(runtime)
+    intent = "Generate ADAE safety and TEAE specifications"
+    action = asyncio.run(runtime._decide_next_action(intent, runtime._assess_context(intent)))
+
+    runtime._bind_governed_context(action)
+    result = asyncio.run(runtime._execute_action(action))
+
+    assert result["status"] == "awaiting_human"
+    assert (study / "output/adam/drafts/adae-spec.yaml").is_file()
+    assert runtime.execution_context is not None
+    assert runtime.execution_context.study_rules[0].rule_id == (
+        "study-decision-synth-onco-001-teae"
+    )
 
 
 def test_adae_draft_is_not_pipeline_evidence_until_review_is_applied(

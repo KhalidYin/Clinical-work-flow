@@ -6,10 +6,10 @@
   "accessed_at": "2026-07-13T16:15:00+08:00",
   "capture_method": "official FDA PDF text inspection; normalized metadata and paraphrased evidence only",
   "locators": [
-    {"section": "2.2 Study Data Reviewer's Guides", "claim": "Reviewer guides document study-data considerations that help reviewers understand submitted data."},
-    {"section": "2.3 Analysis Data Reviewer's Guide", "claim": "The analysis data reviewer guide provides context for analysis datasets and conformance findings beyond define.xml."},
-    {"section": "4.1 CDISC standards", "claim": "Clinical tabulation and analysis data are interpreted within applicable CDISC and FDA-supported standards."},
-    {"section": "8 Study Data Validation and Traceability", "claim": "Validation findings and traceability need study-context interpretation; automated checks are not the whole quality assessment."}
+    {"section": "2.1 Study Data Reviewer's Guides", "physical_page": 18, "printed_page": "5", "claim": "Reviewer guides document study-data considerations that help reviewers understand submitted data."},
+    {"section": "2.2 Analysis Data Reviewer's Guide", "physical_page": 19, "printed_page": "6", "claim": "The analysis data reviewer guide provides context for analysis datasets and conformance findings beyond define.xml."},
+    {"section": "4.1 Clinical Data Interchange Standards Consortium", "physical_page": 22, "printed_page": "9", "claim": "Clinical tabulation and analysis data are interpreted within applicable CDISC and FDA-supported standards."},
+    {"section": "8 Study Data Validation and Traceability", "physical_page": 76, "printed_page": "63", "claim": "Validation findings and traceability need study-context interpretation; automated checks are not the whole quality assessment."}
   ],
   "rights_note": "This repository stores only project-authored metadata and paraphrases; the FDA document is nonbinding and the official current version remains authoritative."
 }

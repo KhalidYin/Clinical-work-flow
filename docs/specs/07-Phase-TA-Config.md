@@ -265,8 +265,8 @@ templates/trial_configs.py          → knowledge/non_oncology_ta.json
 config/workflow_config.py           → Agent Runtime 参数
   (OrchestratorConfig)                (project_dir, study_id, trial_phase, ...)
 
-src/knowledge/clinical_standards.py → 保留, 无变更
-  (CDISC_KNOWLEDGE, REGULATORY)
+src/knowledge/clinical_standards.py → deprecated compatibility / migration source only
+  (生产 Runtime 禁止导入；逐条 proposal→review→双轨验证后迁入 Wiki)
 ```
 
 ---
@@ -283,3 +283,9 @@ src/knowledge/clinical_standards.py → 保留, 无变更
 | TFL | [SPEC-04](04-TFL.md) |
 | 变更管理 | [SPEC-11](11-Change-Management.md) |
 | MCP 工具 API | [SPEC-09](09-MCP-Tools-Design.md) |
+
+## 6. P6 当前配置权威
+
+Phase/TA 一般知识来自 Wiki 的受治理规则；当前 Study 的精确参数来自 `project.yaml`、`runtime-manifest.yaml` 和经三证批准的 `knowledge/decisions/`。旧 Python 常量既不自动加载，也不能在服务不可用时充当 fallback。
+
+首版 68 条内容只对 `SYNTH-ONCO-001` 的 `synthetic-pilot-only` 范围有效，不能据此宣称已发布通用 Phase/TA 生产知识包。旧常量逐项迁移状态见 `docs/migrations/LEGACY-KNOWLEDGE-MAPPING.md`。

@@ -1,0 +1,25 @@
+{
+  "review_id": "platform_p6_global_acceptance_v1_001",
+  "applied_at": "2026-07-14T00:18:20+08:00",
+  "generated_by": "Codex P6 review application",
+  "results": [
+    {
+      "finding_id": "F-001",
+      "original_decision": "approved",
+      "application_status": "applied",
+      "actual_value": "Seven P6 scenarios accepted for the local synthetic release baseline."
+    },
+    {
+      "finding_id": "F-002",
+      "original_decision": "approved",
+      "application_status": "applied",
+      "actual_value": "Synthetic TEAE full-page render accepted as legible, complete, unclipped, and free of visible overlap."
+    }
+  ],
+  "summary": {
+    "total": 2,
+    "applied": 2,
+    "adjusted": 0,
+    "failed": 0
+  }
+}

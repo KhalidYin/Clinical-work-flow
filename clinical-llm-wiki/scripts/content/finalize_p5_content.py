@@ -21,7 +21,7 @@ from service.repository import RepositoryError, parse_markdown_card
 
 ROOT = Path(__file__).resolve().parents[2]
 VAULT = ROOT / "vault"
-GOVERNANCE = VAULT / "80_Governance" / "Review-Receipts"
+REVIEW_ARCHIVE = ROOT / ".review_queue" / "archive"
 OLD_RECEIPT_ID = "review-p5-core-content-v1-001"
 RECEIPT_ID = "review-knowledge-p5-core-v1-001"
 REVIEW_ID = "knowledge_p5_core_v1_001"
@@ -161,15 +161,15 @@ def _governance_payloads(
 
 ## 证据
 
-- ReviewPacket：`knowledge_p5_core_v1_001.json`
-- DecisionReceipt：`knowledge_p5_core_v1_001_decision.json`
-- ConfirmationReceipt：`knowledge_p5_core_v1_001_confirmation.json`
+- ReviewPacket：`.review_queue/archive/knowledge_p5_core_v1_001.json`
+- DecisionReceipt：`.review_queue/archive/knowledge_p5_core_v1_001_decision.json`
+- ConfirmationReceipt：`.review_queue/archive/knowledge_p5_core_v1_001_confirmation.json`
 - 生成器：`scripts/content/finalize_p5_content.py`
 """
     return {
-        GOVERNANCE / f"{REVIEW_ID}.json": json.dumps(packet, ensure_ascii=False, indent=2) + "\n",
-        GOVERNANCE / f"{REVIEW_ID}_decision.json": json.dumps(decision, ensure_ascii=False, indent=2) + "\n",
-        GOVERNANCE / f"{REVIEW_ID}_confirmation.json": json.dumps(confirmation, ensure_ascii=False, indent=2) + "\n",
+        REVIEW_ARCHIVE / f"{REVIEW_ID}.json": json.dumps(packet, ensure_ascii=False, indent=2) + "\n",
+        REVIEW_ARCHIVE / f"{REVIEW_ID}_decision.json": json.dumps(decision, ensure_ascii=False, indent=2) + "\n",
+        REVIEW_ARCHIVE / f"{REVIEW_ID}_confirmation.json": json.dumps(confirmation, ensure_ascii=False, indent=2) + "\n",
         ROOT / AUDIT_REFERENCE: governance_note,
     }
 

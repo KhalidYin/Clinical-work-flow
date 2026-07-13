@@ -14,6 +14,9 @@ title: 统计方法与假设导航
 - [[20_Knowledge/Methods/Intercurrent Events]]
 - [[20_Knowledge/Methods/Estimand Interpretation]]
 - [[20_Knowledge/Methods/Analysis Set Definitions]]
+- [[20_Knowledge/Methods/Sample Size and Precision]]
+- [[50_Cases/Synthetic-Studies/SYNTH-ONCO-001 Longitudinal Case|双臂随机设计的合成案例]]
+- [[30_Workflows/Stages/SAP Generation|SAP 指导工作流]]
 
 ## 终点与模型
 
@@ -26,6 +29,7 @@ title: 统计方法与假设导航
 - [[20_Knowledge/Methods/Missing Data Assumptions]]
 - [[20_Knowledge/Methods/Sensitivity Analysis]]
 - [[20_Knowledge/Methods/Multiplicity Control]]
+- [[20_Knowledge/Programming/ADaM Derivation Metadata Pattern|缺失与 Study 决定的 ADaM 落地模式]]
 
 ## 安全性与证据示例
 

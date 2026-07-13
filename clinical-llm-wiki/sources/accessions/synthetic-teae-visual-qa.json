@@ -7,6 +7,14 @@
   "render_size_pixels": [1224, 1584],
   "physical_page": 1,
   "bbox_points": [0.0, 0.0, 612.0, 792.0],
+  "page_crop": {
+    "status": "not_performed",
+    "reason": "The governed evidence is intentionally the complete single-page render; bbox covers the full media box."
+  },
+  "redraw": {
+    "status": "not_applicable",
+    "reason": "No statistical figure was redrawn; the blue rectangle is project-authored synthetic source content."
+  },
   "machine_qa": {
     "status": "passed",
     "checks": ["page_count", "image_decode", "render_hash", "coordinate_bounds"]
@@ -16,5 +24,15 @@
     "checked_at": "2026-07-13T16:40:00+08:00",
     "checks": ["legibility", "no_clipping", "no_overlap", "figure_label_visible"],
     "note": "AI visual inspection for the P5 synthetic pilot; this is not a human GxP approval."
+  },
+  "human_visual_qa": {
+    "status": "approved",
+    "review_id": "platform_p6_global_acceptance_v1_001",
+    "reviewer": "Human Platform Owner (Codex task user)",
+    "reviewer_role": "human_platform_owner",
+    "checked_at": "2026-07-14T00:18:20+08:00",
+    "scope": "local_synthetic_release_baseline",
+    "checks": ["legibility", "completeness", "no_clipping", "no_overlap"],
+    "note": "Human platform acceptance for the local synthetic release baseline only; this is not Sponsor, regulatory, production Study, or GxP approval."
   }
 }

@@ -3,7 +3,7 @@
 > **版本**: v1.1
 > **状态**: P1–P4 平台 MVP 已实现并冻结（2026-07-13）
 > **上位权威**: [SPEC-18](18-P0-Alignment.md)
-> **执行计划**: [P3 Clinical Knowledge Workflow Platform](../dep/plans/ongoing/P3-clinical-knowledge-workflow-platform.md)
+> **已完成计划**: [P3 Clinical Knowledge Workflow Platform](../dep/plans/complete/P3-clinical-knowledge-workflow-platform.md)
 > **目的**: 固化单仓内 Workflow Engine、Clinical LLM Wiki 与 Study Instance 的模块边界、十阶段契约、知识治理和迁移口径。
 
 ---
@@ -67,6 +67,8 @@ Engine 不保存某个 Study 的当前决策，不以硬编码 Python 模板代�
 - PDF/OCR/图片派生管线；
 - 本地 Knowledge Service、结构化过滤、SQLite FTS、快照生成；
 - 知识 proposal 的 ReviewPacket、DecisionReceipt 和审计。
+
+Obsidian 直接打开 `clinical-llm-wiki/vault/`。该目录只承载 Markdown/YAML 知识、人工可读治理摘要、附件、核心 `.base` 和隐藏的 `.obsidian` 客户端配置；机器 Review JSON/JSONL 与脚本分别位于模块外层 `.review_queue/`、`audit_trail.jsonl` 和 `scripts/`，不会进入知识导航或 approved-only 索引。
 
 Wiki 不拥有 Pipeline 顺序、Runtime capability 白名单或任意命令执行权。Obsidian 只是编辑与浏览前端，不是 Runtime API，也不是生产索引本身。
 
@@ -240,11 +242,11 @@ AI 可以总结、拆分 semantic chunk、建议 relation 和影响范围，但�
 
 Runtime 只依赖稳定服务合同，不读取 Obsidian UI 状态：
 
-- `POST /v1/runtime-context/resolve`：按 Study、Stage、contract、scope 解析原子 bundle；
-- `POST /v1/query`：面向人工查询，允许返回 proposal 但必须标注状态；
-- `GET /v1/knowledge/{id}`：读取单个知识对象和 provenance；
-- `POST /v1/snapshots`：生成不可变 approved-only snapshot；
-- `GET /v1/health`：服务、schema 和 index 状态。
+- `POST /api/v1/runtime-context/resolve`：按 Study、Stage、contract、scope 解析原子 bundle；
+- `POST /api/v1/query`：面向人工查询，允许返回 proposal 但必须标注状态；
+- `GET /api/v1/items/{id}` 与 `GET /api/v1/sources/{id}`：读取知识/来源对象及 provenance；
+- `POST /api/v1/snapshots`：生成不可变 approved-only snapshot；
+- `GET /api/v1/health` 与 `GET /api/v1/version`：服务、bundle 和 index 状态。
 
 Runtime-context 必须默认 approved-only，支持结构化 filters + SQLite FTS。GraphRAG、Neo4j 和向量检索不属于首版阻断依赖。
 
@@ -413,7 +415,7 @@ P1 完成以以下证据为准：
 
 ## 16. P2 已实现的机器合同基线
 
-Engine 已发布 `1.0.0` shared contract bundle，清单及 canonical JSON hash 位于
+Engine 在 P2 首发 `1.0.0` shared contract bundle，并在 P5 为结构化 Study Decision 升级为当前 `1.1.0`；清单及 canonical JSON hash 位于
 [`schemas/contract-bundle.json`](../../clinical-workflow/schemas/contract-bundle.json)。该 bundle 是 Wiki
 镜像和 Study manifest 锁定的唯一 Schema 来源。
 
@@ -437,7 +439,8 @@ Engine 已发布 `1.0.0` shared contract bundle，清单及 canonical JSON hash 
 迁入当前单仓，并移除嵌套 Git。它镜像 Engine `contract-bundle.json`，并通过本地
 Knowledge Service 或 Study 锁定快照与 Engine 交互。
 
-- `vault/` 是正式 Markdown/YAML 知识源，提供 HOME、核心 MOC、十个固定阶段入口、Templates、Bases、治理和最小已批准种子；Obsidian 只承担编辑/浏览，不依赖社区插件提供运行能力；
+- `vault/` 是 Obsidian 直接打开的正式 Markdown/YAML 知识源，提供 HOME、核心 MOC、十个固定阶段入口、Templates、Bases、治理摘要和最小已批准种子；除隐藏的 `.obsidian/*.json` 客户端配置外，机器 JSON/JSONL 与脚本均在 Vault 外；
+- `.review_queue/` 保存机器 ReviewPacket/DecisionReceipt/ConfirmationReceipt，模块根 `audit_trail.jsonl` 保存机器审计事件；Vault 中的 `80_Governance/Review-Receipts/` 只保留人工可读摘要；
 - `scripts/pdf/` 对不可变原件生成文本、页码/bbox、渲染和图像派生；数字及扫描合成 PDF fixtures 覆盖可重建性与视觉证据检查；
 - loopback-only FastAPI 服务提供 health/version/item/source/query/runtime-context/snapshot/proposal，采用结构化过滤加 SQLite FTS；索引可重建，正式内容仍以 Vault Markdown 为准；
 - `runtime-context/resolve` 强制请求的 Schema version/hash lock，拒绝控制流字段，仅返回符合 Engine `ExecutionContext` 合同的结构化规则；
@@ -470,3 +473,15 @@ Knowledge Service 或 Study 锁定快照与 Engine 交互。
 - `SYNTH-ONCO-001` fixture 证明在线 Wiki 与离线 locked snapshots 产生相同 workflow/domain/study/provenance 引用集合和相同 ADAE draft；缺规则在创建 artifact 前阻断。
 - Study decision 可生成 `knowledge/promotion_candidates/` 内的 proposed JSON；原始 Study ID 不进入候选公开内容，只有去标识化且单独审核通过才可标记为 Wiki proposal eligible，本模块从不直接写入 Wiki 或 Prior Studies。
 - P5 Gate 由 170 个 Engine 测试、38 个 Wiki 测试、双方 ruff、Review Panel TypeScript compile、68 条 governed content 一致性检查及 Engine/Wiki Schema 逐文件 hash 比对共同验证。
+
+---
+
+## 20. P6 本地发布候选
+
+- Runtime CLI 以 Engine contract bundle 自动构造 loopback Knowledge resolver；同一入口既支持在线 locked snapshot 解析，也支持服务不可达时的 Study-local snapshot fallback。缺失/损坏 snapshot、可达服务拒绝和合同漂移均不降级。
+- 自动 Git commit 只 stage/commit 当前 Study pathspec，并保留 Engine、Wiki、其他 Study 的 dirty/staged state；平台根目录不能作为 Study。
+- HOME/MOC 形成七个验收场景的三跳内导航；ADAE fixture 提供在线/离线、执行、Review、canonical promotion 和 provenance 的机器闭环。
+- 正式主张追溯度量为 `statement → source ID → source version → accession locator`；PDF 要求 physical/printed page，HTML/发布页以 section 定位且 page N/A。首版不伪造不存在的 PDF 页。
+- `clinical_standards.py` 保留为 `migration_source_only` 外部兼容面且无生产导入，逐项迁移与 SPEC↔Wiki 双向映射见 `docs/migrations/LEGACY-KNOWLEDGE-MAPPING.md`。
+- 安装/使用见根 `USAGE.md`，备份、恢复、重建和回滚见 `docs/deploy/DEPLOY_GUIDE.md`。
+- 自动 Gate 与 agent 视觉检查不能替代人类批准；P6 的 blocking ReviewPacket 位于 `docs/reviews/p6_global_acceptance_v1_001.json`，签字前本节状态是 release candidate。

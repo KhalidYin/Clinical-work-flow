@@ -36,7 +36,7 @@ last_reviewed: '2026-07-13'
 review_due: '2027-07-13'
 supersedes: []
 superseded_by: null
-content_hash: ac5c61e4214ad42dd7943a0051b746e31772fcd16b2ecea4e2790ec33e89fc39
+content_hash: b9bf686ac6c7355af32ed5a8dae76358cbba2118c9b65c22a486291eb2fb47b1
 rights_status: cleared
 allowed_uses:
 - runtime
@@ -72,6 +72,6 @@ derivation:
 
 # P5 合成 TEAE 全页视觉证据
 
-该 Figure Record 把来源 hash、物理页、渲染 hash、坐标和派生参数连接起来。已检查文字与图块清晰、无裁切、无重叠；核验范围仅限 P5 合成证据链。
+该 Figure Record 把来源 hash、物理页、渲染 hash、坐标和派生参数连接起来。该证据有意采用全页 render，未执行 page crop；蓝色矩形是项目自建合成源内容，不存在重绘。Agent 已检查文字与图块清晰、无裁切、无重叠；人类平台所有者已通过 `platform_p6_global_acceptance_v1_001` 确认本地合成发布基线的可读性、完整性、无裁切和无重叠。该签字不代表 Sponsor、监管、生产 Study 或 GxP 批准。
 
 关联：[[60_Sources/Registry/Synthetic TEAE Figure Source]]、[[20_Knowledge/Methods/TEAE Classification Evidence Example]]。

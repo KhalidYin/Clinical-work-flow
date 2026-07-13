@@ -233,6 +233,23 @@ def test_reachable_schema_drift_does_not_silently_fallback(tmp_path: Path) -> No
         )
 
 
+@pytest.mark.parametrize("failure", ("missing", "corrupt"))
+def test_offline_missing_or_corrupt_locked_snapshot_fails_closed(
+    tmp_path: Path, failure: str
+) -> None:
+    manifest, _, _ = _project_with_locks(tmp_path)
+    workflow_path = tmp_path / manifest.workflow_knowledge.fallback_path
+    if failure == "missing":
+        workflow_path.unlink()
+    else:
+        workflow_path.write_text('{"snapshot_id":"tampered"}', encoding="utf-8")
+
+    with pytest.raises(ContextResolutionError, match="snapshot"):
+        _resolver(_OfflineTransport()).resolve(
+            project_dir=tmp_path, manifest=manifest, stage="sdtm_spec"
+        )
+
+
 def test_http_rejection_is_contract_error_not_offline_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
     def reject(*_: Any, **__: Any) -> None:
         raise HTTPError("http://127.0.0.1:8787/api/v1/version", 409, "conflict", {}, None)

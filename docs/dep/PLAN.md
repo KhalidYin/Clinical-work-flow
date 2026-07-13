@@ -1,5 +1,5 @@
 ---
-updated: 2026-07-13
+updated: 2026-07-14
 ---
 
 # 项目计划
@@ -8,7 +8,7 @@ updated: 2026-07-13
 
 | # | 子计划 | 文件 | 当前阶段 | 已用轮次 | 开始日期 |
 |---|--------|------|----------|----------|----------|
-| P3 | Clinical Knowledge Workflow Platform 总体整合 | [P3-clinical-knowledge-workflow-platform.md](plans/ongoing/P3-clinical-knowledge-workflow-platform.md) | P5：纵向合成试点与首版核心内容（Gate 审查中） | 5 | 2026-07-13 |
+| - | 当前无进行中的子计划 | - | - | - | - |
 
 ## 待开始
 
@@ -22,7 +22,7 @@ updated: 2026-07-13
 
 | 日期 | 子计划 | 文件 | 已同步到 |
 |------|--------|------|----------|
-| - | 尚无按新计划体系归档的完成项 | - | - |
+| 2026-07-14 | Clinical Knowledge Workflow Platform 总体整合 | [P3-clinical-knowledge-workflow-platform.md](plans/complete/P3-clinical-knowledge-workflow-platform.md) | SPEC-06/07/09/13/14/15/18/21、USAGE、部署/迁移/验收与DEVLOG |
 
 ## 延后
 

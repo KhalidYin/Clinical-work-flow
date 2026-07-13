@@ -9,6 +9,9 @@ title: 工具与交付物导航
 - [[40_Toolkit/Checklists/README|质量检查表]]
 - [[40_Toolkit/Deliverable-Patterns/README|交付物模式]]
 - [[40_Toolkit/Decision-Trees/README|决策树]]
+- [[30_Workflows/Stages/QC Validation|QC 阶段问题处置]]
+- [[20_Knowledge/Programming/Independent QC Reconciliation Pattern|独立 QC 对账模式]]
+- [[40_Toolkit/Deliverable-Patterns/QC Evidence Pack Pattern|QC 证据包]]
 
 这些页面描述使用条件和质量门禁；实际工具接口与算法仍由 Workflow Engine 管理。
 

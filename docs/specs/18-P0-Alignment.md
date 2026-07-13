@@ -337,3 +337,9 @@ protocol_analysis → sap_generation → sdtm_spec → sdtm_programming
 知识按一般 Workflow/Domain 规则、既往 Study 参考、当前 Study override/decision 分层。生产运行必须锁定 Engine contract version/hash 和 Wiki snapshot version/hash；服务不可用时仅允许使用兼容的已锁定快照，否则 fail closed。
 
 详细权威矩阵、Stage I/O、迁移分类、跨仓发布约定和当前实现差异见 [SPEC-21](21-Knowledge-Workflow-Integration.md)。SPEC-21 细化本决策，但不得修改本文的固定管线、文件系统状态、动态审核和确定性工具边界。
+
+## 10. P6 发布对齐
+
+P6 未改变 P0：仍只有十个固定 Stage、六个 deterministic core tools、文件系统状态和结构化 Review。知识层只提供 manifest-locked Context；CLI 现在实际接入 loopback Knowledge Service，并在离线时验证 locked snapshot。Runtime 的 Git commit 限定当前 Study，不把 monorepo 其他模块当工作流状态。
+
+本地发布不授权内网/云端、Web Relay、远程身份或真实 Study 数据。七场景自动证据与 agent 走查见 `docs/reviews/P6-GLOBAL-ACCEPTANCE.md`；显式人类 Gate 未签字前不得表达为完成或 GxP 批准。

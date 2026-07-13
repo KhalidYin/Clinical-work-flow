@@ -25,6 +25,7 @@ from service.repository import Card, VaultRepository
 
 ROOT = Path(__file__).resolve().parents[1]
 VAULT = ROOT / "vault"
+REVIEW_ARCHIVE = ROOT / ".review_queue" / "archive"
 SCHEMAS = ROOT / "schemas" / "engine"
 STAGES = {
     "protocol_analysis", "sap_generation", "sdtm_spec", "sdtm_programming",
@@ -64,11 +65,15 @@ def _bind_test_receipt(
     review_id: str,
     reviewer_role: str,
 ) -> None:
-    governance = root / "vault" / "80_Governance" / "Review-Receipts"
-    governance.mkdir(parents=True, exist_ok=True)
+    review_archive = root / ".review_queue" / "archive"
+    review_archive.mkdir(parents=True, exist_ok=True)
+    governance_notes = root / "vault" / "80_Governance" / "Review-Receipts"
+    governance_notes.mkdir(parents=True, exist_ok=True)
     audit_name = f"{review_id}.md"
-    (governance / audit_name).write_text("structured review evidence\n", encoding="utf-8")
-    (governance / f"{review_id}_decision.json").write_text(
+    (governance_notes / audit_name).write_text(
+        "structured review evidence\n", encoding="utf-8"
+    )
+    (review_archive / f"{review_id}_decision.json").write_text(
         json.dumps(
             {
                 "review_id": review_id,
@@ -159,10 +164,9 @@ def test_verified_approved_records_have_complete_governance_and_source_links(
 def test_p5_receipt_maps_schema_finding_ids_to_each_released_record(
     repository: VaultRepository, bundle: SchemaBundle
 ) -> None:
-    governance = VAULT / "80_Governance" / "Review-Receipts"
-    packet = json.loads((governance / f"{REVIEW_ID}.json").read_text(encoding="utf-8"))
-    decision = json.loads((governance / f"{REVIEW_ID}_decision.json").read_text(encoding="utf-8"))
-    confirmation = json.loads((governance / f"{REVIEW_ID}_confirmation.json").read_text(encoding="utf-8"))
+    packet = json.loads((REVIEW_ARCHIVE / f"{REVIEW_ID}.json").read_text(encoding="utf-8"))
+    decision = json.loads((REVIEW_ARCHIVE / f"{REVIEW_ID}_decision.json").read_text(encoding="utf-8"))
+    confirmation = json.loads((REVIEW_ARCHIVE / f"{REVIEW_ID}_confirmation.json").read_text(encoding="utf-8"))
     bundle.validate_definition("review/review-protocol.schema.json", "review_packet", packet)
     bundle.validate_definition("review/review-protocol.schema.json", "decision_receipt", decision)
     bundle.validate_definition("review/review-protocol.schema.json", "confirmation_receipt", confirmation)
@@ -277,6 +281,21 @@ def test_human_receipt_does_not_require_synthetic_scope(
 
 def test_release_generator_is_idempotent_and_check_only() -> None:
     assert finalize(write=False) >= 60
+
+
+def test_obsidian_vault_excludes_machine_json_and_scripts() -> None:
+    forbidden_suffixes = {".json", ".jsonl", ".py", ".js", ".ts", ".sh", ".ps1"}
+    offending = [
+        path.relative_to(VAULT).as_posix()
+        for path in VAULT.rglob("*")
+        if path.is_file()
+        and ".obsidian" not in path.relative_to(VAULT).parts
+        and path.suffix.lower() in forbidden_suffixes
+    ]
+    assert not offending
+    assert (VAULT / ".obsidian" / "app.json").is_file()
+    assert not (ROOT / ".obsidian").exists()
+    assert list(REVIEW_ARCHIVE.glob("*.json"))
 
 
 def test_programming_patterns_declare_honest_validation_level(repository: VaultRepository) -> None:

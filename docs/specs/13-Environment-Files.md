@@ -633,7 +633,9 @@ m5/datasets/{study-id}/
 
 ---
 
-## 7. 运行清单 (Study Runbook)
+## 7. v2.1 历史运行清单（非当前执行入口）
+
+> 本节保留早期设计追溯，其中 `study_template/{STUDY-ID}`、Claude Skills 和旧输出路径不是 P6 当前实现。当前入口见本文 §8、仓库根 `USAGE.md` 和 `docs/deploy/DEPLOY_GUIDE.md`。
 
 ### 7.1 开始一个新 Study
 
@@ -698,3 +700,29 @@ claude
 #   4. 回退到受影响的最早阶段
 #   5. 重新执行
 ```
+
+## 8. P6 当前目录与启动
+
+```text
+clinical-studies/<STUDY-ID>/
+├── project.yaml
+├── runtime-manifest.yaml
+├── input/
+├── workflow/snapshots/
+├── knowledge/decisions/
+├── knowledge/snapshots/
+├── knowledge/promotion_candidates/
+├── output/
+├── .review_queue/
+└── audit_trail.jsonl
+```
+
+当前运行从 `clinical-workflow/` 执行：
+
+```powershell
+python -m src.runtime.agent_loop `
+  --project-dir ..\clinical-studies\STUDY-001 `
+  --knowledge-service-url http://127.0.0.1:8787
+```
+
+没有 `state.yaml`，也没有 `/workflow-start` Skill。状态来自文件系统、Review receipts 和 Git。manifest 的 placeholder hash 必须在首次运行前替换；snapshot fallback 必须位于当前 Study 内并通过精确 hash/bundle 校验。

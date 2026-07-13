@@ -762,3 +762,9 @@ def test_cross_tool_consistency():
     define = define_xml_build("ADSL", "adam", adam["variables"])
     assert define["xml_validates"] == True
 ```
+
+## 6. P6 知识绑定与 ADAE 边界
+
+六个 core tool 名称和无状态边界不变。`adam_spec_build` 的 ADAE 分支不再提供硬编码 TEAE 默认值：Runtime 必须从当前 ExecutionContext 选择恰好一条已批准的结构化 Study `TEAEWindowRule`，按 dataset binding 传入 `teae_rule` 与 `applied_rule_refs`。自然语言 statement 不参与参数解析。
+
+工具仍只返回确定性对象；Runtime 负责把结果写入 `output/adam/drafts/`、生成 provenance 和 blocking ADAM_SPEC ReviewPacket。确认成功后才提升到 `output/adam/specs/`。ADSL 等非 ADAE 数据集不得接受 TEAE 参数，缺规则、重复规则或引用无法映射到 provenance 时在产物前阻断。

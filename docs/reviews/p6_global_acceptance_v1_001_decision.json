@@ -1,0 +1,19 @@
+{
+  "review_id": "platform_p6_global_acceptance_v1_001",
+  "reviewer": "Human Platform Owner (Codex task user)",
+  "reviewer_role": "human_platform_owner",
+  "timestamp": "2026-07-14T00:18:20+08:00",
+  "decisions": [
+    {
+      "finding_id": "F-001",
+      "decision": "approved",
+      "comment": "Approved for the local synthetic release baseline only."
+    },
+    {
+      "finding_id": "F-002",
+      "decision": "approved",
+      "comment": "The displayed synthetic full-page render is accepted for the local synthetic release baseline only."
+    }
+  ],
+  "general_notes": "The user explicitly replied '批准' after receiving the F-001/F-002 scope summary and rendered synthetic figure. This is platform-owner acceptance of the local synthetic baseline, not Sponsor, regulatory, production Study, or GxP approval."
+}

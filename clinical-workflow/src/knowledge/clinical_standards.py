@@ -1,10 +1,16 @@
-"""
-Clinical Workflow Knowledge Base.
-Contains CDISC standards, regulatory guidance, and domain-specific knowledge.
+"""Deprecated v2.1 knowledge constants retained only as a migration source.
+
+Production Runtime, agents, tools and configuration must not import this module.
+Governed knowledge authority is the Wiki Service or a manifest-locked snapshot;
+the constants below remain temporarily available for external compatibility and
+proposal-by-proposal migration.  See ``docs/migrations/LEGACY-KNOWLEDGE-MAPPING.md``.
 """
 
 from dataclasses import dataclass
 from typing import Any
+
+
+LEGACY_COMPATIBILITY_STATUS = "migration_source_only"
 
 
 # ── CDISC Standards Reference ─────────────────────────────────────

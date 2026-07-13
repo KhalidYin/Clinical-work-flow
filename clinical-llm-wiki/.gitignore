@@ -18,3 +18,10 @@ tmp/
 .env.local
 sources/**/original/
 !sources/**/original/.gitkeep
+
+# Obsidian local session state is not shared; stable settings live in vault/.obsidian.
+vault/.obsidian/workspace*.json
+
+# Restricted attachments require separate controlled storage and must never enter Git.
+vault/90_System/Attachments/Sources/restricted-local/**
+!vault/90_System/Attachments/Sources/restricted-local/.gitkeep

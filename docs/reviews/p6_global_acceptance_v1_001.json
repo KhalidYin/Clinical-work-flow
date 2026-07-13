@@ -1,0 +1,54 @@
+{
+  "review_id": "platform_p6_global_acceptance_v1_001",
+  "review_type": "tfl_qc",
+  "source_documents": [
+    "docs/reviews/P6-GLOBAL-ACCEPTANCE.md",
+    "clinical-llm-wiki/tests/fixtures/pdf/rendered-digital/page-001.png"
+  ],
+  "agent_summary": "P6 automated gates and agent walkthrough are complete; human confirmation is required for the seven scenarios and synthetic visual evidence.",
+  "findings": [
+    {
+      "id": "F-001",
+      "category": "compliance",
+      "severity": "critical",
+      "location": "docs/reviews/P6-GLOBAL-ACCEPTANCE.md#3-七个场景",
+      "title": "Confirm the seven global acceptance scenarios",
+      "current_value": "Automated navigation, semantic and runtime evidence passed; human sign-off pending.",
+      "proposed_value": "Human confirms all seven scenarios are acceptable for the local synthetic release baseline.",
+      "rationale": "The P6 completion criteria explicitly require human acceptance scenarios and automated reachability alone is insufficient.",
+      "evidence_refs": [
+        "clinical-llm-wiki/tests/test_p6_navigation_acceptance.py",
+        "clinical-workflow/tests/test_adae_knowledge_workflow.py"
+      ],
+      "auto_approved": false
+    },
+    {
+      "id": "F-002",
+      "category": "formatting",
+      "severity": "critical",
+      "location": "clinical-llm-wiki/tests/fixtures/pdf/rendered-digital/page-001.png",
+      "title": "Confirm the synthetic Figure visual evidence",
+      "current_value": "Machine and agent visual checks passed; human_visual_qa remains pending.",
+      "proposed_value": "Human confirms the page is legible, complete, unclipped and acceptable for the local synthetic release baseline.",
+      "rationale": "Agent visual QA cannot satisfy the plan's explicit human visual verification requirement or any regulated-use approval.",
+      "evidence_refs": [
+        "clinical-llm-wiki/sources/accessions/synthetic-teae-visual-qa.json",
+        "clinical-llm-wiki/vault/60_Sources/Figures/Synthetic TEAE Figure Evidence.md"
+      ],
+      "auto_approved": false
+    }
+  ],
+  "urgency": "blocking",
+  "created_at": "2026-07-13T20:15:00+08:00",
+  "generated_by": "Codex P6 release gate",
+  "auto_approved_count": 0,
+  "required_reviewers": [
+    {
+      "role": "human_platform_owner",
+      "name": "Human Platform Owner (Codex task user)",
+      "decision": "approved",
+      "decided_at": "2026-07-14T00:18:20+08:00"
+    }
+  ],
+  "consensus_rule": "all_must_approve"
+}

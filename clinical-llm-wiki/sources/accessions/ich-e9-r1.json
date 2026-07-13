@@ -6,10 +6,10 @@
   "accessed_at": "2026-07-13T16:15:00+08:00",
   "capture_method": "official-source text inspection; normalized metadata and paraphrased evidence only",
   "locators": [
-    {"section": "A.3.3 Estimand Attributes", "printed_page": "9", "claim": "An estimand is described through treatment, population, variable, intercurrent-event handling and population-level summary attributes."},
-    {"section": "A.5.1 Main Estimation", "printed_page": "15", "claim": "The main estimator and analysis should align with the target estimand."},
-    {"section": "A.5.2 Sensitivity Analysis", "printed_page": "17", "claim": "Sensitivity analyses examine robustness to assumptions relevant to the main estimand."},
-    {"section": "A.6 Documenting Estimands and Sensitivity Analysis", "printed_page": "18", "claim": "Estimands and sensitivity analyses should be documented as part of planned trial analysis."}
+    {"section": "A.3.3 Estimand Attributes", "physical_page": 11, "printed_page": "9", "claim": "An estimand is described through treatment, population, variable, intercurrent-event handling and population-level summary attributes."},
+    {"section": "A.5.1 Main Estimation", "physical_page": 17, "printed_page": "15", "claim": "The main estimator and analysis should align with the target estimand."},
+    {"section": "A.5.2 Sensitivity Analysis", "physical_page": 19, "printed_page": "17", "claim": "Sensitivity analyses examine robustness to assumptions relevant to the main estimand."},
+    {"section": "A.6 Documenting Estimands and Sensitivity Analysis", "physical_page": 20, "printed_page": "18", "claim": "Estimands and sensitivity analyses should be documented as part of planned trial analysis."}
   ],
   "rights_note": "This repository stores only project-authored metadata and paraphrases; consult the official ICH document for authoritative wording."
 }

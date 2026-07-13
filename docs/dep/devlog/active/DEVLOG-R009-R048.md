@@ -194,3 +194,71 @@
 - `clinical-workflow/schemas/knowledge/**`、`src/knowledge/**`、`src/mcp_tools/**`、`src/runtime/**`、`tests/**`（P5 实现，包含于 P5 阶段提交）
 - `clinical-llm-wiki/service/**`、`scripts/content/**`、`vault/**`、`tests/**`（P5 内容与服务治理，包含于 P5 阶段提交）
 - `docs/specs/21-Knowledge-Workflow-Integration.md`、`docs/dep/**`（P5 Gate 与追踪，包含于 P5 阶段提交）
+
+---
+
+### R015 [21:34] [P3-clinical-knowledge-workflow-platform] P6: 形成本地发布候选并进入人类验收 Gate
+
+#### Done
+- 将 Runtime 自动 Git 提交限定为当前 Study pathspec，保留 Engine、Wiki、其他 Study 的 dirty/staged state；检测三模块 monorepo 根并拒绝把 `.` 当 Study 提交。
+- 为 CLI 增加 loopback-only Knowledge Service 构造链路，直接读取 Engine bundle 1.1 lock；在线服务不可达时由同一 resolver 使用 manifest-locked Study snapshots，缺失/损坏 snapshot 明确 fail closed。
+- 建立七场景三跳导航、正式 statement 来源追溯、official accession 介质定位与视觉证据自动指标；ICH/FDA PDF 补充经官方原文核对的 physical/printed page，HTML/release page 保持 section-only/page N/A。
+- 将 `clinical_standards.py` 标为 `migration_source_only`，新增生产模块零导入测试和静态常量/SPEC↔Wiki 双向迁移映射。
+- 新增本地 `USAGE.md`、部署/备份/恢复/回滚指南、P6 全局验收报告，并同步 SPEC-06/07/09/13/14/15/18/21、README、AGENTS 和 CLAUDE 的实际实现口径。
+- 生成符合共享 Review Schema 的 blocking `platform_p6_global_acceptance_v1_001`，把七场景人类签字和合成 Figure 人工视觉核验保持为 pending。
+
+#### Issues / Blockers
+- 原 `_git_commit` 使用仓库级 `git add -A`；根因是迁移到 monorepo 后仍沿用单 Study 仓假设。已改为 Study pathspec + `git commit --only`，并补预暂存 Wiki/多模块/多 Study 与平台根误用测试。
+- CLI 原先 `context_resolver=None`；根因是 P4/P5 集成只在测试中手工注入 resolver，README 命令未覆盖实际装配。首次顶层导入补线触发 `knowledge.resolver → runtime → agent_loop` 循环，已改为工厂内延迟导入并回归在线/离线 ADAE。
+- P6 ReviewPacket 首次校验因 review ID 以含数字的 `p6_` 开头而被 Schema 拒绝；改为合法 `platform_p6_global_acceptance_v1_001`，未放宽正则。
+- ICH/FDA accession 起初缺 physical page，且 FDA 旧 locator 编号与 June 2026 当前 PDF 不一致；已核对官方 PDF 页序并更新访问元数据、hash、SourceRecord 和内容治理 hash。
+- 人类视觉与场景审核尚未发生；现有 agent/machine QA 和 non-human synthetic receipt 明确不能满足该 Gate。P6 不提交、不关闭 Goal，等待平台所有者决定 F-001/F-002。
+- Python 3.14/Starlette 仍产生 multipart 与 asyncio 弃用告警；本地 Gate 不受影响，依赖升级仍是后续风险。
+
+#### Validation
+- `python -m pytest -q`（`clinical-workflow/`，182 passed）
+- `python -m pytest -q`（`clinical-llm-wiki/`，43 passed）
+- `python -m ruff check .`（Engine 与 Wiki，success）
+- `python -m scripts.content.finalize_p5_content --check`（68 governed records，success）
+- `npm run compile`（Review Panel，success）
+- Engine/Wiki Schema JSON 镜像逐文件 hash 一致；P6 ReviewPacket 通过共享 schema；`git diff --check` 无空白错误（仅 LF/CRLF 提示）
+
+#### Next
+1. 人类平台所有者审核 `docs/reviews/P6-GLOBAL-ACCEPTANCE.md` 与合成 Figure，对 F-001/F-002 作出决定。
+2. 若均批准，写入真实 DecisionReceipt/ConfirmationReceipt，更新 visual QA、P6 报告/计划/TASK_STATE，重跑 Gate 并创建 P6 独立提交；若拒绝或修改，按 human correction 修正后重新提交 ReviewPacket。
+
+#### Files Changed / Commits
+- `clinical-workflow/src/runtime/agent_loop.py`、`src/knowledge/clinical_standards.py`、`tests/**`（P6 release candidate，尚未提交）
+- `clinical-llm-wiki/vault/**`、`sources/accessions/**`、`tests/test_p6_*`（P6 release candidate，尚未提交）
+- `USAGE.md`、`docs/deploy/**`、`docs/migrations/**`、`docs/reviews/**`、SPEC/协作文档（P6 release candidate，尚未提交）
+
+## 2026-07-14
+
+### R016 [00:27] [P3-clinical-knowledge-workflow-platform] P6: 完成人类验收、Obsidian边界整改与本地发布基线
+
+#### Done
+- 应用人类平台所有者对 F-001/F-002 的批准，生成符合共享 Schema 的 DecisionReceipt 与 ConfirmationReceipt；七场景和合成 Figure 的 human Gate 均关闭，范围明确限制为本地合成发布基线。
+- 将 Obsidian 物理根统一为 `clinical-llm-wiki/vault/`：稳定 `.obsidian` 配置迁入 Vault，个人 `workspace.json` 删除并忽略，机器 Review JSON 移入模块外层 `.review_queue/archive/`，机器审计移到模块根 `audit_trail.jsonl`。
+- 保留 Vault 内 Markdown 审核摘要和 Obsidian `.base`，新增自动测试禁止非 `.obsidian` 的 JSON/JSONL/脚本进入 Vault；为 `restricted-local/` 增加防提交门禁。
+- 同步 Wiki/平台使用文档、部署备份、SPEC-21、P3完成计划、PLAN 仪表盘与 P6 验收报告；P3 子计划移动到 `plans/complete/`。
+- 重算 68 条受治理内容 hash 与 P5 合成审核输出，确认外层审核队列仍可被 Knowledge Service 严格核验。
+
+#### Issues / Blockers
+- 首次 Vault 边界定向测试因模块根残留空 `.obsidian/` 失败；根因是文件迁移和删除不会自动移除空目录。删除空目录后 23 项定向测试全部通过。
+- 首次 Engine 全量测试有 4 个 ADAE 集成失败；根因是测试临时 Wiki 仍只复制 `vault/` 与 Schema，未复制新位置的 `.review_queue/`，因此批准证据被正确 fail-closed。修复夹具复制边界后 ADAE 5 项与 Engine 182 项全部通过，未放宽生产资格校验。
+- Python 3.14/Starlette 仍有 multipart 与 asyncio 弃用告警；不阻断本地 Gate，后续依赖升级需单独处理。
+
+#### Validation
+- `python -m pytest -q`（`clinical-workflow/`，182 passed，45 warnings）
+- `python -m pytest -q`（`clinical-llm-wiki/`，44 passed，151 warnings）
+- `python -m ruff check .`（Engine 与 Wiki，success）
+- `npm run compile`（Review Panel，success）
+- `python -m scripts.content.finalize_p5_content --check`（68 governed records，success）
+- Engine/Wiki 13 个 Schema JSON 镜像逐文件一致；P6 Review triplet 均通过共享 Schema
+- Vault 非 `.obsidian` 区域无 JSON/JSONL/脚本，模块根无 `.obsidian/`；`git diff --check` 无空白错误
+
+#### Next
+Done — no next steps。内网/云端、多用户认证、GraphRAG、真实 Study 迁入及依赖升级均需另立计划。
+
+#### Files Changed / Commits
+- `clinical-workflow/**`、`clinical-llm-wiki/**`、`docs/**`、根协作/使用文档（P6完成，包含于 P6 阶段提交）

@@ -24,6 +24,10 @@ venv/
 # Runtime state (not source code)
 .review_queue/
 .workflow/
+!clinical-llm-wiki/.review_queue/
+!clinical-llm-wiki/.review_queue/archive/
+!clinical-llm-wiki/.review_queue/**/*.json
+!clinical-llm-wiki/.review_queue/*.json
 !clinical-workflow/study_template/.review_queue/
 !clinical-workflow/study_template/.review_queue/.gitkeep
 !clinical-studies/**/.review_queue/
@@ -39,6 +43,7 @@ clinical-workflow/src/review_panel/out/
 
 # Audit trail (runtime log, regenerated)
 audit_trail.jsonl
+!clinical-llm-wiki/audit_trail.jsonl
 !clinical-workflow/study_template/audit_trail.jsonl
 !clinical-studies/**/audit_trail.jsonl
 *.log

@@ -706,7 +706,9 @@ PROT-ONC-301/
 
 ---
 
-## 全流程总结
+## 历史流程总结（非当前十阶段执行口径）
+
+> 下表保留 v2.1 walkthrough 追溯，Stage 5–12 编号、时间估算和 Auto-Pass 叙述不构成当前系统能力或验证结果。P6 实际流程见本文末“P6 当前执行 Walkthrough”。
 
 ```
 阶段            名称               审核方式              时间        产出物
@@ -729,3 +731,15 @@ Stage 12: Submission        ReviewPacket ★★★        3-5 天     define.xml
 4 个 Auto-Pass 编程阶段 (置信度 HIGH, 无需人工: Protocol, SDTM Prog, ADaM Prog, TFL Prog)
 状态推导: 文件系统扫描 (output/ + .review_queue/ + audit_trail.jsonl)
 ```
+
+## P6 当前执行 Walkthrough
+
+1. Runtime 扫描 Study 的 input/output/review evidence，并由 Engine Pipeline Contract 选择第一个缺 completion evidence 的固定 Stage。
+2. CLI resolver 校验 bundle 1.1 与 manifest；优先调用 loopback Wiki，从 manifest 锁定 snapshot 解析 Workflow/Domain rules。只有连接不可达才使用相同锁的 Study-local snapshots。
+3. Runtime 加载当前 Stage 的 approved Study decisions，验证 content hash 和 packet→decision→confirmation 后合并 ExecutionContext；冲突或缺证据即阻断。
+4. Action Policy 验证 capability、core/auxiliary tool 或受控 executable，禁止未知命令和 Stage 控制字段。
+5. 工具输出由 Runtime 落盘并写 provenance。ADAE 先生成 draft 与 blocking review；未批准 draft 不构成 Stage 完成证据。
+6. Review Panel 提交 DecisionReceipt，Runtime 应用后写 ConfirmationReceipt；只有 applied 的 canonical artifact 推进管线。
+7. 每个 action 写入 Study audit；自动 Git 提交只覆盖当前 Study pathspec。
+
+该流程目前以 synthetic ADAE vertical slice 验证，不宣称已经自动生成完整真实监管提交包或达到历史表中的时间节省数字。

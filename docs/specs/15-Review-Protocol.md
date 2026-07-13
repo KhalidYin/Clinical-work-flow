@@ -1036,12 +1036,20 @@ Decision JSON 格式错误          Review Panel 前端拦截 (提交前校验)
 Phase 1 (已完成): Python 数据模型 + Schema + ReviewQueue
   src/runtime/review_protocol.py  ✓
 
-Phase 2 (待实现): VSCode Review Panel
-  src/review_panel/extension.ts   — 侧边栏入口
-  src/review_panel/renderer.ts    — 按 review_type 模板化渲染
-  src/review_panel/schema_validator.ts — 前端 JSON Schema 二次校验
-  src/review_panel/git_integration.ts  — Git diff/blame 集成
+Phase 2 (已实现本地基线): VSCode Review Panel
+  clinical-workflow/src/review_panel/extension.ts   — 侧边栏入口
+  clinical-workflow/src/review_panel/renderer.ts    — 按 review_type 模板化渲染
+  clinical-workflow/src/review_panel/schema_validator.ts — 共享 Schema 校验
+  clinical-workflow/src/review_panel/git_integration.ts  — Git diff/blame 集成
 
-Phase 3 (待实现): Agent SDK Schema Integration
-  在 Workflow 脚本中使用 schema 参数 enforce 输出格式
+Phase 3 (部分实现/后续增强): Agent SDK Schema Integration
+  Runtime、Python 与 Panel 已消费共享 JSON Schema；外部 Agent SDK 的 provider-specific `schema` 参数仍需独立接入计划。
 ```
+
+## 11. P6 Review 实现态
+
+- Study `.review_queue/` 与 Wiki 治理证据物理隔离，但都消费 Engine `review-protocol.schema.json`。
+- ReviewPacket 支持 required reviewers、consensus 和 timeout；DecisionReceipt 应用后必须生成 ConfirmationReceipt，失败/拒绝不能提升 canonical artifact。
+- Study rule 只有在 finding、decision、confirmation 与 decision ID/hash 一致时可进入 Context。
+- Promotion candidate 默认 proposed 且只写当前 Study；去标识化与独立审核之前不得写入 Wiki 或 Prior Studies。
+- P6 平台验收本身使用 `docs/reviews/p6_global_acceptance_v1_001.json`，其人工决定在签字前保持 pending。

@@ -1,6 +1,6 @@
 # P1 风险收敛计划
 
-> **执行状态（2026-07-13）**：本文件保留 P1-A/P1-B/P1-C 的实施证据，不再作为独立执行计划。尚未完成的 P1-D/P1-E 已并入 `plans/ongoing/P3-clinical-knowledge-workflow-platform.md` 的内部 P4 Gate，后续不得从本文另起并行执行流。
+> **执行状态（2026-07-14）**：本文件保留 P1-A/P1-B/P1-C 的实施证据，不再作为独立执行计划。原 P1-D/P1-E 已由 `plans/complete/P3-clinical-knowledge-workflow-platform.md` 的内部 P4 Gate 完成兼容处理，后续不得从本文另起并行执行流。
 
 > 日期: 2026-06-22
 > 状态: Draft — P1-0/P1-A/P1-B/P1-C completed

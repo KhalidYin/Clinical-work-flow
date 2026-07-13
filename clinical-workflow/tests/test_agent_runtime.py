@@ -1,10 +1,16 @@
 import asyncio
+import subprocess
 from types import SimpleNamespace
 
 import pytest
 
 from src.knowledge.models import ResolvedRule, RuleLayer, TEAEWindowRule
-from src.runtime.agent_loop import AgentAction, AgentRuntime, _load_mcp_tools
+from src.runtime.agent_loop import (
+    AgentAction,
+    AgentRuntime,
+    _load_mcp_tools,
+    build_runtime_context_resolver,
+)
 from src.runtime.context_resolver import RuntimeContextError
 from src.runtime.pipeline_contract import PipelineStage
 
@@ -176,3 +182,115 @@ def test_runtime_waits_when_fixed_stage_has_no_registered_controlled_resource(tm
     action = asyncio.run(runtime._decide_next_action("analyze", runtime._assess_context("analyze")))
     assert action.action_type == "wait"
     assert action.stage_id is PipelineStage.PROTOCOL_ANALYSIS
+
+
+def test_runtime_git_commit_is_scoped_to_current_study(tmp_path):
+    repo = tmp_path / "platform"
+    study = repo / "clinical-studies" / "STUDY-A"
+    other_study = repo / "clinical-studies" / "STUDY-B"
+    engine = repo / "clinical-workflow"
+    wiki = repo / "clinical-llm-wiki"
+    for directory in (study, other_study, engine, wiki):
+        directory.mkdir(parents=True)
+        (directory / "tracked.txt").write_text("baseline\n", encoding="utf-8")
+
+    def git(*args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["git", *args],
+            cwd=repo,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+    git("init")
+    git("config", "user.name", "Clinical Runtime Test")
+    git("config", "user.email", "runtime-test@example.invalid")
+    runtime = AgentRuntime(project_dir=study, git_auto_commit=True)
+    git("add", "-A")
+    git("commit", "-m", "baseline")
+
+    (study / "tracked.txt").write_text("study change\n", encoding="utf-8")
+    (study / "new.txt").write_text("new Study evidence\n", encoding="utf-8")
+    (other_study / "tracked.txt").write_text("other Study change\n", encoding="utf-8")
+    (engine / "tracked.txt").write_text("engine change\n", encoding="utf-8")
+    (wiki / "tracked.txt").write_text("wiki change\n", encoding="utf-8")
+    git("add", "clinical-llm-wiki/tracked.txt")
+
+    runtime._git_commit(
+        AgentAction(action_type="call_tool", description="Generate Study artifact"),
+        {"status": "success"},
+    )
+
+    committed_paths = set(
+        git("diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD")
+        .stdout.strip()
+        .splitlines()
+    )
+    assert committed_paths == {
+        "clinical-studies/STUDY-A/new.txt",
+        "clinical-studies/STUDY-A/tracked.txt",
+    }
+    assert git("status", "--porcelain", "--", "clinical-studies/STUDY-A").stdout == ""
+    assert git("diff", "--cached", "--name-only").stdout.strip() == (
+        "clinical-llm-wiki/tracked.txt"
+    )
+    remaining = git("status", "--porcelain").stdout
+    assert "clinical-workflow/tracked.txt" in remaining
+    assert "clinical-studies/STUDY-B/tracked.txt" in remaining
+
+
+@pytest.mark.parametrize(
+    "url",
+    (
+        "http://example.com:8787",
+        "http://127.0.0.1:8787/api",
+        "http://user@127.0.0.1:8787",
+        "file:///tmp/wiki",
+    ),
+)
+def test_runtime_context_factory_rejects_non_loopback_or_non_origin_urls(url):
+    with pytest.raises(ValueError, match="loopback"):
+        build_runtime_context_resolver(url)
+
+
+def test_runtime_context_factory_uses_engine_bundle_lock():
+    bridge = build_runtime_context_resolver("http://localhost:8787")
+    resolver = bridge._knowledge_resolver
+
+    assert resolver.bundle_version == "1.1.0"
+    assert resolver.bundle_sha256 == (
+        "72e5fed6cd37fdb82888e3a7b2310fe44fa0953a30eb579688a7c580f2b33e14"
+    )
+
+
+def test_runtime_refuses_to_auto_commit_platform_monorepo_root(tmp_path):
+    repo = tmp_path / "platform"
+    for module in ("clinical-workflow", "clinical-llm-wiki", "clinical-studies"):
+        path = repo / module
+        path.mkdir(parents=True)
+        (path / "tracked.txt").write_text("baseline\n", encoding="utf-8")
+
+    def git(*args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["git", *args], cwd=repo, check=True, capture_output=True, text=True
+        )
+
+    git("init")
+    git("config", "user.name", "Clinical Runtime Test")
+    git("config", "user.email", "runtime-test@example.invalid")
+    git("add", "-A")
+    git("commit", "-m", "baseline")
+    baseline = git("rev-parse", "HEAD").stdout.strip()
+    runtime = AgentRuntime(project_dir=repo, git_auto_commit=True)
+    (repo / "clinical-workflow/tracked.txt").write_text(
+        "must remain uncommitted\n", encoding="utf-8"
+    )
+
+    runtime._git_commit(
+        AgentAction(action_type="call_tool", description="Invalid root action"),
+        {"status": "success"},
+    )
+
+    assert git("rev-parse", "HEAD").stdout.strip() == baseline
+    assert "clinical-workflow/tracked.txt" in git("status", "--porcelain").stdout
