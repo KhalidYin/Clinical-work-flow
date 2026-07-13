@@ -8,7 +8,7 @@ updated: 2026-07-13
 
 | # | 子计划 | 文件 | 当前阶段 | 已用轮次 | 开始日期 |
 |---|--------|------|----------|----------|----------|
-| P3 | Clinical Knowledge Workflow Platform 总体整合 | [P3-clinical-knowledge-workflow-platform.md](plans/ongoing/P3-clinical-knowledge-workflow-platform.md) | P1 完成；下一阶段 P2 机器合同与知识治理 | 1 | 2026-07-13 |
+| P3 | Clinical Knowledge Workflow Platform 总体整合 | [P3-clinical-knowledge-workflow-platform.md](plans/ongoing/P3-clinical-knowledge-workflow-platform.md) | P2 完成；下一阶段 P3 Obsidian Vault、来源管线与本地服务 | 2 | 2026-07-13 |
 
 ## 待开始
 

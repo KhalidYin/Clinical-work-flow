@@ -2,8 +2,10 @@
 Clinical Agent Runtime v3.0.
 
 Agent-native architecture:
-  - agent_loop   — Dynamic decision loop (replaces fixed pipeline)
-  - router       — Context-aware capability routing
+  - pipeline_contract — Canonical fixed ten-stage machine contract
+  - action_policy — Fail-closed capability/tool/executable authorization
+  - agent_loop   — Fixed-pipeline runtime with dynamic review strategy
+  - router       — Context-aware fixed-stage capability routing
   - review_protocol — Structured Review Packet ↔ Decision Receipt protocol
 
 Usage:
@@ -12,6 +14,15 @@ Usage:
 """
 
 from .agent_loop import AgentRuntime, LoopState, AgentAction
+from .action_policy import (
+    DEFAULT_ACTION_POLICY,
+    ActionPolicy,
+    ActionPolicyError,
+    ActionRequest,
+    PolicyDecision,
+    authorize_action,
+    require_authorized_action,
+)
 from .decision_application import (
     ApplicationResult,
     ApplicationStatus,
@@ -21,6 +32,16 @@ from .decision_application import (
     apply_decision_receipt,
 )
 from .router import Router, RouteResult, CAPABILITY_REGISTRY, parse_intent
+from .pipeline_contract import (
+    CANONICAL_PIPELINE,
+    CONTRACT_VERSION,
+    CapabilityName,
+    ExecutableName,
+    PipelineContract,
+    PipelineContractError,
+    PipelineStage,
+    ToolName,
+)
 from .review_protocol import (
     ReviewPacket, ReviewFinding,
     DecisionReceipt, FindingDecision,
@@ -38,6 +59,23 @@ __all__ = [
     "AgentRuntime",
     "LoopState",
     "AgentAction",
+    # Pipeline Contract
+    "CANONICAL_PIPELINE",
+    "CONTRACT_VERSION",
+    "CapabilityName",
+    "ExecutableName",
+    "PipelineContract",
+    "PipelineContractError",
+    "PipelineStage",
+    "ToolName",
+    # Action Policy
+    "DEFAULT_ACTION_POLICY",
+    "ActionPolicy",
+    "ActionPolicyError",
+    "ActionRequest",
+    "PolicyDecision",
+    "authorize_action",
+    "require_authorized_action",
     # Decision Application
     "ApplicationResult",
     "ApplicationStatus",

@@ -456,7 +456,7 @@ policies: live_upgrade/conflict/version/fallback行为
 | Phase | 目标 | 预估轮次 | 依赖 | 状态 |
 |-------|------|----------|------|------|
 | P1 | 冻结架构、权威、最终目录和迁移基线 | 4-6 | - | done |
-| P2 | 建立机器合同与知识治理合同 | 6-9 | P1 | pending |
+| P2 | 建立机器合同与知识治理合同 | 6-9 | P1 | done |
 | P3 | 建立Obsidian Vault、来源管线和本地Knowledge Service | 8-11 | P2 | pending |
 | P4 | 改造Study脚手架并接入Runtime/Review/Audit | 7-10 | P2, P3；旧P1-D/P1-E所需基础 | pending |
 | P5 | 完成纵向合成试点和首版核心内容 | 10-15 | P4 | pending |
@@ -530,13 +530,13 @@ P1-P4构成平台MVP；P5-P6构成首个可用知识产品和发布基线。
 
 ### 完成标准
 
-- [ ] 未声明字段、未知Stage、未知capability、未知状态和不兼容版本被拒绝。
-- [ ] Workflow Playbook Schema不允许命令、脚本路径、next_stage或skip_stage字段。
-- [ ] 内容质量与使用授权状态分离，生产资格可机器判定。
-- [ ] Source/Figure能追溯hash、页码、bbox、权利和派生过程。
-- [ ] ExecutionContext可表达workflow/domain/study规则、冲突、缺失和provenance。
-- [ ] 所有核心MCP工具被明确映射为core或auxiliary，且Stage白名单可测试。
-- [ ] JSON Schema、Python模型、Wiki模板样例和Study fixture之间有漂移测试。
+- [x] 未声明字段、未知Stage、未知capability、未知状态和不兼容版本被拒绝。
+- [x] Workflow Playbook Schema不允许命令、脚本路径、next_stage或skip_stage字段。
+- [x] 内容质量与使用授权状态分离，生产资格可机器判定。
+- [x] Source/Figure能追溯hash、页码、bbox、权利和派生过程。
+- [x] ExecutionContext可表达workflow/domain/study规则、冲突、缺失和provenance。
+- [x] 所有核心MCP工具被明确映射为core或auxiliary，且Stage白名单可测试。
+- [x] JSON Schema、Python模型、Wiki模板样例和Study fixture之间有漂移测试。
 
 ### 边界（本Phase明确不做）
 
@@ -854,3 +854,4 @@ P1-P4构成平台MVP；P5-P6构成首个可用知识产品和发布基线。
 | 日期 | 已同步到 | 说明 |
 |------|----------|------|
 | 2026-07-13 | SPEC-06、SPEC-18、SPEC-21 | P1：三边界、十阶段、知识状态、迁移分类、跨仓发布与差异台账 |
+| 2026-07-13 | SPEC-21、`schemas/`、`src/runtime/`、`src/knowledge/` | P2：contract bundle、严格模型、Action Policy、治理与兼容性测试 |

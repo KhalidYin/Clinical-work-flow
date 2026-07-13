@@ -1,0 +1,18 @@
+{
+  "bundle_id": "ctx-study-001-sdtm",
+  "schema_version": "1.0.0",
+  "study_id": "STUDY-001",
+  "stage": "sdtm_spec",
+  "resolved_at": "2026-07-13T00:00:00Z",
+  "manifest_id": "manifest-study-001",
+  "manifest_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+  "pipeline_contract": {"artifact_id": "contract-pipeline-001", "version": "1.0.0", "sha256": "1111111111111111111111111111111111111111111111111111111111111111"},
+  "workflow_rules": [{"rule_id": "rule-workflow-001", "layer": "workflow", "priority": 400, "title": "Review mappings", "statement": "Review mappings against approved evidence.", "source_ids": ["wp-sdtm-spec-001"], "source_version": "1.0.0", "source_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "approval_receipt_id": "receipt-002"}],
+  "domain_rules": [{"rule_id": "rule-domain-001", "layer": "domain", "priority": 300, "title": "Use AE domain", "statement": "Represent adverse events in AE.", "source_ids": ["kr-sdtm-ae-001"], "source_version": "1.0.0", "source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "approval_receipt_id": "receipt-001"}],
+  "study_rules": [{"rule_id": "rule-study-001", "layer": "study", "priority": 600, "title": "Study convention", "statement": "Apply the approved study coding convention.", "source_ids": ["decision-study-001"], "source_version": "1.0.0", "source_sha256": "6666666666666666666666666666666666666666666666666666666666666666", "approval_receipt_id": "receipt-study-001"}],
+  "conflicts": [],
+  "missing_requirements": [],
+  "provenance": [{"provenance_id": "prov-workflow-001", "object_id": "wp-sdtm-spec-001", "object_version": "1.0.0", "object_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "source_kind": "workflow_knowledge", "snapshot_id": "snapshot-workflow-001", "audit_reference": "audit/context-resolution-001.json"}],
+  "executable": true,
+  "execution_context_sha256": "7777777777777777777777777777777777777777777777777777777777777777"
+}

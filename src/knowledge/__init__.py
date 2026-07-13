@@ -1,0 +1,51 @@
+"""Governed clinical knowledge contracts and compatibility checks."""
+
+from .compatibility import (
+    ContractCompatibilityError,
+    assert_contract_compatible,
+    schema_bundle_sha256,
+    verify_sha256,
+)
+from .models import (
+    ApprovalStatus,
+    CapabilityId,
+    CompatibilityRange,
+    ContentStatus,
+    ExecutionContext,
+    FigureRecord,
+    KnowledgeItem,
+    PdfStatus,
+    RightsStatus,
+    RuntimeManifest,
+    SourceRecord,
+    StorageMode,
+    WorkflowStage,
+    WorkflowPlaybook,
+    is_approval_status_transition_allowed,
+    is_content_status_transition_allowed,
+    is_pdf_status_transition_allowed,
+)
+
+__all__ = [
+    "ContractCompatibilityError",
+    "ApprovalStatus",
+    "CapabilityId",
+    "CompatibilityRange",
+    "ContentStatus",
+    "ExecutionContext",
+    "FigureRecord",
+    "KnowledgeItem",
+    "PdfStatus",
+    "RightsStatus",
+    "RuntimeManifest",
+    "SourceRecord",
+    "StorageMode",
+    "WorkflowStage",
+    "WorkflowPlaybook",
+    "assert_contract_compatible",
+    "is_approval_status_transition_allowed",
+    "is_content_status_transition_allowed",
+    "is_pdf_status_transition_allowed",
+    "schema_bundle_sha256",
+    "verify_sha256",
+]

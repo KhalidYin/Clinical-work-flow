@@ -1,7 +1,7 @@
 # SPEC-21: Clinical Knowledge Workflow Platform 集成基线
 
-> **版本**: v1.0
-> **状态**: P1 架构基线已冻结（2026-07-13）
+> **版本**: v1.1
+> **状态**: P1 架构基线与 P2 机器合同已冻结（2026-07-13）
 > **上位权威**: [SPEC-18](18-P0-Alignment.md)
 > **执行计划**: [P3 Clinical Knowledge Workflow Platform](../dep/plans/ongoing/P3-clinical-knowledge-workflow-platform.md)
 > **目的**: 固化 Workflow Engine、Clinical LLM Wiki 与 Study Instance 的边界、十阶段契约、知识治理和迁移口径。
@@ -403,3 +403,23 @@ P1 完成以以下证据为准：
 - deferred P1/P2 没有可独立恢复的任务，P1-D/P1-E 已并入 P4 Gate。
 
 后续实现若改变 Canonical Stage、权威矩阵、生产可用性条件或三个物理边界，必须先更新 P3 的关键决策并获用户确认，不能在代码提交中隐式改变。
+
+---
+
+## 16. P2 已实现的机器合同基线
+
+Engine 已发布 `1.0.0` shared contract bundle，清单及 canonical JSON hash 位于
+[`schemas/contract-bundle.json`](../../schemas/contract-bundle.json)。该 bundle 是 Wiki
+镜像和 Study manifest 锁定的唯一 Schema 来源。
+
+- Pipeline Contract 固定十阶段顺序、单一前置依赖、executor、输入、输出和阶段专属完成证据；
+- Action Policy 将当前 6 个 core MCP tools、5 个 auxiliary tools 和 7 个受控 executables 完整分类并按 Stage 白名单授权；
+- `command`、`script_path`、`next_stage` 和 `skip_stage` 等输入在 Action 与 Playbook 合同中均 fail closed；
+- Knowledge Item、Workflow Playbook、Source、Figure、Runtime Manifest 与 ExecutionContext 均使用严格 Schema/Pydantic models；
+- 生产资格由 `verified + approved + receipt/audit + rights + storage + review_due + compatibility` 机器判定；
+- Schema、Pydantic models、Wiki-oriented contract fixtures 和 Study-oriented contract fixtures 有 drift/negative/security/compatibility tests。
+
+实现入口：[`pipeline_contract.py`](../../src/runtime/pipeline_contract.py)、
+[`action_policy.py`](../../src/runtime/action_policy.py)、
+[`models.py`](../../src/knowledge/models.py) 与
+[`compatibility.py`](../../src/knowledge/compatibility.py)。P2 仅建立合同，不在本阶段接入 HTTP、索引或 Runtime 执行循环。

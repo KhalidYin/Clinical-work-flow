@@ -1,0 +1,44 @@
+{
+  "id": "kr-sdtm-ae-001",
+  "type": "standard_rule",
+  "title": "SDTM AE domain baseline",
+  "version": "1.0.0",
+  "schema_version": "1.0.0",
+  "content_status": "verified",
+  "approval_status": "approved",
+  "domains": ["SDTM", "AE"],
+  "workflow_stages": ["sdtm_spec"],
+  "topics": ["adverse events"],
+  "aliases": ["AE domain"],
+  "authority": "industry_standard",
+  "applicability": {
+    "therapeutic_areas": [],
+    "trial_phases": [],
+    "sponsor_ids": [],
+    "study_ids": [],
+    "conditions": ["interventional study"]
+  },
+  "sources": ["src-cdisc-001"],
+  "owner": "data-standards",
+  "created": "2026-07-13T00:00:00Z",
+  "last_reviewed": "2026-07-13",
+  "review_due": "2099-12-31",
+  "supersedes": [],
+  "superseded_by": null,
+  "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "rights_status": "cleared",
+  "allowed_uses": ["runtime"],
+  "storage_mode": "committed",
+  "contract_compatibility": {"minimum": "1.0.0", "maximum_exclusive": "2.0.0"},
+  "approval_receipt_id": "receipt-001",
+  "audit_reference": "audit/receipt-001.json",
+  "summary": "AE mapping follows the approved SDTM implementation guide.",
+  "statements": [
+    {
+      "rule_id": "rule-ae-001",
+      "statement": "Represent adverse event observations in the AE domain.",
+      "rationale": "Preserves the standard observation class.",
+      "evidence_refs": ["src-cdisc-001"]
+    }
+  ]
+}

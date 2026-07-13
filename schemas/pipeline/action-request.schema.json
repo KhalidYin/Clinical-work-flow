@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://clinical-ai-workflow.local/schemas/pipeline/action-request.schema.json",
+  "title": "Pipeline Action Request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "origin", "stage_id", "capability", "arguments"],
+  "properties": {
+    "contract_version": {"type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"},
+    "origin": {"enum": ["runtime", "agent", "human_approved_decision"]},
+    "stage_id": {"enum": ["protocol_analysis", "sap_generation", "sdtm_spec", "sdtm_programming", "adam_spec", "adam_programming", "tfl_shell_design", "tfl_programming", "qc_validation", "submission_packaging"]},
+    "capability": {"enum": ["protocol_analysis", "endpoint_classification", "estimands_derivation", "sap_generation", "sdtm_spec_generation", "sdtm_programming", "adam_spec_generation", "adam_programming", "ct_alignment", "cdisc_validation", "tfl_shell_generation", "tfl_programming", "qc_validation", "p21_triage", "define_xml_generation", "submission_packaging", "source_discovery", "source_data_import"]},
+    "tool_name": {"enum": ["sdtm_spec_build", "adam_spec_build", "tfl_shells_list", "cdisc_validate", "define_xml_build", "triage_p21", "edc_import", "ctgov_search", "ctgov_study_detail", "ctgov_download_docs", "ctgov_check_docs"]},
+    "executable_name": {"enum": ["protocol_document_parser", "sap_document_generator", "sdtm_program_runner", "adam_program_runner", "tfl_renderer", "qc_comparator", "submission_packager"]},
+    "arguments": {
+      "type": "object",
+      "propertyNames": {"not": {"enum": ["command", "cmd", "shell", "shell_command", "script_path", "executable_path", "next_stage", "skip_stage"]}}
+    }
+  },
+  "not": {"required": ["tool_name", "executable_name"]}
+}
