@@ -6,6 +6,7 @@
 
 - `DecisionReceipt` 的 reviewer 明确为 **non-human test fixture**。
 - `approved` 只表示可以进入本地 P5 合成试点的 approved-only 索引。
+- 机器范围固定为 `applicability.study_ids: [SYNTH-ONCO-001]`，且 `conditions` 必须包含 `synthetic-pilot-only`。
 - 它不代表 Sponsor、医学、统计、监管或 GxP 人类审批，真实 Study 使用前必须重新进入 Structured Review Protocol。
 - 每个 `F-nnn` 通过 ReviewPacket 的 `location` 精确映射到一个 governed record ID；不存在通配批准。
 

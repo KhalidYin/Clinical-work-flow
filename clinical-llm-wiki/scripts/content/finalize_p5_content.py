@@ -26,6 +26,8 @@ OLD_RECEIPT_ID = "review-p5-core-content-v1-001"
 RECEIPT_ID = "review-knowledge-p5-core-v1-001"
 REVIEW_ID = "knowledge_p5_core_v1_001"
 AUDIT_REFERENCE = "vault/80_Governance/Review-Receipts/p5-core-content-approval.md"
+SYNTHETIC_STUDY_ID = "SYNTH-ONCO-001"
+SYNTHETIC_PILOT_CONDITION = "synthetic-pilot-only"
 GOVERNED_TYPES = {
     "concept", "method", "standard_rule", "decision_rule", "programming_pattern",
     "deliverable_pattern", "prior_study_pattern", "workflow_playbook", "source_record",
@@ -52,6 +54,14 @@ def _release_records(*, write: bool) -> list[tuple[Path, dict[str, Any], str]]:
             continue
         if record.get("approval_receipt_id") == OLD_RECEIPT_ID:
             record["approval_receipt_id"] = RECEIPT_ID
+        if record.get("approval_receipt_id") == RECEIPT_ID:
+            applicability = record.get("applicability")
+            if not isinstance(applicability, dict):
+                raise RuntimeError(f"P5 release record has no applicability object: {record['id']}")
+            applicability["study_ids"] = [SYNTHETIC_STUDY_ID]
+            if not isinstance(applicability.get("conditions"), list):
+                raise RuntimeError(f"P5 release record has invalid conditions: {record['id']}")
+            applicability["conditions"] = [SYNTHETIC_PILOT_CONDITION]
         expected_hash = canonical_json_sha256({
             "frontmatter": {key: value for key, value in record.items() if key != "content_hash"},
             "body": body,
@@ -145,6 +155,7 @@ def _governance_payloads(
 
 - `DecisionReceipt` 的 reviewer 明确为 **non-human test fixture**。
 - `approved` 只表示可以进入本地 P5 合成试点的 approved-only 索引。
+- 机器范围固定为 `applicability.study_ids: [{SYNTHETIC_STUDY_ID}]`，且 `conditions` 必须包含 `{SYNTHETIC_PILOT_CONDITION}`。
 - 它不代表 Sponsor、医学、统计、监管或 GxP 人类审批，真实 Study 使用前必须重新进入 Structured Review Protocol。
 - 每个 `F-nnn` 通过 ReviewPacket 的 `location` 精确映射到一个 governed record ID；不存在通配批准。
 

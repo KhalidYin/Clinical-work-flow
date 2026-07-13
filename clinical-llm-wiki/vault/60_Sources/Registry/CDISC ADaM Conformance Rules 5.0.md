@@ -25,9 +25,10 @@ applicability:
   therapeutic_areas: []
   trial_phases: []
   sponsor_ids: []
-  study_ids: []
+  study_ids:
+  - SYNTH-ONCO-001
   conditions:
-  - p5_representative_baseline
+  - synthetic-pilot-only
 sources: []
 owner: Clinical Knowledge Governance
 created: '2026-07-13T00:00:00+08:00'
@@ -35,7 +36,7 @@ last_reviewed: '2026-07-13'
 review_due: '2027-07-13'
 supersedes: []
 superseded_by: null
-content_hash: 645e938e1ca8249992154d7cda13ab8f1144ee075a390abb6b2c09b4eac6302b
+content_hash: 686003fb9f2802290d6d969080948bff771611192fd51054044b19d00c4bd17b
 rights_status: cleared
 allowed_uses:
 - internal_knowledge_service

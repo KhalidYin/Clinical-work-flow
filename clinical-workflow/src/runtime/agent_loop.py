@@ -27,15 +27,19 @@ import asyncio
 import hashlib
 import json
 import logging
+import shutil
 import subprocess
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Mapping
+
+import yaml
 
 from src.config import load_runtime_manifest
 from src.config.project import ProjectConfig, load_project_config, resolve_project_path
+from src.knowledge.models import ExecutionContext
 
 from .decision_application import DecisionApplicationError, apply_decision_receipt
 from .action_policy import DEFAULT_ACTION_POLICY, ActionRequest, ActionPolicyError, require_authorized_action
@@ -524,7 +528,14 @@ class AgentRuntime:
                 if resource_name is None:
                     result.update({"status": "denied", "error": "action has no controlled resource"})
                 else:
-                    result.update(self._call_tool(str(resource_name), action.tool_args or {}))
+                    tool_result = self._call_tool(str(resource_name), action.tool_args or {})
+                    if (
+                        tool_result.get("status") == "success"
+                        and action.stage_id is PipelineStage.ADAM_SPEC
+                        and action.tool_name == "adam_spec_build"
+                    ):
+                        tool_result = self._materialize_adam_spec_drafts(tool_result)
+                    result.update(tool_result)
 
         elif action.action_type == "submit_review" and action.review_packet:
             filepath = self.review_queue.submit_packet(action.review_packet)
@@ -562,6 +573,46 @@ class AgentRuntime:
         self.execution_context = context
         action.context_bundle_id = context.bundle_id
         action.context_sha256 = context.execution_context_sha256
+        self._project_governed_tool_args(action, context)
+
+    @staticmethod
+    def _project_governed_tool_args(
+        action: AgentAction, context: ExecutionContext
+    ) -> None:
+        """Bind typed Study decisions to one dataset without parsing rule prose."""
+
+        if (
+            action.stage_id is not PipelineStage.ADAM_SPEC
+            or action.tool_name != "adam_spec_build"
+        ):
+            return
+        arguments = dict(action.tool_args or {})
+        datasets = arguments.get("datasets", [])
+        if "ADAE" not in datasets:
+            return
+        if "dataset_rule_bindings" in arguments:
+            raise RuntimeContextError(
+                "runtime-generated dataset rule bindings cannot be supplied by intent"
+            )
+        matches = [
+            rule for rule in context.study_rules
+            if rule.structured_rule is not None
+            and rule.structured_rule.rule_type == "teae_window"
+            and rule.structured_rule.target_dataset == "ADAE"
+            and rule.structured_rule.target_variable == "TRTEMFL"
+        ]
+        if len(matches) != 1:
+            raise RuntimeContextError(
+                "ADAE requires exactly one approved structured Study TEAE rule"
+            )
+        selected = matches[0]
+        arguments["dataset_rule_bindings"] = {
+            "ADAE": {
+                "teae_rule": selected.structured_rule.model_dump(mode="json"),
+                "applied_rule_refs": [selected.rule_id],
+            }
+        }
+        action.tool_args = arguments
 
     @staticmethod
     def _authorize_action(action: AgentAction) -> None:
@@ -603,11 +654,29 @@ class AgentRuntime:
                          plural_key: str, singular_key: str) -> dict[str, Any]:
         """Expand a runtime batch request into deterministic single-tool calls."""
         values = args.get(plural_key, [])
+        bindings = args.get("dataset_rule_bindings", {})
+        if not isinstance(bindings, Mapping) or any(
+            key not in values or not isinstance(value, Mapping)
+            for key, value in bindings.items()
+        ):
+            return {
+                "status": "error",
+                "tool_result": {},
+                "errors": {"bindings": "dataset_rule_bindings do not match the batch datasets"},
+            }
         results: dict[str, Any] = {}
         errors: dict[str, str] = {}
 
         for value in values:
-            single_args = {k: v for k, v in args.items() if k != plural_key}
+            single_args = {
+                key: item for key, item in args.items()
+                if key not in {plural_key, "dataset_rule_bindings"}
+            }
+            binding = dict(bindings.get(value, {}))
+            if set(binding).intersection(single_args):
+                errors[value] = "dataset rule binding collides with shared arguments"
+                continue
+            single_args.update(binding)
             single_args[singular_key] = value
             single = self._call_tool(tool_name, single_args)
             if single.get("status") == "success":
@@ -615,10 +684,110 @@ class AgentRuntime:
             else:
                 errors[value] = single.get("error", "unknown error")
 
+        applied_rule_refs = [
+            reference
+            for result in results.values()
+            if isinstance(result, Mapping)
+            for reference in result.get("applied_rule_refs", [])
+        ]
         return {
             "status": "error" if errors else "success",
             "tool_result": results,
             "errors": errors,
+            "applied_rule_refs": applied_rule_refs,
+        }
+
+    def _materialize_adam_spec_drafts(
+        self, tool_execution: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Write deterministic ADaM drafts and open one blocking review gate."""
+
+        raw_results = tool_execution.get("tool_result")
+        if not isinstance(raw_results, Mapping) or not raw_results:
+            raise RuntimeContextError("ADaM builder returned no dataset specifications")
+        if self.execution_context is None:
+            raise RuntimeContextError("ADaM draft materialization requires governed context")
+        draft_root = (self.output_dir or self.project_dir / "output") / "adam" / "drafts"
+        draft_root.mkdir(parents=True, exist_ok=True)
+        artifact_paths: list[str] = []
+        findings: list[ReviewFinding] = []
+        for index, (dataset, specification) in enumerate(sorted(raw_results.items())):
+            if not isinstance(dataset, str) or not isinstance(specification, Mapping):
+                raise RuntimeContextError("ADaM builder returned an invalid dataset specification")
+            path = draft_root / f"{dataset.lower()}-spec.yaml"
+            path.write_text(
+                yaml.safe_dump(dict(specification), sort_keys=False, allow_unicode=True),
+                encoding="utf-8",
+            )
+            relative = path.resolve().relative_to(self.project_dir.resolve()).as_posix()
+            artifact_paths.append(relative)
+            variables = specification.get("variables", [])
+            variable_index = next(
+                (
+                    item_index for item_index, variable in enumerate(variables)
+                    if isinstance(variable, Mapping) and variable.get("name") == "TRTEMFL"
+                ),
+                None,
+            )
+            if dataset == "ADAE" and variable_index is not None:
+                derivation = str(variables[variable_index].get("derivation", ""))
+                location = f"{relative}#variables[{variable_index}].derivation"
+                evidence_refs = [
+                    f"context:{self.execution_context.bundle_id}",
+                    f"context-sha256:{self.execution_context.execution_context_sha256}",
+                    *(
+                        f"study-rule:{rule_id}"
+                        for rule_id in specification.get("applied_rule_refs", [])
+                    ),
+                ]
+                findings.append(ReviewFinding(
+                    id=make_finding_id(index),
+                    category=FindingCategory.DERIVATION,
+                    severity=Severity.CRITICAL,
+                    location=location,
+                    title="Approve ADAE TRTEMFL derivation",
+                    current_value=derivation,
+                    proposed_value=derivation,
+                    rationale=(
+                        "The structured Study TEAE decision changes a required ADAE analysis flag."
+                    ),
+                    evidence_refs=evidence_refs,
+                ))
+            else:
+                findings.append(ReviewFinding(
+                    id=make_finding_id(index),
+                    category=FindingCategory.COMPLIANCE,
+                    severity=Severity.WARNING,
+                    location=f"{relative}#dataset",
+                    title=f"Approve {dataset} specification",
+                    current_value=str(specification.get("dataset", dataset)),
+                    proposed_value=str(specification.get("dataset", dataset)),
+                    rationale="Every generated ADaM specification requires structured review.",
+                    evidence_refs=[f"artifact:{relative}"],
+                ))
+        packet = new_review_packet(
+            review_type=ReviewType.ADAM_SPEC,
+            source_documents=artifact_paths,
+            agent_summary=(
+                "Generated deterministic ADaM specification drafts from the manifest-locked "
+                "knowledge context; approve before canonical stage completion."
+            ),
+            generated_by="AgentRuntime",
+            findings=findings,
+            urgency=Urgency.BLOCKING,
+            domain_or_dataset="adam_specs",
+        )
+        review_path = self.review_queue.submit_packet(packet)
+        self.state.blocking_review = packet.review_id
+        if packet.review_id not in self.state.pending_reviews:
+            self.state.pending_reviews.append(packet.review_id)
+        return {
+            **tool_execution,
+            "status": "awaiting_human",
+            "artifact_paths": artifact_paths,
+            "review_id": packet.review_id,
+            "review_file": str(review_path),
+            "blocking": True,
         }
 
     # ── Review Handling ────────────────────────────────────────
@@ -679,6 +848,18 @@ class AgentRuntime:
                 result.application_status.value,
             )
 
+        try:
+            promoted_artifacts = self._promote_reviewed_adam_specs(packet, confirmation)
+        except RuntimeContextError as exc:
+            logger.error("Reviewed ADaM specification promotion failed: %s", exc)
+            self.state.change_log.append({
+                "type": "adam_spec_promotion_failed",
+                "review_id": receipt.review_id,
+                "error": str(exc),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+            return
+
         self.review_queue.archive_completed(receipt.review_id)
 
         # Record in change log
@@ -688,8 +869,62 @@ class AgentRuntime:
             "reviewer": receipt.reviewer,
             "summary": receipt.summary(),
             "application_summary": confirmation.summary(),
+            "promoted_artifacts": promoted_artifacts,
             "timestamp": receipt.timestamp,
         })
+
+    def _promote_reviewed_adam_specs(
+        self, packet: ReviewPacket, confirmation: Any
+    ) -> list[str]:
+        """Copy reviewed drafts to canonical evidence only after successful application."""
+
+        if packet.review_type is not ReviewType.ADAM_SPEC:
+            return []
+        if any(
+            result.original_decision.value == "rejected"
+            or result.application_status.value == "failed"
+            for result in confirmation.results
+        ):
+            return []
+        root = self.project_dir.resolve()
+        draft_root = (self.output_dir or self.project_dir / "output") / "adam" / "drafts"
+        canonical_root = (self.output_dir or self.project_dir / "output") / "adam" / "specs"
+        draft_root = draft_root.resolve()
+        canonical_root.mkdir(parents=True, exist_ok=True)
+        promoted: list[str] = []
+        for source_document in packet.source_documents:
+            draft = (root / source_document).resolve()
+            try:
+                draft.relative_to(draft_root)
+            except ValueError as exc:
+                raise RuntimeContextError(
+                    "ADaM review source must stay in the Study draft directory"
+                ) from exc
+            if not draft.is_file() or draft.suffix.lower() not in {".yaml", ".yml"}:
+                raise RuntimeContextError("reviewed ADaM draft is missing or not YAML")
+            draft_sidecar = draft.with_name(f"{draft.name}.provenance.json")
+            if not draft_sidecar.is_file():
+                raise RuntimeContextError("reviewed ADaM draft has no governed provenance sidecar")
+            canonical = canonical_root / draft.name
+            shutil.copy2(draft, canonical)
+            try:
+                provenance = json.loads(draft_sidecar.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as exc:
+                raise RuntimeContextError("ADaM draft provenance is unreadable") from exc
+            relative = canonical.relative_to(root).as_posix()
+            provenance.update({
+                "artifact_path": relative,
+                "artifact_sha256": hashlib.sha256(canonical.read_bytes()).hexdigest(),
+                "approved_by_review_id": packet.review_id,
+                "approval_confirmation": confirmation.summary(),
+                "promoted_at": datetime.now(timezone.utc).isoformat(),
+            })
+            canonical.with_name(f"{canonical.name}.provenance.json").write_text(
+                json.dumps(provenance, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            promoted.append(relative)
+        return promoted
 
     # ── Review Packet Builders ─────────────────────────────────
 
@@ -836,6 +1071,17 @@ class AgentRuntime:
 
         root = self.project_dir.resolve()
         context = self.execution_context
+        applied_rule_refs = result.get("applied_rule_refs", [])
+        if not isinstance(applied_rule_refs, list) or any(
+            not isinstance(item, str) or not item for item in applied_rule_refs
+        ):
+            raise RuntimeContextError("applied_rule_refs must be a list of governed rule IDs")
+        governed_study_rules = {rule.rule_id for rule in context.study_rules}
+        unknown_applied = sorted(set(applied_rule_refs) - governed_study_rules)
+        if unknown_applied:
+            raise RuntimeContextError(
+                f"artifact claims Study rules absent from the execution context: {unknown_applied}"
+            )
         written: list[str] = []
         for candidate in candidates:
             artifact = (root / candidate).resolve() if not Path(candidate).is_absolute() else Path(candidate).resolve()
@@ -849,7 +1095,9 @@ class AgentRuntime:
             knowledge = [
                 item.model_dump(mode="json")
                 for item in context.provenance
-                if item.source_kind in {"workflow_knowledge", "domain_knowledge"}
+                if item.source_kind in {
+                    "workflow_knowledge", "domain_knowledge", "study_decision"
+                }
             ]
             payload = {
                 "artifact_path": relative.as_posix(),
@@ -864,6 +1112,7 @@ class AgentRuntime:
                 "manifest_sha256": manifest.manifest_sha256,
                 "context_bundle_id": context.bundle_id,
                 "context_sha256": context.execution_context_sha256,
+                "applied_rule_refs": applied_rule_refs,
                 "created_at": datetime.now(timezone.utc).isoformat(),
             }
             sidecar = artifact.with_name(f"{artifact.name}.provenance.json")

@@ -2,7 +2,7 @@
 # The endpoint for the local Wiki service is injected by Engine configuration;
 # this lock contains only portable, Study-local fallback paths.
 manifest_id: "manifest-study-template"
-schema_version: "1.0.0"
+schema_version: "1.1.0"
 revision: 1
 study_id: "STUDY-TEMPLATE"
 created_at: "2026-07-13T00:00:00Z"

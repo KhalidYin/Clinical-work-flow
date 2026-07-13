@@ -1,6 +1,6 @@
 {
   "bundle_id": "clinical-workflow-contracts",
-  "bundle_version": "1.0.0",
+  "bundle_version": "1.1.0",
   "authority": "workflow_engine",
   "hash_algorithm": "sha256-canonical-json-v1",
   "schemas": [
@@ -9,6 +9,7 @@
     "knowledge/knowledge-item.schema.json",
     "knowledge/runtime-manifest.schema.json",
     "knowledge/source.schema.json",
+    "knowledge/study-decision.schema.json",
     "knowledge/workflow-playbook.schema.json",
     "pipeline/action-policy.schema.json",
     "pipeline/action-request.schema.json",
@@ -16,5 +17,5 @@
     "project.schema.json",
     "review/review-protocol.schema.json"
   ],
-  "bundle_sha256": "bb8be8480288f301293c824175c84c2c86b0fd543344dade98570cfe88873281"
+  "bundle_sha256": "72e5fed6cd37fdb82888e3a7b2310fe44fa0953a30eb579688a7c580f2b33e14"
 }

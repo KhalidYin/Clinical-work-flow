@@ -159,3 +159,38 @@
 - `clinical-workflow/**`、`clinical-llm-wiki/**`、`clinical-studies/**`（迁移/新增，包含于 monorepo 迁移脚手架提交）
 - `.gitignore`、`AGENTS.md`、`CLAUDE.md`、`README.md`（修改/新增，包含于 monorepo 迁移脚手架提交）
 - `docs/specs/21-Knowledge-Workflow-Integration.md`、`docs/dep/**`（修改，包含于 monorepo 迁移脚手架提交）
+
+---
+
+### R014 [19:36] [P3-clinical-knowledge-workflow-platform] P5: 完成受治理 ADAE 知识执行纵向闭环
+
+#### Done
+- 将在线查询改为只解析 manifest 锁定的不可变 snapshot，并在 Wiki 与 Engine 两侧校验 snapshot ID、版本、内容 hash、Schema bundle 与 Study applicability；non-human approval 精确限制为 `SYNTH-ONCO-001` 的 `synthetic-pilot-only` 条件。
+- 将 Engine/Wiki 合同 bundle 升级为 1.1.0，新增结构化 `TEAEWindowRule`、`StudyDecision` 和三证审批加载；删除 ADAE builder 的 `TRTEDT + 30 days` 硬编码，规则缺失、歧义、篡改或越界均在产物前 fail closed。
+- 建立 `adae-pilot` 合成 Study 与在线/离线端到端测试；Runtime 先生成 `output/adam/drafts/`，只有 blocking ADAM_SPEC Review 应用成功后才提升到 canonical `output/adam/specs/`，并记录 decision、rule refs 和 approval provenance。
+- 新增仅写入当前 Study 的去标识化 promotion candidate 模块；默认不具备 Wiki 晋升资格，未经批准不得写入 Wiki 或 Prior Studies。
+- 发布 68 条 synthetic-only 受治理内容、10 个阶段 Playbook 与纵向语义验收，覆盖 Estimand、endpoint、analysis set、model、missing/sensitivity 及 SDTM→ADaM→参数→编程模式→TFL→CSR/Submission 追溯。
+
+#### Issues / Blockers
+- 内容生成器曾同时保留 `synthetic_training_only` 与 `synthetic-pilot-only`，而解释器只支持后者；根因是生成器追加条件而未归一化。已改为精确单条件并重算全部内容 hash，未知条件继续 fail closed。
+- bundle 1.1 首轮联合测试有 10 个 Runtime fixture 仍锁定 1.0；这是 exact-lock Gate 正常拒绝旧合同，不是兼容逻辑缺陷。已更新测试 fixture，未放宽版本/hash 校验。
+- 内容检查脚本一次以错误模块路径、一次以直接文件入口执行失败；根因分别是模块名遗漏 `content` 与直接入口没有包根 `PYTHONPATH`。已使用项目标准入口 `python -m scripts.content.finalize_p5_content --check` 成功重跑，未造成文件损坏。
+- promotion 的 `deidentified` 与 review 状态目前由调用方提供；当前模块保证文件隔离和资格计算，P6/后续 Runtime 集成应从正式 Review 证据投影，避免信任任意调用参数。
+- Python 3.14 下 Starlette 仍产生 multipart/asyncio 弃用告警；不影响本 Gate，P6 发布基线需记录兼容版本和升级风险。
+
+#### Validation
+- `python -m pytest -q`（`clinical-workflow/`，170 passed）
+- `python -m pytest -q`（`clinical-llm-wiki/`，38 passed）
+- `python -m ruff check .`（Engine 与 Wiki，success）
+- `python -m scripts.content.finalize_p5_content --check`（68 governed records，success）
+- `npm run compile`（`clinical-workflow/src/review_panel/`，success）
+- Engine/Wiki Schema JSON 镜像逐文件一致；`git diff --check` 无空白错误（仅 LF/CRLF 提示）
+
+#### Next
+1. P6：修复 Runtime Git 自动提交作用域，并用多 Study/多模块脏工作区测试证明只提交当前 Study。
+2. P6：执行七个全局场景、迁移兼容和本地发布验收，同步全部权威规格与运维文档。
+
+#### Files Changed / Commits
+- `clinical-workflow/schemas/knowledge/**`、`src/knowledge/**`、`src/mcp_tools/**`、`src/runtime/**`、`tests/**`（P5 实现，包含于 P5 阶段提交）
+- `clinical-llm-wiki/service/**`、`scripts/content/**`、`vault/**`、`tests/**`（P5 内容与服务治理，包含于 P5 阶段提交）
+- `docs/specs/21-Knowledge-Workflow-Integration.md`、`docs/dep/**`（P5 Gate 与追踪，包含于 P5 阶段提交）

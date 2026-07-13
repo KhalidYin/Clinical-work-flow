@@ -8,5 +8,6 @@ may redefine the schemas.
 canonical JSON plus normalized relative paths, so it is stable across line-ending
 changes. Any intentional schema change must update the bundle version and hash.
 
-The initial `1.0.0` bundle contains project, review, pipeline, action-policy,
-knowledge-governance, runtime-manifest, and execution-context contracts.
+The `1.1.0` bundle adds the structured Study decision/TEAE rule contract while
+retaining project, review, pipeline, action-policy, knowledge-governance,
+runtime-manifest, and execution-context contracts.

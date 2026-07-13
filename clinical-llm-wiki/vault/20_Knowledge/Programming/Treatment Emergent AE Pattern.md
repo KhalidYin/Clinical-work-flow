@@ -24,8 +24,10 @@ applicability:
   therapeutic_areas: []
   trial_phases: []
   sponsor_ids: []
-  study_ids: []
-  conditions: []
+  study_ids:
+  - SYNTH-ONCO-001
+  conditions:
+  - synthetic-pilot-only
 sources:
 - src-engine-schema-bundle
 - src-cdisc-sdtmig-3-3
@@ -37,7 +39,7 @@ last_reviewed: '2026-07-13'
 review_due: '2027-07-13'
 supersedes: []
 superseded_by: null
-content_hash: 7ae41b455b84d1a555659bd1b39c8e3a4b54f62ac4e5de60540607413194860c
+content_hash: 96bc12e6362ef89bd826c43c79a2d2242463c41b4ae9a5f0bd0124286928e449
 rights_status: cleared
 allowed_uses:
 - internal_knowledge_service

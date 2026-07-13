@@ -6,7 +6,8 @@ from datetime import datetime, timezone
 from typing import Any
 
 from .contracts import SchemaBundle, canonical_json_sha256
-from .repository import Card, VaultRepository
+from .repository import VaultRepository
+from .snapshot import SnapshotError, load_locked_snapshot
 
 
 _STAGES = frozenset({
@@ -14,6 +15,8 @@ _STAGES = frozenset({
     "adam_spec", "adam_programming", "tfl_shell_design", "tfl_programming",
     "qc_validation", "submission_packaging",
 })
+_SYNTHETIC_PILOT_CONDITION = "synthetic-pilot-only"
+_SYNTHETIC_PILOT_STUDY = "SYNTH-ONCO-001"
 
 
 class ResolutionError(ValueError):
@@ -38,25 +41,41 @@ def resolve_runtime_context(
         raise ResolutionError("runtime_manifest is required")
     _validate_manifest(bundle, manifest, study_id)
     _reject_control_fields(request)
-    workflow_cards = repository.search(
-        record_type="workflow_playbook", stage=stage, production_only=True, limit=200
-    )
-    domain_cards = [
-        card for card in repository.search(stage=stage, production_only=True, limit=500)
-        if card.record.get("type") not in {"workflow_playbook", "source_record", "figure_record"}
+    try:
+        workflow_snapshot = load_locked_snapshot(repository, manifest["workflow_knowledge"])
+        domain_snapshot = load_locked_snapshot(repository, manifest["domain_knowledge"])
+    except SnapshotError as exc:
+        raise ResolutionError(str(exc)) from exc
+    workflow_records = [
+        record for record in workflow_snapshot
+        if record.get("type") == "workflow_playbook"
+        and stage in record.get("workflow_stages", [])
+        and _applies_to_study(record, study_id)
+    ]
+    domain_records = [
+        record for record in domain_snapshot
+        if record.get("type") not in {"workflow_playbook", "source_record", "figure_record"}
+        and stage in record.get("workflow_stages", [])
+        and _applies_to_study(record, study_id)
     ]
     # Study-specific decisions are supplied only by the Engine in a separate P4
     # merge.  The Wiki service neither owns nor accepts them as an instruction path.
     missing: list[dict[str, Any]] = []
-    if request.get("require_workflow", True) and not workflow_cards:
+    if request.get("require_workflow", True) and not workflow_records:
         missing.append({"requirement_id": "requirement-workflow-context", "description": "No production-approved workflow playbook matches this stage."})
-    if request.get("require_domain", False) and not domain_cards:
+    if request.get("require_domain", False) and not domain_records:
         missing.append({"requirement_id": "requirement-domain-context", "description": "No production-approved domain knowledge matches this stage."})
-    workflow_rules = _workflow_rules(workflow_cards)
-    domain_rules = _domain_rules(domain_cards)
+    workflow_rules = _workflow_rules(workflow_records)
+    domain_rules = _domain_rules(domain_records)
     provenance = [_pipeline_provenance(manifest)]
-    provenance.extend(_provenance_for(card, "workflow_knowledge", manifest) for card in workflow_cards)
-    provenance.extend(_provenance_for(card, "domain_knowledge", manifest) for card in domain_cards)
+    provenance.extend(
+        _provenance_for(record, "workflow_knowledge", manifest)
+        for record in workflow_records
+    )
+    provenance.extend(
+        _provenance_for(record, "domain_knowledge", manifest)
+        for record in domain_records
+    )
     payload: dict[str, Any] = {
         "bundle_id": f"ctx-{_safe_slug(study_id)}-{stage.replace('_', '-')}",
         "schema_version": bundle.version,
@@ -94,10 +113,9 @@ def _reject_control_fields(request: dict[str, Any]) -> None:
         raise ResolutionError(f"Wiki runtime endpoint rejects control fields: {sorted(found)}")
 
 
-def _workflow_rules(cards: list[Card]) -> list[dict[str, Any]]:
+def _workflow_rules(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
     rules: list[dict[str, Any]] = []
-    for card in cards:
-        record = card.record
+    for record in records:
         statement = record["purpose"] + " " + " ".join(step["objective"] for step in record["steps"])
         rules.append({
             "rule_id": record["id"], "layer": "workflow", "priority": 400,
@@ -109,10 +127,9 @@ def _workflow_rules(cards: list[Card]) -> list[dict[str, Any]]:
     return rules
 
 
-def _domain_rules(cards: list[Card]) -> list[dict[str, Any]]:
+def _domain_rules(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
     rules: list[dict[str, Any]] = []
-    for card in cards:
-        record = card.record
+    for record in records:
         for statement in record.get("statements", []):
             rules.append({
                 "rule_id": statement["rule_id"], "layer": "domain", "priority": 300,
@@ -134,15 +151,32 @@ def _pipeline_provenance(manifest: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _provenance_for(card: Card, source_kind: str, manifest: dict[str, Any]) -> dict[str, Any]:
+def _provenance_for(
+    record: dict[str, Any], source_kind: str, manifest: dict[str, Any]
+) -> dict[str, Any]:
     lock = manifest["workflow_knowledge"] if source_kind == "workflow_knowledge" else manifest["domain_knowledge"]
-    record = card.record
     return {
         "provenance_id": f"prov-{record['id']}", "object_id": record["id"],
         "object_version": record["version"], "object_sha256": record["content_hash"],
         "source_kind": source_kind, "snapshot_id": lock["snapshot_id"],
         "audit_reference": record["audit_reference"],
     }
+
+
+def _applies_to_study(record: dict[str, Any], study_id: str) -> bool:
+    applicability = record.get("applicability", {})
+    conditions = applicability.get("conditions", [])
+    unknown = set(conditions) - {_SYNTHETIC_PILOT_CONDITION}
+    if unknown:
+        raise ResolutionError(
+            f"unknown applicability conditions for {record.get('id')}: {sorted(unknown)}"
+        )
+    study_ids = applicability.get("study_ids", [])
+    if study_ids and study_id not in study_ids:
+        return False
+    if _SYNTHETIC_PILOT_CONDITION in conditions and study_id != _SYNTHETIC_PILOT_STUDY:
+        return False
+    return True
 
 
 def _safe_slug(value: str) -> str:

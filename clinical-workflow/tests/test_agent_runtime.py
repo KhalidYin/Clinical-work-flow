@@ -1,7 +1,37 @@
 import asyncio
+from types import SimpleNamespace
 
-from src.runtime.agent_loop import AgentRuntime, _load_mcp_tools
+import pytest
+
+from src.knowledge.models import ResolvedRule, RuleLayer, TEAEWindowRule
+from src.runtime.agent_loop import AgentAction, AgentRuntime, _load_mcp_tools
+from src.runtime.context_resolver import RuntimeContextError
 from src.runtime.pipeline_contract import PipelineStage
+
+
+def _teae_rule() -> TEAEWindowRule:
+    return TEAEWindowRule(
+        end_offset_days=30,
+        incomplete_event_date_policy="review_required",
+        missing_treatment_date_policy="review_required",
+        multiple_treatment_period_policy="review_required",
+        pre_treatment_worsening_policy="include_if_worsened",
+    )
+
+
+def _study_teae_rule(rule_id: str = "rule-study-teae-window") -> ResolvedRule:
+    return ResolvedRule(
+        rule_id=rule_id,
+        layer=RuleLayer.STUDY,
+        priority=600,
+        title="Approved Study TEAE window",
+        statement="Display-only explanation; Runtime must not parse this text.",
+        source_ids=("decision-study-teae-window",),
+        source_version="1.0.0",
+        source_sha256="6" * 64,
+        approval_receipt_id="receipt-study-teae-window",
+        structured_rule=_teae_rule(),
+    )
 
 
 def test_runtime_loads_server_tools(tmp_path):
@@ -24,13 +54,62 @@ def test_runtime_expands_batch_sdtm_and_adam_tool_calls(tmp_path):
     )
     adam = runtime._call_tool(
         "adam_spec_build",
-        {"datasets": ["ADSL", "ADAE"], "trial_phase": "phase_iii"},
+        {
+            "datasets": ["ADSL", "ADAE"],
+            "trial_phase": "phase_iii",
+            "dataset_rule_bindings": {
+                "ADAE": {
+                    "teae_rule": _teae_rule().model_dump(mode="json"),
+                    "applied_rule_refs": ["rule-study-teae-window"],
+                }
+            },
+        },
     )
 
     assert sdtm["status"] == "success"
     assert set(sdtm["tool_result"]) == {"DM", "AE"}
     assert adam["status"] == "success"
     assert set(adam["tool_result"]) == {"ADSL", "ADAE"}
+    assert adam["applied_rule_refs"] == ["rule-study-teae-window"]
+
+
+def test_runtime_projects_exactly_one_structured_study_teae_rule_to_adae():
+    action = AgentAction(
+        action_type="call_tool",
+        description="Build ADAE",
+        tool_name="adam_spec_build",
+        tool_args={"datasets": ["ADSL", "ADAE"]},
+        stage_id=PipelineStage.ADAM_SPEC,
+    )
+
+    AgentRuntime._project_governed_tool_args(
+        action,
+        SimpleNamespace(study_rules=(_study_teae_rule(),)),
+    )
+
+    binding = action.tool_args["dataset_rule_bindings"]["ADAE"]
+    assert binding["teae_rule"] == _teae_rule().model_dump(mode="json")
+    assert binding["applied_rule_refs"] == ["rule-study-teae-window"]
+
+
+@pytest.mark.parametrize(
+    "rules",
+    [(), (_study_teae_rule("rule-study-teae-a"), _study_teae_rule("rule-study-teae-b"))],
+)
+def test_runtime_refuses_missing_or_ambiguous_structured_teae_rules(rules):
+    action = AgentAction(
+        action_type="call_tool",
+        description="Build ADAE",
+        tool_name="adam_spec_build",
+        tool_args={"datasets": ["ADAE"]},
+        stage_id=PipelineStage.ADAM_SPEC,
+    )
+
+    with pytest.raises(RuntimeContextError, match="exactly one"):
+        AgentRuntime._project_governed_tool_args(
+            action,
+            SimpleNamespace(study_rules=rules),
+        )
 
 
 def test_runtime_reads_canonical_and_legacy_output_dirs(tmp_path):

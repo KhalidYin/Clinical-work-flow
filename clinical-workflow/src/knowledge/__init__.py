@@ -12,9 +12,8 @@ from .client import (
     KnowledgeServiceContractError,
     KnowledgeServiceUnavailable,
 )
-from .resolver import ContextResolutionError, KnowledgeContextResolver
-from .snapshot import LockedSnapshot, SnapshotError, load_locked_snapshot
 from .models import (
+    ApprovalEvidence,
     ApprovalStatus,
     CapabilityId,
     CompatibilityRange,
@@ -27,11 +26,27 @@ from .models import (
     RuntimeManifest,
     SourceRecord,
     StorageMode,
+    StudyDecision,
+    TEAEWindowRule,
     WorkflowStage,
     WorkflowPlaybook,
     is_approval_status_transition_allowed,
     is_content_status_transition_allowed,
     is_pdf_status_transition_allowed,
+)
+from .promotion import (
+    PromotionCandidate,
+    PromotionCandidateArtifact,
+    PromotionCandidateError,
+    PromotionReviewStatus,
+    create_promotion_candidate,
+)
+from .resolver import ContextResolutionError, KnowledgeContextResolver
+from .snapshot import LockedSnapshot, SnapshotError, load_locked_snapshot
+from .study_decisions import (
+    StudyDecisionError,
+    load_study_decisions,
+    project_study_decision,
 )
 
 __all__ = [
@@ -39,6 +54,7 @@ __all__ = [
     "ContextResolutionError",
     "HttpKnowledgeTransport",
     "ApprovalStatus",
+    "ApprovalEvidence",
     "CapabilityId",
     "CompatibilityRange",
     "ContentStatus",
@@ -51,18 +67,28 @@ __all__ = [
     "KnowledgeServiceUnavailable",
     "LockedSnapshot",
     "PdfStatus",
+    "PromotionCandidate",
+    "PromotionCandidateArtifact",
+    "PromotionCandidateError",
+    "PromotionReviewStatus",
     "RightsStatus",
     "RuntimeManifest",
     "SourceRecord",
     "SnapshotError",
     "StorageMode",
+    "StudyDecision",
+    "StudyDecisionError",
+    "TEAEWindowRule",
     "WorkflowStage",
     "WorkflowPlaybook",
     "assert_contract_compatible",
+    "create_promotion_candidate",
     "is_approval_status_transition_allowed",
     "is_content_status_transition_allowed",
     "is_pdf_status_transition_allowed",
     "schema_bundle_sha256",
     "load_locked_snapshot",
+    "load_study_decisions",
+    "project_study_decision",
     "verify_sha256",
 ]

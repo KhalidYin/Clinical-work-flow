@@ -27,7 +27,7 @@ applicability:
   study_ids:
   - SYNTH-ONCO-001
   conditions:
-  - synthetic_training_only
+  - synthetic-pilot-only
 sources:
 - src-synthetic-teae-figure
 owner: Clinical Knowledge Governance
@@ -36,7 +36,7 @@ last_reviewed: '2026-07-13'
 review_due: '2027-07-13'
 supersedes: []
 superseded_by: null
-content_hash: 5d746743a6527ae4ca8d08240209545e5ad93bc40d09545754c54c3593b492ad
+content_hash: ac5c61e4214ad42dd7943a0051b746e31772fcd16b2ecea4e2790ec33e89fc39
 rights_status: cleared
 allowed_uses:
 - runtime

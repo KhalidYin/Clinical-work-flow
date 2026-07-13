@@ -28,7 +28,7 @@ applicability:
   study_ids:
   - SYNTH-ONCO-001
   conditions:
-  - synthetic_training_only
+  - synthetic-pilot-only
 sources: []
 owner: Clinical Knowledge Governance
 created: '2026-07-13T00:00:00+08:00'
@@ -36,7 +36,7 @@ last_reviewed: '2026-07-13'
 review_due: '2027-07-13'
 supersedes: []
 superseded_by: null
-content_hash: 13fd04e6f4826c1eed58b312dbda6c2464b78720c57c7caf8956cb3e734b87c8
+content_hash: 3e117ed85d2634f94b11f4c70f322fb3d6fdb5cc9bf13c4d0173e86cc93cfe45
 rights_status: cleared
 allowed_uses:
 - runtime

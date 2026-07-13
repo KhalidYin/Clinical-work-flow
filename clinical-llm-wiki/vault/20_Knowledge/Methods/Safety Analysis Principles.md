@@ -24,8 +24,10 @@ applicability:
   therapeutic_areas: []
   trial_phases: []
   sponsor_ids: []
-  study_ids: []
-  conditions: []
+  study_ids:
+  - SYNTH-ONCO-001
+  conditions:
+  - synthetic-pilot-only
 sources:
 - src-ich-e9-r1
 - src-cdisc-adamig-1-3
@@ -35,7 +37,7 @@ last_reviewed: '2026-07-13'
 review_due: '2027-07-13'
 supersedes: []
 superseded_by: null
-content_hash: 9081a9611b632417b48d0edb5e8f3af8544f14a4032a7942c168c85b72cb7067
+content_hash: 48e3fbb1f664fb96ed68ded6a3c098a887842b22d8a5560fef9267440e5fc6e8
 rights_status: cleared
 allowed_uses:
 - runtime

@@ -3,8 +3,11 @@ MCP Tool: ADaM Spec Builder
 Generates ADaM dataset specifications from SAP endpoint definitions and SDTM sources.
 """
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
+
+from src.knowledge.models import TEAEWindowRule
 
 
 # ── ADaM dataset definitions ─────────────────────────────────────
@@ -116,7 +119,41 @@ def build_adsl_spec(trial_phase: str, therapeutic_area: str) -> ADaMDataset:
     )
 
 
-def build_adae_spec() -> ADaMDataset:
+def _date_expression(reference: str, offset_days: int) -> str:
+    if offset_days == 0:
+        return reference
+    operator = "+" if offset_days > 0 else "-"
+    return f"{reference} {operator} {abs(offset_days)} days"
+
+
+def _build_teae_derivation(rule: TEAEWindowRule) -> str:
+    """Project validated TEAE parameters without interpreting prose."""
+
+    lower_operator = ">=" if rule.lower_bound_inclusive else ">"
+    upper_operator = "<=" if rule.upper_bound_inclusive else "<"
+    lower_bound = _date_expression(
+        rule.treatment_start_date,
+        rule.start_offset_days,
+    )
+    upper_bound = _date_expression(
+        rule.treatment_end_date,
+        rule.end_offset_days,
+    )
+    return (
+        f"Y if {rule.event_start_date} {lower_operator} {lower_bound} and "
+        f"{rule.event_start_date} {upper_operator} {upper_bound}; else N. "
+        "Incomplete event date: "
+        f"{rule.incomplete_event_date_policy.replace('_', ' ')}. "
+        "Missing treatment date: "
+        f"{rule.missing_treatment_date_policy.replace('_', ' ')}. "
+        "Multiple treatment periods: "
+        f"{rule.multiple_treatment_period_policy.replace('_', ' ')}. "
+        "Pre-treatment worsening: "
+        f"{rule.pre_treatment_worsening_policy.replace('_', ' ')}."
+    )
+
+
+def build_adae_spec(teae_rule: TEAEWindowRule) -> ADaMDataset:
     """Build ADAE (Adverse Events Analysis Dataset) specification."""
     return ADaMDataset(
         dataset_name="ADAE",
@@ -142,7 +179,7 @@ def build_adae_spec() -> ADaMDataset:
             ADaMVariable("AESER", "Serious Event", "Char", 1, source="AE.AESER"),
             # ── Treatment-emergent flag ──
             ADaMVariable("TRTEMFL", "Treatment Emergent Analysis Flag", "Char", 1,
-                        derivation="Y if AESTDTC >= TRTSDT and AESTDTC <= TRTEDT + 30 days; else N",
+                        derivation=_build_teae_derivation(teae_rule),
                         controlled_terms=["Y", "N"], core="Req"),
             # ── Analysis periods ──
             ADaMVariable("APERIOD", "Period", "Num", 8,
@@ -227,8 +264,14 @@ def build_adtte_spec(trial_phase: str) -> ADaMDataset:
     )
 
 
-def generate_adam_spec(dataset_name: str, trial_phase: str = "phase_iii",
-                       therapeutic_area: str = "non_oncology") -> dict[str, Any]:
+def generate_adam_spec(
+    dataset_name: str,
+    trial_phase: str = "phase_iii",
+    therapeutic_area: str = "non_oncology",
+    *,
+    teae_rule: TEAEWindowRule | Mapping[str, Any] | None = None,
+    applied_rule_refs: Sequence[str] | None = None,
+) -> dict[str, Any]:
     """
     Generate a complete ADaM dataset specification.
 
@@ -236,6 +279,28 @@ def generate_adam_spec(dataset_name: str, trial_phase: str = "phase_iii",
     Reads SAP endpoint definitions and SDTM source metadata to produce
     a complete ADaM specification document.
     """
+    if dataset_name != "ADAE":
+        if teae_rule is not None or applied_rule_refs is not None:
+            raise ValueError("teae_rule and applied_rule_refs are only valid for ADAE")
+        validated_teae_rule = None
+        normalized_rule_refs: tuple[str, ...] = ()
+    else:
+        if teae_rule is None:
+            raise ValueError("ADAE requires a structured teae_rule")
+        validated_teae_rule = (
+            teae_rule
+            if isinstance(teae_rule, TEAEWindowRule)
+            else TEAEWindowRule.model_validate(teae_rule)
+        )
+        if isinstance(applied_rule_refs, str):
+            raise ValueError("applied_rule_refs must be a non-empty sequence of references")
+        normalized_rule_refs = tuple(applied_rule_refs or ())
+        if not normalized_rule_refs or any(
+            not isinstance(reference, str) or not reference.strip()
+            for reference in normalized_rule_refs
+        ):
+            raise ValueError("ADAE requires non-empty applied_rule_refs")
+
     builders = {
         "ADSL": build_adsl_spec,
         "ADAE": build_adae_spec,
@@ -251,7 +316,9 @@ def generate_adam_spec(dataset_name: str, trial_phase: str = "phase_iii",
     elif dataset_name == "ADTTE":
         ds = builder(trial_phase, therapeutic_area)
     elif dataset_name == "ADAE":
-        ds = builder()
+        if validated_teae_rule is None:  # pragma: no cover - guarded above
+            raise ValueError("ADAE requires a structured teae_rule")
+        ds = builder(validated_teae_rule)
     else:
         ds = builder(trial_phase, therapeutic_area)
 
@@ -263,6 +330,12 @@ def generate_adam_spec(dataset_name: str, trial_phase: str = "phase_iii",
         "derivation_summary": ds.derivation_summary,
         "trial_phase": trial_phase,
         "therapeutic_area": therapeutic_area,
+        "applied_rule_refs": list(normalized_rule_refs),
+        "study_rule_inputs": (
+            {"teae_window": validated_teae_rule.model_dump(mode="json")}
+            if validated_teae_rule is not None
+            else {}
+        ),
         "variables": [
             {
                 "name": v.name,

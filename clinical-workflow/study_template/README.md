@@ -1,61 +1,74 @@
-# Study Template
+# Study 模板
 
-Copy this directory to `../clinical-studies/<STUDY-ID>/` and rename it to the
-actual Study ID.  The copied Study is its own filesystem state inside the
-platform monorepo and shares the root Git history.  Do not run work directly
-from this template.
+将本目录复制到 `../clinical-studies/<STUDY-ID>/`，再重命名为实际 Study ID。
+复制后的 Study 是平台 monorepo 内独立的文件系统状态，并共享根仓库 Git 历史；禁止直接在本模板中运行工作流。
 
-## Responsibilities
+## 职责
 
-- `project.yaml` holds Study facts, review assignments and configured
-  input/output/review/audit paths.
-- `runtime-manifest.yaml` is the immutable execution lock for the Engine
-  contract, Workflow/Domain Wiki snapshots and toolchain.
-- `workflow/` holds current-Study workflow decisions; `knowledge/` holds
-  current-Study domain decisions.  Neither directory is a general Wiki.
-- `.review_queue/` and `audit_trail.jsonl` are local to this Study.  They use
-  the shared Engine Review Protocol but are never shared with the Wiki queue.
+- `project.yaml` 保存 Study 事实、审核分配及输入、输出、审核和审计路径配置。
+- `runtime-manifest.yaml` 锁定 Engine 合同、Workflow/Domain Wiki 快照和工具链。
+- `workflow/` 保存当前 Study 的流程决策；`knowledge/` 保存当前 Study 的领域决策。两者都不是通用 Wiki。
+- `.review_queue/` 和 `audit_trail.jsonl` 仅属于当前 Study。它们复用 Engine 的 Review Protocol，但不与 Wiki 审核队列共享。
 
-The runtime receives a Knowledge Service endpoint by explicit configuration.
-It must not locate a sibling Wiki directory from the Study path.  When the
-service is unavailable, it may only use the exact snapshot paths locked by the
-manifest; otherwise it must fail closed.
+Runtime 通过显式配置接收 Knowledge Service endpoint，不得从 Study 路径发现同级 Wiki 目录。
+服务不可用时，只能使用 manifest 精确锁定的快照；否则必须 fail closed。
 
-## Directory contract
+## 目录合同
 
 ```text
 {STUDY-ID}/
 ├── project.yaml
 ├── runtime-manifest.yaml
 ├── workflow/
-│   ├── overrides/             # proposed/current workflow-specific adjustments
-│   ├── decisions/             # approved DecisionReceipt-backed workflow rules
-│   ├── snapshots/             # manifest-locked workflow context snapshots
-│   └── promotion_candidates/  # de-identified candidates; never auto-promoted
-├── knowledge/                 # same four directories for domain knowledge
+│   ├── overrides/             # proposed/current 流程专项调整
+│   ├── decisions/             # DecisionReceipt 支持的已批准流程规则
+│   ├── snapshots/             # manifest 锁定的流程上下文快照
+│   └── promotion_candidates/  # 预留的流程候选区；不得自动提升
+├── knowledge/
+│   ├── overrides/             # proposed/current 领域专项调整
+│   ├── decisions/             # DecisionReceipt 支持的已批准领域规则
+│   ├── snapshots/             # manifest 锁定的领域上下文快照
+│   └── promotion_candidates/  # 去标识、审核后的 Wiki 提案候选；不得自动提升
 ├── input/{protocol,sap,edc,external}/
 ├── output/{protocol,sap,sdtm,adam,tfl,qc,submission}/
 ├── .review_queue/
 └── audit_trail.jsonl
 ```
 
-`workflow/decisions/` and `knowledge/decisions/` hold only current Study rules
-with review evidence.  An override or prior-Study reference is not executable
-until the Runtime resolves it into the P2 `ExecutionContext` and validates the
-Engine Action Policy.  Promotion candidates remain local until they are
-de-identified, proposed to the Wiki, and separately approved there.
+`workflow/decisions/` 与 `knowledge/decisions/` 只能保存具备审核证据的当前 Study 规则。
+override 或 Prior Study 引用在 Runtime 将其解析进 P2 `ExecutionContext` 并通过 Engine Action Policy 前，不具备可执行性。
 
-## Initialisation
+## Study 规则沉淀候选
 
-1. Replace the illustrative values in `project.yaml` and
-   `runtime-manifest.yaml` with the actual Study ID and published hashes.
-2. Write the two approved-only Wiki snapshots into the exact manifest fallback
-   locations and verify their hashes before first execution.
-3. Inject the Wiki service endpoint through the Engine environment or runtime
-   configuration.  The service implementation remains in the sibling
-   `clinical-llm-wiki/` module and is never discovered from the Study path.
-4. Commit the initial manifest, then record every execution, review receipt,
-   fallback and promotion proposal in the Study audit trail.
+`src.knowledge.create_promotion_candidate` 接收已经由 `load_study_decision` 或
+`load_study_decisions` 验证的 `StudyDecision`，并且只向当前 Study 的
+`knowledge/promotion_candidates/` 写入 JSON：
 
-The placeholder snapshots exist only to make the scaffold path-complete.  They
-are not valid production knowledge and must never be used for an execution.
+- 初始 `status` 固定为 `proposed`，原始 `study_id` 不进入候选公开内容；来源 Study 仅保存不可逆 `source_study_sha256`。
+- 候选保留来源 decision ID/hash、来源知识 ID 和结构化规则，以支持后续审计。
+- 只有 `deidentified=true` 且 `review_status=approved` 时，
+  `eligible_for_wiki_proposal` 才为 `true`；其余组合均保持不可提案。
+- 同名候选不会被覆盖，绝对路径、子目录和路径越界均 fail closed。
+- 即使候选满足提案资格，本模块也不会写入 `clinical-llm-wiki/` 或 Prior Studies；Wiki 导入和批准必须走独立治理流程。
+
+示例：
+
+```python
+from src.knowledge import PromotionReviewStatus, create_promotion_candidate
+
+artifact = create_promotion_candidate(
+    project_dir,
+    validated_decision,
+    deidentified=True,
+    review_status=PromotionReviewStatus.APPROVED,
+)
+```
+
+## 初始化
+
+1. 将 `project.yaml` 与 `runtime-manifest.yaml` 中的示例值替换为实际 Study ID 和已发布 hash。
+2. 将两个 approved-only Wiki 快照写入 manifest 指定的 fallback 路径，并在首次执行前验证 hash。
+3. 通过 Engine 环境或 Runtime 配置注入 Wiki service endpoint；不得从 Study 路径自动发现同级 `clinical-llm-wiki/`。
+4. 提交初始 manifest，并把每次执行、审核 receipt、fallback 和 promotion proposal 写入 Study 审计轨迹。
+
+脚手架中的占位快照只用于补齐目录，不是有效生产知识，禁止用于执行。

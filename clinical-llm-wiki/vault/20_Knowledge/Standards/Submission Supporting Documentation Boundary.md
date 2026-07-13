@@ -23,8 +23,10 @@ applicability:
   therapeutic_areas: []
   trial_phases: []
   sponsor_ids: []
-  study_ids: []
-  conditions: []
+  study_ids:
+  - SYNTH-ONCO-001
+  conditions:
+  - synthetic-pilot-only
 sources:
 - src-fda-sdtcg-2026
 - src-cdisc-adam-conformance-5-0
@@ -34,7 +36,7 @@ last_reviewed: '2026-07-13'
 review_due: '2027-07-13'
 supersedes: []
 superseded_by: null
-content_hash: 6cfb2661f66ef77a6ac4a865a207c7043d5af4b9fd964beeeab9b0bd5d4631e4
+content_hash: df25178dedf6537a82744aa5b2c0aa4c39db4d180285d3217dffa62a3ac58b3c
 rights_status: cleared
 allowed_uses:
 - runtime

@@ -21,8 +21,10 @@ applicability:
   therapeutic_areas: []
   trial_phases: []
   sponsor_ids: []
-  study_ids: []
-  conditions: []
+  study_ids:
+  - SYNTH-ONCO-001
+  conditions:
+  - synthetic-pilot-only
 sources:
 - src-ich-e9-r1
 owner: clinical-knowledge-governance
@@ -31,7 +33,7 @@ last_reviewed: '2026-07-13'
 review_due: '2027-07-13'
 supersedes: []
 superseded_by: null
-content_hash: a94f7b1067e64c70a5eb0b5510c61959b7800bea8c4f4d1e9bf4f536d7770d33
+content_hash: 96ba5c1cf29570ebca022d00ca01c275809a7b440674980b60ed9da8547dfd6a
 rights_status: cleared
 allowed_uses:
 - runtime

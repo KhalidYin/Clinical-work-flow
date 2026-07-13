@@ -464,8 +464,8 @@ policies: live_upgrade/conflict/version/fallback行为
 | P2 | 建立机器合同与知识治理合同 | 6-9 | P1 | done |
 | P3 | 建立Obsidian Vault、来源管线和本地Knowledge Service | 8-11 | P2 | done |
 | P4 | 改造Study脚手架并接入Runtime/Review/Audit | 7-10 | P2, P3；旧P1-D/P1-E所需基础 | done |
-| P5 | 完成纵向合成试点和首版核心内容 | 10-15 | P4 | in-progress |
-| P6 | 全局验收、迁移、文档同步和本地发布基线 | 5-8 | P5 | pending |
+| P5 | 完成纵向合成试点和首版核心内容 | 10-15 | P4 | completed |
+| P6 | 全局验收、迁移、文档同步和本地发布基线 | 5-8 | P5 | in-progress |
 
 P1-P4构成平台MVP；P5-P6构成首个可用知识产品和发布基线。
 
@@ -697,15 +697,15 @@ P1-P4构成平台MVP；P5-P6构成首个可用知识产品和发布基线。
 
 ### 完成标准
 
-- [ ] 十阶段Playbook均包含触发、角色、输入、步骤、决策门、输出、质量门禁、异常和来源。
-- [ ] 合成Study中Estimand、终点、分析集、模型、缺失数据、敏感性分析和解释一致。
-- [ ] SDTM→ADaM→分析参数→程序模式→TFL→CSR可追溯。
-- [ ] ADAE在线Wiki与离线快照产生相同的知识/workflow引用集合。
-- [ ] 修改Playbook不会改变Pipeline顺序；合同变更会触发兼容性失败。
-- [ ] 所有正式主张有来源；图、表、公式完成视觉QA。
-- [ ] verified+approved内容属性完整率为100%，不存在坏链、重复ID或未知权利状态。
-- [ ] 编程模式标明illustrative/tested/qualified/production状态，不夸大验证等级。
-- [ ] promotion candidate未经去标识化和审核不会进入Prior Studies。
+- [x] 十阶段Playbook均包含触发、角色、输入、步骤、决策门、输出、质量门禁、异常和来源。
+- [x] 合成Study中Estimand、终点、分析集、模型、缺失数据、敏感性分析和解释一致。
+- [x] SDTM→ADaM→分析参数→程序模式→TFL→CSR可追溯。
+- [x] ADAE在线Wiki与离线快照产生相同的知识/workflow引用集合。
+- [x] 修改Playbook不会改变Pipeline顺序；合同变更会触发兼容性失败。
+- [x] 所有正式主张有来源；图、表、公式完成视觉QA。
+- [x] verified+approved内容属性完整率为100%，不存在坏链、重复ID或未知权利状态。
+- [x] 编程模式标明illustrative/tested/qualified/production状态，不夸大验证等级。
+- [x] promotion candidate未经去标识化和审核不会进入Prior Studies。
 
 ### 边界（本Phase明确不做）
 
@@ -840,8 +840,11 @@ P1-P4构成平台MVP；P5-P6构成首个可用知识产品和发布基线。
 | D4 | Clinical LLM Wiki曾按独立仓库规划，无法保证单次改动覆盖 Engine/Wiki 合同 | P5脚手架迁移 | 阻断 | 已按用户确认改为单仓 monorepo：`clinical-llm-wiki/`迁入当前仓库并移除嵌套Git |
 | D5 | Study树的`output/protocol_analysis/`与P2机器合同`output/protocol/analysis.yaml`冲突 | P4 | 阻断 | 以已冻结Pipeline Contract为准，P4统一脚手架、扫描器和计划目录为`output/protocol/` |
 | D6 | Study Runtime 自动提交在 monorepo 根执行 `git add -A`，可能误带 Engine、Wiki 或其他 Study 的并发改动 | P6本地发布基线 | 阻断（发布前） | P5 合成试点保持 `git_auto_commit=False`；P6 发布前将 pathspec 限定到当前 Study 并补多 Study 脏工作区回归测试 |
-| D7 | 在线 Runtime Context 只查询当前 approved 内容并回填 manifest snapshot ID，未验证锁定 snapshot 的 item集合/hash，也未按 Study applicability 过滤 | P5在线/离线一致性 | 阻断 | 先实现 snapshot lock + applicability fail-closed 与负向测试，再进行 ADAE 在线/离线引用集合验收 |
-| D8 | P5 non-human synthetic receipt 当前可被通用 `production_only` 查询接受，批准 scope 未由机器强制 | P5内容治理 | 阻断 | 为 synthetic-only approval 增加机器可验证 scope，仅允许 `SYNTH-ONCO-001` 合成测试解析；不得形成通用生产批准 |
+| D7 | 在线 Runtime Context 只查询当前 approved 内容并回填 manifest snapshot ID，未验证锁定 snapshot 的 item集合/hash，也未按 Study applicability 过滤 | P5在线/离线一致性 | 已解决（P5-A） | 在线服务只从 manifest 锁定 snapshot 解析并验证 ID/version/hash/schema bundle；按 Study applicability fail closed，Engine 再校验 provenance snapshot lock |
+| D8 | P5 non-human synthetic receipt 当前可被通用 `production_only` 查询接受，批准 scope 未由机器强制 | P5内容治理 | 已解决（P5-A） | `non_human_test_fixture` 批准必须精确限定 `SYNTH-ONCO-001` 且声明 `synthetic-pilot-only`；其他 Study 与空 scope 均不可生产解析 |
+| D9 | ADAE builder 曾硬编码 `TRTEDT + 30 days`，无法证明来自当前 Study 批准决定 | P5机器切片 | 已解决（P5-B） | 删除默认值；新增结构化 `TEAEWindowRule`、Study Decision 三证加载、Context/hash/provenance 投影，缺失或歧义均在产物前阻断 |
+| D10 | 结构化 Study rule 改变 ExecutionContext 合同，旧 bundle 1.0.0 无法表达且跨模块镜像会漂移 | P5机器切片 | 已解决（P5-B） | Engine bundle 升至 1.1.0 并重算 canonical hash，Wiki JSON 镜像逐文件一致；manifest exact lock 测试拒绝旧版本 |
+| D11 | 若生成的 ADaM draft 直接落入 canonical specs，Router 会在人工审核前误判 Stage 完成 | P5审核闭环 | 已解决（P5-C） | Runtime 先写 `output/adam/drafts/` 和 provenance，blocking ADAM_SPEC review 应用成功后才提升到 `output/adam/specs/` |
 
 ## 关键决策记录
 
@@ -867,3 +870,4 @@ P1-P4构成平台MVP；P5-P6构成首个可用知识产品和发布基线。
 | 2026-07-13 | SPEC-21、`clinical-workflow/schemas/`、`clinical-workflow/src/runtime/`、`clinical-workflow/src/knowledge/` | P2：contract bundle、严格模型、Action Policy、治理与兼容性测试 |
 | 2026-07-13 | SPEC-21、`clinical-llm-wiki/`（原独立仓 commit `57e1802`，现已迁入单仓） | P3：本地 Obsidian Vault、受控来源派生、审批门禁、SQLite FTS 与 loopback Knowledge Service |
 | 2026-07-13 | SPEC-21、`clinical-workflow/study_template/`、`clinical-workflow/src/runtime/`、`clinical-workflow/src/knowledge/`、Review/Audit | P4：最终Study树、十阶段Router/AgentLoop、锁定上下文与快照、Action Policy、artifact provenance和共享Review策略 |
+| 2026-07-13 | SPEC-21、Engine/Wiki bundle 1.1、ADAE Runtime、Study Decision/Promotion、68篇受治理内容 | P5：锁定snapshot与applicability、结构化TEAE规则、ADAE draft→review→canonical闭环、在线/离线一致性及合成纵向内容 Gate |

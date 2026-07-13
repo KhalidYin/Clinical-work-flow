@@ -456,3 +456,17 @@ Knowledge Service 或 Study 锁定快照与 Engine 交互。
 - Action Policy 在 resource 调用前验证 Stage、capability、tool/executable 与禁止参数；未知工具和控制注入不会进入 registry；
 - Study 与 Wiki review queue 通过 scope marker 物理隔离，共享仓库 JSON Schema；ReviewPacket 支持 assignment、consensus、timeout 状态，Decision/Confirmation 与 Impact Analyzer 均记录知识/manifest审计语义；
 - P4 Gate 由 121 个 Engine 测试、14 个 Wiki 测试、Python ruff、Review Panel TypeScript compile，以及真实 loopback Wiki→Engine HTTP解析共同验证。
+
+---
+
+## 19. P5 已实现的纵向知识执行基线
+
+- Wiki Runtime 只从 `runtime-manifest.yaml` 锁定的不可变 snapshot 读取 item，严格验证 snapshot ID/version/hash 与 Schema bundle；实时 Vault 新增内容不会扩大旧 Study 的上下文。
+- `non_human_test_fixture` 批准只对 `SYNTH-ONCO-001` 和 `synthetic-pilot-only` 生效；其他 Study、空 scope 和未知 applicability condition 均 fail closed。
+- Engine contract bundle 升至 `1.1.0`，新增严格 `StudyDecision`、`ApprovalEvidence` 与 `TEAEWindowRule`；Engine/Wiki JSON Schema 镜像使用同一 canonical bundle hash。
+- 当前 Study 的机器规则只能从 `knowledge/decisions/` 加载，并验证 content hash、路径边界及 ReviewPacket→DecisionReceipt→ConfirmationReceipt 三证的一致 finding；自然语言 `statement` 仅展示，不用于推导执行参数。
+- ADAE builder 已删除硬编码 30 天 TEAE 默认；Runtime 只有在 Context 中恰好存在一条已批准结构化 Study TEAE rule 时，才把 dataset-specific 参数和 applied rule reference 注入原 `adam_spec_build`。六个 core tools 与固定十阶段顺序不变。
+- 纯函数 builder 结果先落 `output/adam/drafts/`；draft provenance 包含 pipeline、workflow、domain、study decision、manifest、context 与 applied rule refs。Blocking `ADAM_SPEC` review 成功应用后，Runtime 才提升到 canonical `output/adam/specs/`，因此审核前不会形成 Stage completion evidence。
+- `SYNTH-ONCO-001` fixture 证明在线 Wiki 与离线 locked snapshots 产生相同 workflow/domain/study/provenance 引用集合和相同 ADAE draft；缺规则在创建 artifact 前阻断。
+- Study decision 可生成 `knowledge/promotion_candidates/` 内的 proposed JSON；原始 Study ID 不进入候选公开内容，只有去标识化且单独审核通过才可标记为 Wiki proposal eligible，本模块从不直接写入 Wiki 或 Prior Studies。
+- P5 Gate 由 170 个 Engine 测试、38 个 Wiki 测试、双方 ruff、Review Panel TypeScript compile、68 条 governed content 一致性检查及 Engine/Wiki Schema 逐文件 hash 比对共同验证。

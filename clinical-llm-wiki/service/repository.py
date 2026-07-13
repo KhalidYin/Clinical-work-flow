@@ -27,6 +27,9 @@ _GOVERNED_TYPES = frozenset({
     "figure_record",
 })
 _RECEIPT_SUFFIX = "_decision.json"
+_NON_HUMAN_TEST_FIXTURE_ROLE = "non_human_test_fixture"
+_SYNTHETIC_PILOT_STUDY_ID = "SYNTH-ONCO-001"
+_SYNTHETIC_PILOT_CONDITION = "synthetic-pilot-only"
 
 
 class RepositoryError(ValueError):
@@ -138,7 +141,9 @@ class VaultRepository:
         audit_reference = record.get("audit_reference")
         if not receipt_id or not audit_reference:
             yield "approval_evidence_missing"
-        elif not self._has_approval_evidence(str(receipt_id), str(record["id"]), str(audit_reference)):
+        elif not self._has_approval_evidence(
+            str(receipt_id), str(record["id"]), str(audit_reference), record
+        ):
             yield "approval_evidence_unverified"
         rights = record.get("rights_status")
         allowed = set(record.get("allowed_uses", []))
@@ -161,7 +166,13 @@ class VaultRepository:
             if record.get("pdf_status") != "citation_ready":
                 yield "pdf_not_citation_ready"
 
-    def _has_approval_evidence(self, receipt_id: str, record_id: str, audit_reference: str) -> bool:
+    def _has_approval_evidence(
+        self,
+        receipt_id: str,
+        record_id: str,
+        audit_reference: str,
+        record: dict[str, Any],
+    ) -> bool:
         # An audit reference must resolve to a governed local artifact or cite a
         # receipt in audit_trail.jsonl. A YAML field alone never grants approval.
         if not self._audit_reference_exists(audit_reference, receipt_id):
@@ -173,6 +184,11 @@ class VaultRepository:
             review_id = str(data.get("review_id", ""))
             filename_id = receipt_path.name[: -len(_RECEIPT_SUFFIX)] if receipt_path.name.endswith(_RECEIPT_SUFFIX) else receipt_path.stem
             if not _receipt_id_matches(receipt_id, review_id, filename_id):
+                continue
+            if (
+                data.get("reviewer_role") == _NON_HUMAN_TEST_FIXTURE_ROLE
+                and not _has_p5_synthetic_scope(record)
+            ):
                 continue
             packet_targets = self._review_packet_targets(review_id)
             decisions = data.get("decisions", [])
@@ -427,6 +443,26 @@ def _decision_targets_record(finding_id: str, record_id: str) -> bool:
     # '-baseline' suffix. This is still stricter than a generic approval.
     parts = record_id.split("-")
     return len(parts) >= 3 and "-".join(parts[:3]) in finding_id
+
+
+def _has_p5_synthetic_scope(record: dict[str, Any]) -> bool:
+    """Fail closed for the only non-human approval scope accepted in P5.
+
+    A non-human fixture is evidence for the named synthetic pilot only. Future
+    fixtures must add an explicit machine contract instead of inheriting this
+    exception through reviewer text or a generic ``approved`` decision.
+    """
+
+    applicability = record.get("applicability")
+    if not isinstance(applicability, dict):
+        return False
+    study_ids = applicability.get("study_ids")
+    conditions = applicability.get("conditions")
+    return (
+        study_ids == [_SYNTHETIC_PILOT_STUDY_ID]
+        and isinstance(conditions, list)
+        and _SYNTHETIC_PILOT_CONDITION in conditions
+    )
 
 
 def _normalize_yaml_values(value: Any) -> Any:

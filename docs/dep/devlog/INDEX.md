@@ -7,5 +7,6 @@
 | R011 | 2026-07-13 | 15:36 | P3-clinical-knowledge-workflow-platform | P3 | Initialize the governed local Wiki, source pipeline, and loopback Knowledge Service | `../Clinical LLM Wiki/`, `docs/specs/21-Knowledge-Workflow-Integration.md` | active/DEVLOG-R009-R048.md |
 | R012 | 2026-07-13 | 16:15 | P3-clinical-knowledge-workflow-platform | P4 | Integrate final Study scaffold, ten-stage Runtime knowledge context, Review and audit | `study_template/`, `src/runtime/`, `src/knowledge/`, `src/review_panel/` | active/DEVLOG-R009-R048.md |
 | R013 | 2026-07-13 | 18:03 | P3-clinical-knowledge-workflow-platform | P5 | Migrate Engine, Wiki, and Study scaffold into one Git monorepo | `clinical-workflow/`, `clinical-llm-wiki/`, `clinical-studies/`, root/docs | active/DEVLOG-R009-R048.md |
+| R014 | 2026-07-13 | 19:36 | P3-clinical-knowledge-workflow-platform | P5 | Complete the governed ADAE knowledge execution vertical slice | `clinical-workflow/`, `clinical-llm-wiki/`, `docs/specs/21-Knowledge-Workflow-Integration.md` | active/DEVLOG-R009-R048.md |
 
 > Legacy rounds R001-R008 remain immutable in [DEVLOG-legacy.md](archive/DEVLOG-legacy.md). They predate the searchable index and were intentionally not rewritten during adoption.

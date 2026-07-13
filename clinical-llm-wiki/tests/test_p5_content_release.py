@@ -5,13 +5,20 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from copy import deepcopy
 from pathlib import Path
 
 from PIL import Image
 from pypdf import PdfReader
 import pytest
 
-from scripts.content.finalize_p5_content import RECEIPT_ID, REVIEW_ID, finalize
+from scripts.content.finalize_p5_content import (
+    RECEIPT_ID,
+    REVIEW_ID,
+    SYNTHETIC_PILOT_CONDITION,
+    SYNTHETIC_STUDY_ID,
+    finalize,
+)
 from service.contracts import SchemaBundle, canonical_json_sha256
 from service.repository import Card, VaultRepository
 
@@ -48,6 +55,35 @@ def _cards_of_type(repository: VaultRepository, record_type: str) -> list[Card]:
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _bind_test_receipt(
+    root: Path,
+    record: dict[str, object],
+    *,
+    review_id: str,
+    reviewer_role: str,
+) -> None:
+    governance = root / "vault" / "80_Governance" / "Review-Receipts"
+    governance.mkdir(parents=True, exist_ok=True)
+    audit_name = f"{review_id}.md"
+    (governance / audit_name).write_text("structured review evidence\n", encoding="utf-8")
+    (governance / f"{review_id}_decision.json").write_text(
+        json.dumps(
+            {
+                "review_id": review_id,
+                "reviewer": "P5 Test Reviewer",
+                "reviewer_role": reviewer_role,
+                "timestamp": "2026-07-13T18:30:00+08:00",
+                "decisions": [{"finding_id": record["id"], "decision": "approved"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    record["approval_receipt_id"] = f"review-{review_id.replace('_', '-')}"
+    record["audit_reference"] = (
+        f"vault/80_Governance/Review-Receipts/{audit_name}"
+    )
 
 
 def test_representative_content_inventory_is_within_p5_scope(repository: VaultRepository) -> None:
@@ -143,6 +179,102 @@ def test_p5_receipt_maps_schema_finding_ids_to_each_released_record(
     assert "cannot satisfy" in decision["general_notes"]
 
 
+def test_p5_non_human_receipt_is_bound_to_exact_synthetic_scope(
+    repository: VaultRepository,
+) -> None:
+    released = [
+        card
+        for card in repository.cards.values()
+        if card.record.get("approval_receipt_id") == RECEIPT_ID
+    ]
+    assert released
+    for card in released:
+        applicability = card.record["applicability"]
+        assert applicability["study_ids"] == [SYNTHETIC_STUDY_ID], card.record["id"]
+        assert applicability["conditions"] == [SYNTHETIC_PILOT_CONDITION], card.record["id"]
+        assert card.production_eligible, (card.record["id"], card.eligibility_reasons)
+
+
+@pytest.mark.parametrize(
+    ("study_ids", "conditions"),
+    [
+        ([], [SYNTHETIC_PILOT_CONDITION]),
+        (["STUDY-PRODUCTION-001"], [SYNTHETIC_PILOT_CONDITION]),
+        (["SYNTH-OTHER-001"], [SYNTHETIC_PILOT_CONDITION]),
+        ([SYNTHETIC_STUDY_ID], []),
+    ],
+)
+def test_non_human_receipt_with_empty_or_wrong_scope_is_production_ineligible(
+    repository: VaultRepository,
+    study_ids: list[str],
+    conditions: list[str],
+) -> None:
+    released = next(
+        card
+        for card in repository.cards.values()
+        if card.record.get("approval_receipt_id") == RECEIPT_ID
+    )
+    record = deepcopy(released.record)
+    record["applicability"]["study_ids"] = study_ids
+    record["applicability"]["conditions"] = conditions
+
+    reasons = tuple(repository._eligibility_reasons(record))
+
+    assert "approval_evidence_unverified" in reasons
+
+
+def test_non_human_scope_rule_follows_reviewer_role_not_p5_receipt_id(
+    repository: VaultRepository,
+    tmp_path: Path,
+) -> None:
+    released = next(
+        card
+        for card in repository.cards.values()
+        if card.record.get("approval_receipt_id") == RECEIPT_ID
+    )
+    record = deepcopy(released.record)
+    _bind_test_receipt(
+        tmp_path,
+        record,
+        review_id="alternate_synthetic_fixture_v1_001",
+        reviewer_role="non_human_test_fixture",
+    )
+    alternate_repository = VaultRepository(tmp_path, repository.bundle)
+
+    assert "approval_evidence_unverified" not in tuple(
+        alternate_repository._eligibility_reasons(record)
+    )
+    record["applicability"]["study_ids"] = []
+    assert "approval_evidence_unverified" in tuple(
+        alternate_repository._eligibility_reasons(record)
+    )
+
+
+def test_human_receipt_does_not_require_synthetic_scope(
+    repository: VaultRepository,
+    tmp_path: Path,
+) -> None:
+    released = next(
+        card
+        for card in repository.cards.values()
+        if card.record.get("approval_receipt_id") == RECEIPT_ID
+    )
+    record = deepcopy(released.record)
+    record["applicability"]["study_ids"] = []
+    record["applicability"]["conditions"] = []
+    _bind_test_receipt(
+        tmp_path,
+        record,
+        review_id="human_scope_v1_001",
+        reviewer_role="knowledge_governance",
+    )
+
+    human_repository = VaultRepository(tmp_path, repository.bundle)
+    assert "approval_evidence_unverified" not in tuple(
+        human_repository._eligibility_reasons(record)
+    )
+
+
 def test_release_generator_is_idempotent_and_check_only() -> None:
     assert finalize(write=False) >= 60
 
@@ -157,6 +289,30 @@ def test_programming_patterns_declare_honest_validation_level(repository: VaultR
     assert levels.count("tested") == 1
     assert "qualified" not in levels
     assert "production" not in levels
+
+
+def test_synthetic_longitudinal_case_keeps_semantic_and_delivery_trace_consistent(
+    repository: VaultRepository,
+) -> None:
+    case = repository.get("precedent-synth-onco-001-longitudinal-case")
+    assert case is not None
+    for concept in (
+        "Estimand 属性",
+        "主要终点",
+        "ITT",
+        "Safety",
+        "模型",
+        "缺失",
+        "敏感性",
+        "SDTM",
+        "ADaM",
+        "参数",
+        "programming_pattern",
+        "TFL",
+        "CSR/Submission",
+    ):
+        assert concept in case.body
+    assert "不将合成结果表达为真实证据" in case.body
 
 
 def test_official_source_accessions_are_hash_bound_and_section_located(

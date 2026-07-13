@@ -28,7 +28,7 @@ applicability:
   study_ids:
   - SYNTH-ONCO-001
   conditions:
-  - synthetic_training_only
+  - synthetic-pilot-only
 sources:
 - src-synthetic-teae-figure
 - src-cdisc-adamig-1-3
@@ -38,7 +38,7 @@ last_reviewed: '2026-07-13'
 review_due: '2027-07-13'
 supersedes: []
 superseded_by: null
-content_hash: 7087ced18fb60c182a49b848cf53298f682825ad832a7a3e671273e18daee68c
+content_hash: 42710b0e865cd146f6f5106f2df8267e245836e5be50023339f91a91fa63b59f
 rights_status: cleared
 allowed_uses:
 - runtime_context

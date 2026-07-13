@@ -32,6 +32,7 @@ from src.knowledge.models import (
     RuntimeManifest,
     PdfStatus,
     SourceRecord,
+    StudyDecision,
     WorkflowStage,
     WorkflowPlaybook,
     is_approval_status_transition_allowed,
@@ -52,6 +53,7 @@ CONTRACTS = (
     ("knowledge/figure_record.json", "figure.schema.json", FigureRecord),
     ("study/runtime_manifest.json", "runtime-manifest.schema.json", RuntimeManifest),
     ("study/execution_context.json", "execution-context.schema.json", ExecutionContext),
+    ("study/study_decision.json", "study-decision.schema.json", StudyDecision),
 )
 
 
@@ -86,7 +88,7 @@ def test_shared_contract_bundle_is_complete_and_hash_locked() -> None:
     bundle = json.loads((ROOT / "schemas" / "contract-bundle.json").read_text(encoding="utf-8"))
     schema_paths = bundle["schemas"]
     assert schema_paths == sorted(schema_paths)
-    assert bundle["bundle_version"] == "1.0.0"
+    assert bundle["bundle_version"] == "1.1.0"
     assert bundle["hash_algorithm"] == "sha256-canonical-json-v1"
 
     actual_paths = sorted(

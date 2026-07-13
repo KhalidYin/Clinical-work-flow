@@ -2,7 +2,7 @@
 id: src-engine-schema-bundle
 type: source_record
 title: Workflow Engine Knowledge Contract Bundle
-version: 1.0.0
+version: 1.1.0
 schema_version: 1.0.0
 content_status: verified
 approval_status: approved
@@ -20,8 +20,10 @@ applicability:
   therapeutic_areas: []
   trial_phases: []
   sponsor_ids: []
-  study_ids: []
-  conditions: []
+  study_ids:
+  - SYNTH-ONCO-001
+  conditions:
+  - synthetic-pilot-only
 sources: []
 owner: Clinical Knowledge Governance
 created: '2026-07-13T14:40:00+08:00'
@@ -29,7 +31,7 @@ last_reviewed: '2026-07-13'
 review_due: '2027-07-13'
 supersedes: []
 superseded_by: null
-content_hash: 48fe5a9dcd86ac8f7b810e47cb8063e3b205de5255fd56b55f5700e7483bb5ec
+content_hash: 20af237991c66d4f7c4161e5035a9a93d6c213befc892126e2427ce0ec2b8032
 rights_status: cleared
 allowed_uses:
 - internal_knowledge_service
@@ -41,9 +43,9 @@ contract_compatibility:
 approval_receipt_id: review-knowledge-p5-core-v1-001
 audit_reference: vault/80_Governance/Review-Receipts/p5-core-content-approval.md
 source_kind: document
-source_version: 1.0.0
+source_version: 1.1.0
 original_uri: engine://schemas/contract-bundle.json
-original_sha256: 8000612e02b64b5bda32e23a7a7092c652085ea9a01897a1e2f3b567e6a4cd71
+original_sha256: d583211588c3621372aa5757473af57c95d8dd618f587bff3fc15bcf6adc7965
 pdf_status: null
 page_count: null
 locators: []

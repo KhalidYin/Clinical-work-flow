@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterable, Mapping
+from typing import TYPE_CHECKING
 
 from src.config import RuntimeManifestConfigError, load_runtime_manifest
-from src.knowledge.models import ExecutionContext, ResolvedRule
+from src.knowledge.models import ExecutionContext, WorkflowStage
+from src.knowledge.study_decisions import (
+    StudyDecisionError,
+    load_study_decisions,
+    project_study_decision,
+)
 
 from .pipeline_contract import PipelineStage
 
@@ -33,7 +38,6 @@ class RuntimeContextResolver:
         project_dir: str | Path,
         stage: PipelineStage | str,
         *,
-        study_rules: Iterable[ResolvedRule | Mapping[str, Any]] = (),
         manifest_name: str = "runtime-manifest.yaml",
     ) -> ExecutionContext:
         root = Path(project_dir)
@@ -46,9 +50,21 @@ class RuntimeContextResolver:
         if manifest is None:  # defensive: required=True guarantees the type contract
             raise RuntimeContextError("Study runtime manifest is missing")
         try:
+            active_stage = WorkflowStage(
+                stage.value if isinstance(stage, PipelineStage) else stage
+            )
+            decisions = load_study_decisions(
+                root,
+                study_id=manifest.study_id,
+                stage=active_stage,
+            )
+            projections = tuple(project_study_decision(item) for item in decisions)
             return self._knowledge_resolver.resolve(
                 project_dir=root, manifest=manifest, stage=stage,
-                study_rules=study_rules,
+                study_rules=(item[0] for item in projections),
+                study_provenance=(item[1] for item in projections),
             )
+        except (StudyDecisionError, ValueError) as exc:
+            raise RuntimeContextError("approved Study decisions cannot be trusted") from exc
         except Exception as exc:
             raise RuntimeContextError("governed runtime context is unavailable") from exc

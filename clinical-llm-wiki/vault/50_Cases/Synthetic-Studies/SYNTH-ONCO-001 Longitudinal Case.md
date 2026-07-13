@@ -38,9 +38,10 @@ applicability:
   trial_phases:
   - phase_3
   sponsor_ids: []
-  study_ids: []
+  study_ids:
+  - SYNTH-ONCO-001
   conditions:
-  - synthetic_training_only
+  - synthetic-pilot-only
 sources:
 - src-engine-schema-bundle
 - src-cdisc-sdtmig-3-3
@@ -52,7 +53,7 @@ last_reviewed: '2026-07-13'
 review_due: '2027-07-13'
 supersedes: []
 superseded_by: null
-content_hash: 7c19dbc92de10a5c42beaca7cc23d12c26ffa51863bb194a9485ae4ed528bec9
+content_hash: ac08a03a9f5b9e2c850a58cd3ce97bf320dc86e79d562632ced654538ee74260
 rights_status: cleared
 allowed_uses:
 - training_reference

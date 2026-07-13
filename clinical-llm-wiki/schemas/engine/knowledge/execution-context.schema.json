@@ -218,10 +218,20 @@
           "type": "string"
         },
         "approval_receipt_id": {
-          "minLength": 3,
-          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)+$",
+          "minLength": 1,
           "title": "Approval Receipt Id",
           "type": "string"
+        },
+        "structured_rule": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TEAEWindowRule"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -246,6 +256,103 @@
       ],
       "title": "RuleLayer",
       "type": "string"
+    },
+    "TEAEWindowRule": {
+      "additionalProperties": false,
+      "description": "Machine-executable treatment-emergent adverse-event window.",
+      "properties": {
+        "rule_type": {
+          "const": "teae_window",
+          "default": "teae_window",
+          "title": "Rule Type",
+          "type": "string"
+        },
+        "target_dataset": {
+          "const": "ADAE",
+          "default": "ADAE",
+          "title": "Target Dataset",
+          "type": "string"
+        },
+        "target_variable": {
+          "const": "TRTEMFL",
+          "default": "TRTEMFL",
+          "title": "Target Variable",
+          "type": "string"
+        },
+        "event_start_date": {
+          "const": "ADAE.ASTDT",
+          "default": "ADAE.ASTDT",
+          "title": "Event Start Date",
+          "type": "string"
+        },
+        "treatment_start_date": {
+          "const": "ADSL.TRTSDT",
+          "default": "ADSL.TRTSDT",
+          "title": "Treatment Start Date",
+          "type": "string"
+        },
+        "treatment_end_date": {
+          "const": "ADSL.TRTEDT",
+          "default": "ADSL.TRTEDT",
+          "title": "Treatment End Date",
+          "type": "string"
+        },
+        "start_offset_days": {
+          "default": 0,
+          "maximum": 365,
+          "minimum": -365,
+          "title": "Start Offset Days",
+          "type": "integer"
+        },
+        "end_offset_days": {
+          "maximum": 365,
+          "minimum": 0,
+          "title": "End Offset Days",
+          "type": "integer"
+        },
+        "lower_bound_inclusive": {
+          "default": true,
+          "title": "Lower Bound Inclusive",
+          "type": "boolean"
+        },
+        "upper_bound_inclusive": {
+          "default": true,
+          "title": "Upper Bound Inclusive",
+          "type": "boolean"
+        },
+        "incomplete_event_date_policy": {
+          "const": "review_required",
+          "title": "Incomplete Event Date Policy",
+          "type": "string"
+        },
+        "missing_treatment_date_policy": {
+          "const": "review_required",
+          "title": "Missing Treatment Date Policy",
+          "type": "string"
+        },
+        "multiple_treatment_period_policy": {
+          "const": "review_required",
+          "title": "Multiple Treatment Period Policy",
+          "type": "string"
+        },
+        "pre_treatment_worsening_policy": {
+          "enum": [
+            "review_required",
+            "include_if_worsened"
+          ],
+          "title": "Pre Treatment Worsening Policy",
+          "type": "string"
+        }
+      },
+      "required": [
+        "end_offset_days",
+        "incomplete_event_date_policy",
+        "missing_treatment_date_policy",
+        "multiple_treatment_period_policy",
+        "pre_treatment_worsening_policy"
+      ],
+      "title": "TEAEWindowRule",
+      "type": "object"
     },
     "WorkflowStage": {
       "enum": [

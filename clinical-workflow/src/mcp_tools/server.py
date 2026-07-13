@@ -82,6 +82,8 @@ TOOLS = [
             "dataset_name": "ADaM dataset name (ADSL, ADAE, ADTTE, ADLB, etc.)",
             "trial_phase": "phase_i | phase_ii | phase_iii",
             "therapeutic_area": "oncology | non_oncology",
+            "teae_rule": "Structured TEAEWindowRule; required only for ADAE",
+            "applied_rule_refs": "Non-empty provenance references; required only for ADAE",
         },
     },
     {
@@ -227,6 +229,8 @@ def _handle_adam_spec_build(args: dict) -> dict:
         args["dataset_name"],
         args.get("trial_phase", "phase_iii"),
         args.get("therapeutic_area", "non_oncology"),
+        teae_rule=args.get("teae_rule"),
+        applied_rule_refs=args.get("applied_rule_refs"),
     )
 
 

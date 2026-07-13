@@ -24,8 +24,10 @@ applicability:
   therapeutic_areas: []
   trial_phases: []
   sponsor_ids: []
-  study_ids: []
-  conditions: []
+  study_ids:
+  - SYNTH-ONCO-001
+  conditions:
+  - synthetic-pilot-only
 sources:
 - src-cdisc-adamig-1-3
 owner: clinical-knowledge-governance
@@ -34,7 +36,7 @@ last_reviewed: '2026-07-13'
 review_due: '2027-07-13'
 supersedes: []
 superseded_by: null
-content_hash: 7228f39463ffb9b091a72e4b7c4a28ba8d41db5fd2154fa86ed4ae24e41d71fe
+content_hash: 851b59cd5dbb8bcb6b9966690cfb8e6afa87532cddc361a2280f6a4002436a2e
 rights_status: cleared
 allowed_uses:
 - runtime

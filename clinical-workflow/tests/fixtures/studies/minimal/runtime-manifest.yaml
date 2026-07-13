@@ -1,5 +1,5 @@
 manifest_id: "manifest-study-min-001"
-schema_version: "1.0.0"
+schema_version: "1.1.0"
 revision: 1
 study_id: "STUDY-MIN-001"
 created_at: "2026-07-13T00:00:00Z"

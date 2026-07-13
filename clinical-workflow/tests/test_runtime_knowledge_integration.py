@@ -19,7 +19,7 @@ from src.knowledge.client import (
     KnowledgeServiceUnavailable,
 )
 from src.knowledge.compatibility import sha256_canonical_json
-from src.knowledge.models import ResolvedRule, RuleLayer, RuntimeManifest
+from src.knowledge.models import ProvenanceEntry, ResolvedRule, RuleLayer, RuntimeManifest
 from src.knowledge.resolver import ContextResolutionError, KnowledgeContextResolver
 from src.knowledge.snapshot import context_from_snapshots, load_locked_snapshot
 from src.runtime.context_resolver import RuntimeContextError, RuntimeContextResolver
@@ -130,10 +130,24 @@ def _snapshot_root(snapshot: dict[str, Any]) -> Path:
 
 
 def _study_rule(rule_id: str, statement: str, *, priority: int = 600) -> ResolvedRule:
+    decision_id = rule_id.replace("rule-", "decision-", 1)
     return ResolvedRule(
         rule_id=rule_id, layer=RuleLayer.STUDY, priority=priority, title="Study decision",
-        statement=statement, source_ids=("decision-study-001",), source_version="1.0.0",
+        statement=statement, source_ids=(decision_id,), source_version="1.0.0",
         source_sha256="6" * 64, approval_receipt_id="receipt-study-001",
+    )
+
+
+def _study_provenance(rule_id: str) -> ProvenanceEntry:
+    decision_id = rule_id.replace("rule-", "decision-", 1)
+    return ProvenanceEntry(
+        provenance_id=f"prov-{decision_id}",
+        object_id=decision_id,
+        object_version="1.0.0",
+        object_sha256="6" * 64,
+        source_kind="study_decision",
+        snapshot_id=None,
+        audit_reference=f"knowledge/decisions/{decision_id}.json",
     )
 
 
@@ -173,6 +187,44 @@ def test_online_context_is_exactly_bound_to_manifest_and_fixed_stage(tmp_path: P
     }
 
 
+def test_online_context_rejects_knowledge_provenance_outside_manifest_snapshot(
+    tmp_path: Path,
+) -> None:
+    manifest, _, _ = _project_with_locks(tmp_path)
+    workflow = load_locked_snapshot(
+        tmp_path,
+        manifest.workflow_knowledge,
+        expected_bundle_version=BUNDLE["bundle_version"],
+        expected_bundle_sha256=BUNDLE["bundle_sha256"],
+    )
+    domain = load_locked_snapshot(
+        tmp_path,
+        manifest.domain_knowledge,
+        expected_bundle_version=BUNDLE["bundle_version"],
+        expected_bundle_sha256=BUNDLE["bundle_sha256"],
+    )
+    raw = context_from_snapshots(
+        manifest=manifest,
+        stage="sdtm_spec",
+        workflow_snapshot=workflow,
+        domain_snapshot=domain,
+    ).model_dump(mode="json")
+    workflow_provenance = next(
+        item for item in raw["provenance"] if item["source_kind"] == "workflow_knowledge"
+    )
+    workflow_provenance["snapshot_id"] = "snapshot-unlocked-current-index"
+    raw["execution_context_sha256"] = sha256_canonical_json(
+        {key: value for key, value in raw.items() if key != "execution_context_sha256"}
+    )
+
+    with pytest.raises(ContextResolutionError, match="snapshot"):
+        _resolver(_StaticTransport(raw)).resolve(
+            project_dir=tmp_path,
+            manifest=manifest,
+            stage="sdtm_spec",
+        )
+
+
 def test_reachable_schema_drift_does_not_silently_fallback(tmp_path: Path) -> None:
     manifest, _, _ = _project_with_locks(tmp_path)
     with pytest.raises(ContextResolutionError, match="contract"):
@@ -201,9 +253,25 @@ def test_same_priority_study_rules_block_instead_of_silently_selecting_one(tmp_p
             _study_rule("rule-study-001", "Use coding convention A."),
             _study_rule("rule-study-002", "Use coding convention B."),
         ),
+        study_provenance=(
+            _study_provenance("rule-study-001"),
+            _study_provenance("rule-study-002"),
+        ),
     )
     assert context.executable is False
     assert context.conflicts[0].resolution is None
+
+
+def test_study_rule_without_decision_provenance_is_rejected(tmp_path: Path) -> None:
+    manifest, _, _ = _project_with_locks(tmp_path)
+
+    with pytest.raises(ContextResolutionError, match="provenance"):
+        _resolver(_OfflineTransport()).resolve(
+            project_dir=tmp_path,
+            manifest=manifest,
+            stage="sdtm_spec",
+            study_rules=(_study_rule("rule-study-001", "Use coding convention A."),),
+        )
 
 
 def test_snapshot_path_escape_and_bad_remote_control_field_fail_closed(tmp_path: Path) -> None:

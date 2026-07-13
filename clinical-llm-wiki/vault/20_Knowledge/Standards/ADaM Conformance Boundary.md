@@ -25,8 +25,10 @@ applicability:
   therapeutic_areas: []
   trial_phases: []
   sponsor_ids: []
-  study_ids: []
-  conditions: []
+  study_ids:
+  - SYNTH-ONCO-001
+  conditions:
+  - synthetic-pilot-only
 sources:
 - src-cdisc-adam-conformance-5-0
 owner: clinical-knowledge-governance
@@ -35,7 +37,7 @@ last_reviewed: '2026-07-13'
 review_due: '2027-07-13'
 supersedes: []
 superseded_by: null
-content_hash: 22ff53ccf5c214be3e20d794f1e9ffe7f9accbe3c9e093e2d219c32b45a7b8f1
+content_hash: 724ab13d25c8cff9f35bbba0ef5c89adb0a29c3644b44aee71e59a65645e02c7
 rights_status: cleared
 allowed_uses:
 - runtime

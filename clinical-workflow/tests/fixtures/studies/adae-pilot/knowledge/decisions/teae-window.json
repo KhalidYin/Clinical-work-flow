@@ -1,0 +1,41 @@
+{
+  "decision_id": "study-decision-synth-onco-001-teae",
+  "schema_version": "1.1.0",
+  "version": "1.0.0",
+  "study_id": "SYNTH-ONCO-001",
+  "stage": "adam_spec",
+  "priority": 700,
+  "title": "Synthetic study TEAE window",
+  "statement": "Apply the approved synthetic Study TEAE window to ADAE.TRTEMFL.",
+  "source_ids": [
+    "kr-adae-adverse-event-analysis",
+    "pattern-treatment-emergent-ae"
+  ],
+  "structured_rule": {
+    "rule_type": "teae_window",
+    "target_dataset": "ADAE",
+    "target_variable": "TRTEMFL",
+    "event_start_date": "ADAE.ASTDT",
+    "treatment_start_date": "ADSL.TRTSDT",
+    "treatment_end_date": "ADSL.TRTEDT",
+    "start_offset_days": 0,
+    "end_offset_days": 30,
+    "lower_bound_inclusive": true,
+    "upper_bound_inclusive": true,
+    "incomplete_event_date_policy": "review_required",
+    "missing_treatment_date_policy": "review_required",
+    "multiple_treatment_period_policy": "review_required",
+    "pre_treatment_worsening_policy": "include_if_worsened"
+  },
+  "approval_evidence": {
+    "review_id": "adam_spec_teae_rule_v1_001",
+    "finding_id": "F-001",
+    "packet_path": ".review_queue/archive/adam_spec_teae_rule_v1_001.json",
+    "packet_sha256": "ec645e220829e8c03b2fa0f088f18ad38cdcbd79ce5f951293ec95092ae53ff5",
+    "decision_path": ".review_queue/archive/adam_spec_teae_rule_v1_001_decision.json",
+    "decision_sha256": "ba311dfd73aee891edae880a630cdbc07b5aa5888e11fad5aba910043250c37b",
+    "confirmation_path": ".review_queue/archive/adam_spec_teae_rule_v1_001_confirmation.json",
+    "confirmation_sha256": "2e690ce81829b32536af1d795a9554b1cbcb31b4317fc170f49fc3143c205895"
+  },
+  "content_sha256": "28fc9d2a88d1b922d1a832b2ba5cfb05e46e92ce0ab011efacd070ac3e15162a"
+}

@@ -466,6 +466,63 @@ class RuntimeManifest(StrictContractModel):
     manifest_sha256: Sha256
 
 
+class TEAEWindowRule(StrictContractModel):
+    """Machine-executable treatment-emergent adverse-event window."""
+
+    rule_type: Literal["teae_window"] = "teae_window"
+    target_dataset: Literal["ADAE"] = "ADAE"
+    target_variable: Literal["TRTEMFL"] = "TRTEMFL"
+    event_start_date: Literal["ADAE.ASTDT"] = "ADAE.ASTDT"
+    treatment_start_date: Literal["ADSL.TRTSDT"] = "ADSL.TRTSDT"
+    treatment_end_date: Literal["ADSL.TRTEDT"] = "ADSL.TRTEDT"
+    start_offset_days: int = Field(default=0, ge=-365, le=365)
+    end_offset_days: int = Field(ge=0, le=365)
+    lower_bound_inclusive: bool = True
+    upper_bound_inclusive: bool = True
+    incomplete_event_date_policy: Literal["review_required"]
+    missing_treatment_date_policy: Literal["review_required"]
+    multiple_treatment_period_policy: Literal["review_required"]
+    pre_treatment_worsening_policy: Literal[
+        "review_required", "include_if_worsened"
+    ]
+
+
+class ApprovalEvidence(StrictContractModel):
+    """Hash-locked Review artifacts authorizing one Study decision finding."""
+
+    review_id: NonEmptyString
+    finding_id: NonEmptyString
+    packet_path: NonEmptyString
+    packet_sha256: Sha256
+    decision_path: NonEmptyString
+    decision_sha256: Sha256
+    confirmation_path: NonEmptyString
+    confirmation_sha256: Sha256
+
+
+class StudyDecision(StrictContractModel):
+    """Study-scoped executable rule whose content and approval are independently locked."""
+
+    decision_id: StableId
+    schema_version: SemVerString = "1.0.0"
+    version: SemVerString
+    study_id: NonEmptyString
+    stage: WorkflowStage
+    priority: int = Field(ge=1, le=1000)
+    title: NonEmptyString
+    statement: NonEmptyString
+    source_ids: tuple[StableId, ...] = Field(min_length=1)
+    structured_rule: TEAEWindowRule
+    approval_evidence: ApprovalEvidence
+    content_sha256: Sha256
+
+    @model_validator(mode="after")
+    def teae_rule_is_scoped_to_adam_spec(self) -> Self:
+        if self.stage is not WorkflowStage.ADAM_SPEC:
+            raise ValueError("TEAE Study decisions are only valid for the adam_spec stage")
+        return self
+
+
 class ResolvedRule(StrictContractModel):
     rule_id: StableId
     layer: RuleLayer
@@ -475,7 +532,17 @@ class ResolvedRule(StrictContractModel):
     source_ids: tuple[StableId, ...] = Field(min_length=1)
     source_version: SemVerString
     source_sha256: Sha256
-    approval_receipt_id: StableId
+    approval_receipt_id: NonEmptyString
+    structured_rule: TEAEWindowRule | None = Field(
+        default=None,
+        exclude_if=lambda value: value is None,
+    )
+
+    @model_validator(mode="after")
+    def structured_rules_are_study_scoped(self) -> Self:
+        if self.structured_rule is not None and self.layer is not RuleLayer.STUDY:
+            raise ValueError("structured executable rules must use the study layer")
+        return self
 
 
 class ContextConflict(StrictContractModel):

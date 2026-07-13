@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -72,8 +73,19 @@ def test_home_navigation_and_all_internal_wiki_links_resolve() -> None:
     assert not failures, "unresolved internal Obsidian links: " + "; ".join(failures)
 
 
-def test_real_vault_seed_is_production_eligible_and_resolves_runtime_context() -> None:
-    config = WikiServiceConfig(vault_root=ROOT, schemas_dir=ROOT / "schemas" / "engine")
+def test_real_vault_seed_is_production_eligible_and_resolves_runtime_context(
+    tmp_path: Path,
+) -> None:
+    shutil.copytree(VAULT, tmp_path / "vault")
+    review_queue = ROOT / ".review_queue"
+    if review_queue.exists():
+        shutil.copytree(review_queue, tmp_path / ".review_queue")
+    audit_trail = ROOT / "audit_trail.jsonl"
+    if audit_trail.exists():
+        shutil.copy2(audit_trail, tmp_path / "audit_trail.jsonl")
+    schemas = tmp_path / "schemas"
+    shutil.copytree(ROOT / "schemas" / "engine", schemas)
+    config = WikiServiceConfig(vault_root=tmp_path, schemas_dir=schemas)
     app = create_app(config)
     repository: VaultRepository = app.state.repository
     seed = repository.get("wp-sdtm-spec-baseline")
@@ -83,10 +95,24 @@ def test_real_vault_seed_is_production_eligible_and_resolves_runtime_context() -
     client = TestClient(app)
     version = client.get("/api/v1/version").json()
     manifest = json.loads((ROOT / "tests" / "fixtures" / "study" / "runtime_manifest.json").read_text(encoding="utf-8"))
+    workflow = client.post(
+        "/api/v1/snapshots",
+        json={"item_ids": ["wp-sdtm-spec-baseline"], "snapshot_id": "snapshot-workflow-001"},
+    ).json()
+    domain = client.post(
+        "/api/v1/snapshots",
+        json={"item_ids": [], "snapshot_id": "snapshot-domain-001"},
+    ).json()
+    for section, snapshot in (
+        ("workflow_knowledge", workflow),
+        ("domain_knowledge", domain),
+    ):
+        manifest[section]["version"] = snapshot["version"]
+        manifest[section]["sha256"] = snapshot["sha256"]
     response = client.post(
         "/api/v1/runtime-context/resolve",
         json={
-            "study_id": "STUDY-001",
+            "study_id": "SYNTH-ONCO-001",
             "stage": "sdtm_spec",
             "runtime_manifest": manifest,
             "schema_bundle": {"version": version["bundle_version"], "sha256": version["bundle_sha256"]},
