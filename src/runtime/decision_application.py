@@ -20,6 +20,8 @@ from .review_protocol import (
     ReviewFinding,
     ReviewPacket,
     ReviewType,
+    validate_decision_receipt_schema,
+    validate_review_packet_schema,
 )
 
 
@@ -151,7 +153,17 @@ def apply_decision_receipt(
     queue_path = _resolve_queue_path(project_path, review_queue_dir)
     queue_path.mkdir(parents=True, exist_ok=True)
 
+    # Keep the domain-specific coverage error actionable before the generic
+    # schema error (an empty receipt is structurally invalid and incomplete).
     _validate_receipt_coverage(packet, receipt)
+    packet_violations = validate_review_packet_schema(packet.to_dict())
+    if packet_violations:
+        raise DecisionApplicationError(f"ReviewPacket schema validation failed: {packet_violations}")
+    receipt_violations = validate_decision_receipt_schema(receipt.to_dict())
+    if receipt_violations:
+        raise DecisionApplicationError(
+            f"DecisionReceipt schema validation failed: {receipt_violations}"
+        )
 
     findings = {finding.id: finding for finding in packet.findings}
     rework_directives: list[ReworkDirective] = []
@@ -184,6 +196,7 @@ def apply_decision_receipt(
         generated_by=generated_by,
     )
     _write_confirmation(queue_path, confirmation)
+    _write_review_audit(project_path, queue_path, confirmation)
     return confirmation
 
 
@@ -415,3 +428,31 @@ def _write_confirmation(
     path = queue_dir / f"{confirmation.review_id}_confirmation.json"
     path.write_text(confirmation.to_json(), encoding="utf-8")
     return path
+
+
+def _write_review_audit(
+    project_dir: Path,
+    queue_path: Path,
+    confirmation: ConfirmationReceipt,
+) -> None:
+    """Append application provenance without making a queue the state authority."""
+
+    scope = "study"
+    marker = queue_path / ".queue_scope.json"
+    if marker.exists():
+        try:
+            scope = json.loads(marker.read_text(encoding="utf-8")).get("scope", scope)
+        except json.JSONDecodeError:
+            scope = "unknown"
+    event = {
+        "event": "decision_applied",
+        "review_id": confirmation.review_id,
+        "queue_scope": scope,
+        "queue_path": str(queue_path),
+        "confirmation_path": str(queue_path / f"{confirmation.review_id}_confirmation.json"),
+        "application_summary": confirmation.summary(),
+        "generated_by": confirmation.generated_by,
+        "timestamp": confirmation.applied_at,
+    }
+    with (project_dir / "audit_trail.jsonl").open("a", encoding="utf-8") as audit:
+        audit.write(json.dumps(event, ensure_ascii=False, sort_keys=True) + "\n")

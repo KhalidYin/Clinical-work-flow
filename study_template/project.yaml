@@ -1,0 +1,35 @@
+study_id: "STUDY-TEMPLATE"
+protocol_id: "PROT-TEMPLATE"
+trial_phase: "phase_ii"
+therapeutic_area: "other"
+primary_language: "sas"
+qc_language: "r"
+sponsor: "Replace before use"
+created_at: "2026-07-13T00:00:00Z"
+
+standards:
+  sdtm_version: "2.0"
+  sdtmig_version: "3.4"
+  adam_version: "2.1"
+  adamig_version: "1.3"
+  ct_version: "2024-03"
+
+review_timeout:
+  reminder_hours: 24
+  escalation_hours: 72
+  stale_hours: 168
+  stale_action: "pause"
+
+review_assignments:
+  sap_review: {reviewers: ["replace_role"], consensus: "all_must_approve"}
+  sdtm_spec: {reviewers: ["replace_role"], consensus: "all_must_approve"}
+  adam_spec: {reviewers: ["replace_role"], consensus: "all_must_approve"}
+  tfl_shell: {reviewers: ["replace_role"], consensus: "all_must_approve"}
+  tfl_qc: {reviewers: ["replace_role"], consensus: "all_must_approve"}
+  submission: {reviewers: ["replace_role"], consensus: "all_must_approve"}
+
+paths:
+  input_dir: "input"
+  output_dir: "output"
+  review_queue_dir: ".review_queue"
+  audit_log: "audit_trail.jsonl"

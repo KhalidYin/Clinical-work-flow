@@ -18,12 +18,16 @@ Design principles:
 from __future__ import annotations
 
 import json
+import hashlib
+import re
 from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
+
+from jsonschema import Draft202012Validator, FormatChecker
 
 
 REVIEW_PROTOCOL_SCHEMA_PATH = (
@@ -105,6 +109,99 @@ class Urgency(StrEnum):
     BLOCKING = "blocking"     # Agent must wait for this before proceeding
 
 
+class ConsensusRule(StrEnum):
+    """How assigned reviewers close a packet when more than one is required."""
+
+    ALL_MUST_APPROVE = "all_must_approve"
+    MAJORITY = "majority"
+    ANY_ONE = "any_one"
+
+
+class QueueScope(StrEnum):
+    """Ownership boundary for a physical review queue."""
+
+    STUDY = "study"
+    WIKI = "wiki"
+
+
+class ReviewPolicyState(StrEnum):
+    """Effective state derived from assignments, receipts, and timeout policy."""
+
+    READY = "ready"
+    PENDING = "pending"
+    REJECTED = "rejected"
+    REMINDER_DUE = "reminder_due"
+    ESCALATION_DUE = "escalation_due"
+    STALE = "stale"
+
+
+@dataclass(frozen=True)
+class ReviewerAssignment:
+    """A role assignment carried by the shared ReviewPacket contract."""
+
+    role: str
+    name: str | None = None
+    decision: Decision | None = None
+    decided_at: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "role": self.role,
+            "name": self.name,
+            "decision": self.decision.value if self.decision else None,
+            "decided_at": self.decided_at,
+        }
+
+    @classmethod
+    def from_dict(cls, value: dict[str, Any]) -> "ReviewerAssignment":
+        decision = value.get("decision")
+        return cls(
+            role=value["role"],
+            name=value.get("name"),
+            decision=Decision(decision) if decision is not None else None,
+            decided_at=value.get("decided_at"),
+        )
+
+
+@dataclass(frozen=True)
+class TimeoutConfig:
+    """Non-executing review reminder/escalation metadata in hours."""
+
+    reminder_hours: int | None = None
+    escalation_hours: int | None = None
+    stale_hours: int | None = None
+    escalation_contacts: list[dict[str, str]] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for name in ("reminder_hours", "escalation_hours", "stale_hours"):
+            value = getattr(self, name)
+            if value is not None:
+                result[name] = value
+        if self.escalation_contacts:
+            result["escalation_contacts"] = self.escalation_contacts
+        return result
+
+    @classmethod
+    def from_dict(cls, value: dict[str, Any]) -> "TimeoutConfig":
+        return cls(
+            reminder_hours=value.get("reminder_hours"),
+            escalation_hours=value.get("escalation_hours"),
+            stale_hours=value.get("stale_hours"),
+            escalation_contacts=list(value.get("escalation_contacts", [])),
+        )
+
+
+@dataclass(frozen=True)
+class ReviewPolicyEvaluation:
+    """Pure evaluation result; callers decide how to notify or block."""
+
+    state: ReviewPolicyState
+    can_close: bool
+    pending_roles: list[str] = field(default_factory=list)
+    decided_roles: list[str] = field(default_factory=list)
+
+
 # ═══════════════════════════════════════════════════════════════════
 # JSON Schema Definitions — loaded from the repository schema bundle
 # ═══════════════════════════════════════════════════════════════════
@@ -120,6 +217,114 @@ DECISION_RECEIPT_SCHEMA = _schema_definition(REVIEW_PROTOCOL_SCHEMA, "decision_r
 CONFIRMATION_RECEIPT_SCHEMA = _schema_definition(
     REVIEW_PROTOCOL_SCHEMA, "confirmation_receipt"
 )
+
+
+def _jsonschema_violations(schema: dict[str, Any], data: dict[str, Any]) -> list[str]:
+    """Return deterministic JSON Schema violations for protocol boundaries."""
+
+    validator = Draft202012Validator(schema, format_checker=FormatChecker())
+    return [
+        error.message
+        for error in sorted(validator.iter_errors(data), key=lambda item: list(item.absolute_path))
+    ]
+
+
+def validate_review_packet_schema(data: dict[str, Any]) -> list[str]:
+    """Validate a packet against the repository JSON Schema authority."""
+
+    return _jsonschema_violations(REVIEW_PACKET_SCHEMA, data)
+
+
+def validate_decision_receipt_schema(data: dict[str, Any]) -> list[str]:
+    """Validate a decision receipt against the repository JSON Schema authority."""
+
+    return _jsonschema_violations(DECISION_RECEIPT_SCHEMA, data)
+
+
+def evaluate_review_policy(
+    packet: "ReviewPacket",
+    receipts: list["DecisionReceipt"],
+    *,
+    now: datetime | None = None,
+) -> ReviewPolicyEvaluation:
+    """Evaluate review assignments and timeout policy without mutating a packet.
+
+    A rejected receipt is terminal and conservative.  A packet without explicit
+    assignments retains the legacy one-receipt behavior.  Timeouts never approve
+    work; they only expose reminder/escalation/stale states for the Runtime/audit.
+    """
+
+    now = now or datetime.now(timezone.utc)
+    assignments = packet.required_reviewers
+    if not assignments:
+        if any(_receipt_is_rejected(receipt) for receipt in receipts):
+            return ReviewPolicyEvaluation(ReviewPolicyState.REJECTED, can_close=True)
+        return ReviewPolicyEvaluation(
+            ReviewPolicyState.READY if receipts else _timeout_state(packet, now),
+            can_close=bool(receipts),
+        )
+
+    assigned_roles = {assignment.role for assignment in assignments}
+    receipt_by_role = {
+        receipt.reviewer_role: receipt
+        for receipt in receipts
+        if receipt.reviewer_role in assigned_roles
+    }
+    rejected_roles = [
+        role for role, receipt in receipt_by_role.items() if _receipt_is_rejected(receipt)
+    ]
+    if rejected_roles:
+        return ReviewPolicyEvaluation(
+            ReviewPolicyState.REJECTED,
+            can_close=True,
+            pending_roles=sorted(assigned_roles - set(receipt_by_role)),
+            decided_roles=sorted(receipt_by_role),
+        )
+
+    required_count = len(assignments)
+    approved_count = len(receipt_by_role)
+    rule = packet.consensus_rule or ConsensusRule.ALL_MUST_APPROVE
+    if rule == ConsensusRule.ANY_ONE:
+        can_close = approved_count >= 1
+    elif rule == ConsensusRule.MAJORITY:
+        can_close = approved_count >= (required_count // 2 + 1)
+    else:
+        can_close = approved_count == required_count
+    if can_close:
+        return ReviewPolicyEvaluation(
+            ReviewPolicyState.READY,
+            can_close=True,
+            pending_roles=sorted(assigned_roles - set(receipt_by_role)),
+            decided_roles=sorted(receipt_by_role),
+        )
+    return ReviewPolicyEvaluation(
+        _timeout_state(packet, now),
+        can_close=False,
+        pending_roles=sorted(assigned_roles - set(receipt_by_role)),
+        decided_roles=sorted(receipt_by_role),
+    )
+
+
+def _receipt_is_rejected(receipt: "DecisionReceipt") -> bool:
+    return any(item.decision == Decision.REJECTED for item in receipt.decisions)
+
+
+def _timeout_state(packet: "ReviewPacket", now: datetime) -> ReviewPolicyState:
+    config = packet.timeout_config
+    if config is None:
+        return ReviewPolicyState.PENDING
+    try:
+        created_at = datetime.fromisoformat(packet.created_at.replace("Z", "+00:00"))
+    except ValueError:
+        return ReviewPolicyState.PENDING
+    elapsed_hours = (now - created_at).total_seconds() / 3600
+    if config.stale_hours is not None and elapsed_hours >= config.stale_hours:
+        return ReviewPolicyState.STALE
+    if config.escalation_hours is not None and elapsed_hours >= config.escalation_hours:
+        return ReviewPolicyState.ESCALATION_DUE
+    if config.reminder_hours is not None and elapsed_hours >= config.reminder_hours:
+        return ReviewPolicyState.REMINDER_DUE
+    return ReviewPolicyState.PENDING
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -257,9 +462,12 @@ class ReviewPacket:
     created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     generated_by: str = ""
     auto_approved_count: int = 0
+    required_reviewers: list[ReviewerAssignment] = field(default_factory=list)
+    consensus_rule: ConsensusRule | None = None
+    timeout_config: TimeoutConfig | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        data: dict[str, Any] = {
             "review_id": self.review_id,
             "review_type": self.review_type.value,
             "source_documents": self.source_documents,
@@ -270,6 +478,13 @@ class ReviewPacket:
             "generated_by": self.generated_by,
             "auto_approved_count": self.auto_approved_count,
         }
+        if self.required_reviewers:
+            data["required_reviewers"] = [item.to_dict() for item in self.required_reviewers]
+        if self.consensus_rule is not None:
+            data["consensus_rule"] = self.consensus_rule.value
+        if self.timeout_config is not None:
+            data["timeout_config"] = self.timeout_config.to_dict()
+        return data
 
     def to_json(self, indent: int = 2) -> str:
         return json.dumps(self.to_dict(), indent=indent, ensure_ascii=False)
@@ -286,6 +501,17 @@ class ReviewPacket:
             created_at=d.get("created_at", datetime.now(timezone.utc).isoformat()),
             generated_by=d.get("generated_by", ""),
             auto_approved_count=d.get("auto_approved_count", 0),
+            required_reviewers=[
+                ReviewerAssignment.from_dict(item) for item in d.get("required_reviewers", [])
+            ],
+            consensus_rule=(
+                ConsensusRule(d["consensus_rule"])
+                if d.get("consensus_rule") is not None else None
+            ),
+            timeout_config=(
+                TimeoutConfig.from_dict(d["timeout_config"])
+                if d.get("timeout_config") is not None else None
+            ),
         )
 
     def findings_by_severity(self, severity: Severity) -> list[ReviewFinding]:
@@ -356,6 +582,7 @@ class DecisionReceipt:
     decisions: list[FindingDecision]
     timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     general_notes: str = ""
+    reviewer_role: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {
@@ -366,6 +593,8 @@ class DecisionReceipt:
         }
         if self.general_notes:
             d["general_notes"] = self.general_notes
+        if self.reviewer_role:
+            d["reviewer_role"] = self.reviewer_role
         return d
 
     def to_json(self, indent: int = 2) -> str:
@@ -379,6 +608,7 @@ class DecisionReceipt:
             decisions=[FindingDecision.from_dict(fd) for fd in d["decisions"]],
             timestamp=d.get("timestamp", datetime.now(timezone.utc).isoformat()),
             general_notes=d.get("general_notes", ""),
+            reviewer_role=d.get("reviewer_role"),
         )
 
     def approved_count(self) -> int:
@@ -408,6 +638,10 @@ class DecisionReceipt:
 # ═══════════════════════════════════════════════════════════════════
 
 
+class ReviewQueueScopeError(ValueError):
+    """Raised when one physical queue is incorrectly reused across boundaries."""
+
+
 class ReviewQueue:
     """
     File-system-based message queue for agent↔human review exchange.
@@ -421,8 +655,16 @@ class ReviewQueue:
         archive/                  ← Completed reviews moved here
     """
 
-    def __init__(self, project_dir: str | Path, queue_dir: str | Path | None = None) -> None:
+    def __init__(
+        self,
+        project_dir: str | Path,
+        queue_dir: str | Path | None = None,
+        *,
+        scope: QueueScope | str = QueueScope.STUDY,
+    ) -> None:
         project_path = Path(project_dir)
+        self.project_dir = project_path.resolve()
+        self.scope = QueueScope(scope)
         if queue_dir is None:
             self.queue_dir = project_path / ".review_queue"
         else:
@@ -431,13 +673,18 @@ class ReviewQueue:
         self.archive_dir = self.queue_dir / "archive"
         self.queue_dir.mkdir(parents=True, exist_ok=True)
         self.archive_dir.mkdir(parents=True, exist_ok=True)
+        self._ensure_scope_marker()
 
     # ── Agent-side operations ─────────────────────────────────
 
     def submit_packet(self, packet: ReviewPacket) -> Path:
         """Agent submits a review packet. Returns path to written file."""
+        violations = validate_review_packet_schema(packet.to_dict())
+        if violations:
+            raise ValueError(f"ReviewPacket does not satisfy schema: {violations}")
         filepath = self.queue_dir / f"{packet.review_id}.json"
         filepath.write_text(packet.to_json(), encoding="utf-8")
+        self._write_audit_event("packet_submitted", packet.review_id, filepath)
         return filepath
 
     def has_pending(self) -> bool:
@@ -450,8 +697,12 @@ class ReviewQueue:
         for p in sorted(self.queue_dir.glob("*.json")):
             if not self._is_packet_file(p):
                 continue
-            decision_file = self.queue_dir / f"{p.stem}_decision.json"
-            if not decision_file.exists():
+            try:
+                packet = ReviewPacket.from_dict(json.loads(p.read_text(encoding="utf-8")))
+            except (json.JSONDecodeError, KeyError, ValueError):
+                pending.append(p.stem)
+                continue
+            if not evaluate_review_policy(packet, self._load_receipts(p.stem)).can_close:
                 pending.append(p.stem)
         return pending
 
@@ -465,7 +716,7 @@ class ReviewQueue:
             try:
                 data = json.loads(filepath.read_text(encoding="utf-8"))
                 packets.append(ReviewPacket.from_dict(data))
-            except (json.JSONDecodeError, KeyError):
+            except (json.JSONDecodeError, KeyError, ValueError):
                 # Corrupt packet — log and skip
                 filepath.rename(self.archive_dir / f"{review_id}_corrupt.json")
         return packets
@@ -478,13 +729,23 @@ class ReviewQueue:
         try:
             data = json.loads(filepath.read_text(encoding="utf-8"))
             return ReviewPacket.from_dict(data)
-        except (json.JSONDecodeError, KeyError):
+        except (json.JSONDecodeError, KeyError, ValueError):
             return None
 
     def submit_decision(self, receipt: DecisionReceipt) -> Path:
         """Human submits decision receipt. Returns path to written file."""
-        filepath = self.queue_dir / f"{receipt.review_id}_decision.json"
+        violations = validate_decision_receipt_schema(receipt.to_dict())
+        if violations:
+            raise ValueError(f"DecisionReceipt does not satisfy schema: {violations}")
+        suffix = ""
+        if receipt.reviewer_role:
+            safe_role = re.sub(r"[^a-z0-9_]+", "_", receipt.reviewer_role.lower()).strip("_")
+            if not safe_role:
+                raise ValueError("DecisionReceipt.reviewer_role must contain a file-safe role")
+            suffix = f"_{safe_role}"
+        filepath = self.queue_dir / f"{receipt.review_id}_decision{suffix}.json"
         filepath.write_text(receipt.to_json(), encoding="utf-8")
+        self._write_audit_event("decision_submitted", receipt.review_id, filepath)
         return filepath
 
     # ── Agent-side: check for decisions ───────────────────────
@@ -497,7 +758,7 @@ class ReviewQueue:
         try:
             data = json.loads(filepath.read_text(encoding="utf-8"))
             return DecisionReceipt.from_dict(data)
-        except (json.JSONDecodeError, KeyError):
+        except (json.JSONDecodeError, KeyError, ValueError):
             return None
 
     def wait_for_decision(self, review_id: str,
@@ -524,13 +785,14 @@ class ReviewQueue:
         """Move completed packet, decision, confirmation, and rework files to archive."""
         files = [
             self.queue_dir / f"{review_id}.json",
-            self.queue_dir / f"{review_id}_decision.json",
             self.queue_dir / f"{review_id}_confirmation.json",
             self.queue_dir / f"{review_id}_rework.json",
         ]
+        files.extend(sorted(self.queue_dir.glob(f"{review_id}_decision*.json")))
         for review_file in files:
             if review_file.exists():
                 review_file.rename(self.archive_dir / review_file.name)
+        self._write_audit_event("review_archived", review_id, self.archive_dir)
 
     def list_archived(self) -> list[str]:
         """List all completed/archived review IDs."""
@@ -544,13 +806,81 @@ class ReviewQueue:
         """Return true only for ReviewPacket JSON files."""
         name = path.name
         return not (
-            name.endswith("_decision.json")
+            name == ".queue_scope.json"
+            or name.endswith("_decision.json")
+            or "_decision_" in name
             or name.endswith("_confirmation.json")
             or name.endswith("_rework.json")
             or name.endswith("_conflict.json")
             or name.endswith("_corrupt.json")
             or "_clarification_" in name
         )
+
+    def effective_policy(self, review_id: str, *, now: datetime | None = None) -> ReviewPolicyEvaluation:
+        """Return effective assignment/timeout state from files in this queue."""
+
+        packet = self.load_packet(review_id)
+        if packet is None:
+            raise FileNotFoundError(f"ReviewPacket not found: {review_id}")
+        receipts = self._load_receipts(review_id)
+        evaluation = evaluate_review_policy(packet, receipts, now=now)
+        self._write_audit_event(
+            "review_policy_evaluated",
+            review_id,
+            self.queue_dir,
+            policy_state=evaluation.state.value,
+            can_close=evaluation.can_close,
+            pending_roles=evaluation.pending_roles,
+        )
+        return evaluation
+
+    def _load_receipts(self, review_id: str) -> list[DecisionReceipt]:
+        receipts: list[DecisionReceipt] = []
+        for path in sorted(self.queue_dir.glob(f"{review_id}_decision*.json")):
+            try:
+                receipts.append(DecisionReceipt.from_dict(json.loads(path.read_text(encoding="utf-8"))))
+            except (json.JSONDecodeError, KeyError, ValueError):
+                continue
+        return receipts
+
+    def _ensure_scope_marker(self) -> None:
+        marker = self.queue_dir / ".queue_scope.json"
+        expected = {"scope": self.scope.value, "owner_root": str(self.project_dir)}
+        if marker.exists():
+            try:
+                existing = json.loads(marker.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as exc:
+                raise ReviewQueueScopeError(f"Invalid queue scope marker: {marker}") from exc
+            if existing.get("scope") != self.scope.value or existing.get("owner_root") != str(self.project_dir):
+                raise ReviewQueueScopeError(
+                    "Review queue belongs to a different scope or owner root; "
+                    "Study and Wiki queues must remain physically separate."
+                )
+            return
+        marker.write_text(json.dumps(expected, indent=2) + "\n", encoding="utf-8")
+
+    def _write_audit_event(
+        self,
+        event: str,
+        review_id: str,
+        artifact_path: Path,
+        **details: Any,
+    ) -> None:
+        digest = ""
+        if artifact_path.is_file():
+            digest = hashlib.sha256(artifact_path.read_bytes()).hexdigest()
+        audit_line = {
+            "event": event,
+            "review_id": review_id,
+            "queue_scope": self.scope.value,
+            "queue_path": str(self.queue_dir),
+            "artifact": str(artifact_path),
+            "artifact_sha256": digest,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            **details,
+        }
+        with (self.project_dir / "audit_trail.jsonl").open("a", encoding="utf-8") as audit:
+            audit.write(json.dumps(audit_line, ensure_ascii=False, sort_keys=True) + "\n")
 
     def queue_stats(self) -> dict[str, Any]:
         return {

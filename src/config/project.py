@@ -134,8 +134,21 @@ def load_project_config(project_dir: str | Path, required: bool = False) -> Proj
 
 
 def resolve_project_path(project_dir: str | Path, path_value: str | Path) -> Path:
-    """Resolve project.yaml path values relative to the study directory."""
+    """Resolve a configured Study path without permitting directory escape.
+
+    Study configuration is intentionally self-contained.  A Study may refer to
+    the Knowledge Service by an explicitly injected endpoint at runtime, but
+    its file paths must never infer or traverse to a sibling repository.
+    """
+
+    project_root = Path(project_dir).resolve()
     path = Path(path_value)
     if path.is_absolute():
-        return path
-    return Path(project_dir) / path
+        raise ProjectConfigError("Study paths must be relative to the Study root")
+
+    resolved = (project_root / path).resolve()
+    try:
+        resolved.relative_to(project_root)
+    except ValueError as exc:
+        raise ProjectConfigError("Study paths must not escape the Study root") from exc
+    return resolved

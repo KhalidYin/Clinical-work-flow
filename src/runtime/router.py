@@ -16,7 +16,9 @@ reordering of the Protocol → SDTM → ADaM → TFL dependency chain.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Mapping
+
+from .pipeline_contract import CANONICAL_PIPELINE, CapabilityName, PipelineStage
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -25,44 +27,16 @@ from typing import Any
 
 
 CAPABILITY_REGISTRY: dict[str, dict[str, Any]] = {
-    "ProtocolSAPAgent": {
-        "description": "Protocol analysis, SAP generation, CRF design",
+    executor.value: {
         "capabilities": [
-            "protocol_analysis",       # Extract endpoints, populations, methods
-            "sap_generation",          # Generate SAP sections per ICH E9
-            "endpoint_classification", # Primary/secondary/exploratory
-            "estimands_derivation",    # ICH E9(R1) estimands framework
-            "crf_pre_mapping",         # CRF → SDTM preliminary mapping
+            capability.value
+            for stage in CANONICAL_PIPELINE.stages
+            if stage.executor is executor
+            for capability in stage.allowed_capabilities
         ],
-        "requires_inputs": ["protocol"],
-        "produces_outputs": ["sap_draft", "endpoint_spec", "crf_mapping_recommendations"],
-    },
-    "DataStandardsAgent": {
-        "description": "SDTM + ADaM specifications and programming",
-        "capabilities": [
-            "sdtm_spec_generation",    # Domain variable mapping per CDISC IG
-            "sdtm_programming",        # SAS/R/Python SDTM code
-            "adam_spec_generation",    # ADaM dataset derivation specs
-            "adam_programming",        # SAS/R/Python ADaM code
-            "ct_alignment",            # Controlled terminology checks
-            "cdisc_validation",        # Pre-validation against CDISC rules
-        ],
-        "requires_inputs": ["protocol", "sap_draft"],
-        "produces_outputs": ["sdtm_specs", "adam_specs", "sdtm_programs", "adam_programs"],
-    },
-    "TFLQCSubmissionAgent": {
-        "description": "TFL shells, programming, QC, submission packaging",
-        "capabilities": [
-            "tfl_shell_generation",    # TFL shell catalog
-            "tfl_programming",         # SAS/R/Python TFL code
-            "qc_validation",           # Double programming QC
-            "p21_triage",              # Pinnacle 21 finding triage
-            "define_xml_generation",   # define.xml 2.0
-            "submission_packaging",    # eCTD Module 5 structure
-        ],
-        "requires_inputs": ["adam_specs", "tfl_shells"],
-        "produces_outputs": ["tfl_shells", "tfl_programs", "qc_report", "submission_package"],
-    },
+        "stages": [stage.stage_id.value for stage in CANONICAL_PIPELINE.stages if stage.executor is executor],
+    }
+    for executor in {stage.executor for stage in CANONICAL_PIPELINE.stages}
 }
 
 
@@ -81,6 +55,13 @@ class RouteResult:
     suggested_tools: list[str] = field(default_factory=list)
     prerequisites_met: bool = True
     missing_prerequisites: list[str] = field(default_factory=list)
+    stage_id: PipelineStage | None = None
+    allowed_capabilities: tuple[CapabilityName, ...] = ()
+    suggested_executables: list[str] = field(default_factory=list)
+
+
+class RoutingError(ValueError):
+    """Untrusted routing context attempted to change the Engine pipeline."""
 
 
 @dataclass
@@ -109,88 +90,69 @@ class Router:
         Given intent and project context, return ordered list of
         what should be done next.
         """
-        results: list[RouteResult] = []
-
+        _validate_context(context)
         files = context.get("files", {})
-        pending = context.get("pending_reviews", [])
+        if not isinstance(files, Mapping):
+            raise RoutingError("routing context.files must be a mapping")
 
-        # ── Stage 0: Protocol must exist ──
-        protocol_files = [f for f in files.get("protocol", [])
-                          if str(f).endswith((".pdf", ".docx", ".txt"))]
-        if not protocol_files:
-            results.append(RouteResult(
-                executor="NONE",
-                capability="none",
-                confidence=1.0,
-                reasoning="Protocol document not found. Cannot proceed.",
-                prerequisites_met=False,
-                missing_prerequisites=["protocol.pdf"],
-            ))
-            return results
+        stage = self.current_stage(files)
+        if stage is None:
+            return [
+                RouteResult(
+                    executor="NONE", capability="done", confidence=1.0,
+                    reasoning="All canonical pipeline completion evidence exists.",
+                )
+            ]
+        stage_contract = CANONICAL_PIPELINE.get_stage(stage)
+        missing = _missing_initial_inputs(stage, files)
+        return [
+            RouteResult(
+                executor=stage_contract.executor.value,
+                capability=stage_contract.allowed_capabilities[0].value,
+                confidence=1.0 if not missing else 0.0,
+                reasoning=(
+                    f"Fixed pipeline stage {stage.value} is the first stage without "
+                    "complete canonical evidence."
+                ),
+                suggested_tools=[item.value for item in stage_contract.allowed_tools],
+                suggested_executables=[item.value for item in stage_contract.allowed_executables],
+                prerequisites_met=not missing,
+                missing_prerequisites=missing,
+                stage_id=stage,
+                allowed_capabilities=stage_contract.allowed_capabilities,
+            )
+        ]
 
-        # ── Stage 1: Protocol analysis ──
-        if not files.get("sdtm_specs"):
-            results.append(RouteResult(
-                executor="DataStandardsAgent",
-                capability="sdtm_spec_generation",
-                confidence=0.95,
-                reasoning="No SDTM specs exist. Must generate from protocol and CRF data.",
-                suggested_tools=["sdtm_spec_build"],
-            ))
+    @staticmethod
+    def current_stage(files: Mapping[str, Any]) -> PipelineStage | None:
+        """Return the first incomplete one of exactly the ten contract stages."""
+        for stage in CANONICAL_PIPELINE.stages:
+            if not _stage_complete(stage.stage_id, files):
+                return stage.stage_id
+        return None
 
-        # ── Stage 2: ADaM spec generation ──
-        if files.get("sdtm_specs") and not files.get("adam_specs"):
-            results.append(RouteResult(
-                executor="DataStandardsAgent",
-                capability="adam_spec_generation",
-                confidence=0.90,
-                reasoning="SDTM specs exist but no ADaM specs. Generate ADaM datasets.",
-                suggested_tools=["adam_spec_build"],
-            ))
-
-        # ── Stage 3: TFL shells ──
-        if files.get("adam_specs") and not files.get("tfl_shells"):
-            results.append(RouteResult(
-                executor="TFLQCSubmissionAgent",
-                capability="tfl_shell_generation",
-                confidence=0.90,
-                reasoning="ADaM specs exist but no TFL shells. Generate TFL catalog.",
-                suggested_tools=["tfl_shells_list"],
-            ))
-
-        # ── Stage 4: Programming ──
-        if files.get("tfl_shells") and not files.get("programs"):
-            # Check if TFL shells have been reviewed
-            tfl_review_pending = any("tfl_shell" in r for r in pending)
-            if tfl_review_pending:
-                results.append(RouteResult(
-                    executor="TFLQCSubmissionAgent",
-                    capability="tfl_programming",
-                    confidence=0.50,
-                    reasoning="TFL shells exist but are pending human review. "
-                              "Wait for approval before programming.",
-                    prerequisites_met=False,
-                    missing_prerequisites=["tfl_shell_human_approval"],
-                ))
-            else:
-                results.append(RouteResult(
-                    executor="TFLQCSubmissionAgent",
-                    capability="tfl_programming",
-                    confidence=0.85,
-                    reasoning="TFL shells approved. Proceed to program generation.",
-                    suggested_tools=["tfl_renderer"],
-                ))
-
-        # ── Stage 5: Done ──
-        if not results:
-            results.append(RouteResult(
-                executor="NONE",
-                capability="done",
-                confidence=0.95,
-                reasoning="All expected outputs exist. Workflow appears complete.",
-            ))
-
-        return results
+    def route_stage(
+        self, stage_id: PipelineStage | str, capability: CapabilityName | str
+    ) -> RouteResult:
+        """Validate a proposed action against the Engine-owned stage contract."""
+        try:
+            stage = PipelineStage(stage_id)
+            selected_capability = CapabilityName(capability)
+        except ValueError as exc:
+            raise RoutingError("unknown pipeline stage or capability") from exc
+        contract = CANONICAL_PIPELINE.get_stage(stage)
+        if selected_capability not in contract.allowed_capabilities:
+            raise RoutingError("capability is not allowed during the fixed pipeline stage")
+        return RouteResult(
+            executor=contract.executor.value,
+            capability=selected_capability.value,
+            confidence=1.0,
+            reasoning="Validated against the canonical Pipeline Contract.",
+            suggested_tools=[item.value for item in contract.allowed_tools],
+            suggested_executables=[item.value for item in contract.allowed_executables],
+            stage_id=stage,
+            allowed_capabilities=contract.allowed_capabilities,
+        )
 
     def best_route(self, intent: str,
                    context: dict[str, Any]) -> RouteResult | None:
@@ -199,13 +161,7 @@ class Router:
         if not routes:
             return None
 
-        # Filter to routes with prerequisites met
-        ready_routes = [r for r in routes if r.prerequisites_met]
-        if not ready_routes:
-            return routes[0]  # Return first blocker
-
-        # Return highest confidence ready route
-        return max(ready_routes, key=lambda r: r.confidence)
+        return routes[0]
 
     def summarize_context(self, context: dict[str, Any]) -> str:
         """Human-readable summary of the current context for the agent."""
@@ -214,35 +170,60 @@ class Router:
 
         parts = []
 
-        # Protocol
-        protocol_count = len(files.get("protocol", []))
-        parts.append(f"Protocol: {'[OK]' if protocol_count > 0 else '[MISSING]'} "
-                     f"({protocol_count} file(s))")
-
-        # SDTM
-        sdtm_count = len(files.get("sdtm_specs", []))
-        parts.append(f"SDTM Specs: {'[OK]' if sdtm_count > 0 else '[---]'} "
-                     f"({sdtm_count} domains)")
-
-        # ADaM
-        adam_count = len(files.get("adam_specs", []))
-        parts.append(f"ADaM Specs: {'[OK]' if adam_count > 0 else '[---]'} "
-                     f"({adam_count} datasets)")
-
-        # TFL
-        tfl_count = len(files.get("tfl_shells", []))
-        parts.append(f"TFL Shells: {'[OK]' if tfl_count > 0 else '[---]'} "
-                     f"({tfl_count} shells)")
-
-        # Programs
-        prog_count = len(files.get("programs", []))
-        parts.append(f"Programs: {'[OK]' if prog_count > 0 else '[---]'} "
-                     f"({prog_count} files)")
-
-        # Pending
+        _validate_context(context)
+        if not isinstance(files, Mapping):
+            raise RoutingError("routing context.files must be a mapping")
+        stage = self.current_stage(files)
+        parts.append(f"Current fixed stage: {stage.value if stage else 'complete'}")
         parts.append(f"Pending Reviews: {len(pending)}")
-
         return " | ".join(parts)
+
+
+_STAGE_EVIDENCE_KEYS: dict[PipelineStage, tuple[tuple[str, ...], ...]] = {
+    PipelineStage.PROTOCOL_ANALYSIS: (("protocol_analysis",),),
+    PipelineStage.SAP_GENERATION: (("sap", "sap_draft"),),
+    PipelineStage.SDTM_SPEC: (("sdtm_specs",),),
+    PipelineStage.SDTM_PROGRAMMING: (("sdtm_programs",), ("sdtm_datasets",)),
+    PipelineStage.ADAM_SPEC: (("adam_specs",),),
+    PipelineStage.ADAM_PROGRAMMING: (("adam_programs",), ("adam_datasets",)),
+    PipelineStage.TFL_SHELL_DESIGN: (("tfl_shells",),),
+    PipelineStage.TFL_PROGRAMMING: (("tfl_programs",), ("tfl_outputs",)),
+    PipelineStage.QC_VALIDATION: (("qc_report",),),
+    PipelineStage.SUBMISSION_PACKAGING: (("submission_manifest",), ("submission_package",)),
+}
+
+
+def _stage_complete(stage: PipelineStage, files: Mapping[str, Any]) -> bool:
+    evidence = files.get("completion_evidence")
+    contract = CANONICAL_PIPELINE.get_stage(stage)
+    if isinstance(evidence, (list, tuple, set)):
+        normalized = {str(item).replace("\\", "/") for item in evidence}
+        return all(path in normalized for path in contract.completion_evidence)
+    return all(any(_has_value(files.get(key)) for key in alternatives) for alternatives in _STAGE_EVIDENCE_KEYS[stage])
+
+
+def _missing_initial_inputs(stage: PipelineStage, files: Mapping[str, Any]) -> list[str]:
+    if stage is PipelineStage.PROTOCOL_ANALYSIS and not _has_value(files.get("protocol")):
+        return ["protocol"]
+    return []
+
+
+def _has_value(value: Any) -> bool:
+    return bool(value) if not isinstance(value, str) else bool(value.strip())
+
+
+def _validate_context(context: Mapping[str, Any]) -> None:
+    forbidden = {"command", "commands", "next_stage", "skip_stage", "stage_override", "tool_calls"}
+
+    def visit(value: Any) -> bool:
+        if isinstance(value, Mapping):
+            return bool(forbidden.intersection(value)) or any(visit(item) for item in value.values())
+        if isinstance(value, (list, tuple)):
+            return any(visit(item) for item in value)
+        return False
+
+    if visit(context):
+        raise RoutingError("routing context contains forbidden control fields")
 
 
 # ═══════════════════════════════════════════════════════════════════

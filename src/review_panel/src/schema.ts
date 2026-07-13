@@ -20,6 +20,7 @@ export type FindingCategory =
 export type Severity = "critical" | "warning" | "info";
 export type Urgency = "normal" | "blocking";
 export type DecisionValue = "approved" | "rejected" | "modified";
+export type ConsensusRule = "all_must_approve" | "majority" | "any_one";
 
 export type RejectionReason =
   | "wrong_domain_assignment"
@@ -79,6 +80,23 @@ export interface ReviewPacket {
   created_at: string;
   generated_by: string;
   auto_approved_count: number;
+  required_reviewers?: ReviewerAssignment[];
+  consensus_rule?: ConsensusRule;
+  timeout_config?: TimeoutConfig;
+}
+
+export interface ReviewerAssignment {
+  role: string;
+  name: string | null;
+  decision: DecisionValue | null;
+  decided_at: string | null;
+}
+
+export interface TimeoutConfig {
+  reminder_hours?: number;
+  escalation_hours?: number;
+  stale_hours?: number;
+  escalation_contacts?: Array<{ role: string; name: string }>;
 }
 
 export interface FindingDecision {
@@ -97,6 +115,7 @@ export interface DecisionReceipt {
   timestamp: string;
   decisions: FindingDecision[];
   general_notes?: string;
+  reviewer_role?: string;
 }
 
 export function validateReviewPacket(value: unknown): string[] {
@@ -132,6 +151,27 @@ export function validateReviewPacket(value: unknown): string[] {
     }
   }
 
+  if (packet.required_reviewers !== undefined) {
+    if (!Array.isArray(packet.required_reviewers)) {
+      errors.push("ReviewPacket.required_reviewers must be an array.");
+    } else {
+      for (const reviewer of packet.required_reviewers) {
+        if (!reviewer || typeof reviewer.role !== "string" || !reviewer.role.trim()) {
+          errors.push("Every required reviewer must include a role.");
+        }
+      }
+    }
+  }
+  if (
+    packet.consensus_rule !== undefined &&
+    !["all_must_approve", "majority", "any_one"].includes(packet.consensus_rule)
+  ) {
+    errors.push("ReviewPacket.consensus_rule is invalid.");
+  }
+  if (packet.timeout_config !== undefined && typeof packet.timeout_config !== "object") {
+    errors.push("ReviewPacket.timeout_config must be an object.");
+  }
+
   return errors;
 }
 
@@ -155,6 +195,9 @@ export function validateDecisionReceiptForPacket(
   }
   if (!receipt.timestamp) {
     errors.push("DecisionReceipt.timestamp is required.");
+  }
+  if (receipt.reviewer_role !== undefined && !receipt.reviewer_role.trim()) {
+    errors.push("reviewer_role must not be blank when provided.");
   }
   if (!Array.isArray(receipt.decisions) || receipt.decisions.length === 0) {
     errors.push("At least one finding decision is required.");

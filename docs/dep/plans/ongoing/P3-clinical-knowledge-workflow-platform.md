@@ -255,7 +255,7 @@ STUDY-001/
 │   ├── edc/
 │   └── external/
 ├── output/
-│   ├── protocol_analysis/
+│   ├── protocol/                    # completion evidence: analysis.yaml
 │   ├── sap/
 │   ├── sdtm/
 │   ├── adam/
@@ -460,7 +460,7 @@ policies: live_upgrade/conflict/version/fallback行为
 | P1 | 冻结架构、权威、最终目录和迁移基线 | 4-6 | - | done |
 | P2 | 建立机器合同与知识治理合同 | 6-9 | P1 | done |
 | P3 | 建立Obsidian Vault、来源管线和本地Knowledge Service | 8-11 | P2 | done |
-| P4 | 改造Study脚手架并接入Runtime/Review/Audit | 7-10 | P2, P3；旧P1-D/P1-E所需基础 | pending |
+| P4 | 改造Study脚手架并接入Runtime/Review/Audit | 7-10 | P2, P3；旧P1-D/P1-E所需基础 | done |
 | P5 | 完成纵向合成试点和首版核心内容 | 10-15 | P4 | pending |
 | P6 | 全局验收、迁移、文档同步和本地发布基线 | 5-8 | P5 | pending |
 
@@ -637,15 +637,15 @@ P1-P4构成平台MVP；P5-P6构成首个可用知识产品和发布基线。
 
 ### 完成标准
 
-- [ ] `study_template/.workflow/`遗留结构被替换，目标目录符合最终Study树。
-- [ ] Runtime先确定固定Stage，再解析知识；Wiki无法返回控制流命令。
-- [ ] 当前Study规则按优先级合并，同级冲突会阻断。
-- [ ] Agent Action只有通过Stage capability白名单后才执行。
-- [ ] Wiki不可用但快照有效时结果引用集合一致；快照损坏/缺失时fail-closed。
-- [ ] 每个artifact记录pipeline/workflow/domain/tool版本、ID和hash。
-- [ ] Wiki与Study使用独立review queue，但共享Review Protocol Schema与审计语义。
-- [ ] 服务恢复后不会静默升级执行中的Study。
-- [ ] prompt injection字段、未知工具、路径越界和Schema漂移均有负面测试。
+- [x] `study_template/.workflow/`遗留结构被替换，目标目录符合最终Study树。
+- [x] Runtime先确定固定Stage，再解析知识；Wiki无法返回控制流命令。
+- [x] 当前Study规则按优先级合并，同级冲突会阻断。
+- [x] Agent Action只有通过Stage capability白名单后才执行。
+- [x] Wiki不可用但快照有效时结果引用集合一致；快照损坏/缺失时fail-closed。
+- [x] 每个artifact记录pipeline/workflow/domain/tool版本、ID和hash。
+- [x] Wiki与Study使用独立review queue，但共享Review Protocol Schema与审计语义。
+- [x] 服务恢复后不会静默升级执行中的Study。
+- [x] prompt injection字段、未知工具、路径越界和Schema漂移均有负面测试。
 
 ### 边界（本Phase明确不做）
 
@@ -835,6 +835,7 @@ P1-P4构成平台MVP；P5-P6构成首个可用知识产品和发布基线。
 | D2 | 旧P1风险计划P1-D/P1-E尚未全部完成 | 规划 | 阻断（P4） | P1-P3可执行；P4前完成或批准兼容方案 |
 | D3 | 当前Router未完整表达Protocol/SAP阶段 | 规划 | 阻断（P2/P4） | P1登记差异，P2合同化，P4修正实现 |
 | D4 | Clinical LLM Wiki实际仓库尚未创建 | 规划 | P3输入Gate | 创建独立仓库，不复用未经确认的现有仓库 |
+| D5 | Study树的`output/protocol_analysis/`与P2机器合同`output/protocol/analysis.yaml`冲突 | P4 | 阻断 | 以已冻结Pipeline Contract为准，P4统一脚手架、扫描器和计划目录为`output/protocol/` |
 
 ## 关键决策记录
 
@@ -859,3 +860,4 @@ P1-P4构成平台MVP；P5-P6构成首个可用知识产品和发布基线。
 | 2026-07-13 | SPEC-06、SPEC-18、SPEC-21 | P1：三边界、十阶段、知识状态、迁移分类、跨仓发布与差异台账 |
 | 2026-07-13 | SPEC-21、`schemas/`、`src/runtime/`、`src/knowledge/` | P2：contract bundle、严格模型、Action Policy、治理与兼容性测试 |
 | 2026-07-13 | SPEC-21、Clinical LLM Wiki（`57e1802`） | P3：本地 Obsidian Vault、受控来源派生、审批门禁、SQLite FTS 与 loopback Knowledge Service |
+| 2026-07-13 | SPEC-21、`study_template/`、`src/runtime/`、`src/knowledge/`、Review/Audit | P4：最终Study树、十阶段Router/AgentLoop、锁定上下文与快照、Action Policy、artifact provenance和共享Review策略 |

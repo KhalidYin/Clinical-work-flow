@@ -24,6 +24,7 @@ Design principles:
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import subprocess
@@ -33,9 +34,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
+from src.config import load_runtime_manifest
 from src.config.project import ProjectConfig, load_project_config, resolve_project_path
 
 from .decision_application import DecisionApplicationError, apply_decision_receipt
+from .action_policy import DEFAULT_ACTION_POLICY, ActionRequest, ActionPolicyError, require_authorized_action
+from .context_resolver import RuntimeContextError, RuntimeContextResolver
+from .pipeline_contract import CONTRACT_VERSION, CapabilityName, ExecutableName, PipelineStage, ToolName
+from .router import Router, RoutingError
 from .review_protocol import (
     ReviewPacket, ReviewFinding, DecisionReceipt,
     ReviewQueue, FindingCategory, Severity,
@@ -55,6 +61,19 @@ from src.agents.executors import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _artifact_paths(result: dict[str, Any]) -> tuple[str, ...]:
+    """Extract the explicit artifact path contract from a tool result."""
+    values: Any = result.get("artifact_paths")
+    tool_result = result.get("tool_result")
+    if values is None and isinstance(tool_result, dict):
+        values = tool_result.get("artifact_paths")
+    if values is None:
+        return ()
+    if not isinstance(values, list) or not all(isinstance(item, str) and item for item in values):
+        raise RuntimeContextError("artifact_paths must be a list of non-empty paths")
+    return tuple(values)
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -131,6 +150,11 @@ class AgentAction:
     description: str
     tool_name: str | None = None
     tool_args: dict[str, Any] | None = None
+    stage_id: PipelineStage | None = None
+    capability: CapabilityName | None = None
+    executable_name: ExecutableName | None = None
+    context_bundle_id: str | None = None
+    context_sha256: str | None = None
     review_packet: ReviewPacket | None = None
     executor: str | None = None  # which capability domain
 
@@ -139,6 +163,11 @@ class AgentAction:
             "action_type": self.action_type,
             "description": self.description,
             "tool_name": self.tool_name,
+            "executable_name": self.executable_name,
+            "stage_id": self.stage_id,
+            "capability": self.capability,
+            "context_bundle_id": self.context_bundle_id,
+            "context_sha256": self.context_sha256,
             "executor": self.executor,
             "review_id": self.review_packet.review_id if self.review_packet else None,
             "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -181,6 +210,9 @@ class AgentRuntime:
     # Runtime state
     state: LoopState | None = None
     audit_log_path: Path | None = None
+    context_resolver: RuntimeContextResolver | None = None
+    execution_context: Any | None = field(default=None, init=False)
+    router: Router = field(default_factory=Router, init=False)
 
     # Settings
     auto_execute: bool = True
@@ -275,6 +307,17 @@ class AgentRuntime:
             # 3. DECIDE — what should we do next?
             action = await self._decide_next_action(intent, context)
 
+            # The Engine chooses a fixed Stage before it resolves any knowledge.
+            # A Wiki can explain that Stage but cannot control the pipeline.
+            try:
+                self._bind_governed_context(action)
+            except RuntimeContextError as exc:
+                return {
+                    "status": "blocked",
+                    "reason": f"governed runtime context unavailable: {exc}",
+                    "iteration": self.state.iteration,
+                }
+
             # 4. EXECUTE — do it
             result = await self._execute_action(action)
 
@@ -318,13 +361,7 @@ class AgentRuntime:
             ),
 
             # What exists on disk?
-            "files": {
-                "protocol": list((self.project_dir).glob("protocol*")),
-                "sdtm_specs": self._collect_output_files(("sdtm", "specs"), ("sdtm_specs",)),
-                "adam_specs": self._collect_output_files(("adam", "specs"), ("adam_specs",)),
-                "tfl_shells": self._collect_output_files(("tfl", "shells"), ("tfl_shells",)),
-                "programs": self._collect_output_files(("programs",), ("programs",)),
-            },
+            "files": self._scan_pipeline_evidence(),
 
             # What reviews are pending?
             "pending_reviews": self.state.pending_reviews,
@@ -343,14 +380,48 @@ class AgentRuntime:
         }
         return context
 
+    def _scan_pipeline_evidence(self) -> dict[str, list[Path]]:
+        """Collect only canonical contract evidence, with narrow legacy fallback."""
+        output = self.output_dir or self.project_dir / "output"
+        input_root = self.input_dir or self.project_dir / "input"
+        protocol_dir = input_root / "protocol"
+        protocol = (
+            sorted(path for path in protocol_dir.rglob("*") if path.is_file())
+            if protocol_dir.exists()
+            else []
+        )
+        if not protocol:  # migration-only compatibility; never search arbitrary parent paths
+            protocol = sorted(path for path in self.project_dir.glob("protocol*") if path.is_file())
+        return {
+            "protocol": protocol,
+            "protocol_analysis": self._collect_exact(output / "protocol" / "analysis.yaml"),
+            "sap": self._collect_exact(output / "sap" / "sap.yaml"),
+            "sdtm_specs": self._collect_output_files(("sdtm", "specs"), ("sdtm_specs",)),
+            "sdtm_programs": self._collect_output_files(("sdtm", "programs"), ()),
+            "sdtm_datasets": self._collect_output_files(("sdtm", "datasets"), ()),
+            "adam_specs": self._collect_output_files(("adam", "specs"), ("adam_specs",)),
+            "adam_programs": self._collect_output_files(("adam", "programs"), ()),
+            "adam_datasets": self._collect_output_files(("adam", "datasets"), ()),
+            "tfl_shells": self._collect_output_files(("tfl", "shells"), ("tfl_shells",)),
+            "tfl_programs": self._collect_output_files(("tfl", "programs"), ()),
+            "tfl_outputs": self._collect_output_files(("tfl", "outputs"), ()),
+            "qc_report": self._collect_exact(output / "qc" / "qc_report.yaml"),
+            "submission_manifest": self._collect_exact(output / "submission" / "manifest.yaml"),
+            "submission_package": self._collect_output_files(("submission", "package"), ()),
+        }
+
+    @staticmethod
+    def _collect_exact(path: Path) -> list[Path]:
+        return [path] if path.is_file() else []
+
     def _collect_output_files(self, canonical_parts: tuple[str, ...],
                               legacy_parts: tuple[str, ...]) -> list[Path]:
         """Read canonical output/ paths and legacy outputs/ paths during migration."""
         files: list[Path] = []
-        for root, parts in [
-            (self.output_dir or self.project_dir / "output", canonical_parts),
-            (self.project_dir / "outputs", legacy_parts),
-        ]:
+        roots = [(self.output_dir or self.project_dir / "output", canonical_parts)]
+        if legacy_parts:
+            roots.append((self.project_dir / "outputs", legacy_parts))
+        for root, parts in roots:
             path = root.joinpath(*parts)
             if path.exists():
                 files.extend(sorted(path.glob("*")))
@@ -375,109 +446,64 @@ class AgentRuntime:
 
     async def _decide_next_action(self, intent: str,
                                   context: dict[str, Any]) -> AgentAction:
-        """
-        Decide the next fixed-pipeline action.
-
-        This is where the LLM call happens in production. For now,
-        we implement a rule-based decision engine as the foundation
-        that an LLM-powered router can build on.
-
-        Decision logic (simplified for Phase 1):
-        1. If no protocol exists → can't proceed
-        2. If no SDTM specs → route to DataStandardsAgent for SDTM
-        3. If SDTM specs exist but no ADaM → route for ADaM
-        4. If ADaM specs exist but no TFL shells → route for TFL
-        5. If TFL shells exist but no programs → route for programming
-        6. If programs exist but no QC → route for QC
-        7. If all done → signal done
-
-        In Phase 2, this can be assisted by an LLM, but it must still
-        respect the fixed clinical dependency order.
-        """
-        files = context["files"]
-        pending = context["pending_reviews"]
-
-        # --- Rule 0: nothing to work with ---
-        protocol_files = [f for f in files["protocol"]
-                          if f.suffix.lower() in (".pdf", ".docx", ".txt")]
-        has_protocol = len(protocol_files) > 0
-
-        if not has_protocol:
+        """Choose only the Router's first incomplete contract stage."""
+        try:
+            route = self.router.best_route(intent, context)
+        except RoutingError as exc:
+            return AgentAction(action_type="wait", description=f"Unsafe routing context: {exc}")
+        if route is None or route.capability == "done":
+            return AgentAction(action_type="done", description="All ten pipeline stages are complete.")
+        if not route.prerequisites_met:
             return AgentAction(
                 action_type="wait",
-                description="No protocol document found. Place protocol.pdf in project directory.",
+                description=(
+                    f"{route.stage_id.value if route.stage_id else 'Pipeline'} requires: "
+                    + ", ".join(route.missing_prerequisites)
+                ),
+                stage_id=route.stage_id,
             )
+        return self._action_for_route(route, intent)
 
-        # --- Rule 1: need SDTM specs ---
-        if len(files["sdtm_specs"]) == 0:
-            return AgentAction(
-                action_type="call_tool",
-                description="Generate SDTM domain specifications",
-                tool_name="sdtm_spec_build",
-                tool_args={
-                    "domain_codes": self._infer_domains(intent),
-                    "trial_phase": self.trial_phase,
-                    "therapeutic_area": self.therapeutic_area,
-                },
-                executor="DataStandardsAgent",
-            )
-
-        # --- Rule 2: SDTM done, need ADaM ---
-        if len(files["adam_specs"]) == 0:
-            return AgentAction(
-                action_type="call_tool",
-                description="Generate ADaM dataset specifications",
-                tool_name="adam_spec_build",
-                tool_args={
-                    "datasets": self._infer_adam_datasets(intent),
-                    "trial_phase": self.trial_phase,
-                    "therapeutic_area": self.therapeutic_area,
-                },
-                executor="DataStandardsAgent",
-            )
-
-        # --- Rule 3: need TFL shells ---
-        if len(files["tfl_shells"]) == 0:
-            return AgentAction(
-                action_type="call_tool",
-                description="Generate TFL shell catalog",
-                tool_name="tfl_shells_list",
-                tool_args={
-                    "trial_phase": self.trial_phase,
-                    "therapeutic_area": self.therapeutic_area,
-                },
-                executor="TFLQCSubmissionAgent",
-            )
-
-        # --- Rule 4: TFL shells done, need programs ---
-        if len(files["programs"]) == 0 and len(files["tfl_shells"]) > 0:
-            # Before generating programs, submit TFL shells for review
-            pending_shell_review = any(
-                "tfl_shell" in r for r in pending
-            )
-            if not pending_shell_review:
-                # Build a review packet for TFL shells
-                packet = self._build_tfl_shell_review_packet(files)
+    def _action_for_route(self, route: Any, intent: str) -> AgentAction:
+        """Bind a fixed-stage route to one registered, policy-controlled resource."""
+        if route.stage_id is None:
+            return AgentAction(action_type="wait", description="Router did not return a pipeline stage.")
+        stage = route.stage_id
+        tool_args = self._route_arguments(stage, intent)
+        for tool in route.suggested_tools:
+            if tool in self.tool_registry:
+                registration = DEFAULT_ACTION_POLICY.tool(ToolName(tool))
                 return AgentAction(
-                    action_type="submit_review",
-                    description="Submit TFL shells for human review before programming",
-                    review_packet=packet,
-                    executor="TFLQCSubmissionAgent",
+                    action_type="call_tool", description=f"Execute {stage.value}", tool_name=tool,
+                    tool_args=tool_args, stage_id=stage, capability=registration.capability,
+                    executor=route.executor,
                 )
-
-            return AgentAction(
-                action_type="call_tool",
-                description="Generate TFL programs from approved shells",
-                tool_name="tfl_renderer",
-                tool_args={"tfl_shells": [str(s) for s in files["tfl_shells"]]},
-                executor="TFLQCSubmissionAgent",
-            )
-
-        # --- Rule 5: everything done ---
+        for executable in route.suggested_executables:
+            if executable in self.tool_registry:
+                registration = DEFAULT_ACTION_POLICY.executable(ExecutableName(executable))
+                return AgentAction(
+                    action_type="call_tool", description=f"Execute {stage.value}",
+                    executable_name=ExecutableName(executable), tool_args=tool_args,
+                    stage_id=stage, capability=registration.capability, executor=route.executor,
+                )
         return AgentAction(
-            action_type="done",
-            description="All outputs generated. Workflow complete.",
+            action_type="wait",
+            description=f"No registered controlled resource is available for fixed stage {stage.value}.",
+            stage_id=stage,
+            capability=CapabilityName(route.capability),
+            executor=route.executor,
         )
+
+    def _route_arguments(self, stage: PipelineStage, intent: str) -> dict[str, Any]:
+        if stage is PipelineStage.SDTM_SPEC:
+            return {"domain_codes": self._infer_domains(intent), "trial_phase": self.trial_phase,
+                    "therapeutic_area": self.therapeutic_area}
+        if stage is PipelineStage.ADAM_SPEC:
+            return {"datasets": self._infer_adam_datasets(intent), "trial_phase": self.trial_phase,
+                    "therapeutic_area": self.therapeutic_area}
+        if stage is PipelineStage.TFL_SHELL_DESIGN:
+            return {"trial_phase": self.trial_phase, "therapeutic_area": self.therapeutic_area}
+        return {}
 
     # ── Action Execution ───────────────────────────────────────
 
@@ -488,9 +514,17 @@ class AgentRuntime:
             "status": "executed",
         }
 
-        if action.action_type == "call_tool" and action.tool_name:
-            result.update(self._call_tool(action.tool_name,
-                                          action.tool_args or {}))
+        if action.action_type == "call_tool":
+            try:
+                self._authorize_action(action)
+            except (ActionPolicyError, ValueError) as exc:
+                result.update({"status": "denied", "error": str(exc)})
+            else:
+                resource_name = action.tool_name or action.executable_name
+                if resource_name is None:
+                    result.update({"status": "denied", "error": "action has no controlled resource"})
+                else:
+                    result.update(self._call_tool(str(resource_name), action.tool_args or {}))
 
         elif action.action_type == "submit_review" and action.review_packet:
             filepath = self.review_queue.submit_packet(action.review_packet)
@@ -515,6 +549,36 @@ class AgentRuntime:
         return result
 
     # ── Tool Calling ───────────────────────────────────────────
+
+    def _bind_governed_context(self, action: AgentAction) -> None:
+        """Resolve a manifest-locked context only after Engine Stage selection."""
+        if self.context_resolver is None or action.action_type != "call_tool":
+            return
+        if action.stage_id is None:
+            raise RuntimeContextError("runtime action lacks a fixed pipeline stage")
+        context = self.context_resolver.resolve_for_stage(self.project_dir, action.stage_id)
+        if not context.executable:
+            raise RuntimeContextError("resolved execution context is not executable")
+        self.execution_context = context
+        action.context_bundle_id = context.bundle_id
+        action.context_sha256 = context.execution_context_sha256
+
+    @staticmethod
+    def _authorize_action(action: AgentAction) -> None:
+        if action.stage_id is None or action.capability is None:
+            raise ActionPolicyError("runtime action must declare a fixed stage and capability")
+        request = ActionRequest(
+            contract_version=CONTRACT_VERSION,
+            origin="runtime",
+            stage_id=action.stage_id,
+            capability=action.capability,
+            tool_name=ToolName(action.tool_name) if action.tool_name else None,
+            executable_name=(
+                ExecutableName(action.executable_name) if action.executable_name else None
+            ),
+            arguments=action.tool_args or {},
+        )
+        require_authorized_action(request)
 
     def _call_tool(self, tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
         """Call a registered MCP tool."""
@@ -734,10 +798,12 @@ class AgentRuntime:
     def _record_action(self, action: AgentAction,
                        result: dict[str, Any]) -> None:
         """Record action to audit trail and git."""
+        provenance_files = self._write_artifact_provenance(action, result)
         # JSONL audit log
         log_entry = {
             **action.to_log(),
             "result_status": result.get("status", "unknown"),
+            "artifact_provenance": provenance_files,
             "iteration": self.state.iteration,
         }
         if self.audit_log_path:
@@ -747,6 +813,66 @@ class AgentRuntime:
         # Git auto-commit
         if self.git_auto_commit:
             self._git_commit(action, result)
+
+    def _write_artifact_provenance(
+        self, action: AgentAction, result: dict[str, Any]
+    ) -> list[str]:
+        """Write immutable provenance sidecars for tool-declared output artifacts.
+
+        Deterministic tools declare created files through ``artifact_paths`` in
+        their result.  A declared path is a contract: it must be an existing
+        Study-local file and it receives a sidecar before the action is audited.
+        """
+        candidates = _artifact_paths(result)
+        if not candidates:
+            return []
+        if self.execution_context is None:
+            raise RuntimeContextError(
+                "artifact provenance requires a manifest-locked execution context"
+            )
+        manifest = load_runtime_manifest(self.project_dir, required=True)
+        if manifest is None:  # pragma: no cover - required=True is the contract
+            raise RuntimeContextError("artifact provenance requires runtime-manifest.yaml")
+
+        root = self.project_dir.resolve()
+        context = self.execution_context
+        written: list[str] = []
+        for candidate in candidates:
+            artifact = (root / candidate).resolve() if not Path(candidate).is_absolute() else Path(candidate).resolve()
+            try:
+                relative = artifact.relative_to(root)
+            except ValueError as exc:
+                raise RuntimeContextError("artifact path must stay inside the Study") from exc
+            if not artifact.is_file():
+                raise RuntimeContextError(f"declared artifact does not exist: {relative.as_posix()}")
+
+            knowledge = [
+                item.model_dump(mode="json")
+                for item in context.provenance
+                if item.source_kind in {"workflow_knowledge", "domain_knowledge"}
+            ]
+            payload = {
+                "artifact_path": relative.as_posix(),
+                "artifact_sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
+                "stage": action.stage_id.value if action.stage_id else None,
+                "capability": action.capability.value if hasattr(action.capability, "value") else action.capability,
+                "resource": action.tool_name or action.executable_name,
+                "pipeline_contract": context.pipeline_contract.model_dump(mode="json"),
+                "knowledge_provenance": knowledge,
+                "toolchain": manifest.toolchain.model_dump(mode="json"),
+                "manifest_id": manifest.manifest_id,
+                "manifest_sha256": manifest.manifest_sha256,
+                "context_bundle_id": context.bundle_id,
+                "context_sha256": context.execution_context_sha256,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            }
+            sidecar = artifact.with_name(f"{artifact.name}.provenance.json")
+            sidecar.write_text(
+                json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            written.append(sidecar.relative_to(root).as_posix())
+        return written
 
     def _git_commit(self, action: AgentAction,
                     result: dict[str, Any]) -> None:

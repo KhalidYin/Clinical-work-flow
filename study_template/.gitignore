@@ -1,22 +1,20 @@
-# Clinical data files — never commit to git
-input/edc/*.csv
-input/edc/*.sas7bdat
-input/edc/*.xlsx
-input/external/*.csv
-input/external/*.sas7bdat
+# Clinical data and source documents — never commit without Study governance.
+input/edc/*
+input/external/*
+input/protocol/*
+input/sap/*
+!input/**/.gitkeep
 
-# AI pipeline state — managed locally
+# Runtime caches and generated deliverables are reproducible or subject to
+# separate Study release controls.  Keep metadata, review evidence and the
+# manifest under version control.
+output/**
+!output/
+!output/**/
+!output/**/.gitkeep
+*.pyc
+__pycache__/
+.pytest_cache/
+
+# Never add an implicit legacy state machine back into the Study scaffold.
 .workflow/
-
-# Generated datasets — regenerated on each run
-output/sdtm/datasets/
-output/adam/datasets/
-output/sdtm/programs/
-output/adam/programs/
-output/tfl/programs/
-output/tfl/tables/
-output/tfl/figures/
-output/tfl/listings/
-
-# Validation reports — regenerated on each run
-output/**/validation/

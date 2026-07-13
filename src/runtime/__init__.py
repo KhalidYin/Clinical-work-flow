@@ -32,6 +32,7 @@ from .decision_application import (
     apply_decision_receipt,
 )
 from .router import Router, RouteResult, CAPABILITY_REGISTRY, parse_intent
+from .context_resolver import RuntimeContextError, RuntimeContextResolver
 from .pipeline_contract import (
     CANONICAL_PIPELINE,
     CONTRACT_VERSION,
@@ -88,6 +89,8 @@ __all__ = [
     "RouteResult",
     "CAPABILITY_REGISTRY",
     "parse_intent",
+    "RuntimeContextError",
+    "RuntimeContextResolver",
     # Review Protocol — Data Models
     "ReviewPacket",
     "ReviewFinding",

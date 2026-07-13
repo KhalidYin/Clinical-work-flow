@@ -92,3 +92,35 @@
 #### Files Changed / Commits
 - `G:\Project\Python\Clinical LLM Wiki\**` (new independent Wiki repository, commit `57e1802`)
 - `docs/specs/21-Knowledge-Workflow-Integration.md`, `docs/dep/PLAN.md`, `docs/dep/plans/ongoing/P3-clinical-knowledge-workflow-platform.md`, `docs/dep/devlog/**` (P3 Gate and tracking, included in Engine P3 phase commit)
+
+---
+
+### R012 [16:15] [P3-clinical-knowledge-workflow-platform] P4: 接入Study脚手架、十阶段Runtime、Review与审计
+
+#### Done
+- 以最终 `workflow/`、`knowledge/`、`input/`、`output/`、独立review queue和audit替换`.workflow/`遗留结构，新增严格runtime manifest loader与knowledge-enabled fixture。
+- 实现Wiki HTTP Client、Engine Context Resolver、精确bundle锁、在线解析及仅连接失败时的不可变snapshot fallback；同级Study规则冲突、远端控制字段、hash/Schema/路径异常均fail closed。
+- Router与AgentLoop统一消费十阶段Pipeline Contract，按completion evidence选择第一个未完成Stage，并在执行前通过Action Policy验证capability和受控tool/executable。
+- 为工具声明的artifact写入pipeline/workflow/domain/toolchain/manifest/context provenance sidecar；Impact Analyzer携带不可变知识provenance。
+- Review Protocol在Python与Panel边界消费共享Schema，加入assignment/consensus/timeout、queue scope marker和JSONL审计，保持Study/Wiki队列物理隔离。
+
+#### Issues / Blockers
+- 发现Study计划目录`output/protocol_analysis/`与P2机器合同`output/protocol/analysis.yaml`冲突（D5）；以机器合同为权威统一为`output/protocol/`，避免第二状态路径。
+- 首次从Engine仓库根运行`npm run compile`因根目录无`package.json`失败；根因是命令工作目录错误，已在`src/review_panel/`重跑成功，代码无缺陷。
+- `HttpKnowledgeTransport`最初先捕获`URLError`，会因继承关系把HTTP 409误判为离线；已调整异常顺序并新增回归测试，确保服务拒绝不会触发旧快照降级。
+
+#### Validation
+- `python -B -m pytest`（Engine，121 passed）
+- `python -m ruff check src tests`（success）
+- `npm run compile`（`src/review_panel/`，success）
+- `python -B -m pytest`（Wiki，14 passed）与`python -m ruff check service scripts tests`（success）
+- 真实loopback服务：Engine `HttpKnowledgeTransport`调用Wiki version + runtime-context，返回1条approved workflow rule且`executable=true`
+- `git diff --check`（无空白错误，仅CRLF提示）
+
+#### Next
+1. P5：建立十阶段approved Playbook、纵向合成Study与ADAE机器执行切片。
+2. P5：扩充60–80篇代表内容、MOC、来源/图证据和promotion candidate流程。
+
+#### Files Changed / Commits
+- `study_template/**`, `src/config/**`, `src/knowledge/**`, `src/runtime/**`, `src/change_management/**`, `src/review_panel/**`, `tests/**`（P4实现，包含于P4阶段提交）
+- `docs/specs/21-Knowledge-Workflow-Integration.md`, `docs/dep/**`（P4 Gate与记录，包含于P4阶段提交）

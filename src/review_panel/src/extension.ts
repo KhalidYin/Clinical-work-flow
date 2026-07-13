@@ -147,9 +147,14 @@ async function loadNextPendingPacket(queueDir: string): Promise<LoadedPacket | u
 
 function isReceiptFile(fileName: string): boolean {
   return (
+    fileName === ".queue_scope.json" ||
     fileName.endsWith("_decision.json") ||
+    fileName.includes("_decision_") ||
     fileName.endsWith("_clarification.json") ||
-    fileName.endsWith("_confirmation.json")
+    fileName.endsWith("_confirmation.json") ||
+    fileName.endsWith("_rework.json") ||
+    fileName.endsWith("_conflict.json") ||
+    fileName.endsWith("_corrupt.json")
   );
 }
 

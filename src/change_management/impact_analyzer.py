@@ -113,6 +113,28 @@ FILE_TO_STAGE: dict[str, str] = {
 
 
 @dataclass
+class KnowledgeProvenance:
+    """Immutable reference to the knowledge/manifest context used for a change."""
+
+    kind: str
+    record_id: str
+    version: str
+    content_hash: str
+    snapshot_id: str = ""
+    manifest_hash: str = ""
+
+    def to_dict(self) -> dict[str, str]:
+        return {
+            "kind": self.kind,
+            "record_id": self.record_id,
+            "version": self.version,
+            "content_hash": self.content_hash,
+            "snapshot_id": self.snapshot_id,
+            "manifest_hash": self.manifest_hash,
+        }
+
+
+@dataclass
 class ImpactResult:
     """影响分析结果"""
     changed_file: str
@@ -121,6 +143,7 @@ class ImpactResult:
     affected_stages: list[str] = field(default_factory=list)    # 受影响的阶段
     total_affected_files: int = 0
     requires_full_pipeline_restart: bool = False
+    knowledge_provenance: list[KnowledgeProvenance] = field(default_factory=list)
 
 
 @dataclass
@@ -138,9 +161,17 @@ class ImpactAnalyzer:
     dependency_graph: dict[str, list[str]] = field(default_factory=lambda: dict(DEPENDENCY_GRAPH))
     file_to_stage: dict[str, str] = field(default_factory=lambda: dict(FILE_TO_STAGE))
 
-    def analyze(self, changed_file: str) -> ImpactResult:
+    def analyze(
+        self,
+        changed_file: str,
+        *,
+        knowledge_provenance: list[KnowledgeProvenance] | None = None,
+    ) -> ImpactResult:
         """分析单个文件变更的下游影响"""
-        result = ImpactResult(changed_file=changed_file)
+        result = ImpactResult(
+            changed_file=changed_file,
+            knowledge_provenance=list(knowledge_provenance or []),
+        )
         affected = set()
         stages = set()
 
@@ -176,9 +207,17 @@ class ImpactAnalyzer:
 
         return result
 
-    def analyze_multiple(self, changed_files: list[str]) -> ImpactResult:
+    def analyze_multiple(
+        self,
+        changed_files: list[str],
+        *,
+        knowledge_provenance: list[KnowledgeProvenance] | None = None,
+    ) -> ImpactResult:
         """分析多个文件变更的合并影响"""
-        combined = ImpactResult(changed_file=", ".join(changed_files))
+        combined = ImpactResult(
+            changed_file=", ".join(changed_files),
+            knowledge_provenance=list(knowledge_provenance or []),
+        )
         all_stages = set()
         all_affected = set()
 

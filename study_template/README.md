@@ -1,137 +1,59 @@
-# Study Template: {STUDY-ID}
+# Study Template
 
+Copy this directory to the controlled Study container and rename it to the
+actual Study ID.  The copied Study is its own filesystem state and is normally
+its own Git repository.  Do not run work directly from this template.
+
+## Responsibilities
+
+- `project.yaml` holds Study facts, review assignments and configured
+  input/output/review/audit paths.
+- `runtime-manifest.yaml` is the immutable execution lock for the Engine
+  contract, Workflow/Domain Wiki snapshots and toolchain.
+- `workflow/` holds current-Study workflow decisions; `knowledge/` holds
+  current-Study domain decisions.  Neither directory is a general Wiki.
+- `.review_queue/` and `audit_trail.jsonl` are local to this Study.  They use
+  the shared Engine Review Protocol but are never shared with the Wiki queue.
+
+The runtime receives a Knowledge Service endpoint by explicit configuration.
+It must not locate a sibling Wiki directory from the Study path.  When the
+service is unavailable, it may only use the exact snapshot paths locked by the
+manifest; otherwise it must fail closed.
+
+## Directory contract
+
+```text
+{STUDY-ID}/
+├── project.yaml
+├── runtime-manifest.yaml
+├── workflow/
+│   ├── overrides/             # proposed/current workflow-specific adjustments
+│   ├── decisions/             # approved DecisionReceipt-backed workflow rules
+│   ├── snapshots/             # manifest-locked workflow context snapshots
+│   └── promotion_candidates/  # de-identified candidates; never auto-promoted
+├── knowledge/                 # same four directories for domain knowledge
+├── input/{protocol,sap,edc,external}/
+├── output/{protocol,sap,sdtm,adam,tfl,qc,submission}/
+├── .review_queue/
+└── audit_trail.jsonl
 ```
-{STUDY-ID}/                              ← 替换为实际 Study ID
-├── README.md                             ← 本文件
-│
-├── input/                                # ← 所有输入数据进入这里
-│   ├── edc/                              #   EDC 导出数据
-│   │   ├── dm.csv                        #     Raw Demographics
-│   │   ├── ae.csv                        #     Raw Adverse Events
-│   │   ├── cm.csv                        #     Raw Concomitant Meds
-│   │   ├── lb.csv                        #     Raw Lab Results
-│   │   ├── vs.csv                        #     Raw Vital Signs
-│   │   ├── ex.csv                        #     Raw Exposure
-│   │   ├── ds.csv                        #     Raw Disposition
-│   │   ├── mh.csv                        #     Raw Medical History
-│   │   ├── eg.csv                        #     Raw ECG
-│   │   └── data_dictionary.xlsx          #     EDC 数据字典
-│   │
-│   └── external/                         #   外部数据
-│       ├── randomization.csv             #     IRT 随机化
-│       ├── pk_parameters.csv             #     PK 参数 (Phase I)
-│       ├── tumor_assessment.csv          #     肿瘤评估 (RECIST)
-│       └── survival_followup.csv         #     生存随访
-│
-├── protocol/                             # 方案文档
-│   ├── protocol.pdf                      #   Clinical Study Protocol
-│   ├── protocol_amendments/              #   方案修订
-│   │   └── amendment_03.pdf
-│   ├── sap.pdf                           #   Statistical Analysis Plan
-│   └── tfl_shells.pdf                    #   TFL Mock Shells
-│
-├── output/                               # ← 所有 AI 产出物在这里
-│   ├── sdtm/
-│   │   ├── specs/                        #   SDTM 规范文档
-│   │   │   ├── dm_spec.yaml
-│   │   │   ├── ae_spec.yaml
-│   │   │   ├── cm_spec.yaml
-│   │   │   ├── lb_spec.yaml
-│   │   │   ├── vs_spec.yaml
-│   │   │   ├── ex_spec.yaml
-│   │   │   ├── ds_spec.yaml
-│   │   │   └── suppqual_spec.yaml
-│   │   ├── programs/                     #   SDTM 程序代码
-│   │   │   ├── dm.sas
-│   │   │   ├── ae.sas
-│   │   │   ├── cm.sas
-│   │   │   ├── lb.sas
-│   │   │   ├── vs.sas
-│   │   │   ├── ex.sas
-│   │   │   ├── ds.sas
-│   │   │   └── suppqual.sas
-│   │   ├── datasets/                     #   SDTM 递交数据集
-│   │   │   ├── dm.xpt
-│   │   │   ├── ae.xpt
-│   │   │   ├── cm.xpt
-│   │   │   ├── lb.xpt
-│   │   │   ├── vs.xpt
-│   │   │   ├── ex.xpt
-│   │   │   ├── ds.xpt
-│   │   │   ├── suppae.xpt
-│   │   │   ├── suppdm.xpt
-│   │   │   └── relrec.xpt
-│   │   └── validation/                   #   P21 验证报告
-│   │       ├── p21_report_sdtm.pdf
-│   │       └── p21_report_sdtm.txt
-│   │
-│   ├── adam/
-│   │   ├── specs/                        #   ADaM 规范文档
-│   │   │   ├── adsl_spec.yaml
-│   │   │   ├── adae_spec.yaml
-│   │   │   ├── adtte_spec.yaml
-│   │   │   ├── adlb_spec.yaml
-│   │   │   ├── advs_spec.yaml
-│   │   │   └── adef_spec.yaml
-│   │   ├── programs/                     #   ADaM 程序代码
-│   │   │   ├── adsl.sas
-│   │   │   ├── adae.sas
-│   │   │   ├── adtte.sas
-│   │   │   ├── adlb.sas
-│   │   │   ├── advs.sas
-│   │   │   └── adef.sas
-│   │   ├── datasets/                     #   ADaM 递交数据集
-│   │   │   ├── adsl.xpt
-│   │   │   ├── adae.xpt
-│   │   │   ├── adtte.xpt
-│   │   │   ├── adlb.xpt
-│   │   │   ├── advs.xpt
-│   │   │   └── adef.xpt
-│   │   └── validation/                   #   P21 验证报告
-│   │       ├── p21_report_adam.pdf
-│   │       └── p21_report_adam.txt
-│   │
-│   ├── tfl/
-│   │   ├── tables/                       #   Tables (RTF)
-│   │   │   ├── t14_1_1_disposition.rtf
-│   │   │   ├── t14_1_2_demographics.rtf
-│   │   │   ├── t14_2_1_primary_efficacy.rtf
-│   │   │   ├── t14_3_1_teae_overview.rtf
-│   │   │   └── t14_3_2_teae_soc_pt.rtf
-│   │   ├── figures/                      #   Figures (PDF)
-│   │   │   ├── f14_1_2_consort.pdf
-│   │   │   ├── f14_2_1_km_os.pdf
-│   │   │   ├── f14_2_2_forest_subgroup.pdf
-│   │   │   └── f14_2_3_waterfall.pdf
-│   │   ├── listings/                     #   Listings (RTF)
-│   │   │   ├── l16_2_1_disposition.rtf
-│   │   │   └── l16_2_4_ae_listing.rtf
-│   │   └── programs/                     #   TFL 程序代码
-│   │       ├── t14_1_1.sas
-│   │       ├── f14_2_1.sas
-│   │       └── l16_2_1.sas
-│   │
-│   ├── define_xml/                       # define.xml
-│   │   ├── define_sdtm.xml
-│   │   └── define_adam.xml
-│   │
-│   └── reviewers_guides/                 # 审评指南
-│       ├── sdrg.docx                     #   Study Data Reviewer's Guide
-│       └── adrg.docx                     #   Analysis Data Reviewer's Guide
-│
-├── .workflow/                            # ← AI 管线管理 (Git 忽略)
-│   ├── pipeline/
-│   │   └── state.yaml                    #   当前管线状态
-│   ├── audit/
-│   │   ├── change_log.jsonl              #   变更日志
-│   │   ├── approvals.jsonl               #   审批记录
-│   │   └── tool_calls.jsonl              #   MCP 工具调用记录
-│   ├── versions/                         #   版本历史
-│   │   └── sdtm/ae_spec.v1.0.0.yaml     #   每版本保存
-│   ├── diffs/                            #   变更差异
-│   │   └── CHG-001_diff.txt
-│   └── arbitrations/                     #   仲裁记录
-│       └── ARB-2026-0428-001.json
-│
-└── .gitignore                             # 忽略 .workflow/ 和 input/edc/*
-```
+
+`workflow/decisions/` and `knowledge/decisions/` hold only current Study rules
+with review evidence.  An override or prior-Study reference is not executable
+until the Runtime resolves it into the P2 `ExecutionContext` and validates the
+Engine Action Policy.  Promotion candidates remain local until they are
+de-identified, proposed to the Wiki, and separately approved there.
+
+## Initialisation
+
+1. Replace the illustrative values in `project.yaml` and
+   `runtime-manifest.yaml` with the actual Study ID and published hashes.
+2. Write the two approved-only Wiki snapshots into the exact manifest fallback
+   locations and verify their hashes before first execution.
+3. Configure the Wiki service endpoint outside this repository (for example,
+   through the Engine runtime configuration).
+4. Commit the initial manifest, then record every execution, review receipt,
+   fallback and promotion proposal in the Study audit trail.
+
+The placeholder snapshots exist only to make the scaffold path-complete.  They
+are not valid production knowledge and must never be used for an execution.

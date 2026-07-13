@@ -17,7 +17,7 @@ from .version_manager import (
     VersionManager, VersionInfo, VersionBump,
 )
 from .impact_analyzer import (
-    ImpactAnalyzer, ImpactResult,
+    ImpactAnalyzer, ImpactResult, KnowledgeProvenance,
     DEPENDENCY_GRAPH, FILE_TO_STAGE,
 )
 
@@ -25,6 +25,6 @@ __all__ = [
     "ChangeRecord", "FileChange", "StageImpact",
     "ChangeType", "ImpactType",
     "VersionManager", "VersionInfo", "VersionBump",
-    "ImpactAnalyzer", "ImpactResult",
+    "ImpactAnalyzer", "ImpactResult", "KnowledgeProvenance",
     "DEPENDENCY_GRAPH", "FILE_TO_STAGE",
 ]

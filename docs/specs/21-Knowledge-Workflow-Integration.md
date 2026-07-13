@@ -1,7 +1,7 @@
 # SPEC-21: Clinical Knowledge Workflow Platform 集成基线
 
 > **版本**: v1.1
-> **状态**: P1 架构、P2 机器合同与 P3 本地 Wiki 基线已冻结（2026-07-13）
+> **状态**: P1–P4 平台 MVP 已实现并冻结（2026-07-13）
 > **上位权威**: [SPEC-18](18-P0-Alignment.md)
 > **执行计划**: [P3 Clinical Knowledge Workflow Platform](../dep/plans/ongoing/P3-clinical-knowledge-workflow-platform.md)
 > **目的**: 固化 Workflow Engine、Clinical LLM Wiki 与 Study Instance 的边界、十阶段契约、知识治理和迁移口径。
@@ -440,3 +440,16 @@ Engine 已发布 `1.0.0` shared contract bundle，清单及 canonical JSON hash 
 - `runtime-context/resolve` 强制请求的 Schema version/hash lock，拒绝控制流字段，仅返回符合 Engine `ExecutionContext` 合同的结构化规则；
 - 生产索引要求 `verified + approved + DecisionReceipt/audit evidence + rights/storage/review/compatibility`；仅手工修改 `approval_status` 不会使条目可用；
 - Vault、服务、来源管线和真实种子集成验收共 14 个测试通过，且 `ruff check service scripts tests` 通过。P4 才把该服务接入 Engine Runtime 和 Study snapshot fallback。
+
+---
+
+## 18. P4 已实现的 Study 与 Runtime 接入基线
+
+- `study_template/` 已删除遗留 `.workflow/` 状态树，改为 `workflow/`、`knowledge/`、`input/`、`output/`、独立 `.review_queue/` 与 `audit_trail.jsonl`；`runtime-manifest.yaml` 对 Pipeline、Workflow snapshot、Domain snapshot 和 toolchain 做精确锁定；
+- Router 与 AgentLoop 均消费同一 `CANONICAL_PIPELINE`，按第一个缺失的 completion evidence 推导十阶段，配置路径优先读取 `input/protocol/`；无受控 resource 时等待，不构造任意命令；
+- Engine Knowledge Client 先验证 Wiki Schema bundle version/hash，再接收结构化 ExecutionContext；仅连接不可达时允许使用 Study 内锁定快照，HTTP拒绝、Schema漂移、hash损坏和路径越界均 fail closed；
+- 当前 Study 规则在 Engine 侧合并，同优先级冲突生成未解决 conflict 并阻断执行；服务恢复不改变 manifest/snapshot 锁，不发生静默升级；
+- 每个工具声明的落盘 artifact 自动生成 `.provenance.json`，记录 artifact hash、Pipeline Contract、Workflow/Domain provenance、toolchain、manifest 与 context ID/hash；
+- Action Policy 在 resource 调用前验证 Stage、capability、tool/executable 与禁止参数；未知工具和控制注入不会进入 registry；
+- Study 与 Wiki review queue 通过 scope marker 物理隔离，共享仓库 JSON Schema；ReviewPacket 支持 assignment、consensus、timeout 状态，Decision/Confirmation 与 Impact Analyzer 均记录知识/manifest审计语义；
+- P4 Gate 由 121 个 Engine 测试、14 个 Wiki 测试、Python ruff、Review Panel TypeScript compile，以及真实 loopback Wiki→Engine HTTP解析共同验证。

@@ -24,6 +24,8 @@ venv/
 # Runtime state (not source code)
 .review_queue/
 .workflow/
+!study_template/.review_queue/
+!study_template/.review_queue/.gitkeep
 
 # Generated outputs (not version-controlled)
 project/outputs/
@@ -35,6 +37,7 @@ src/review_panel/out/
 
 # Audit trail (runtime log, regenerated)
 audit_trail.jsonl
+!study_template/audit_trail.jsonl
 *.log
 
 # OS

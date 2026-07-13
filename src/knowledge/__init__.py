@@ -6,6 +6,14 @@ from .compatibility import (
     schema_bundle_sha256,
     verify_sha256,
 )
+from .client import (
+    HttpKnowledgeTransport,
+    KnowledgeServiceClient,
+    KnowledgeServiceContractError,
+    KnowledgeServiceUnavailable,
+)
+from .resolver import ContextResolutionError, KnowledgeContextResolver
+from .snapshot import LockedSnapshot, SnapshotError, load_locked_snapshot
 from .models import (
     ApprovalStatus,
     CapabilityId,
@@ -28,6 +36,8 @@ from .models import (
 
 __all__ = [
     "ContractCompatibilityError",
+    "ContextResolutionError",
+    "HttpKnowledgeTransport",
     "ApprovalStatus",
     "CapabilityId",
     "CompatibilityRange",
@@ -35,10 +45,16 @@ __all__ = [
     "ExecutionContext",
     "FigureRecord",
     "KnowledgeItem",
+    "KnowledgeContextResolver",
+    "KnowledgeServiceClient",
+    "KnowledgeServiceContractError",
+    "KnowledgeServiceUnavailable",
+    "LockedSnapshot",
     "PdfStatus",
     "RightsStatus",
     "RuntimeManifest",
     "SourceRecord",
+    "SnapshotError",
     "StorageMode",
     "WorkflowStage",
     "WorkflowPlaybook",
@@ -47,5 +63,6 @@ __all__ = [
     "is_content_status_transition_allowed",
     "is_pdf_status_transition_allowed",
     "schema_bundle_sha256",
+    "load_locked_snapshot",
     "verify_sha256",
 ]
