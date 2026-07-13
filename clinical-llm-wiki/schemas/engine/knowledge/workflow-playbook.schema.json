@@ -1,0 +1,505 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://clinical-workflow/schemas/knowledge/workflow-playbook",
+  "$defs": {
+    "Applicability": {
+      "additionalProperties": false,
+      "properties": {
+        "therapeutic_areas": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Therapeutic Areas",
+          "type": "array"
+        },
+        "trial_phases": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Trial Phases",
+          "type": "array"
+        },
+        "sponsor_ids": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Sponsor Ids",
+          "type": "array"
+        },
+        "study_ids": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Study Ids",
+          "type": "array"
+        },
+        "conditions": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Conditions",
+          "type": "array"
+        }
+      },
+      "title": "Applicability",
+      "type": "object"
+    },
+    "ApprovalStatus": {
+      "enum": [
+        "proposed",
+        "approved",
+        "rejected",
+        "superseded"
+      ],
+      "title": "ApprovalStatus",
+      "type": "string"
+    },
+    "Authority": {
+      "enum": [
+        "regulatory",
+        "industry_standard",
+        "company_sop",
+        "domain_expert",
+        "approved_precedent",
+        "study_decision",
+        "ai_inference"
+      ],
+      "title": "Authority",
+      "type": "string"
+    },
+    "CapabilityId": {
+      "enum": [
+        "protocol_analysis",
+        "endpoint_classification",
+        "estimands_derivation",
+        "sap_generation",
+        "sdtm_spec_generation",
+        "sdtm_programming",
+        "adam_spec_generation",
+        "adam_programming",
+        "ct_alignment",
+        "cdisc_validation",
+        "tfl_shell_generation",
+        "tfl_programming",
+        "qc_validation",
+        "p21_triage",
+        "define_xml_generation",
+        "submission_packaging",
+        "source_discovery",
+        "source_data_import"
+      ],
+      "title": "CapabilityId",
+      "type": "string"
+    },
+    "CompatibilityRange": {
+      "additionalProperties": false,
+      "description": "Half-open SemVer range: minimum <= version < maximum_exclusive.",
+      "properties": {
+        "minimum": {
+          "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$",
+          "title": "Minimum",
+          "type": "string"
+        },
+        "maximum_exclusive": {
+          "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$",
+          "title": "Maximum Exclusive",
+          "type": "string"
+        }
+      },
+      "required": [
+        "minimum",
+        "maximum_exclusive"
+      ],
+      "title": "CompatibilityRange",
+      "type": "object"
+    },
+    "ContentStatus": {
+      "enum": [
+        "inbox",
+        "draft",
+        "reviewed",
+        "verified",
+        "deprecated",
+        "archived"
+      ],
+      "title": "ContentStatus",
+      "type": "string"
+    },
+    "PlaybookStep": {
+      "additionalProperties": false,
+      "properties": {
+        "step_id": {
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)+$",
+          "title": "Step Id",
+          "type": "string"
+        },
+        "objective": {
+          "minLength": 1,
+          "title": "Objective",
+          "type": "string"
+        },
+        "rationale": {
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "evidence_required": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Evidence Required",
+          "type": "array"
+        },
+        "expected_outcome": {
+          "minLength": 1,
+          "title": "Expected Outcome",
+          "type": "string"
+        }
+      },
+      "required": [
+        "step_id",
+        "objective",
+        "rationale",
+        "expected_outcome"
+      ],
+      "title": "PlaybookStep",
+      "type": "object"
+    },
+    "RightsStatus": {
+      "enum": [
+        "cleared",
+        "restricted",
+        "prohibited",
+        "unknown"
+      ],
+      "title": "RightsStatus",
+      "type": "string"
+    },
+    "StorageMode": {
+      "enum": [
+        "committed",
+        "local_only",
+        "link_only",
+        "unknown"
+      ],
+      "title": "StorageMode",
+      "type": "string"
+    },
+    "WorkflowStage": {
+      "enum": [
+        "protocol_analysis",
+        "sap_generation",
+        "sdtm_spec",
+        "sdtm_programming",
+        "adam_spec",
+        "adam_programming",
+        "tfl_shell_design",
+        "tfl_programming",
+        "qc_validation",
+        "submission_packaging"
+      ],
+      "title": "WorkflowStage",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Descriptive workflow knowledge; never an executable instruction object.",
+  "properties": {
+    "id": {
+      "pattern": "^wp-[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "title": "Id",
+      "type": "string"
+    },
+    "type": {
+      "const": "workflow_playbook",
+      "title": "Type",
+      "type": "string"
+    },
+    "title": {
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    },
+    "version": {
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$",
+      "title": "Version",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": "1.0.0",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "content_status": {
+      "$ref": "#/$defs/ContentStatus"
+    },
+    "approval_status": {
+      "$ref": "#/$defs/ApprovalStatus"
+    },
+    "domains": {
+      "default": [],
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Domains",
+      "type": "array"
+    },
+    "workflow_stages": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/WorkflowStage"
+      },
+      "title": "Workflow Stages",
+      "type": "array"
+    },
+    "topics": {
+      "default": [],
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Topics",
+      "type": "array"
+    },
+    "aliases": {
+      "default": [],
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Aliases",
+      "type": "array"
+    },
+    "authority": {
+      "$ref": "#/$defs/Authority"
+    },
+    "applicability": {
+      "$ref": "#/$defs/Applicability"
+    },
+    "sources": {
+      "default": [],
+      "items": {
+        "minLength": 3,
+        "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)+$",
+        "type": "string"
+      },
+      "title": "Sources",
+      "type": "array"
+    },
+    "owner": {
+      "minLength": 1,
+      "title": "Owner",
+      "type": "string"
+    },
+    "created": {
+      "format": "date-time",
+      "title": "Created",
+      "type": "string"
+    },
+    "last_reviewed": {
+      "anyOf": [
+        {
+          "format": "date",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Last Reviewed"
+    },
+    "review_due": {
+      "anyOf": [
+        {
+          "format": "date",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Review Due"
+    },
+    "supersedes": {
+      "default": [],
+      "items": {
+        "minLength": 3,
+        "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)+$",
+        "type": "string"
+      },
+      "title": "Supersedes",
+      "type": "array"
+    },
+    "superseded_by": {
+      "anyOf": [
+        {
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Superseded By"
+    },
+    "content_hash": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "rights_status": {
+      "$ref": "#/$defs/RightsStatus"
+    },
+    "allowed_uses": {
+      "default": [],
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Allowed Uses",
+      "type": "array"
+    },
+    "storage_mode": {
+      "$ref": "#/$defs/StorageMode"
+    },
+    "contract_compatibility": {
+      "$ref": "#/$defs/CompatibilityRange"
+    },
+    "approval_receipt_id": {
+      "anyOf": [
+        {
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Approval Receipt Id"
+    },
+    "audit_reference": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Audit Reference"
+    },
+    "stage": {
+      "$ref": "#/$defs/WorkflowStage"
+    },
+    "purpose": {
+      "minLength": 1,
+      "title": "Purpose",
+      "type": "string"
+    },
+    "prerequisites": {
+      "default": [],
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Prerequisites",
+      "type": "array"
+    },
+    "steps": {
+      "items": {
+        "$ref": "#/$defs/PlaybookStep"
+      },
+      "minItems": 1,
+      "title": "Steps",
+      "type": "array"
+    },
+    "expected_inputs": {
+      "default": [],
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Expected Inputs",
+      "type": "array"
+    },
+    "expected_outputs": {
+      "default": [],
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Expected Outputs",
+      "type": "array"
+    },
+    "decision_points": {
+      "default": [],
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Decision Points",
+      "type": "array"
+    },
+    "review_requirements": {
+      "default": [],
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Review Requirements",
+      "type": "array"
+    },
+    "capability_hints": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/CapabilityId"
+      },
+      "title": "Capability Hints",
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "type",
+    "title",
+    "version",
+    "content_status",
+    "approval_status",
+    "authority",
+    "applicability",
+    "owner",
+    "created",
+    "content_hash",
+    "rights_status",
+    "storage_mode",
+    "contract_compatibility",
+    "stage",
+    "purpose",
+    "steps"
+  ],
+  "title": "WorkflowPlaybook",
+  "type": "object"
+}

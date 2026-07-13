@@ -1,0 +1,18 @@
+filters:
+  and:
+    - file.inFolder("30_Workflows")
+    - type == "workflow_playbook"
+views:
+  - type: table
+    name: 工作流 Playbook
+    order:
+      - file.name
+      - stage
+      - content_status
+      - approval_status
+    columns:
+      file.name: Playbook
+      stage: 固定阶段
+      content_status: 内容状态
+      approval_status: 授权状态
+      review_due: 下次复核

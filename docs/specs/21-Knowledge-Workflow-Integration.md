@@ -4,7 +4,7 @@
 > **状态**: P1–P4 平台 MVP 已实现并冻结（2026-07-13）
 > **上位权威**: [SPEC-18](18-P0-Alignment.md)
 > **执行计划**: [P3 Clinical Knowledge Workflow Platform](../dep/plans/ongoing/P3-clinical-knowledge-workflow-platform.md)
-> **目的**: 固化 Workflow Engine、Clinical LLM Wiki 与 Study Instance 的边界、十阶段契约、知识治理和迁移口径。
+> **目的**: 固化单仓内 Workflow Engine、Clinical LLM Wiki 与 Study Instance 的模块边界、十阶段契约、知识治理和迁移口径。
 
 ---
 
@@ -14,7 +14,7 @@
 
 1. 法规、受控标准和已批准的 Study 决策；
 2. SPEC-18 的 P0 决策；
-3. 本 SPEC 的平台边界、术语、Canonical Pipeline 和跨仓合同；
+3. 本 SPEC 的平台边界、术语、Canonical Pipeline 和跨模块合同；
 4. 其他 `docs/specs/` 中仍有效的专项设计；
 5. 已批准 Wiki 知识与 Workflow Playbook；
 6. 当前实现和遗留文档。
@@ -23,7 +23,7 @@ P3 是本平台建设的唯一可执行计划。deferred P1/P2 只提供设计�
 
 本 SPEC 规定：
 
-- 三个物理边界及各自的 Git、配置、Schema、审计责任；
+- 单仓内三个模块边界及各自的配置、Schema、审计责任；
 - Canonical 十阶段 Pipeline 的 ID、顺序、输入、输出、执行者和工具边界；
 - Workflow Knowledge、Domain Knowledge、Study Rule 的区别与优先级；
 - Obsidian、Knowledge Service、Runtime 和 Review Protocol 的交互边界；
@@ -34,16 +34,17 @@ P3 是本平台建设的唯一可执行计划。deferred P1/P2 只提供设计�
 
 ---
 
-## 2. 三个物理边界
+## 2. 单仓内三个模块边界
 
 ```text
-G:\Project\Python\Clinical Knowledge Workflow Platform\  # 管理根目录；不是 Git 聚合仓库
-├── workflow-engine\       # Workflow Engine，独立仓库
-├── clinical-llm-wiki\     # Wiki Vault + Knowledge Service，独立仓库
-└── clinical-studies\      # Study 实例容器；每个 Study 独立受控
+G:\Project\Python\Clinical work flow\  # 单一 Git 仓库；平台 monorepo 根目录
+├── clinical-workflow\                 # Workflow Engine 模块
+├── clinical-llm-wiki\                 # Wiki Vault + Knowledge Service 模块
+├── clinical-studies\                  # Study 实例容器
+└── docs\                              # 平台级规格、计划、DEVLOG、Review
 ```
 
-管理根目录只统一本地发现、备份和权限；它不保存共享运行时状态，不承载跨仓库 Git 提交，也不改变下列三个边界的权威。当前的同级目录为过渡布局，P6 在路径、启动和回退验证完成后再执行可回退迁移；跨仓库位置必须由配置显式传入，不能从工作目录推断。
+根目录是唯一 Git 边界，只承载平台级文档、顶层协作说明和模块入口。业务代码、Wiki正文和Study实例分别落在三个模块目录；不保留嵌套 Git。跨模块合同一致性通过同一提交、Schema hash、测试矩阵和 Phase Gate 保证。
 
 ### 2.1 Workflow Engine
 
@@ -256,15 +257,17 @@ Runtime-context 必须默认 approved-only，支持结构化 filters + SQLite FT
 
 ---
 
-## 9. 跨仓库 Git、配置、Schema 与审计
+## 9. 单仓 Git、配置、Schema 与审计
 
-| 维度 | Engine repo | Wiki repo | Study repo/受控目录 |
-|------|-------------|-----------|---------------------|
+| 维度 | `clinical-workflow/` | `clinical-llm-wiki/` | `clinical-studies/` |
+|------|----------------------|-----------------------|---------------------|
 | Git 内容 | 代码、共享 Schema、模板、测试、发布清单 | Markdown、来源 metadata、service、index 配置、治理记录 | Study config、manifest、override、decision、产出 metadata |
 | 不应入 Git | secrets、真实原始临床数据、可重建 cache | 无授权 PDF、secrets、可重建 index | 未批准大二进制/PII、secrets |
 | 配置权威 | engine defaults、service endpoint contract | vault/service/index 配置 | Study facts、paths、review policy、锁定版本 |
 | Schema | 原件和 bundle | 只镜像指定 bundle，不重定义 | 只保存实例和 `$schema`/version 引用 |
 | Audit | 代码和合同发布 | proposal→approval、source/index/snapshot | 每次 Stage、tool、review、fallback、promotion |
+
+单仓提交必须能同时呈现 Engine、Wiki、Study 脚手架和平台文档的合同变更，避免某一模块升级后其他模块未同步。模块边界依然存在：根 `.git` 是版本边界，不是运行时状态共享边界。
 
 ### 9.1 发布握手
 
@@ -349,18 +352,18 @@ P1 的 `runtime_change_allowed` 为 false。以上条目是后续 Phase 输入�
 
 | 路径 | 分类 | P3 处理 |
 |------|------|---------|
-| `src/runtime/` | machine contract/runtime | P2 合同化，P4 接入知识和十阶段 |
-| `src/agents/executors.py` | executor capability + legacy stage map | P2 统一 Canonical IDs；capability 不拥有顺序 |
-| `src/agents/prompts/` | workflow knowledge candidate | 迁移为 Wiki proposal，保留最小系统安全 prompt |
-| `src/mcp_tools/` | deterministic execution | 保留；纳入 Action Policy 和版本锁定 |
-| `src/knowledge/` | hardcoded domain migration candidate | P3/P5 双轨迁移后移除生产依赖 |
-| `src/review_panel/` | review UI | P4 消费共享 Schema，不拥有业务规则 |
-| `src/change_management/` | machine audit/impact | P4 扩展知识和 manifest 影响分析 |
-| `src/config/` | engine/study config loader | P2/P4 扩展知识服务和锁定配置 |
-| `schemas/project.schema.json` | shared machine contract | P2 扩展或组合，不在 Wiki 重定义 |
-| `schemas/review/` | shared review contract | 保留为唯一权威 |
-| `study_template/.workflow/` | legacy/conflict | P4 一次性迁移，不长期双轨 |
-| `tests/fixtures/studies/minimal/` | contract fixture | P4 扩展为 knowledge-enabled fixture |
+| `clinical-workflow/src/runtime/` | machine contract/runtime | P2 合同化，P4 接入知识和十阶段 |
+| `clinical-workflow/src/agents/executors.py` | executor capability + legacy stage map | P2 统一 Canonical IDs；capability 不拥有顺序 |
+| `clinical-workflow/src/agents/prompts/` | workflow knowledge candidate | 迁移为 Wiki proposal，保留最小系统安全 prompt |
+| `clinical-workflow/src/mcp_tools/` | deterministic execution | 保留；纳入 Action Policy 和版本锁定 |
+| `clinical-workflow/src/knowledge/` | hardcoded domain migration candidate | P3/P5 双轨迁移后移除生产依赖 |
+| `clinical-workflow/src/review_panel/` | review UI | P4 消费共享 Schema，不拥有业务规则 |
+| `clinical-workflow/src/change_management/` | machine audit/impact | P4 扩展知识和 manifest 影响分析 |
+| `clinical-workflow/src/config/` | engine/study config loader | P2/P4 扩展知识服务和锁定配置 |
+| `clinical-workflow/schemas/project.schema.json` | shared machine contract | P2 扩展或组合，不在 Wiki 重定义 |
+| `clinical-workflow/schemas/review/` | shared review contract | 保留为唯一权威 |
+| `clinical-workflow/study_template/.workflow/` | legacy/conflict | P4 一次性迁移，不长期双轨 |
+| `clinical-workflow/tests/fixtures/studies/minimal/` | contract fixture | P4 扩展为 knowledge-enabled fixture |
 | `docs/dep/plans/deferred/P1*` | design trace | 只读保留 |
 | `docs/dep/plans/deferred/P2*` | design trace | 只读保留 |
 
@@ -381,7 +384,7 @@ P4 不引入 Web Relay 或完整多人仲裁。若共享 Schema 运行时消费�
 
 ## 14. 迁移原则
 
-1. **合同先行**：先发布 Engine Schema/contract，再创建 Wiki/Study 实例；
+1. **合同先行**：先发布 Engine Schema/contract，再创建或更新 Wiki/Study 模块；
 2. **proposal first**：旧文档、prompt、硬编码知识只生成 proposal；
 3. **双轨有期限**：双轨只用于验证，生产上下文来源必须可辨；
 4. **不可变来源**：PDF 原件和 snapshot 以 hash 标识，derived 可重建；
@@ -396,22 +399,22 @@ P4 不引入 Web Relay 或完整多人仲裁。若共享 Schema 运行时消费�
 
 P1 完成以以下证据为准：
 
-- 三个物理边界、职责矩阵、规则优先级和双状态模型已在本文冻结；
+- 单仓内三个模块边界、职责矩阵、规则优先级和双状态模型已在本文冻结；
 - 十阶段 ID、顺序、最小 I/O、Executor、工具边界完整且无第 11 个 Gate；
 - Router/Runtime 差异已登记为 `PIPE-GAP-001` 至 `010`，本阶段未修改行为；
 - SPEC-00 至 SPEC-20 每份均有迁移分类；
-- 代码/目录迁移候选和 `study_template/.workflow/` 债务已登记；
-- Engine/Wiki/Study 的 Git、配置、Schema、audit 和发布握手明确；
+- 代码/目录迁移候选和 `clinical-workflow/study_template/.workflow/` 债务已登记；
+- Engine/Wiki/Study 的模块边界、配置、Schema、audit 和发布握手明确；
 - deferred P1/P2 没有可独立恢复的任务，P1-D/P1-E 已并入 P4 Gate。
 
-后续实现若改变 Canonical Stage、权威矩阵、生产可用性条件或三个物理边界，必须先更新 P3 的关键决策并获用户确认，不能在代码提交中隐式改变。
+后续实现若改变 Canonical Stage、权威矩阵、生产可用性条件或单仓模块边界，必须先更新 P3 的关键决策并获用户确认，不能在代码提交中隐式改变。
 
 ---
 
 ## 16. P2 已实现的机器合同基线
 
 Engine 已发布 `1.0.0` shared contract bundle，清单及 canonical JSON hash 位于
-[`schemas/contract-bundle.json`](../../schemas/contract-bundle.json)。该 bundle 是 Wiki
+[`schemas/contract-bundle.json`](../../clinical-workflow/schemas/contract-bundle.json)。该 bundle 是 Wiki
 镜像和 Study manifest 锁定的唯一 Schema 来源。
 
 - Pipeline Contract 固定十阶段顺序、单一前置依赖、executor、输入、输出和阶段专属完成证据；
@@ -421,18 +424,18 @@ Engine 已发布 `1.0.0` shared contract bundle，清单及 canonical JSON hash 
 - 生产资格由 `verified + approved + receipt/audit + rights + storage + review_due + compatibility` 机器判定；
 - Schema、Pydantic models、Wiki-oriented contract fixtures 和 Study-oriented contract fixtures 有 drift/negative/security/compatibility tests。
 
-实现入口：[`pipeline_contract.py`](../../src/runtime/pipeline_contract.py)、
-[`action_policy.py`](../../src/runtime/action_policy.py)、
-[`models.py`](../../src/knowledge/models.py) 与
-[`compatibility.py`](../../src/knowledge/compatibility.py)。P2 仅建立合同，不在本阶段接入 HTTP、索引或 Runtime 执行循环。
+实现入口：[`pipeline_contract.py`](../../clinical-workflow/src/runtime/pipeline_contract.py)、
+[`action_policy.py`](../../clinical-workflow/src/runtime/action_policy.py)、
+[`models.py`](../../clinical-workflow/src/knowledge/models.py) 与
+[`compatibility.py`](../../clinical-workflow/src/knowledge/compatibility.py)。P2 仅建立合同，不在本阶段接入 HTTP、索引或 Runtime 执行循环。
 
 ---
 
 ## 17. P3 已实现的本地 Wiki 基线
 
-独立仓库 `Clinical LLM Wiki` 已在过渡路径
-`G:\Project\Python\Clinical LLM Wiki` 初始化（commit `57e1802`）。它镜像 Engine
-`contract-bundle.json`，并在 P6 的可回退物理迁移前以显式配置与 Engine 交互。
+`clinical-llm-wiki/` 已从原独立路径 `G:\Project\Python\Clinical LLM Wiki`
+迁入当前单仓，并移除嵌套 Git。它镜像 Engine `contract-bundle.json`，并通过本地
+Knowledge Service 或 Study 锁定快照与 Engine 交互。
 
 - `vault/` 是正式 Markdown/YAML 知识源，提供 HOME、核心 MOC、十个固定阶段入口、Templates、Bases、治理和最小已批准种子；Obsidian 只承担编辑/浏览，不依赖社区插件提供运行能力；
 - `scripts/pdf/` 对不可变原件生成文本、页码/bbox、渲染和图像派生；数字及扫描合成 PDF fixtures 覆盖可重建性与视觉证据检查；
@@ -445,7 +448,7 @@ Engine 已发布 `1.0.0` shared contract bundle，清单及 canonical JSON hash 
 
 ## 18. P4 已实现的 Study 与 Runtime 接入基线
 
-- `study_template/` 已删除遗留 `.workflow/` 状态树，改为 `workflow/`、`knowledge/`、`input/`、`output/`、独立 `.review_queue/` 与 `audit_trail.jsonl`；`runtime-manifest.yaml` 对 Pipeline、Workflow snapshot、Domain snapshot 和 toolchain 做精确锁定；
+- `clinical-workflow/study_template/` 已删除遗留 `.workflow/` 状态树，改为 `workflow/`、`knowledge/`、`input/`、`output/`、独立 `.review_queue/` 与 `audit_trail.jsonl`；`runtime-manifest.yaml` 对 Pipeline、Workflow snapshot、Domain snapshot 和 toolchain 做精确锁定；
 - Router 与 AgentLoop 均消费同一 `CANONICAL_PIPELINE`，按第一个缺失的 completion evidence 推导十阶段，配置路径优先读取 `input/protocol/`；无受控 resource 时等待，不构造任意命令；
 - Engine Knowledge Client 先验证 Wiki Schema bundle version/hash，再接收结构化 ExecutionContext；仅连接不可达时允许使用 Study 内锁定快照，HTTP拒绝、Schema漂移、hash损坏和路径越界均 fail closed；
 - 当前 Study 规则在 Engine 侧合并，同优先级冲突生成未解决 conflict 并阻断执行；服务恢复不改变 manifest/snapshot 锁，不发生静默升级；

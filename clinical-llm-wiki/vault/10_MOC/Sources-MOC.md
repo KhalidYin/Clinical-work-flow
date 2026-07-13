@@ -1,0 +1,27 @@
+---
+id: moc-sources
+type: navigation
+title: 来源、页码与视觉证据导航
+---
+
+# 来源、页码与视觉证据导航
+
+## 官方一手来源访问快照
+
+- [[60_Sources/Registry/ICH E9 R1]]
+- [[60_Sources/Registry/CDISC SDTMIG 3.3]]
+- [[60_Sources/Registry/CDISC ADaMIG 1.3]]
+- [[60_Sources/Registry/CDISC ADaM Conformance Rules 5.0]]
+- [[60_Sources/Registry/FDA Study Data Technical Conformance Guide]]
+
+访问快照保存项目自写元数据与释义，并回链官方 URL；规范原文仍是最终权威。
+
+## 合成视觉证据
+
+- [[60_Sources/Registry/Synthetic TEAE Figure Source|单页合成 PDF 来源]]
+- [[60_Sources/Figures/Synthetic TEAE Figure Evidence|Figure Record]]
+- [[20_Knowledge/Methods/TEAE Classification Evidence Example|消费该证据的方法卡]]
+
+所有 PDF 页码使用 physical page；印刷页另记。AI/机器视觉 QA 不冒充人类 GxP 审批。
+
+[[HOME|返回首页]]

@@ -1,0 +1,20 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+*.egg-info/
+
+# Rebuildable service and source-pipeline state
+indexes/
+snapshots/generated/
+sources/**/derived/
+tmp/
+*.log
+
+# Secrets and local-only source material
+.env
+.env.local
+sources/**/original/
+!sources/**/original/.gitkeep

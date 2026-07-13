@@ -32,13 +32,13 @@ syncs_to:
 
 ## 目标
 
-把当前 Clinical AI Workflow 演进为一套口径稳定、可审计、单机优先且可扩展到内网/云端的 Clinical Knowledge Workflow Platform：由 Workflow Engine 强制执行固定临床管线，由独立 Clinical LLM Wiki 维护工作流 Playbook、领域知识和证据来源，由每个 Study Instance 保存当前研究的规则、快照、决策和产出，并通过统一 Schema、API、Review Protocol、版本 hash 和 Phase Gate 防止开发过程中的架构与术语漂移。
+把当前 Clinical AI Workflow 演进为一套口径稳定、可审计、单机优先且可扩展到内网/云端的 Clinical Knowledge Workflow Platform：由同一 Git 仓库内的 `clinical-workflow/` 模块强制执行固定临床管线，由 `clinical-llm-wiki/` 模块维护工作流 Playbook、领域知识和证据来源，由 `clinical-studies/` 容器保存 Study 实例、规则、快照、决策和产出，并通过统一 Schema、API、Review Protocol、版本 hash 和 Phase Gate 防止开发过程中的架构与术语漂移。
 
 ## 背景
 
 - 当前项目已有 Runtime、Router、Review Protocol、DecisionReceipt application、MCP工具、`project.yaml` 和 VSCode Review Panel 基础。
 - P0权威 `docs/specs/18-P0-Alignment.md` 已确定固定管线、文件系统状态、动态审核策略和确定性工具边界。
-- 当前知识主要存在于 `src/knowledge/clinical_standards.py` 和规格文档中，缺少可版本化知识模型、来源治理、动态解析、Study快照和独立知识服务。
+- 当前知识主要存在于 `clinical-workflow/src/knowledge/clinical_standards.py` 和规格文档中，缺少可版本化知识模型、来源治理、动态解析、Study快照和独立知识服务。
 - 原 P1 提供了成熟的 Obsidian 双轴信息架构、Properties、来源/PDF治理、质量门禁与内容建设方案。
 - 原 P2 提供了 Workflow Engine、Knowledge Service、Study Instance、机器合同、Runtime接入与ADAE试点方案。
 - 两个旧计划的范围、文档权威、目录和生命周期存在重叠；若分别执行，会产生状态名称、目录位置、Schema归属和实施顺序漂移。
@@ -47,8 +47,8 @@ syncs_to:
 ## 方案来源
 
 - 方案类型：正式头脑风暴整合。
-- 采用方案：三个物理边界 + 两类知识 + 一个原子运行上下文。
-- 三个物理边界：Workflow Engine、Clinical LLM Wiki、Clinical Studies。
+- 采用方案：单仓内三个模块边界 + 两类知识 + 一个原子运行上下文。
+- 单仓内三个模块边界：`clinical-workflow/`、`clinical-llm-wiki/`、`clinical-studies/`。
 - 两类知识：Workflow Knowledge 与 Domain Knowledge；两者均区分一般规则、既往Study参考和当前Study规则。
 - 一个原子运行上下文：Runtime按当前Stage解析 Pipeline Contract、Workflow Playbook、Domain Evidence、Study overrides、工具版本和provenance，形成 `ExecutionContextBundle`。
 
@@ -64,7 +64,7 @@ syncs_to:
 | 原P1 | rights/storage状态和防提交门禁 | 采用 | Wiki治理与测试 |
 | 原P1 | 60-80篇首版内容和六个验收场景 | 采用为P5/P6目标 | Wiki内容基线 |
 | 原P1 | 不需要API/RAG | 调整 | 首版需要本地Knowledge Service；GraphRAG仍延后 |
-| 原P1 | `STAT-base/`与`docs/main/` | 替换 | `Clinical LLM Wiki/`与本项目`docs/specs/` |
+| 原P1 | `STAT-base/`与`docs/main/` | 替换 | `clinical-llm-wiki/`与本项目`docs/specs/` |
 | 原P2 | Pipeline Contract与Workflow Playbook分离 | 采用 | Engine + Wiki |
 | 原P2 | Runtime Manifest、快照和fail-closed | 采用 | Study Instance + Engine |
 | 原P2 | Stage capability白名单 | 采用 | Engine Action Policy |
@@ -115,28 +115,32 @@ syncs_to:
 ## 最终物理部署结构
 
 ```text
-G:\Project\Python\Clinical Knowledge Workflow Platform\  # 管理根目录；不是代码或聚合 Git 仓库
-├── workflow-engine\              # Git仓库：Workflow Engine（当前项目）
-├── clinical-llm-wiki\            # Git仓库：Obsidian Vault + Knowledge Service
-└── clinical-studies\             # Study 实例容器；每个生产 Study 独立受控
-    ├── STUDY-001\                # 建议独立 Git 仓库
-    ├── STUDY-002\
-    └── ...
+G:\Project\Python\Clinical work flow\       # 单一 Git 仓库；平台 monorepo 根目录
+├── clinical-workflow\                      # Workflow Engine 模块：代码、Schema、MCP、Review Panel、测试
+├── clinical-llm-wiki\                      # Clinical LLM Wiki 模块：Obsidian Vault + Knowledge Service
+├── clinical-studies\                       # Study 实例容器；生产 Study 进入前需单独授权
+│   ├── STUDY-001\
+│   ├── STUDY-002\
+│   └── ...
+├── docs\                                   # 平台级规格、计划、DEVLOG、Review
+├── AGENTS.md
+└── README.md
 ```
 
 约束：
 
-- 三者是三个物理边界，不要求使用相同生命周期或同一Git仓库。
-- `Clinical Knowledge Workflow Platform/` 只提供本地发现、备份和权限管理的统一入口；它不得成为嵌套 Git、共享运行时状态或跨 Study 审计的权威。
-- Workflow Engine与Clinical LLM Wiki分别版本化。
-- 每个生产Study建议独立Git仓库或等价的受控版本目录；Engine中的`study_template/`和tests fixtures不是生产Study。
-- 不得在未确认用途的情况下复用现有其他仓库作为Clinical LLM Wiki。
-- 当前 `G:\Project\Python\Clinical work flow/` 与 `G:\Project\Python\Clinical LLM Wiki/` 是过渡位置；P6 只在所有测试、相对路径和本地启动验证完成后，以可回退的文件系统迁移将其移动到上图的管理根目录。过渡期通过显式配置提供路径，禁止依赖工作目录猜测兄弟仓库。
+- 三者是同一 Git 仓库内的模块边界，不再使用 Engine/Wiki 多仓并行作为首版交付形态。
+- 根目录只承载平台级文档、顶层协作说明和模块入口；业务代码不得继续散落在根目录。
+- `clinical-workflow/` 拥有机器合同、Runtime、MCP工具、Review Panel、Study模板和 Engine 测试。
+- `clinical-llm-wiki/` 拥有 Vault、Knowledge Service、来源治理、索引/快照派生和 Wiki 测试。
+- `clinical-studies/` 是 Study 实例容器；真实或生产 Study 进入前必须明确数据去标识、权限、备份和审核策略。
+- 不保留嵌套 Git；跨模块合同一致性通过同一提交、Schema hash、测试矩阵和 Phase Gate 保证。
+- 远程多仓、子模块或平台外管理根目录均延后，除非后续另立部署/协作计划并经用户批准。
 
 ## Workflow Engine 最终结构
 
 ```text
-Clinical work flow/
+clinical-workflow/
 ├── src/
 │   ├── runtime/
 │   │   ├── agent_loop.py
@@ -164,16 +168,15 @@ Clinical work flow/
 │   └── review/
 ├── study_template/
 ├── tests/
-├── docs/specs/
-└── docs/dep/
+└── pyproject.toml
 ```
 
-Engine内的`src/knowledge/`只保存客户端、模型、解析和快照能力；正式知识正文迁移到Wiki。
+Engine内的`clinical-workflow/src/knowledge/`只保存客户端、模型、解析和快照能力；正式知识正文迁移到`clinical-llm-wiki/vault/`。平台级`docs/specs/`与`docs/dep/`留在根目录，作为整个 monorepo 的规划和规格权威。
 
 ## Clinical LLM Wiki 最终结构
 
 ```text
-Clinical LLM Wiki/
+clinical-llm-wiki/
 ├── vault/
 │   ├── HOME.md
 │   ├── 10_MOC/
@@ -446,7 +449,7 @@ policies: live_upgrade/conflict/version/fallback行为
 1. 本计划的最终目录、权威矩阵、状态模型、ID和Schema归属为P1 Gate冻结项。
 2. 开发中需要改变冻结项时，必须先记录到“执行中发现”，分类为阻断/增强/延后，并取得用户确认后更新本计划。
 3. 不允许代码、Wiki模板和Study fixture各自引入新的同义字段或状态枚举。
-4. 跨仓库Schema使用版本+hash；CI执行drift tests。
+4. 跨模块Schema使用版本+hash；CI执行drift tests。
 5. Wiki Playbook变化不能改变Pipeline Contract；Pipeline Contract变化必须显式升级兼容版本。
 6. 每个Phase只实现该Phase列出的产出和完成标准，越界内容回到Gate处理。
 7. 旧P1/P2仅作参考；出现冲突时以本P3为准。
@@ -461,7 +464,7 @@ policies: live_upgrade/conflict/version/fallback行为
 | P2 | 建立机器合同与知识治理合同 | 6-9 | P1 | done |
 | P3 | 建立Obsidian Vault、来源管线和本地Knowledge Service | 8-11 | P2 | done |
 | P4 | 改造Study脚手架并接入Runtime/Review/Audit | 7-10 | P2, P3；旧P1-D/P1-E所需基础 | done |
-| P5 | 完成纵向合成试点和首版核心内容 | 10-15 | P4 | pending |
+| P5 | 完成纵向合成试点和首版核心内容 | 10-15 | P4 | in-progress |
 | P6 | 全局验收、迁移、文档同步和本地发布基线 | 5-8 | P5 | pending |
 
 P1-P4构成平台MVP；P5-P6构成首个可用知识产品和发布基线。
@@ -481,7 +484,7 @@ P1-P4构成平台MVP；P5-P6构成首个可用知识产品和发布基线。
 - 新增SPEC-21并固化本计划中的三层结构、权威矩阵、术语和数据流。
 - 十阶段Pipeline ID、顺序、输入输出、executor和工具映射基线。
 - 现有SPEC/代码内容分类清单：机器合同、工作流知识、领域知识、迁移候选、遗留/冲突。
-- 跨仓库所有权和版本发布约定。
+- 跨模块所有权和版本发布约定。
 - P1-D/P1-E与本计划P4的依赖核对表。
 
 ### 完成标准
@@ -490,7 +493,7 @@ P1-P4构成平台MVP；P5-P6构成首个可用知识产品和发布基线。
 - [x] Protocol Analysis到Submission Packaging十阶段无遗漏、跳步或重复权威。
 - [x] 当前Router与固定Pipeline不一致项全部登记，未在本Phase修改行为。
 - [x] 每份现有SPEC内容有保留、迁移proposal、废弃候选或双轨过渡分类。
-- [x] 三个物理边界的Git、配置、Schema和审计责任明确。
+- [x] 单仓内三个模块边界的配置、Schema和审计责任明确。
 - [x] 旧P1/P2与P3之间没有可并行执行的重复任务。
 
 ### 边界（本Phase明确不做）
@@ -520,7 +523,7 @@ P1-P4构成平台MVP；P5-P6构成首个可用知识产品和发布基线。
 ### 输入条件
 
 - P1冻结项通过Gate。
-- 十阶段ID和跨仓库Schema归属已确认。
+- 十阶段ID和跨模块Schema归属已确认。
 
 ### 产出
 
@@ -550,14 +553,14 @@ P1-P4构成平台MVP；P5-P6构成首个可用知识产品和发布基线。
 
 | 文件 | 操作 | 预计行数 |
 |------|------|----------|
-| `schemas/pipeline/*.schema.json` | 新建 | ~450 |
-| `schemas/knowledge/*.schema.json` | 新建 | ~1200 |
-| `src/runtime/pipeline_contract.py` | 新建 | ~250 |
-| `src/runtime/action_policy.py` | 新建 | ~200 |
-| `src/knowledge/models.py` | 新建 | ~450 |
-| `src/knowledge/compatibility.py` | 新建 | ~200 |
-| `tests/test_pipeline_contract.py` | 新建 | ~300 |
-| `tests/test_knowledge_contracts.py` | 新建 | ~450 |
+| `clinical-workflow/schemas/pipeline/*.schema.json` | 新建 | ~450 |
+| `clinical-workflow/schemas/knowledge/*.schema.json` | 新建 | ~1200 |
+| `clinical-workflow/src/runtime/pipeline_contract.py` | 新建 | ~250 |
+| `clinical-workflow/src/runtime/action_policy.py` | 新建 | ~200 |
+| `clinical-workflow/src/knowledge/models.py` | 新建 | ~450 |
+| `clinical-workflow/src/knowledge/compatibility.py` | 新建 | ~200 |
+| `clinical-workflow/tests/test_pipeline_contract.py` | 新建 | ~300 |
+| `clinical-workflow/tests/test_knowledge_contracts.py` | 新建 | ~450 |
 
 ### 关键决策
 
@@ -571,12 +574,12 @@ P1-P4构成平台MVP；P5-P6构成首个可用知识产品和发布基线。
 ### 输入条件
 
 - P2 Schema和治理合同稳定。
-- 独立Wiki仓库位置明确且不是未经确认的现有仓库。
+- 单仓内Wiki模块位置明确为`clinical-llm-wiki/`，且不存在嵌套Git边界。
 - 本地Python、PDF渲染和OCR能力可检测；缺失依赖可按项目规则安装。
 
 ### 产出
 
-- 完整`Clinical LLM Wiki/`仓库与Obsidian Vault目录。
+- 完整`clinical-llm-wiki/`模块与Obsidian Vault目录。
 - HOME、核心MOC、十阶段入口、Templates和Bases。
 - 来源包、PDF/OCR/文本/表格/图片派生和质量校验脚本。
 - 数字PDF与扫描PDF合成fixtures。
@@ -605,11 +608,11 @@ P1-P4构成平台MVP；P5-P6构成首个可用知识产品和发布基线。
 
 | 文件 | 操作 | 预计行数 |
 |------|------|----------|
-| `../Clinical LLM Wiki/vault/**` | 新建 | Vault骨架、模板、治理与种子 |
-| `../Clinical LLM Wiki/service/**` | 新建 | ~2200 |
-| `../Clinical LLM Wiki/scripts/pdf/**` | 新建 | ~900 |
-| `../Clinical LLM Wiki/scripts/quality/**` | 新建 | ~500 |
-| `../Clinical LLM Wiki/tests/**` | 新建 | ~1200 + fixtures |
+| `clinical-llm-wiki/vault/**` | 新建 | Vault骨架、模板、治理与种子 |
+| `clinical-llm-wiki/service/**` | 新建 | ~2200 |
+| `clinical-llm-wiki/scripts/pdf/**` | 新建 | ~900 |
+| `clinical-llm-wiki/scripts/quality/**` | 新建 | ~500 |
+| `clinical-llm-wiki/tests/**` | 新建 | ~1200 + fixtures |
 
 ### 关键决策
 
@@ -637,7 +640,7 @@ P1-P4构成平台MVP；P5-P6构成首个可用知识产品和发布基线。
 
 ### 完成标准
 
-- [x] `study_template/.workflow/`遗留结构被替换，目标目录符合最终Study树。
+- [x] `clinical-workflow/study_template/.workflow/`遗留结构被替换，目标目录符合最终Study树。
 - [x] Runtime先确定固定Stage，再解析知识；Wiki无法返回控制流命令。
 - [x] 当前Study规则按优先级合并，同级冲突会阻断。
 - [x] Agent Action只有通过Stage capability白名单后才执行。
@@ -657,16 +660,16 @@ P1-P4构成平台MVP；P5-P6构成首个可用知识产品和发布基线。
 
 | 文件 | 操作 | 预计行数 |
 |------|------|----------|
-| `study_template/**` | 重构 | 目录、manifest和说明 |
-| `src/knowledge/client.py` | 新建 | ~320 |
-| `src/knowledge/resolver.py` | 新建 | ~380 |
-| `src/knowledge/snapshot.py` | 新建 | ~280 |
-| `src/runtime/context_resolver.py` | 新建 | ~300 |
-| `src/runtime/agent_loop.py` | 修改 | +280 |
-| `src/runtime/router.py` | 修改 | +200 |
-| `src/change_management/impact_analyzer.py` | 修改 | +180 |
-| `tests/test_runtime_knowledge_integration.py` | 新建 | ~500 |
-| `tests/test_knowledge_failure_modes.py` | 新建 | ~420 |
+| `clinical-workflow/study_template/**` | 重构 | 目录、manifest和说明 |
+| `clinical-workflow/src/knowledge/client.py` | 新建 | ~320 |
+| `clinical-workflow/src/knowledge/resolver.py` | 新建 | ~380 |
+| `clinical-workflow/src/knowledge/snapshot.py` | 新建 | ~280 |
+| `clinical-workflow/src/runtime/context_resolver.py` | 新建 | ~300 |
+| `clinical-workflow/src/runtime/agent_loop.py` | 修改 | +280 |
+| `clinical-workflow/src/runtime/router.py` | 修改 | +200 |
+| `clinical-workflow/src/change_management/impact_analyzer.py` | 修改 | +180 |
+| `clinical-workflow/tests/test_runtime_knowledge_integration.py` | 新建 | ~500 |
+| `clinical-workflow/tests/test_knowledge_failure_modes.py` | 新建 | ~420 |
 
 ### 关键决策
 
@@ -714,13 +717,13 @@ P1-P4构成平台MVP；P5-P6构成首个可用知识产品和发布基线。
 
 | 文件 | 操作 | 预计行数 |
 |------|------|----------|
-| `../Clinical LLM Wiki/vault/10_MOC/**` | 扩充 | 8-10个MOC |
-| `../Clinical LLM Wiki/vault/20_Knowledge/**` | 新建/修改 | 40-60篇 |
-| `../Clinical LLM Wiki/vault/30_Workflows/**` | 新建/修改 | 10个核心Playbook |
-| `../Clinical LLM Wiki/vault/40_Toolkit/**` | 新建 | 6-8个 |
-| `../Clinical LLM Wiki/vault/50_Cases/Synthetic-Studies/**` | 新建 | 一套纵向案例 |
-| `tests/fixtures/studies/adae-pilot/**` | 新建 | 合成fixture |
-| `tests/test_adae_knowledge_workflow.py` | 新建 | ~400 |
+| `clinical-llm-wiki/vault/10_MOC/**` | 扩充 | 8-10个MOC |
+| `clinical-llm-wiki/vault/20_Knowledge/**` | 新建/修改 | 40-60篇 |
+| `clinical-llm-wiki/vault/30_Workflows/**` | 新建/修改 | 10个核心Playbook |
+| `clinical-llm-wiki/vault/40_Toolkit/**` | 新建 | 6-8个 |
+| `clinical-llm-wiki/vault/50_Cases/Synthetic-Studies/**` | 新建 | 一套纵向案例 |
+| `clinical-workflow/tests/fixtures/studies/adae-pilot/**` | 新建 | 合成fixture |
+| `clinical-workflow/tests/test_adae_knowledge_workflow.py` | 新建 | ~400 |
 
 ### 关键决策
 
@@ -740,8 +743,8 @@ P1-P4构成平台MVP；P5-P6构成首个可用知识产品和发布基线。
 ### 产出
 
 - 结构、Schema、链接、来源、权利、快照、API、Runtime和内容质量总报告。
-- 六个人工验收场景与自动化合同/集成/失败模式测试结果。
-- `src/knowledge/clinical_standards.py`迁移或兼容层结论。
+- 七个人工验收场景与自动化合同/集成/失败模式测试结果。
+- `clinical-workflow/src/knowledge/clinical_standards.py`迁移或兼容层结论。
 - 原SPEC→Wiki item双向映射和回滚说明。
 - SPEC-06/07/09/13/14/15/18/21同步。
 - Wiki与Engine本地启动、维护、备份和恢复说明。
@@ -753,7 +756,7 @@ P1-P4构成平台MVP；P5-P6构成首个可用知识产品和发布基线。
 - [ ] reviewed/verified/approved内容不存在坏链、重复ID、缺失来源或未知权利状态。
 - [ ] 正式知识主张来源版本/章节/页码追溯率为100%。
 - [ ] 被引用图片、表格和公式的人工视觉核验率为100%。
-- [ ] 六个场景可从HOME在三层导航内完成。
+- [ ] 七个场景可从HOME在三层导航内完成。
 - [ ] Wiki断开、快照损坏、合同不兼容、冲突规则、未知工具和路径越界均按合同失败。
 - [ ] 原SPEC未在映射和回归验证完成前删除。
 - [ ] 最终目录与本计划一致；任何获批偏差已记录在关键决策中。
@@ -778,7 +781,7 @@ P1-P4构成平台MVP；P5-P6构成首个可用知识产品和发布基线。
 | `docs/specs/15-Review-Protocol.md` | 同步 | +120 |
 | `docs/specs/18-P0-Alignment.md` | 同步 | +50 |
 | `docs/specs/21-Knowledge-Workflow-Integration.md` | 完成态更新 | +100 |
-| `src/knowledge/clinical_standards.py` | 迁移/兼容处理 | 取决于验证结论 |
+| `clinical-workflow/src/knowledge/clinical_standards.py` | 迁移/兼容处理 | 取决于验证结论 |
 
 ### 关键决策
 
@@ -815,7 +818,7 @@ P1-P4构成平台MVP；P5-P6构成首个可用知识产品和发布基线。
 | 风险 | 缓解 |
 |------|------|
 | P3范围过大 | 六个Phase原子Gate；P1-P4先形成MVP，P5再扩充内容 |
-| 三个物理边界口径漂移 | 最终目录和权威矩阵冻结；Schema版本/hash和跨仓库drift tests |
+| 模块边界口径漂移 | 最终目录和权威矩阵冻结；Schema版本/hash和跨模块drift tests |
 | Workflow知识改变控制流 | Pipeline Contract与Playbook分离；Action Policy白名单 |
 | 法规/标准版本漂移 | source版本矩阵、last_reviewed、review_due、supersedes |
 | verified与approved混淆 | 双状态模型；生产资格由组合条件判定 |
@@ -834,8 +837,11 @@ P1-P4构成平台MVP；P5-P6构成首个可用知识产品和发布基线。
 | D1 | 旧P1/P2存在目录、状态和文档权威冲突 | 规划 | 阻断 | 已由P3统一，旧计划转deferred |
 | D2 | 旧P1风险计划P1-D/P1-E尚未全部完成 | 规划 | 阻断（P4） | P1-P3可执行；P4前完成或批准兼容方案 |
 | D3 | 当前Router未完整表达Protocol/SAP阶段 | 规划 | 阻断（P2/P4） | P1登记差异，P2合同化，P4修正实现 |
-| D4 | Clinical LLM Wiki实际仓库尚未创建 | 规划 | P3输入Gate | 创建独立仓库，不复用未经确认的现有仓库 |
+| D4 | Clinical LLM Wiki曾按独立仓库规划，无法保证单次改动覆盖 Engine/Wiki 合同 | P5脚手架迁移 | 阻断 | 已按用户确认改为单仓 monorepo：`clinical-llm-wiki/`迁入当前仓库并移除嵌套Git |
 | D5 | Study树的`output/protocol_analysis/`与P2机器合同`output/protocol/analysis.yaml`冲突 | P4 | 阻断 | 以已冻结Pipeline Contract为准，P4统一脚手架、扫描器和计划目录为`output/protocol/` |
+| D6 | Study Runtime 自动提交在 monorepo 根执行 `git add -A`，可能误带 Engine、Wiki 或其他 Study 的并发改动 | P6本地发布基线 | 阻断（发布前） | P5 合成试点保持 `git_auto_commit=False`；P6 发布前将 pathspec 限定到当前 Study 并补多 Study 脏工作区回归测试 |
+| D7 | 在线 Runtime Context 只查询当前 approved 内容并回填 manifest snapshot ID，未验证锁定 snapshot 的 item集合/hash，也未按 Study applicability 过滤 | P5在线/离线一致性 | 阻断 | 先实现 snapshot lock + applicability fail-closed 与负向测试，再进行 ADAE 在线/离线引用集合验收 |
+| D8 | P5 non-human synthetic receipt 当前可被通用 `production_only` 查询接受，批准 scope 未由机器强制 | P5内容治理 | 阻断 | 为 synthetic-only approval 增加机器可验证 scope，仅允许 `SYNTH-ONCO-001` 合成测试解析；不得形成通用生产批准 |
 
 ## 关键决策记录
 
@@ -843,7 +849,7 @@ P1-P4构成平台MVP；P5-P6构成首个可用知识产品和发布基线。
 |------|------|------|------|------|
 | 2026-07-13 | 计划归并 | P1/P2并行 / P2主计划引用P1 / 新P3统一 | 新P3统一 | 单一执行口径，旧设计仍可追溯 |
 | 2026-07-13 | 物理边界 | 单仓一体 / 两仓 / Engine+Wiki+Studies | Engine+Wiki+Studies | 分离代码、共享知识和受控Study状态 |
-| 2026-07-13 | 本地目录组织 | 三个同级散落目录 / 平台管理根目录下的独立仓库 | 平台管理根目录 + 三个独立边界 | 统一发现、备份和权限管理，同时保持 Engine、Wiki 和每个 Study 的独立版本与审计；物理迁移留至 P6 可回退执行 |
+| 2026-07-13 | 本地目录组织 | 多独立仓库 / 平台管理根目录 / 单仓monorepo | 单仓monorepo：`clinical-workflow/` + `clinical-llm-wiki/` + `clinical-studies/` | 单次提交可同时覆盖 Engine、Wiki、Study 脚手架和合同，降低跨仓遗漏与合同漂移风险 |
 | 2026-07-13 | 工作流边界 | 全部代码 / 全部Wiki / Contract+Playbook | Contract+Playbook | 固定控制与可演化操作知识兼得 |
 | 2026-07-13 | 知识状态 | 单一status / 双状态 | 双状态 | 区分专业质量与运行授权 |
 | 2026-07-13 | Obsidian职责 | 执行端 / 编辑浏览端 | 编辑浏览端 | 避免插件成为生产控制或审批权威 |
@@ -857,7 +863,7 @@ P1-P4构成平台MVP；P5-P6构成首个可用知识产品和发布基线。
 
 | 日期 | 已同步到 | 说明 |
 |------|----------|------|
-| 2026-07-13 | SPEC-06、SPEC-18、SPEC-21 | P1：三边界、十阶段、知识状态、迁移分类、跨仓发布与差异台账 |
-| 2026-07-13 | SPEC-21、`schemas/`、`src/runtime/`、`src/knowledge/` | P2：contract bundle、严格模型、Action Policy、治理与兼容性测试 |
-| 2026-07-13 | SPEC-21、Clinical LLM Wiki（`57e1802`） | P3：本地 Obsidian Vault、受控来源派生、审批门禁、SQLite FTS 与 loopback Knowledge Service |
-| 2026-07-13 | SPEC-21、`study_template/`、`src/runtime/`、`src/knowledge/`、Review/Audit | P4：最终Study树、十阶段Router/AgentLoop、锁定上下文与快照、Action Policy、artifact provenance和共享Review策略 |
+| 2026-07-13 | SPEC-06、SPEC-18、SPEC-21 | P1：三模块边界、十阶段、知识状态、迁移分类、模块发布与差异台账 |
+| 2026-07-13 | SPEC-21、`clinical-workflow/schemas/`、`clinical-workflow/src/runtime/`、`clinical-workflow/src/knowledge/` | P2：contract bundle、严格模型、Action Policy、治理与兼容性测试 |
+| 2026-07-13 | SPEC-21、`clinical-llm-wiki/`（原独立仓 commit `57e1802`，现已迁入单仓） | P3：本地 Obsidian Vault、受控来源派生、审批门禁、SQLite FTS 与 loopback Knowledge Service |
+| 2026-07-13 | SPEC-21、`clinical-workflow/study_template/`、`clinical-workflow/src/runtime/`、`clinical-workflow/src/knowledge/`、Review/Audit | P4：最终Study树、十阶段Router/AgentLoop、锁定上下文与快照、Action Policy、artifact provenance和共享Review策略 |

@@ -1,0 +1,20 @@
+{
+  "qa_id": "qa-synthetic-teae-figure-20260713",
+  "source_id": "src-synthetic-teae-figure",
+  "source_sha256": "a02af8ea2ff37f5fdd1f98c078a4e62db20b92ab55bf44c387e0b86530c2c8fc",
+  "render_relative_path": "tests/fixtures/pdf/rendered-digital/page-001.png",
+  "render_sha256": "7a6415c28c7e6ea2d68cf0f24cd12173aa18527c952fc63aa65d8e0948b8637c",
+  "render_size_pixels": [1224, 1584],
+  "physical_page": 1,
+  "bbox_points": [0.0, 0.0, 612.0, 792.0],
+  "machine_qa": {
+    "status": "passed",
+    "checks": ["page_count", "image_decode", "render_hash", "coordinate_bounds"]
+  },
+  "agent_visual_qa": {
+    "status": "passed",
+    "checked_at": "2026-07-13T16:40:00+08:00",
+    "checks": ["legibility", "no_clipping", "no_overlap", "figure_label_visible"],
+    "note": "AI visual inspection for the P5 synthetic pilot; this is not a human GxP approval."
+  }
+}

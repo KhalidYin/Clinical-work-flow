@@ -1,0 +1,15 @@
+{
+  "accession_id": "acc-cdisc-sdtmig-3-3-20260713",
+  "upstream_title": "Study Data Tabulation Model Implementation Guide: Human Clinical Trials",
+  "upstream_uri": "https://www.cdisc.org/standards/foundational/sdtmig/sdtmig-v3-3/html",
+  "upstream_version": "SDTMIG 3.3 Final, SDTM 1.7, 2018-11-20",
+  "accessed_at": "2026-07-13T16:15:00+08:00",
+  "capture_method": "official CDISC HTML inspection; normalized metadata and paraphrased evidence only",
+  "locators": [
+    {"section": "2 Fundamentals of the SDTM", "claim": "The guide organizes observations, variables, datasets, domains and general observation classes for tabulation data."},
+    {"section": "3 Submitting Data in Standard Format", "claim": "Submission metadata and conformance are part of the implementation context."},
+    {"section": "4 Assumptions for Domain Models", "claim": "Domain and variable mapping must be interpreted with the guide's general and domain-specific assumptions."},
+    {"section": "6.2 Events", "claim": "Adverse events are represented in the AE events domain using the applicable domain specification and controlled terminology."}
+  ],
+  "rights_note": "This repository stores only project-authored metadata and paraphrases; consult the official CDISC HTML for authoritative wording and current controlled terminology."
+}

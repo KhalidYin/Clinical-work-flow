@@ -478,7 +478,7 @@ Agent Runtime (继续):
 
 ```bash
 # Agent Runtime (新)
-python -m src.runtime.agent_loop --project-dir ./project
+python -m src.runtime.agent_loop --project-dir ../clinical-studies/STUDY-001
 
 # MCP Server (不变)
 python -m src.mcp_tools.server

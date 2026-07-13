@@ -124,3 +124,38 @@
 #### Files Changed / Commits
 - `study_template/**`, `src/config/**`, `src/knowledge/**`, `src/runtime/**`, `src/change_management/**`, `src/review_panel/**`, `tests/**`（P4实现，包含于P4阶段提交）
 - `docs/specs/21-Knowledge-Workflow-Integration.md`, `docs/dep/**`（P4 Gate与记录，包含于P4阶段提交）
+
+---
+
+### R013 [18:03] [P3-clinical-knowledge-workflow-platform] P5: 迁移平台为单仓 monorepo 脚手架
+
+#### Done
+- 将原 Workflow Engine 的 `src/`、`schemas/`、`study_template/`、`tests/` 和 `pyproject.toml` 迁入 `clinical-workflow/`，保持模块内 Python 与 Review Panel 工作目录可独立执行。
+- 将原 `G:\Project\Python\Clinical LLM Wiki\` 物理迁入 `clinical-llm-wiki/`，移除嵌套 Git；新增 `clinical-studies/` 容器脚手架，仓库根目录成为唯一 Git 边界。
+- 更新根层协作文档、忽略规则、P3 计划和 SPEC-21，冻结 `clinical-workflow/`、`clinical-llm-wiki/`、`clinical-studies/` 三模块口径，并修正当前态路径残留。
+- Runtime CLI 现要求显式 `--project-dir ../clinical-studies/<STUDY-ID>`，避免在 Engine 模块内误建 `./project`；Study 审核队列和审计日志在根 Git 中可追踪。
+- 使用 Wiki 内容发布器重算迁移措辞变更后的 canonical `content_hash` 和治理输出，保持 approved-only 内容验证 fail closed。
+
+#### Issues / Blockers
+- Wiki 首次全量测试出现 2 个失败；根因是受治理的 `Engine Schema Bundle.md` 正文从“跨仓库”更新为“跨模块”后，旧 `content_hash` 与正文不一致。已通过 `scripts.content.finalize_p5_content` 从源数据重算 hash 和治理输出，Wiki 23 项测试随后全部通过。
+- 历史 DEVLOG 保留原路径证据；SPEC-06/07/09/13/14/15/18 的全局目录口径同步仍按 P6 边界执行，不在本插入步骤改写历史或扩大范围。
+- 发现 Runtime 自动提交仍在 monorepo 根使用 `git add -A`，可能误带其他模块或 Study 的脏改动；已登记为 D6，P5 合成试点禁用自动提交，P6 本地发布前必须完成 Study pathspec 限定与回归测试。
+
+#### Validation
+- `python -B -m pytest`（`clinical-workflow/`，121 passed）
+- `python -m ruff check src tests`（`clinical-workflow/`，success）
+- `npm run compile`（`clinical-workflow/src/review_panel/`，success）
+- `python -B -m pytest`（`clinical-llm-wiki/`，23 passed）
+- `python -m ruff check service scripts tests`（`clinical-llm-wiki/`，success）
+- `python -m scripts.content.finalize_p5_content --check`（68 governed records，success）
+- Runtime `--help` 确认 `--project-dir` 为必填；`git check-ignore --no-index` 确认 `clinical-studies/**/.review_queue/**` 与 `audit_trail.jsonl` 可追踪
+- 嵌套 Git 扫描仅发现仓库根 `.git`；`git diff --check` 无空白错误（仅 LF/CRLF 提示）
+
+#### Next
+1. P5：完成 ADAE Spec 机器执行切片及在线/离线知识引用一致性测试。
+2. P5：逐条核对合成 Study 纵向追溯、来源/图证据和 promotion candidate Gate。
+
+#### Files Changed / Commits
+- `clinical-workflow/**`、`clinical-llm-wiki/**`、`clinical-studies/**`（迁移/新增，包含于 monorepo 迁移脚手架提交）
+- `.gitignore`、`AGENTS.md`、`CLAUDE.md`、`README.md`（修改/新增，包含于 monorepo 迁移脚手架提交）
+- `docs/specs/21-Knowledge-Workflow-Integration.md`、`docs/dep/**`（修改，包含于 monorepo 迁移脚手架提交）

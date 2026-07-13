@@ -1,0 +1,19 @@
+filters:
+  and:
+    - file.inFolder("20_Knowledge")
+    - content_status == "verified"
+    - approval_status == "approved"
+views:
+  - type: table
+    name: 已批准领域知识
+    order:
+      - file.name
+      - type
+      - authority
+      - last_reviewed
+    columns:
+      file.name: 条目
+      type: 类型
+      authority: 权威
+      workflow_stages: 阶段
+      review_due: 下次复核

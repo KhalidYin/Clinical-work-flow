@@ -22,28 +22,29 @@ AGENT RUNTIME (fixed pipeline + dynamic review loop)
 ## Project Structure
 
 ```
-src/
-├── runtime/
-│   ├── agent_loop.py          — Fixed pipeline loop with dynamic review strategy
-│   ├── router.py              — Infer next fixed-stage capability from file state
-│   └── review_protocol.py     — Review Packet / Decision Receipt models + JSON Schema
-├── agents/
-│   ├── base.py                — BaseAgent + Confidence enum
-│   ├── executors.py           — ProtocolSAP / DataStandards / TFLQCSubmission
-│   └── prompts/               — YAML prompt templates
-├── mcp_tools/                 — Core deterministic tools + auxiliary source tools
-│   ├── server.py, sdtm_spec_builder.py, adam_spec_builder.py
-│   ├── tfl_renderer.py, cdisc_validator.py, edc_importer.py
-│   └── ctgov_fetcher.py
-├── knowledge/                 — CDISC IG, CT, TA-specific knowledge (JSON, dynamic)
-├── review_panel/              — VSCode Extension sidebar (batch review UI)
-├── change_management/         — ChangeRecord, VersionManager, ImpactAnalyzer
-└── config/                    — Runtime settings
+clinical-workflow/             — Workflow Engine module
+├── src/
+│   ├── runtime/               — Fixed pipeline loop, router, context and review protocol
+│   ├── agents/                — ProtocolSAP / DataStandards / TFLQCSubmission executors
+│   ├── mcp_tools/             — Core deterministic tools + auxiliary source tools
+│   ├── knowledge/             — Engine client/models/resolver/snapshot code only
+│   ├── review_panel/          — VSCode Extension sidebar (batch review UI)
+│   ├── change_management/     — ChangeRecord, VersionManager, ImpactAnalyzer
+│   └── config/                — Runtime settings
+├── schemas/                   — Shared machine contracts owned by Engine
+├── study_template/            — Study scaffold template
+└── tests/
 
-project/                       — File system as state
-├── .review_queue/             — Agent↔Human message queue
-├── output/                    — Generated artifacts
-└── audit_trail.jsonl          — Complete operation log
+clinical-llm-wiki/             — Obsidian Vault + Knowledge Service module
+├── vault/                     — Governed Markdown knowledge source
+├── service/                   — Loopback Knowledge Service
+├── scripts/                   — Source/PDF/content quality tooling
+├── sources/                   — Source accessions and derived evidence
+└── tests/
+
+clinical-studies/              — Study instance container scaffold
+
+docs/                          — Platform-level specs, plans, dev logs and reviews
 ```
 
 ## Key Design Decisions
@@ -63,8 +64,10 @@ project/                       — File system as state
 6. **Core MCP tools are deterministic and stateless**: The 6 core clinical tools are
    pure functions with no LLM inside. CTGov/EDC helpers are auxiliary source tools,
    not additional core workflow gates.
-7. **Knowledge base replaces hardcoded templates**: TA-specific knowledge lives in
-   `knowledge/*.json`, loaded dynamically by Agent. No more `templates/phase2_onco.py`.
+7. **Knowledge base replaces hardcoded templates**: Governed knowledge lives in
+   `clinical-llm-wiki/vault/` and is consumed through the Knowledge Service or locked
+   snapshots. Engine `clinical-workflow/src/knowledge/` contains client and resolver
+   code only.
 
 ## Human Interaction
 
@@ -83,12 +86,14 @@ Panel writes decision_receipt.json → Agent reads → continues
 ### Agent Runtime
 
 ```bash
-python -m src.runtime.agent_loop --project-dir ./project
+cd clinical-workflow
+python -m src.runtime.agent_loop --project-dir ../clinical-studies/STUDY-001
 ```
 
 ### MCP Server
 
 ```bash
+cd clinical-workflow
 python -m src.mcp_tools.server
 ```
 
@@ -110,8 +115,8 @@ Cmd+Shift+P → "Clinical Review Panel: Open"
 
 | Removed | Replaced by |
 |---------|-------------|
-| `src/workflow/state_machine.py` | File system + Git |
-| `src/agents/stage_checklists.py` | JSON Schema required fields in ReviewFinding |
-| `src/agents/main_agent.py` | `src/runtime/agent_loop.py` |
-| `src/templates/` (hardcoded configs) | `src/knowledge/*.json` (dynamic loading) |
+| `clinical-workflow/src/workflow/state_machine.py` | File system + Git |
+| `clinical-workflow/src/agents/stage_checklists.py` | JSON Schema required fields in ReviewFinding |
+| `clinical-workflow/src/agents/main_agent.py` | `clinical-workflow/src/runtime/agent_loop.py` |
+| `clinical-workflow/src/templates/` (hardcoded configs) | `clinical-llm-wiki/vault/` governed knowledge |
 | Skills (`/sap-review`, `/tfl-qc`, etc.) | Review Panel (batch UI) |
