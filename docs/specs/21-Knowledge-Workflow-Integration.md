@@ -1,7 +1,7 @@
 # SPEC-21: Clinical Knowledge Workflow Platform 集成基线
 
 > **版本**: v1.1
-> **状态**: P1 架构基线与 P2 机器合同已冻结（2026-07-13）
+> **状态**: P1 架构、P2 机器合同与 P3 本地 Wiki 基线已冻结（2026-07-13）
 > **上位权威**: [SPEC-18](18-P0-Alignment.md)
 > **执行计划**: [P3 Clinical Knowledge Workflow Platform](../dep/plans/ongoing/P3-clinical-knowledge-workflow-platform.md)
 > **目的**: 固化 Workflow Engine、Clinical LLM Wiki 与 Study Instance 的边界、十阶段契约、知识治理和迁移口径。
@@ -37,11 +37,13 @@ P3 是本平台建设的唯一可执行计划。deferred P1/P2 只提供设计�
 ## 2. 三个物理边界
 
 ```text
-G:\Project\Python\
-├── Clinical work flow\    # Workflow Engine，本仓库
-├── Clinical LLM Wiki\     # Wiki Vault + Knowledge Service，独立仓库
-└── Clinical Studies\      # Study 实例根目录；每个 Study 独立受控
+G:\Project\Python\Clinical Knowledge Workflow Platform\  # 管理根目录；不是 Git 聚合仓库
+├── workflow-engine\       # Workflow Engine，独立仓库
+├── clinical-llm-wiki\     # Wiki Vault + Knowledge Service，独立仓库
+└── clinical-studies\      # Study 实例容器；每个 Study 独立受控
 ```
+
+管理根目录只统一本地发现、备份和权限；它不保存共享运行时状态，不承载跨仓库 Git 提交，也不改变下列三个边界的权威。当前的同级目录为过渡布局，P6 在路径、启动和回退验证完成后再执行可回退迁移；跨仓库位置必须由配置显式传入，不能从工作目录推断。
 
 ### 2.1 Workflow Engine
 
@@ -423,3 +425,18 @@ Engine 已发布 `1.0.0` shared contract bundle，清单及 canonical JSON hash 
 [`action_policy.py`](../../src/runtime/action_policy.py)、
 [`models.py`](../../src/knowledge/models.py) 与
 [`compatibility.py`](../../src/knowledge/compatibility.py)。P2 仅建立合同，不在本阶段接入 HTTP、索引或 Runtime 执行循环。
+
+---
+
+## 17. P3 已实现的本地 Wiki 基线
+
+独立仓库 `Clinical LLM Wiki` 已在过渡路径
+`G:\Project\Python\Clinical LLM Wiki` 初始化（commit `57e1802`）。它镜像 Engine
+`contract-bundle.json`，并在 P6 的可回退物理迁移前以显式配置与 Engine 交互。
+
+- `vault/` 是正式 Markdown/YAML 知识源，提供 HOME、核心 MOC、十个固定阶段入口、Templates、Bases、治理和最小已批准种子；Obsidian 只承担编辑/浏览，不依赖社区插件提供运行能力；
+- `scripts/pdf/` 对不可变原件生成文本、页码/bbox、渲染和图像派生；数字及扫描合成 PDF fixtures 覆盖可重建性与视觉证据检查；
+- loopback-only FastAPI 服务提供 health/version/item/source/query/runtime-context/snapshot/proposal，采用结构化过滤加 SQLite FTS；索引可重建，正式内容仍以 Vault Markdown 为准；
+- `runtime-context/resolve` 强制请求的 Schema version/hash lock，拒绝控制流字段，仅返回符合 Engine `ExecutionContext` 合同的结构化规则；
+- 生产索引要求 `verified + approved + DecisionReceipt/audit evidence + rights/storage/review/compatibility`；仅手工修改 `approval_status` 不会使条目可用；
+- Vault、服务、来源管线和真实种子集成验收共 14 个测试通过，且 `ruff check service scripts tests` 通过。P4 才把该服务接入 Engine Runtime 和 Study snapshot fallback。

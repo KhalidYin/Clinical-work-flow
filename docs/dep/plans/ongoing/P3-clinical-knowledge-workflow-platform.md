@@ -115,11 +115,11 @@ syncs_to:
 ## 最终物理部署结构
 
 ```text
-G:\Project\Python\
-├── Clinical work flow\              # Git仓库：Workflow Engine（当前项目）
-├── Clinical LLM Wiki\               # Git仓库：Obsidian Vault + Knowledge Service
-└── Clinical Studies\                # 受控Study工作区，不进入Engine源代码仓库
-    ├── STUDY-001\
+G:\Project\Python\Clinical Knowledge Workflow Platform\  # 管理根目录；不是代码或聚合 Git 仓库
+├── workflow-engine\              # Git仓库：Workflow Engine（当前项目）
+├── clinical-llm-wiki\            # Git仓库：Obsidian Vault + Knowledge Service
+└── clinical-studies\             # Study 实例容器；每个生产 Study 独立受控
+    ├── STUDY-001\                # 建议独立 Git 仓库
     ├── STUDY-002\
     └── ...
 ```
@@ -127,9 +127,11 @@ G:\Project\Python\
 约束：
 
 - 三者是三个物理边界，不要求使用相同生命周期或同一Git仓库。
+- `Clinical Knowledge Workflow Platform/` 只提供本地发现、备份和权限管理的统一入口；它不得成为嵌套 Git、共享运行时状态或跨 Study 审计的权威。
 - Workflow Engine与Clinical LLM Wiki分别版本化。
 - 每个生产Study建议独立Git仓库或等价的受控版本目录；Engine中的`study_template/`和tests fixtures不是生产Study。
 - 不得在未确认用途的情况下复用现有其他仓库作为Clinical LLM Wiki。
+- 当前 `G:\Project\Python\Clinical work flow/` 与 `G:\Project\Python\Clinical LLM Wiki/` 是过渡位置；P6 只在所有测试、相对路径和本地启动验证完成后，以可回退的文件系统迁移将其移动到上图的管理根目录。过渡期通过显式配置提供路径，禁止依赖工作目录猜测兄弟仓库。
 
 ## Workflow Engine 最终结构
 
@@ -457,7 +459,7 @@ policies: live_upgrade/conflict/version/fallback行为
 |-------|------|----------|------|------|
 | P1 | 冻结架构、权威、最终目录和迁移基线 | 4-6 | - | done |
 | P2 | 建立机器合同与知识治理合同 | 6-9 | P1 | done |
-| P3 | 建立Obsidian Vault、来源管线和本地Knowledge Service | 8-11 | P2 | pending |
+| P3 | 建立Obsidian Vault、来源管线和本地Knowledge Service | 8-11 | P2 | done |
 | P4 | 改造Study脚手架并接入Runtime/Review/Audit | 7-10 | P2, P3；旧P1-D/P1-E所需基础 | pending |
 | P5 | 完成纵向合成试点和首版核心内容 | 10-15 | P4 | pending |
 | P6 | 全局验收、迁移、文档同步和本地发布基线 | 5-8 | P5 | pending |
@@ -583,15 +585,15 @@ P1-P4构成平台MVP；P5-P6构成首个可用知识产品和发布基线。
 
 ### 完成标准
 
-- [ ] Vault关闭社区插件后仍可阅读、导航和维护核心内容。
-- [ ] HOME可从角色、工作阶段、知识域和工具入口到达核心MOC。
-- [ ] Templates生成内容完全符合P2 Schema和属性字典。
-- [ ] 原始PDF不被覆盖，派生物可重建，页码/坐标/图片证据可追溯。
-- [ ] rights_status未知、hash缺失、坏链、重复ID或未通过视觉QA会阻断生产资格。
-- [ ] 手工修改approval_status不能绕过DecisionReceipt。
-- [ ] 只有verified+approved内容进入生产索引。
-- [ ] `runtime-context/resolve`返回符合Engine Schema版本/hash的ExecutionContext。
-- [ ] 服务只绑定loopback，Wiki不可依赖Obsidian插件提供API。
+- [x] Vault关闭社区插件后仍可阅读、导航和维护核心内容。
+- [x] HOME可从角色、工作阶段、知识域和工具入口到达核心MOC。
+- [x] Templates生成内容完全符合P2 Schema和属性字典。
+- [x] 原始PDF不被覆盖，派生物可重建，页码/坐标/图片证据可追溯。
+- [x] rights_status未知、hash缺失、坏链、重复ID或未通过视觉QA会阻断生产资格。
+- [x] 手工修改approval_status不能绕过DecisionReceipt。
+- [x] 只有verified+approved内容进入生产索引。
+- [x] `runtime-context/resolve`返回符合Engine Schema版本/hash的ExecutionContext。
+- [x] 服务只绑定loopback，Wiki不可依赖Obsidian插件提供API。
 
 ### 边界（本Phase明确不做）
 
@@ -840,6 +842,7 @@ P1-P4构成平台MVP；P5-P6构成首个可用知识产品和发布基线。
 |------|------|------|------|------|
 | 2026-07-13 | 计划归并 | P1/P2并行 / P2主计划引用P1 / 新P3统一 | 新P3统一 | 单一执行口径，旧设计仍可追溯 |
 | 2026-07-13 | 物理边界 | 单仓一体 / 两仓 / Engine+Wiki+Studies | Engine+Wiki+Studies | 分离代码、共享知识和受控Study状态 |
+| 2026-07-13 | 本地目录组织 | 三个同级散落目录 / 平台管理根目录下的独立仓库 | 平台管理根目录 + 三个独立边界 | 统一发现、备份和权限管理，同时保持 Engine、Wiki 和每个 Study 的独立版本与审计；物理迁移留至 P6 可回退执行 |
 | 2026-07-13 | 工作流边界 | 全部代码 / 全部Wiki / Contract+Playbook | Contract+Playbook | 固定控制与可演化操作知识兼得 |
 | 2026-07-13 | 知识状态 | 单一status / 双状态 | 双状态 | 区分专业质量与运行授权 |
 | 2026-07-13 | Obsidian职责 | 执行端 / 编辑浏览端 | 编辑浏览端 | 避免插件成为生产控制或审批权威 |
@@ -855,3 +858,4 @@ P1-P4构成平台MVP；P5-P6构成首个可用知识产品和发布基线。
 |------|----------|------|
 | 2026-07-13 | SPEC-06、SPEC-18、SPEC-21 | P1：三边界、十阶段、知识状态、迁移分类、跨仓发布与差异台账 |
 | 2026-07-13 | SPEC-21、`schemas/`、`src/runtime/`、`src/knowledge/` | P2：contract bundle、严格模型、Action Policy、治理与兼容性测试 |
+| 2026-07-13 | SPEC-21、Clinical LLM Wiki（`57e1802`） | P3：本地 Obsidian Vault、受控来源派生、审批门禁、SQLite FTS 与 loopback Knowledge Service |
