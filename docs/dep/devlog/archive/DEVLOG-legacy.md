@@ -1,0 +1,335 @@
+# Dev Log
+
+---
+
+## 2026-06-22
+
+### Round 1 [00:03]
+
+#### Done
+- 确认 `docs/specs/18-P0-Alignment.md` 为 P0 权威设计，并将状态更新为已确认。
+- 将顶层 `AGENTS.md` / `CLAUDE.md` 和核心规格文档收敛到“固定依赖管线 + 动态审核策略”口径。
+- 统一产出物目录口径为 `output/`，并在 Runtime 中保留对旧 `outputs/` 的迁移兼容扫描。
+- 冻结 MCP 工具分组：核心 6 个确定性临床工具 + EDC/CTGov 辅助资料工具。
+- 修正 MCP server 工具清单与 handler 不一致问题，补齐 `edc_import` handler。
+- 修正 Runtime 工具加载方式，改为通过 `src.mcp_tools.server.handle_tool_call` 注册工具。
+- 为 Runtime 增加 SDTM/ADaM 批量工具调用展开逻辑。
+- 为 Review Protocol 增加 rejected 决策的结构化反馈字段和轻量校验。
+- 新增基础测试覆盖 Review Protocol、MCP server、Agent Runtime。
+
+#### Issues / Blockers
+- 当前环境未安装 `ruff`，无法运行 `python -m ruff check ...`。
+- 全局 pytest 插件 `pytest_asyncio` 与当前 pytest 版本不兼容；验证时使用 `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1`。
+- 仓库中仍存在已跟踪的 `__pycache__` 文件，建议后续从版本控制中移除并加入 `.gitignore`。
+
+#### Next
+1. 补充 `.gitignore` 和清理已跟踪 `.pyc` 文件。
+2. 将 Review Panel 尚未实现的 SPEC-19 字段接入前端 schema/UI。
+3. 为 `project.yaml` 增加 schema 与样例 study fixture。
+4. 继续补 Runtime 对 approved decision / confirmation receipt 的真实应用逻辑。
+
+#### Files Changed / Commits
+- `AGENTS.md` (modified, uncommitted)
+- `CLAUDE.md` (modified, uncommitted)
+- `docs/specs/00-Overview.md` (modified, uncommitted)
+- `docs/specs/06-AI-Architecture.md` (modified, uncommitted)
+- `docs/specs/08-Agent-Design.md` (modified, uncommitted)
+- `docs/specs/09-MCP-Tools-Design.md` (modified, uncommitted)
+- `docs/specs/10-Workflow-Updated.md` (modified, uncommitted)
+- `docs/specs/11-Change-Management.md` (modified, uncommitted)
+- `docs/specs/13-Environment-Files.md` (modified, uncommitted)
+- `docs/specs/15-Review-Protocol.md` (modified, uncommitted)
+- `docs/specs/16-Review-Panel.md` (modified, uncommitted)
+- `docs/specs/17-Code-Generation.md` (modified, uncommitted)
+- `docs/specs/18-P0-Alignment.md` (modified, uncommitted)
+- `src/mcp_tools/cdisc_validator.py` (modified, uncommitted)
+- `src/mcp_tools/server.py` (modified, uncommitted)
+- `src/runtime/agent_loop.py` (modified, uncommitted)
+- `src/runtime/review_protocol.py` (modified, uncommitted)
+- `src/runtime/router.py` (modified, uncommitted)
+- `tests/test_agent_runtime.py` (added, uncommitted)
+- `tests/test_mcp_server.py` (added, uncommitted)
+- `tests/test_review_protocol.py` (added, uncommitted)
+
+---
+
+### Round 2 [00:12]
+
+#### Done
+- 更新 `.gitignore`，补充 `output/`、`project/output/`、`downloads/ctgov/`、`.pytest_cache/` 和 `.ruff_cache/`。
+- 从工作树删除 28 个已被 Git 跟踪的 Python 字节码文件，后续提交后它们将从版本控制移除。
+- 清理本地残留的未跟踪 `__pycache__` 目录，确认磁盘上不再有 `.pyc` 文件。
+
+#### Issues / Blockers
+- 全局 pytest 插件兼容问题仍存在；验证继续使用 `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1`。
+- `ruff` 仍未安装，未执行 ruff 检查。
+
+#### Next
+1. 将 Review Panel 尚未实现的 SPEC-19 字段接入前端 schema/UI。
+2. 为 `project.yaml` 增加 schema 与样例 study fixture。
+3. 继续补 Runtime 对 approved decision / confirmation receipt 的真实应用逻辑。
+
+#### Files Changed / Commits
+- `.gitignore` (modified, uncommitted)
+- `src/__pycache__/__init__.cpython-314.pyc` (removed, uncommitted)
+- `src/agents/__pycache__/__init__.cpython-314.pyc` (removed, uncommitted)
+- `src/agents/__pycache__/arbitration.cpython-314.pyc` (removed, uncommitted)
+- `src/agents/__pycache__/base.cpython-314.pyc` (removed, uncommitted)
+- `src/agents/__pycache__/executors.cpython-314.pyc` (removed, uncommitted)
+- `src/agents/__pycache__/main_agent.cpython-314.pyc` (removed, uncommitted)
+- `src/agents/__pycache__/review_package.cpython-314.pyc` (removed, uncommitted)
+- `src/agents/__pycache__/reviewer_agent.cpython-314.pyc` (removed, uncommitted)
+- `src/agents/__pycache__/stage_checklists.cpython-314.pyc` (removed, uncommitted)
+- `src/change_management/__pycache__/__init__.cpython-314.pyc` (removed, uncommitted)
+- `src/change_management/__pycache__/change_record.cpython-314.pyc` (removed, uncommitted)
+- `src/change_management/__pycache__/impact_analyzer.cpython-314.pyc` (removed, uncommitted)
+- `src/change_management/__pycache__/version_manager.cpython-314.pyc` (removed, uncommitted)
+- `src/examples/__pycache__/__init__.cpython-314.pyc` (removed, uncommitted)
+- `src/examples/__pycache__/demo_workflow.cpython-314.pyc` (removed, uncommitted)
+- `src/knowledge/__pycache__/__init__.cpython-314.pyc` (removed, uncommitted)
+- `src/knowledge/__pycache__/clinical_standards.cpython-314.pyc` (removed, uncommitted)
+- `src/mcp_tools/__pycache__/__init__.cpython-314.pyc` (removed, uncommitted)
+- `src/mcp_tools/__pycache__/adam_spec_builder.cpython-314.pyc` (removed, uncommitted)
+- `src/mcp_tools/__pycache__/cdisc_validator.cpython-314.pyc` (removed, uncommitted)
+- `src/mcp_tools/__pycache__/edc_importer.cpython-314.pyc` (removed, uncommitted)
+- `src/mcp_tools/__pycache__/sdtm_spec_builder.cpython-314.pyc` (removed, uncommitted)
+- `src/mcp_tools/__pycache__/tfl_renderer.cpython-314.pyc` (removed, uncommitted)
+- `src/skills/__pycache__/__init__.cpython-314.pyc` (removed, uncommitted)
+- `src/skills/__pycache__/definitions.cpython-314.pyc` (removed, uncommitted)
+- `src/workflow/__pycache__/__init__.cpython-314.pyc` (removed, uncommitted)
+- `src/workflow/__pycache__/orchestrator.cpython-314.pyc` (removed, uncommitted)
+- `src/workflow/__pycache__/state_machine.cpython-314.pyc` (removed, uncommitted)
+
+---
+
+### Round 3 [11:06]
+
+#### Done
+- 新增 `src/review_panel/` VSCode extension 最小骨架，声明 `Clinical Review` activity bar view 和 `Review Queue` webview。
+- 实现 `.review_queue` 待读包读取逻辑，跳过已有 `{review_id}_decision.json` 的 packet。
+- 为 Review Panel 接入 SPEC-19 rejected 结构化反馈字段：`rejection_reason`、`human_correction`、`reference`、`comment`。
+- 在 webview 端实现 Approve / Reject / Modify 决策控件，提交前做客户端校验；extension 写回前再调用共享 TypeScript schema 校验。
+- 新增 `package-lock.json` 并安装 TypeScript 开发依赖；`node_modules/` 和编译输出 `src/review_panel/out/` 已加入 `.gitignore`。
+- 新增 Review Panel 静态测试，覆盖 extension manifest、schema 字段、webview 表单和 decision receipt 写回路径。
+
+#### Issues / Blockers
+- Review Panel 目前是最小可编译骨架，尚未实现多 packet 切换、澄清请求、confirmation receipt、队列归档和 VSCode Extension 运行时集成测试。
+- 全局 pytest 插件兼容问题仍存在；验证继续使用 `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1`。
+- `ruff` 仍未安装，未执行 ruff 检查。
+
+#### Validation
+- `npm install` (success, in `src/review_panel/`)
+- `npm run compile` (success, in `src/review_panel/`)
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONDONTWRITEBYTECODE=1 python -B -m pytest` (14 passed)
+- `rg --files -g '*.pyc' -g '__pycache__'` (no results)
+
+#### Next
+1. 为 `project.yaml` 增加 schema 与样例 study fixture。
+2. 继续补 Runtime 对 approved decision / rejected correction / confirmation receipt 的真实应用逻辑。
+3. 为 Review Panel 增加 fixture 驱动的 VSCode Extension 集成验证，覆盖 `.review_queue` packet → decision receipt 写回。
+
+#### Files Changed / Commits
+- `.gitignore` (modified, uncommitted)
+- `src/review_panel/package.json` (added, uncommitted)
+- `src/review_panel/package-lock.json` (added, uncommitted)
+- `src/review_panel/tsconfig.json` (added, uncommitted)
+- `src/review_panel/media/review.svg` (added, uncommitted)
+- `src/review_panel/src/schema.ts` (added, uncommitted)
+- `src/review_panel/src/webview.ts` (added, uncommitted)
+- `src/review_panel/src/extension.ts` (added, uncommitted)
+- `tests/test_review_panel_static.py` (added, uncommitted)
+
+---
+
+### Round 4 [11:22]
+
+#### Done
+- 新增 `docs/dep/P1-RISK-REDUCTION-PLAN.md`，将 P1 风险收敛拆为 `project.yaml` schema、Review JSON Schema 单一权威源、DecisionReceipt 应用闭环、Review Panel schema consumption 和测试门禁。
+- 在 `pyproject.toml` 固化 pytest 配置，默认禁用不兼容的全局 `pytest_asyncio` 插件：`addopts = "-p no:asyncio"`。
+- 安装 `ruff 0.15.18`，确认测试文件 lint 基线干净。
+- 记录全量 ruff baseline：`python -m ruff check src tests` 当前有 42 个既有 lint findings，建议在 P1-A 前增加 `P1-0 lint-only cleanup` 批次。
+
+#### Issues / Blockers
+- 全量 ruff 尚不能作为硬门禁；需先做 lint-only cleanup，避免后续功能开发被历史未使用 import / f-string 等问题阻塞。
+- 本轮只做规划和测试环境整理，没有实现 schema 生成、project loader、decision application 等业务逻辑。
+
+#### Validation
+- `python -B -m pytest` (14 passed; no manual `PYTEST_DISABLE_PLUGIN_AUTOLOAD` required)
+- `python -m ruff check tests` (success)
+- `npm run compile` (success, in `src/review_panel/`)
+- `rg --files -g '*.pyc' -g '__pycache__'` (no results)
+- `git diff --check` (no whitespace errors; only LF/CRLF warning)
+
+#### Next
+1. P1-0: lint-only cleanup，清理 ruff baseline，不改变业务行为。
+2. P1-A: `project.yaml` schema + loader + minimal study fixture。
+3. P1-B: Review JSON Schema 单一权威源 + Python/TypeScript schema drift tests。
+4. P1-C: DecisionReceipt application service + ConfirmationReceipt 闭环。
+
+#### Files Changed / Commits
+- `pyproject.toml` (modified, uncommitted)
+- `docs/dep/P1-RISK-REDUCTION-PLAN.md` (added, uncommitted)
+
+---
+
+### Round 5 [12:50]
+
+#### Done
+- 执行 P1-0 lint-only cleanup，清理全量 ruff baseline，不改变业务行为。
+- 运行 `python -m ruff check src tests --fix` 自动修复 39 个 lint findings。
+- 手动处理 `src/runtime/review_protocol.py` 中 3 个 `F402` loop variable shadowing 问题。
+- 更新 `docs/dep/P1-RISK-REDUCTION-PLAN.md`，将 P1-0 标记为已完成，并将 `python -m ruff check src tests` 提升为后续硬门禁。
+
+#### Issues / Blockers
+- 本轮未实现 `project.yaml` schema、Review JSON Schema 单一权威源或 DecisionReceipt application；这些仍按 P1-A/P1-B/P1-C 顺序执行。
+
+#### Validation
+- `python -m ruff check src tests` (success)
+- `python -B -m pytest` (14 passed)
+- `npm run compile` (success, in `src/review_panel/`)
+- `rg --files -g '*.pyc' -g '__pycache__'` (no results)
+- `git diff --check` (no whitespace errors; only LF/CRLF warnings)
+
+#### Next
+1. P1-A: `project.yaml` schema + loader + minimal study fixture。
+2. P1-B: Review JSON Schema 单一权威源 + Python/TypeScript schema drift tests。
+3. P1-C: DecisionReceipt application service + ConfirmationReceipt 闭环。
+
+#### Files Changed / Commits
+- `docs/dep/P1-RISK-REDUCTION-PLAN.md` (added, uncommitted)
+- `docs/dep/DEVLOG.md` (modified, uncommitted)
+- `pyproject.toml` (modified, uncommitted)
+- `src/agents/domain_agents.py` (modified, uncommitted)
+- `src/agents/executors.py` (modified, uncommitted)
+- `src/agents/protocol_analyzer.py` (modified, uncommitted)
+- `src/change_management/impact_analyzer.py` (modified, uncommitted)
+- `src/change_management/version_manager.py` (modified, uncommitted)
+- `src/knowledge/clinical_standards.py` (modified, uncommitted)
+- `src/mcp_tools/cdisc_validator.py` (modified, uncommitted)
+- `src/mcp_tools/ctgov_fetcher.py` (modified, uncommitted)
+- `src/mcp_tools/edc_importer.py` (modified, uncommitted)
+- `src/mcp_tools/server.py` (modified, uncommitted)
+- `src/runtime/agent_loop.py` (modified, uncommitted)
+- `src/runtime/review_protocol.py` (modified, uncommitted)
+- `src/runtime/router.py` (modified, uncommitted)
+- `src/skills/definitions.py` (modified, uncommitted)
+
+---
+
+### Round 6 [13:29]
+
+#### Done
+- 完成 P1-A：新增 `schemas/project.schema.json`，将 `project.yaml` 扩展为 Study 级配置合同。
+- 新增 `src/config/project.py`，提供 Pydantic loader、清晰错误封装和相对路径解析。
+- 更新 `AgentRuntime`，当 study 目录存在 `project.yaml` 时，以配置文件覆盖 CLI/default 的 `study_id`、`trial_phase`、`therapeutic_area`，并从配置读取 `output_dir`、`.review_queue` 和 `audit_trail.jsonl` 路径。
+- 扩展 `ReviewQueue`，允许 Runtime 传入自定义 review queue 路径，同时保留默认 `.review_queue`。
+- 新增 minimal study fixture 和 `tests/test_project_config.py`，覆盖 schema contract、loader、缺字段错误、timeout 顺序校验和 Runtime 配置覆盖。
+- 更新 SPEC-13 的 `project.yaml` 示例、字段表和 runbook；更新 P1 风险收敛计划，将 P1-A 标记为完成。
+
+#### Issues / Blockers
+- `project.yaml` schema 已定，但尚未接入 Review schema 单一权威源；下一步仍需执行 P1-B。
+- Runtime 目前只读取配置上下文和路径，不在本轮实现 DecisionReceipt application。
+
+#### Validation
+- `python -m ruff check src tests` (success)
+- `python -B -m pytest` (19 passed)
+- `npm run compile` (success, in `src/review_panel/`)
+- `rg --files -g '*.pyc' -g '__pycache__'` (no results)
+
+#### Next
+1. P1-B: Review JSON Schema 单一权威源 + Python/TypeScript schema drift tests。
+2. P1-C: DecisionReceipt application service + ConfirmationReceipt 闭环。
+3. P1-D: Review Panel schema consumption + fixture integration。
+
+#### Files Changed / Commits
+- `schemas/project.schema.json` (added, uncommitted)
+- `src/config/__init__.py` (modified, uncommitted)
+- `src/config/project.py` (added, uncommitted)
+- `src/runtime/agent_loop.py` (modified, uncommitted)
+- `src/runtime/review_protocol.py` (modified, uncommitted)
+- `tests/fixtures/studies/minimal/project.yaml` (added, uncommitted)
+- `tests/test_project_config.py` (added, uncommitted)
+- `docs/specs/13-Environment-Files.md` (modified, uncommitted)
+- `docs/dep/P1-RISK-REDUCTION-PLAN.md` (modified, uncommitted)
+- `docs/dep/DEVLOG.md` (modified, uncommitted)
+
+---
+
+### Round 7 [14:29]
+
+#### Done
+- 完成 P1-B：新增 `schemas/review/review-protocol.schema.json`，作为 Review Protocol 的单一 JSON Schema 权威源。
+- 更新 `src/runtime/review_protocol.py`，Python `REVIEW_*_SCHEMA` / `FINDING_DECISION_SCHEMA` / `CONFIRMATION_RECEIPT_SCHEMA` 常量均从 schema bundle 加载，并删除旧的内联 schema 字典。
+- 更新 `src/runtime/__init__.py`，导出 Review schema bundle、finding decision schema、confirmation receipt schema 和 `RejectionReason`。
+- 为 Review Panel TypeScript 类型增加权威源注释，并新增 `tests/test_review_schema_contract.py`，覆盖 Python enum、Python 导出 schema、TypeScript union 与 JSON Schema 的漂移检查。
+- 更新 SPEC-15 与 P1 风险收敛计划，将 P1-B 标记为完成，并明确 Ajv/runtime schema consumption 延后到 P1-D 或工具化批次。
+
+#### Issues / Blockers
+- Review Panel 当前仍保留轻量手写 TypeScript 类型，本轮通过 drift tests 约束它；运行时直接消费 JSON Schema、Ajv 校验和 schema type generation 尚未接入。
+- Runtime 尚未应用 DecisionReceipt 修改真实产物；Review 闭环仍需 P1-C 的 decision application service + ConfirmationReceipt。
+
+#### Validation
+- `python -m ruff check src tests` (success)
+- `python -B -m pytest` (24 passed)
+- `npm run compile` (success, in `src/review_panel/`)
+- `rg --files -g '*.pyc' -g '__pycache__'` (no results)
+- `git diff --check` (no whitespace errors; only LF/CRLF warnings)
+
+#### Next
+1. P1-C: 设计并实现 `src/runtime/decision_application.py`，先覆盖 YAML/spec 类产物的 approved / modified / rejected / insufficient_evidence。
+2. 为 P1-C 增加 fixture：ReviewPacket + DecisionReceipt + artifact input，断言写出 ConfirmationReceipt。
+3. P1-D: Review Panel 运行时直接消费 `schemas/review/review-protocol.schema.json`，并把 fixture 流程接到 extension 侧。
+
+#### Files Changed / Commits
+- `schemas/review/review-protocol.schema.json` (added, uncommitted)
+- `src/runtime/review_protocol.py` (modified, uncommitted)
+- `src/runtime/__init__.py` (modified, uncommitted)
+- `src/review_panel/src/schema.ts` (modified, uncommitted)
+- `tests/test_review_schema_contract.py` (added, uncommitted)
+- `docs/specs/15-Review-Protocol.md` (modified, uncommitted)
+- `docs/dep/P1-RISK-REDUCTION-PLAN.md` (modified, uncommitted)
+- `docs/dep/DEVLOG.md` (modified, uncommitted)
+- `docs/dep/TASK_STATE.md` (temporary checkpoint, removed)
+
+---
+
+### Round 8 [14:43]
+
+#### Done
+- 提交 P1-B：`7aa2c40 Add review schema authority and drift tests`。
+- 完成 P1-C：新增 `src/runtime/decision_application.py`，实现 DecisionReceipt application service。
+- Runtime 现在会在收到 DecisionReceipt 后加载原 ReviewPacket，应用决策，写出 `.review_queue/{review_id}_confirmation.json`，再归档 packet / decision / confirmation / rework 文件。
+- YAML/spec 类 artifact 初始支持 `sdtm_spec`、`adam_spec`、`tfl_shell`；`ReviewFinding.location` 使用 `<relative-path>.yaml#<field.path>` 定位字段，支持点路径和数组索引。
+- `approved` 写入 `proposed_value`，`modified` 写入 `modified_value`，`rejected` 不改 artifact，而写出 `.review_queue/{review_id}_rework.json`。
+- 新增 `tests/test_decision_application.py`，覆盖 approved / modified / rejected / insufficient_evidence、缺失 artifact 的 failed result、ReviewQueue 归档和 Runtime 接入。
+- 更新 SPEC-15 和 P1 风险收敛计划，将 P1-C 标记为已完成。
+
+#### Issues / Blockers
+- P1-C 只覆盖 YAML/spec 类产物；SAS/R 程序、XPT、Define-XML 仍需独立 adapter，不能直接用字符串 patch。
+- YAML 写入当前按 ReviewFinding/DecisionReceipt 的字符串值落盘，尚未做类型推断或 schema-aware casting。
+- ReviewFinding.location 必须由生成侧提供明确 YAML 字段路径；如果后续 packet 仍只写 `AE.AESEV` 这种业务位置，Runtime 无法自动应用。
+
+#### Validation
+- `python -B -m pytest tests/test_decision_application.py` (5 passed)
+- `python -m ruff check src/runtime tests/test_decision_application.py` (success)
+- `python -m ruff check src tests` (success)
+- `python -B -m pytest` (29 passed)
+- `npm run compile` (success, in `src/review_panel/`)
+- `rg --files -g '*.pyc' -g '__pycache__'` (no results)
+- `git diff --check` (no whitespace errors; only LF/CRLF warnings)
+
+#### Next
+1. P1-D: Review Panel 运行时直接消费 `schemas/review/review-protocol.schema.json`，接入 Ajv 校验和 fixture 流程。
+2. 让 packet 生成侧为 YAML/spec review findings 写入可应用的 `location` 路径。
+3. 后续单独扩展非 YAML artifact adapter：SAS/R 程序、XPT、Define-XML。
+
+#### Files Changed / Commits
+- `src/runtime/decision_application.py` (added, uncommitted)
+- `src/runtime/agent_loop.py` (modified, uncommitted)
+- `src/runtime/review_protocol.py` (modified, uncommitted)
+- `src/runtime/__init__.py` (modified, uncommitted)
+- `tests/test_decision_application.py` (added, uncommitted)
+- `docs/specs/15-Review-Protocol.md` (modified, uncommitted)
+- `docs/dep/P1-RISK-REDUCTION-PLAN.md` (modified, uncommitted)
+- `docs/dep/DEVLOG.md` (modified, uncommitted)
+- `docs/dep/TASK_STATE.md` (temporary checkpoint, removed)

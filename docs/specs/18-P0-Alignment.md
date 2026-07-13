@@ -1,6 +1,6 @@
 # SPEC-18: P0 架构对齐 — 统一设计决策
 
-> **版本**: v1.0
+> **版本**: v1.1
 > **状态**: 已确认（2026-06-22）
 > **依赖**: SPEC-00 ~ SPEC-17 全部
 > **目的**: 解决文档间的矛盾和歧义，形成单一权威设计
@@ -311,3 +311,29 @@ Agent Runtime (agent_loop.py)
 7. **`tfl_renderer` MCP 工具 API 定义**
 
 这些问题记录在后续计划中，不阻塞 P0 对齐。
+
+---
+
+## 9. 决策 5：知识与工作流平台边界（2026-07-13）
+
+### 决策
+
+采用三个物理边界，并保持 P0 管线权威不变：
+
+1. **Workflow Engine**：拥有固定十阶段 Pipeline Contract、Action Policy、Runtime、共享 JSON Schema 和确定性工具；
+2. **Clinical LLM Wiki**：拥有经治理的 Workflow Playbook、Domain Knowledge、来源和知识快照；
+3. **Study Instance**：拥有当前研究的 facts、override、decision、runtime manifest、产出和执行审计。
+
+Wiki 不能新增、跳过或重排 Stage，不能绕过 Review Protocol，不能直接执行任意 shell/SAS/R/Python 命令。Obsidian 是 Wiki 的编辑/浏览前端，不是 Runtime 状态或机器合同权威。
+
+Canonical 十阶段 ID 为：
+
+```text
+protocol_analysis → sap_generation → sdtm_spec → sdtm_programming
+→ adam_spec → adam_programming → tfl_shell_design → tfl_programming
+→ qc_validation → submission_packaging
+```
+
+知识按一般 Workflow/Domain 规则、既往 Study 参考、当前 Study override/decision 分层。生产运行必须锁定 Engine contract version/hash 和 Wiki snapshot version/hash；服务不可用时仅允许使用兼容的已锁定快照，否则 fail closed。
+
+详细权威矩阵、Stage I/O、迁移分类、跨仓发布约定和当前实现差异见 [SPEC-21](21-Knowledge-Workflow-Integration.md)。SPEC-21 细化本决策，但不得修改本文的固定管线、文件系统状态、动态审核和确定性工具边界。

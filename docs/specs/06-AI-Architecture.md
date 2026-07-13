@@ -355,3 +355,32 @@ v3.0: 固定管线执行 + 置信度驱动验证
 | Review Protocol 详细规格 | [SPEC-15](15-Review-Protocol.md) |
 | Review Panel 前端规格 | [SPEC-16](16-Review-Panel.md) |
 | 变更管理 (保留+Git) | [SPEC-11](11-Change-Management.md) |
+
+---
+
+## 8. Clinical Knowledge Workflow Platform 边界
+
+v3.0 Runtime 在原有“固定管线 + 动态审核”之外增加知识解析层，但不改变管线权威：
+
+```text
+Clinical LLM Wiki                         Workflow Engine
+approved Playbook + Domain Knowledge     Pipeline Contract + Action Policy
+                \                         /
+                 Knowledge Service API
+                          ↓
+Study override + locked manifest → ExecutionContextBundle
+                          ↓
+                  fixed-stage Runtime
+                          ↓
+        deterministic tools + Review Protocol
+```
+
+三个物理边界分别为独立的 Workflow Engine、Clinical LLM Wiki 和 Study Instance。Engine 拥有顺序、能力白名单和共享 Schema；Wiki 拥有获批知识正文与快照；Study 拥有当前规则、决策和执行证据。
+
+Runtime 每个 Stage 只消费一次原子 `ExecutionContextBundle`。Bundle 必须同时包含 Pipeline Contract、approved Workflow Playbook、approved Domain Knowledge、Study overrides、工具版本和 provenance，并锁定版本/hash。执行过程中不得静默刷新知识。
+
+知识服务不可用时，只能使用 Study 中兼容且已锁定的 snapshot；缺少 snapshot、hash 不一致或 Schema 不兼容时必须 fail closed。不得回退到硬编码模板或模型常识。
+
+Obsidian 不参与执行控制。它只编辑 Markdown/YAML 知识源；approved-only index、API 响应和 snapshot 均为可验证派生物。Workflow Playbook 描述“如何执行”，Pipeline Contract 决定“能执行什么、顺序是什么”，脚本/MCP 实现“实际执行”。
+
+完整的十阶段 ID、职责矩阵、API 边界、迁移清单和当前差异台账见 [SPEC-21](21-Knowledge-Workflow-Integration.md)。
