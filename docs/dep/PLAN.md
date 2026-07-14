@@ -14,6 +14,7 @@ updated: 2026-07-14
 
 | # | 子计划 | 文件 | 预估轮次 | 依赖 |
 |---|--------|------|----------|------|
+| P0 | 根目录轻量本地 Review Panel | [P0-local-review-panel.md](plans/backlog/P0-local-review-panel.md) | 6-9 | P6-P1 已完成；完成后继续 P6-P2 |
 | P7 | AE 数据集知识驱动执行闭环 | [P7-safety-analysis-vertical-workflow.md](plans/backlog/P7-safety-analysis-vertical-workflow.md) | 10-16 | P6 完成 |
 | P8 | Workflow Application API 与本地 Study Console | [P8-workflow-api-study-console.md](plans/backlog/P8-workflow-api-study-console.md) | 25-40（执行前重估） | P7 完成并重新确认范围 |
 | P9 | 多 Study 内网协作与受控部署 | [P9-multi-study-intranet-collaboration.md](plans/backlog/P9-multi-study-intranet-collaboration.md) | 20-32（执行前重估） | P8 完成并重新确认部署授权 |
