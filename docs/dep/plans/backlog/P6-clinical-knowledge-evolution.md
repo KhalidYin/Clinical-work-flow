@@ -4,89 +4,120 @@ status: planning
 created: 2026-07-14
 updated: 2026-07-14
 priority: 1
-estimated_rounds: 17-26
+estimated_rounds: 10-16
 depends_on:
   - P3-clinical-knowledge-workflow-platform.md
   - P5-obsidian-curated-relation-graph.md
 tags:
-  - clinical-statistics
-  - knowledge-extraction
-  - knowledge-governance
+  - knowledge-source
+  - citation-closure
+  - pdf-ingestion
   - obsidian
-  - retrieval
+  - runtime-context
 syncs_to:
   - 07-Phase-TA-Config.md
+  - 13-Environment-Files.md
   - 21-Knowledge-Workflow-Integration.md
 ---
 
-# 临床统计知识持续演化与交互索引治理
+# 临床知识来源摄取与引用闭包
 
 ## 目标
 
-在现有 68 条受治理内容和十阶段 Playbook 基线上，恢复原 P1 的持续知识抽取与深化主线：围绕 Protocol/SAP 主流统计决策、标准实现和实际工作任务，把来源转化为可审核、可引用、可执行的知识资产；同时保留 Obsidian 导航、关系投影、全文索引和 Snapshot，但固定其“可重建派生层”边界，防止索引建设挤占专业内容或成为第二知识权威。
+围绕一个实际来源包和一个实际工作问题，建立最小、可验证的知识链路：PDF 原件进入受控来源包，LLM 只生成带精确定位的知识 Proposal，人工批准后发布 Snapshot；Workflow 查询时获得完整规则与引用，产物能够反向追溯到 Study 决策、知识 statement、来源 locator、版本和原件 hash。
+
+P6 不以知识文章数量或目录完整度为目标。首要成功标准是：引用链不漏，知识不足时明确形成 gap/review，而不是由 LLM 自行补写依据。
 
 ## 背景
 
-- 当前 Wiki 已形成工作流骨架、Protocol/SAP 主流方法、标准/编程种子内容和 ADAE 纵向试点，适合“从工作阶段进入知识”，但尚不是完整的临床统计方法库。
-- 原 `P1-clinical-statistics-knowledge-base.md` 的双轴架构、来源治理和 60–80 篇首版目标已被 P3 吸收；本计划不恢复旧计划生命周期，而从当前批准边界建立第二轮内容演化。
-- P4/P5 新增的工作流地图、关系投影和 Obsidian 图谱是导航派生物；它们必须保留，但不能计入专业知识规模，也不能覆盖正文、审批或 Pipeline Contract。
-- 方案来源：用户于 2026-07-14 批准的长期主线设计。
+- 当前 Wiki 已具备 Vault、来源 accession、PDF 派生管线、approved-only 服务、Snapshot 和 Runtime Context 基础。
+- 当前 statement 已有 `evidence_refs`，但运行时主要返回 source ID；来源的 section/page locator 尚未稳定进入规则和产物级引用。
+- 当前 artifact sidecar 可以证明加载了哪个 Context/Snapshot，但“加载过的知识”和“实际采用的知识”尚未完全分离。
+- 现有 SDTMIG 3.3 Vault 来源卡的 `locators` 为空，而外层 accession 已有章节信息，说明引用链仍可能在 source record 与 locator 之间断开。
+- 用户于 2026-07-14 明确收敛口径：Wiki 是受治理的知识规范与证据集合；治理中心是引用闭包，不建设越来越重的知识平台。
+
+## 方案选择
+
+| 方案 | 说明 | 复杂度 | 结论 |
+|------|------|--------|------|
+| 完整知识库先行 | 先批量扩充 Protocol/SAP/标准/方法，再接工作流 | 高，容易长期停留在内容建设 | 不采用 |
+| 普通 RAG 引用 | 文档切片检索，回答中附来源名称 | 低，但无法证明具体决策和 locator | 不采用 |
+| 任务驱动的引用闭包 | 先打通来源→statement→locator→产物，再按真实任务增量扩充 | 中，直接服务执行 | 采用 |
 
 ## 涉及范围
 
 ### 包含
 
-- 当前知识覆盖率、深度、来源质量和实际任务可用性的差距矩阵。
-- 来源候选、抽取 Proposal、人工审核、批准发布、索引重建和 Snapshot 发布闭环。
-- Protocol/SAP 核心统计决策、主流分析方法、数据标准/实现、QC/递交知识包的深化。
-- 既有知识卡的假设、适用条件、决策标准、异常、实现提示和来源 statement 级补强。
-- Obsidian MOC、阶段关系投影、SQLite FTS、structured filters 和 Snapshot 的派生/重建合同。
-- 内容质量与实际工作任务检索的回归测试。
+- 固定 `sources/packages/<source-id>/` 来源包结构和原件/派生物/Git 边界。
+- PDF 原件不可变摄取、hash、解析文本、页面渲染、页码/section locator 和派生 manifest。
+- 来源 accession、Vault source record、LLM Proposal、批准知识卡和 Snapshot 的单向发布路径。
+- statement 级 `source_id + locator_id` 合同及引用闭包校验。
+- Runtime Context 返回闭合引用；artifact provenance 区分 loaded context 与 applied evidence。
+- 以用户提供的 SDTMIG 3.4 PDF 为优先试点；文件未提供时先用公开/合成 fixture 验证管线，不伪造实际内容。
+- 以“生成 AE 数据集需要哪些适用规则与引用”为发布验收查询。
 
 ### 不包含
 
-- 为追求文章数量而批量生成低证据摘要。
-- 穷尽所有治疗领域、监管地区和统计模型。
-- GraphRAG、Neo4j、向量数据库或云端检索；只有现有检索评估证明存在缺口后另立计划。
-- 把导航/MOC/关系投影计入权威知识数量，或让它们进入 Runtime 规则优先级。
-- 真实 Study 数据、申办方机密资料或未获授权来源进入共享 Wiki。
-- 修改十阶段 Pipeline 顺序、Runtime Action Policy 或 Review Protocol。
+- 一次性建设完整临床统计百科或恢复 60–80 篇数量目标。
+- 批量深化全部 Protocol/SAP 方法、治疗领域或全部 SDTM domain。
+- GraphRAG、Neo4j、向量数据库、知识编辑 Web UI 或云端知识平台。
+- 在 Wiki 中保存或执行 SAS/R/Python 临床程序。
+- 为开源工具建设独立治理系统；工具选择只在实际接入时保留轻量决策记录。
+- 修改十阶段 Pipeline 顺序或让 Wiki 控制 Runtime。
 
 ## 主文档影响
 
 完成后需要更新：
 
-- `07-Phase-TA-Config.md`：知识包、适用范围、治疗领域/Phase 扩展和按需加载口径。
-- `21-Knowledge-Workflow-Integration.md`：持续抽取闭环、三层知识/索引边界、内容发布和回归门禁。
+- `07-Phase-TA-Config.md`：知识适用范围、来源版本与 Study 锁定口径。
+- `13-Environment-Files.md`：`sources/packages/`、local-only 原件、可重建派生物和备份边界。
+- `21-Knowledge-Workflow-Integration.md`：来源摄取、引用闭包、Runtime 查询和 applied evidence 合同。
 
-`syncs_to` 与本节一致；使用命令和维护流程同时同步到根 `USAGE.md` 与 Wiki README，但它们不是架构权威。
+`syncs_to` 与本节一致；使用命令同时同步根 `USAGE.md` 和 Wiki README，但它们不是架构权威。
 
 ---
 
-## 三层资产合同
+## 最小资产合同
 
-| 层次 | 典型内容 | 是否知识权威 | 是否可重建 | 是否计入专业内容 |
-|------|----------|--------------|------------|------------------|
-| 知识正文层 | 方法、标准、编程模式、案例、来源、Playbook | 是，批准后生效 | 否，正文是源资产 | 是 |
-| 交互导航层 | HOME、MOC、阶段地图、关系投影、Bases | 否 | 是，或由人工策展规则恢复 | 否 |
-| 机器检索层 | SQLite FTS、metadata index、API 查询结果、Snapshot | Snapshot 是运行锁定制品，但不是正文源 | 是（Snapshot 按发布记录复现） | 否 |
+| 资产 | 推荐位置 | Git | 权威职责 |
+|------|----------|-----|----------|
+| PDF 原件 | `sources/packages/<source-id>/original/` | 默认不提交 | 不可变原始证据 |
+| 来源 manifest | `sources/packages/<source-id>/source-manifest.json` | 提交 | 原件 hash、版本、权利和存储模式 |
+| 解析派生物 | `sources/packages/<source-id>/derived/` | 默认不提交 | 文本、页面坐标、渲染和可重建证据 |
+| 机器 accession | `sources/accessions/<source-id>.json` | 提交 | 上游身份、版本和 locator 集合 |
+| Vault 来源卡 | `vault/60_Sources/Registry/` | 提交 | 人工可读来源登记和访问入口 |
+| LLM 知识候选 | `vault/98_Inbox/` | 提交 | `proposed` statement，不可用于生产 |
+| 批准知识 | `vault/20_Knowledge/` | 提交 | 可由 Knowledge Service 查询的规则正文 |
+| 发布 Snapshot | `snapshots/` | 按发布策略提交 | Study manifest 锁定的不可变知识集合 |
 
 固定规则：
 
-1. Markdown/YAML 权威正文只能通过 Proposal → ReviewPacket → DecisionReceipt → ConfirmationReceipt 获得批准。
-2. 关系投影只能从 Engine Pipeline Contract 与正文 `workflow_stages` 生成，不手工维护第二套关系。
-3. FTS/index 可随时删除重建；重建不得改变批准状态、正文 hash 或规则优先级。
-4. Snapshot 是某次 approved-only 发布的不可变制品；Runtime 只能消费 manifest 锁定的 Snapshot。
-5. 导航节点、索引记录和 AI 摘要不得用于满足内容数量或来源覆盖率指标。
+1. PDF 原件只保存一份；Vault 不复制原文，只保存来源卡和引用。
+2. `derived/` 可以删除重建，不能成为知识权威。
+3. LLM 输出只能进入 `98_Inbox` 且状态为 `proposed`。
+4. 每条生产 statement 必须闭合到至少一个批准来源和一个精确 locator。
+5. 旧来源版本不被覆盖；新版本建立新 source package、source ID 和 Snapshot。
+6. 旧 Study 不自动升级 Snapshot。
 
-## 知识深化优先级
+## 引用闭包不变量
 
-| 优先包 | 必须覆盖的决策/实现主题 | 深度要求 |
-|--------|------------------------|----------|
-| A. Protocol/SAP 核心 | estimand、终点、分析集、基线/协变量、缺失数据、敏感性、多重性、样本量/把握度、中期分析、亚组、模型选择、解释边界 | 每个主题具备适用条件、决策门、假设/诊断、异常、Study-specific 边界和来源 statement |
-| B. 主流分析方法 | ANCOVA、MMRM/纵向、生存、二分类、计数、暴露调整、安全性汇总 | 连接 SAP 决策、数据需求、参数/输出、稳健性检查和 TFL 解释，不提供无条件默认模型 |
-| C. 标准与实现 | SDTM AE/DM/SV、ADSL/ADAE/BDS、参数与 TFL 追溯、Define-XML、Reviewer Guide、QC evidence | 连接输入/输出、变量或记录级 traceability、验证证据和工具边界 |
-| D. 既往 Study 经验 | 已批准决策的去标识、一般化、适用范围和反例 | 只作为引用/Proposal；未经独立批准不得提升为一般规则 |
+```text
+Artifact / Mapping decision
+  → applied_rule_ref
+  → approved statement
+  → evidence source_id + locator_id
+  → source version + URI + original SHA-256
+```
+
+Study 特定链独立保留：
+
+```text
+Artifact / Mapping decision
+  → study_decision_ref
+  → CRF/EDC field, Protocol/SAP section or approved Study review
+```
+
+引用闭包按“重要临床决策”检查，不要求每行通用编程语法都附法规。目标变量选择、来源字段、转换逻辑、CT、日期处理、SUPP/域边界和例外处理属于必须引用的决策。
 
 ---
 
@@ -94,176 +125,180 @@ syncs_to:
 
 | Phase | 目标 | 预估轮次 | 依赖 | 状态 |
 |-------|------|----------|------|------|
-| P1 | 建立内容差距矩阵与第二轮发布合同 | 3-4 | 现有 P3/P5 基线 | pending |
-| P2 | 建立来源到知识 Proposal 的可审计抽取流水线 | 4-6 | P1 | pending |
-| P3 | 深化优先知识包并完成专家审核 | 7-11 | P2 | pending |
-| P4 | 重建交互索引、发布 Snapshot 并做任务回归 | 3-5 | P3 | pending |
+| P1 | 固定来源包和引用闭包合同 | 2-3 | 现有 P3/P5 基线 | pending |
+| P2 | 打通 PDF→Proposal 的最小摄取链 | 3-5 | P1 | pending |
+| P3 | 让 Runtime Context 与产物携带实际引用 | 3-5 | P2 | pending |
+| P4 | 发布单个闭合 Snapshot 并完成 AE 查询验收 | 2-3 | P3 | pending |
 
 ---
 
-## P1：内容差距矩阵与发布合同
+## P1：来源包与引用合同
 
 ### 输入条件
 
-- P3/P5 完成基线可复现，当前 approved 内容、导航派生物和索引数量可分别统计。
-- 用户工作区中的未提交知识编辑不被本 Phase 覆盖或改写。
+- 现有 PDF source pipeline、Knowledge Schema、Snapshot 和 Runtime Context 测试基线可复现。
+- 用户工作区中的未提交 Vault 修改不被覆盖或重签 approval。
 
 ### 产出
 
-- 按知识包、工作流阶段、角色、任务、来源等级和内容深度建立覆盖矩阵。
-- 明确“新增、深化、合并、弃用、暂缓”的条目级 backlog。
-- 固化正文/导航/索引三层统计和发布口径。
-- 建立第二轮内容发布 ID、版本、Review scope 和回滚策略。
+- `sources/packages/<source-id>/` 固定目录、命名、Git、备份和版本策略。
+- statement→source→locator→原件 hash 的最小数据合同。
+- loaded context、applied evidence 和 Study decision 三类追溯职责边界。
+- 当前断链清单和一个 AE 查询验收 fixture。
 
 ### 完成标准
 
-- [ ] 现有正文、导航、来源和机器派生物被分别计数，不再以 Markdown 总数代替知识规模。
-- [ ] 优先包 A–D 的每个主题均有当前覆盖、来源、深度缺口和目标任务。
-- [ ] 每项高优先级缺口都有目标 note type、source requirement、owner/reviewer 和验收场景。
-- [ ] 发布合同明确批准证据、Snapshot 兼容、失败回滚和不允许的自动批准路径。
-- [ ] 差距矩阵经人工确认后才能进入 P2；不得在 P1 批量生成正文。
+- [ ] 原件、派生物、来源登记、知识候选、批准知识和 Snapshot 的位置与权威职责无重叠。
+- [ ] locator 具有稳定 ID，并能表达 HTML section 或 PDF physical/printed page；不伪造不存在的页码。
+- [ ] 每个生产 statement 的 source/locator 都能被机器解析和验证。
+- [ ] loaded context 不能被误当作 applied evidence。
+- [ ] Schema 变更保持最小，只增加闭合引用所需字段。
 
-### 边界
+### 边界（本 Phase 明确不做）
 
-- 不修改受治理正文或重签已有 approval。
-- 不以任意篇数替代覆盖深度和任务证据。
+- 不摄取真实来源或生成知识正文。
+- 不修改 Runtime 执行行为。
 
 ### 涉及文件
 
 | 文件 | 操作 |
 |------|------|
-| `clinical-llm-wiki/docs/content-gap-matrix.md` | 新建 |
-| `clinical-llm-wiki/vault/80_Governance/**` | 最小扩充发布/统计规则 |
-| `clinical-llm-wiki/tests/**` | 增加库存分层合同测试 |
+| `clinical-workflow/schemas/knowledge/**` | 最小扩充引用合同 |
+| `clinical-llm-wiki/schemas/engine/**` | 由 Engine bundle 镜像 |
+| `clinical-llm-wiki/vault/80_Governance/**` | 精简为引用闭包规则 |
+| `clinical-llm-wiki/tests/**` | 增加 closure 正反例 |
 
 ### 关键决策
 
-- 内容扩展以任务和证据缺口驱动，不按百科目录或文章数量驱动。
+- 采用 statement 级 locator 引用，不建设独立知识图数据库。
 
 ---
 
-## P2：来源到 Proposal 的抽取流水线
+## P2：PDF 来源摄取与 Proposal
 
 ### 输入条件
 
-- P1 高优先级缺口和允许来源已确认。
-- 来源权利、存储模式、定位符和完整性要求不存在未解决的阻断项。
+- P1 引用合同通过正反例测试。
+- 试点 PDF 的权利、存储模式和是否允许外部模型处理已经明确；不明确时只能本地解析。
 
 ### 产出
 
-- 来源 accession → 解析/定位 → statement candidate → 原子知识 Proposal 的可审计流程。
-- AI 摘要、原文定位和人工编辑之间的字段边界。
-- 重复、冲突、替代版本、来源不足和解析失败处理。
-- 合成/公开来源 fixtures 与抽取质量测试。
+- 将现有 PDF 管线固定到 `sources/packages/<source-id>/`。
+- 不可变原件、source manifest、derived extraction/render 和 accession locator。
+- Vault source record 和带 locator 的原子知识 Proposal。
+- 重复版本、原件 hash 冲突、OCR/定位失败和权利不足的失败路径。
 
 ### 完成标准
 
-- [ ] 每个 Proposal 可回到 source ID、版本、section/page locator 和派生记录。
-- [ ] AI 生成内容初始状态固定为 proposed，不能通过修改 YAML 自我批准。
-- [ ] 重复和冲突候选不会覆盖现有 approved card，而是生成明确 review finding。
-- [ ] 来源不可访问、权利未知或定位不足时 fail closed，不生成可发布 statement。
-- [ ] 抽取流水线不写入导航投影、FTS 或正式 Snapshot；这些只在批准后由 P4 重建。
+- [ ] 重复摄取相同原件幂等，不同字节不能覆盖既有 package。
+- [ ] 原件和 derived 默认不进入 Git；manifest/accession/知识卡按合同进入 Git。
+- [ ] LLM 归纳内容只写入 `98_Inbox`，并保留 source ID、locator ID 和 derivation 记录。
+- [ ] 找不到精确 locator、解析失败或权利不允许时，不生成可发布 statement。
+- [ ] Source record 与 accession locator 一致，不再出现 accession 有定位而 Vault 来源卡为空的静默断链。
 
-### 边界
+### 边界（本 Phase 明确不做）
 
-- 不自动抓取未授权网站或把受限文献上传到外部模型。
-- 不让 LLM 决定最终统计规则或批准状态。
+- 不自动批准或发布 Snapshot。
+- 不把 PDF 全文复制到 Vault。
+- 不自动访问或上传未授权来源。
 
 ### 涉及文件
 
 | 文件 | 操作 |
 |------|------|
-| `clinical-llm-wiki/scripts/content/**` | 新增/扩充抽取与 Proposal 工具 |
-| `clinical-llm-wiki/service/**` | 扩充 Proposal 合同（如需要） |
-| `clinical-llm-wiki/tests/**` | 增加来源、冲突和失败模式测试 |
+| `clinical-llm-wiki/scripts/pdf/**` | 固定 package 路径与摄取输出 |
+| `clinical-llm-wiki/scripts/content/**` | 增加 locator-aware Proposal 生成 |
+| `clinical-llm-wiki/sources/**` | 增加试点 package/accession |
+| `clinical-llm-wiki/vault/60_Sources/**` | 增加来源卡 |
+| `clinical-llm-wiki/vault/98_Inbox/**` | 生成知识候选 |
+| `clinical-llm-wiki/tests/**` | 摄取、定位、权限和失败测试 |
 
 ### 关键决策
 
-- AI 负责候选抽取和结构化，人类负责语义校正、适用范围和批准。
+- LLM 负责归纳候选，人负责语义、适用性和批准；解析工具不改变批准状态。
 
 ---
 
-## P3：优先知识包深化
+## P3：Runtime 引用闭包与产物证据
 
 ### 输入条件
 
-- P2 抽取流程通过来源和失败模式测试。
-- 内容差距矩阵中的 P3 范围已由人工冻结。
+- P2 至少产生一个具有完整 locator 的已审核试点规则集合。
+- Engine/Wiki schema bundle 镜像无漂移。
 
 ### 产出
 
-- 优先包 A–C 的新增或深化知识卡；包 D 只处理具备去标识和批准证据的候选。
-- 每个主题从决策依据到实现/QC 的纵向链接。
-- 内容 ReviewPacket、DecisionReceipt、ConfirmationReceipt 和发布候选清单。
+- Knowledge Service 在一次 Runtime 查询中返回规则、来源版本和精确 locator。
+- Engine 对 Runtime Context 执行 citation-closure 校验。
+- Mapping/artifact 可以声明实际使用的 workflow/domain/study rule refs。
+- provenance sidecar 分开记录 `loaded_context` 与 `applied_evidence`。
 
 ### 完成标准
 
-- [ ] 优先包 A 的十二个主题全部达到本计划“深度要求”。
-- [ ] 优先包 B 的每个方法都连接 SAP 选择条件、数据要求、假设/诊断、稳健性和解释边界。
-- [ ] 优先包 C 覆盖 P7 纵向试点所需的 SDTM、ADaM、TFL、QC 和递交证据知识。
-- [ ] 每个 approved statement 都有有效 source ref；Study-specific 默认值不会被写成一般规则。
-- [ ] 既往 Study 候选保持去标识、适用范围和独立批准门禁，不自动进入一般知识。
-- [ ] 专家审核未通过的内容保持 proposed/rework，不进入 P4 发布集合。
+- [ ] 任一规则缺 source、locator、版本或 Snapshot provenance 时，Context 不得被标记为可执行。
+- [ ] `applied_rule_refs` 可以引用 Context 中实际适用的 workflow/domain/study rules，并拒绝未知或未加载 ID。
+- [ ] artifact 只把明确声明的规则列入 applied evidence；其余加载知识只保留为 loaded context。
+- [ ] 每个 applied rule 都能通过服务或 Snapshot 离线解析到同一 locator 和 source hash。
+- [ ] 在线服务和 locked Snapshot 返回等价引用集合。
 
-### 边界
+### 边界（本 Phase 明确不做）
 
-- 不扩展与 P7 纵向链和优先包无关的治疗领域百科内容。
-- 不在正文中嵌入可直接执行的任意 shell/SAS/R/Python 命令。
+- 不生成 AE 程序或数据集；实际执行属于 P7。
+- 不为引用展示建设前端。
 
 ### 涉及文件
 
 | 文件 | 操作 |
 |------|------|
-| `clinical-llm-wiki/vault/20_Knowledge/**` | 新增/深化权威知识正文 |
-| `clinical-llm-wiki/vault/40_Toolkit/**` | 按任务缺口新增工具/检查表 |
-| `clinical-llm-wiki/vault/60_Sources/**` | 新增/更新来源记录 |
-| `clinical-llm-wiki/.review_queue/**` | 内容审核交换文件 |
+| `clinical-llm-wiki/service/**` | 返回闭合 citation bundle |
+| `clinical-workflow/src/knowledge/**` | 解析并校验闭包 |
+| `clinical-workflow/src/runtime/**` | 记录 applied evidence |
+| `clinical-workflow/tests/**`、`clinical-llm-wiki/tests/**` | 在线/离线与断链测试 |
 
 ### 关键决策
 
-- 维持“工作流 + SAP 主流方法”核心，不转向无边界学科百科；标准/编程知识以支撑执行和追溯为扩展条件。
+- 引用完整性由确定性校验保证，不依赖 LLM 自报“已引用”。
 
 ---
 
-## P4：索引重建、Snapshot 发布与任务回归
+## P4：Snapshot 发布与 AE 查询验收
 
 ### 输入条件
 
-- P3 发布集合全部具备有效审批证据。
-- Engine contract 与 Knowledge Service bundle 兼容范围已确认。
+- P3 引用闭包测试通过。
+- 试点知识已通过现有人工 Review/Receipt 流程；未批准内容保持 proposed。
 
 ### 产出
 
-- 由 approved 正文重建 MOC/关系投影、FTS/metadata index 和不可变 Snapshot。
-- 内容、导航、API、Runtime Context 和 P7 前置任务的回归报告。
-- 更新维护说明和发布/回滚手册。
+- 一个包含试点来源和原子规则的 approved-only Snapshot。
+- “为当前 Study 生成 AE 数据集”查询的完整 citation bundle。
+- 缺规则、缺 locator、版本不适用和旧 Study Snapshot 的回归报告。
 
 ### 完成标准
 
-- [ ] 删除派生导航和 FTS 后能从正文/合同重建，正文 hash 与批准证据不变。
-- [ ] 关系投影与 `workflow_stages`、十阶段 Contract 一致，未知阶段和过期输出 fail closed。
-- [ ] approved-only 查询不返回 proposed/rework/deprecated 或不适用 Study 内容。
-- [ ] 新 Snapshot 具备 ID/version/hash/bundle/compatibility，旧 Study 不发生静默升级。
-- [ ] Protocol/SAP、主流方法、标准实现和 P7 前置场景均能在规定导航/查询路径内获得有来源结果。
-- [ ] Wiki 全量测试、内容 finalizer、生成器 check 和 Engine/Wiki mirror tests 通过。
+- [ ] 一次查询可获得 AE 任务需要的适用规则、来源版本和精确 locator。
+- [ ] proposed、断链、过期或不适用规则不进入生产结果。
+- [ ] 旧 Study 不静默升级；新 Snapshot 有 ID/version/hash/compatibility。
+- [ ] 删除 FTS/derived 后可从原件、manifest、accession 和批准正文重建，不改变引用身份。
+- [ ] P7 可以直接消费该 citation bundle，不再承担来源摄取或知识治理实现。
 
-### 边界
+### 边界（本 Phase 明确不做）
 
-- 不改变旧 Study 的 manifest lock。
-- 不把导航便利性测试代替专业内容人工验收。
+- 不扩充与 AE 首条链无关的大批知识。
+- 不以 Obsidian 图谱美观代替引用闭包验收。
 
 ### 涉及文件
 
 | 文件 | 操作 |
 |------|------|
-| `clinical-llm-wiki/vault/10_MOC/**` | 重建/策展导航 |
-| `clinical-llm-wiki/vault/snapshots/**` | 发布不可变 Snapshot |
-| `clinical-llm-wiki/service/**` | 必要的查询/发布调整 |
-| `USAGE.md`、Wiki README、SPEC-07/21 | 同步 |
+| `clinical-llm-wiki/snapshots/**` | 发布试点 Snapshot |
+| `clinical-llm-wiki/service/**` | 必要查询调整 |
+| `clinical-llm-wiki/tests/**` | AE 查询和发布回归 |
+| `USAGE.md`、Wiki README、SPEC-07/13/21 | 计划完成时同步 |
 
 ### 关键决策
 
-- 保留交互索引，但索引永远是服务知识资产的派生入口，不是内容权威或完成指标。
+- P6 以一条闭合引用链完成，不以知识数量完成；后续知识随真实 Workflow 需求增量进入同一摄取流程。
 
 ## 执行中发现
 
@@ -275,8 +310,10 @@ syncs_to:
 
 | 日期 | 决策 | 选项 | 选择 | 理由 |
 |------|------|------|------|------|
-| 2026-07-14 | Wiki 长期定位 | 纯百科 / 纯工作流 / 工作流驱动的双轴知识库 | 工作流驱动的双轴知识库 | 保留专业知识独立价值，同时直接服务实际任务 |
-| 2026-07-14 | 交互索引 | 删除 / 升为权威 / 保留为派生层 | 保留为派生层 | 支持 Obsidian、API 和未来 Console，且不制造第二权威 |
+| 2026-07-14 | 知识建设策略 | 完整知识库先行 / 普通 RAG / 任务驱动引用闭包 | 任务驱动引用闭包 | 先证明知识能被实际工作使用和追溯 |
+| 2026-07-14 | PDF 原件位置 | Vault / `sources/packages` / 外部无登记 | `sources/packages/<source-id>/original` | 原件、派生物和知识正文分离，避免重复权威 |
+| 2026-07-14 | LLM 归纳位置 | 直接批准 / `98_Inbox` Proposal | `98_Inbox` Proposal | LLM 不拥有批准权，且必须保留 locator |
+| 2026-07-14 | 治理核心 | 内容数量 / 图谱关系 / 引用闭包 | 引用闭包 | 保证 artifact→rule→source→locator→hash 可验证 |
 
 ## 同步记录
 

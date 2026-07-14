@@ -32,7 +32,7 @@ syncs_to:
 - 当前实际前端是 Codex/VSCode/Terminal、Obsidian、VSCode Review Panel 和文件夹/Git 的分散工作台。
 - 该组合适合平台开发和专家操作，但缺少统一 Study 状态、产物、审核和运行视图，不适合作为长期唯一用户入口。
 - Review Panel 当前只读取第一个 VSCode workspace 根目录下的 `.review_queue/`，多 Study 选择和 monorepo 嵌套使用受限。
-- P7 将提供完整纵向链和实际事件/状态需求，避免 P8 为虚构流程设计 UI。
+- P7 将提供 AE 最小纵向执行链和实际事件/状态需求；P8 开始前必须据此重新确认 API/UI 范围，避免为尚未验证的十阶段行为提前设计重型前端。
 - 方案来源：用户于 2026-07-14 批准“Web Study Console 主入口 + Codex/VSCode 高级入口 + Obsidian 知识入口”。
 
 ## 涉及范围

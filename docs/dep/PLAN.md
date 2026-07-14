@@ -14,12 +14,12 @@ updated: 2026-07-14
 
 | # | 子计划 | 文件 | 预估轮次 | 依赖 |
 |---|--------|------|----------|------|
-| P6 | 临床统计知识持续演化与交互索引治理 | [P6-clinical-knowledge-evolution.md](plans/backlog/P6-clinical-knowledge-evolution.md) | 17-26 | P3、P5 完成 |
-| P7 | 安全性分析第二条可执行纵向工作链 | [P7-safety-analysis-vertical-workflow.md](plans/backlog/P7-safety-analysis-vertical-workflow.md) | 18-28 | P6 完成 |
-| P8 | Workflow Application API 与本地 Study Console | [P8-workflow-api-study-console.md](plans/backlog/P8-workflow-api-study-console.md) | 25-40 | P7 完成 |
-| P9 | 多 Study 内网协作与受控部署 | [P9-multi-study-intranet-collaboration.md](plans/backlog/P9-multi-study-intranet-collaboration.md) | 20-32 | P8 完成 |
+| P6 | 临床知识来源摄取与引用闭包 | [P6-clinical-knowledge-evolution.md](plans/backlog/P6-clinical-knowledge-evolution.md) | 10-16 | P3、P5 完成 |
+| P7 | AE 数据集知识驱动执行闭环 | [P7-safety-analysis-vertical-workflow.md](plans/backlog/P7-safety-analysis-vertical-workflow.md) | 10-16 | P6 完成 |
+| P8 | Workflow Application API 与本地 Study Console | [P8-workflow-api-study-console.md](plans/backlog/P8-workflow-api-study-console.md) | 25-40（执行前重估） | P7 完成并重新确认范围 |
+| P9 | 多 Study 内网协作与受控部署 | [P9-multi-study-intranet-collaboration.md](plans/backlog/P9-multi-study-intranet-collaboration.md) | 20-32（执行前重估） | P8 完成并重新确认部署授权 |
 
-> 长期主线按 P6 → P7 → P8 → P9 严格推进：先深化可执行知识，再用第二纵向链证明实际工作，随后建立 Application API/Study Console，最后扩展到内网多人协作。P6 保留 Obsidian 导航、关系投影、FTS 和 Snapshot，但统一定义为可重建派生层；权威知识正文、当前 Study 决策和 Engine Pipeline Contract 的边界不变。
+> 当前执行视野只展开 P6 → P7：P6 用一个来源包建立不可遗漏的引用闭包，P7 用“生成 SDTM AE”证明 Wiki + LLM + Workflow 的实际执行价值。P8/P9 保留长期方向，但必须基于 P7 的真实 API、状态和协作证据重新确认范围，不允许提前扩展。后续知识按实际 Workflow 缺口增量摄取，不再先建大而全知识库。
 
 ## 最近完成
 
