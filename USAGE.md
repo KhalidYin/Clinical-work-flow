@@ -36,6 +36,17 @@ Invoke-RestMethod http://127.0.0.1:8787/api/v1/version
 Invoke-RestMethod -Method Post http://127.0.0.1:8787/api/v1/admin/refresh
 ```
 
+固定十阶段的 Obsidian 总览位于 `vault/10_MOC/Clinical-Workflow-Map.md`。它从 Engine Pipeline Schema 生成，不能手工维护第二套顺序；Pipeline Contract 或 Stage Playbook 变化后执行：
+
+```powershell
+Set-Location .\clinical-llm-wiki
+..\.venv\Scripts\python -m scripts.content.generate_workflow_map
+..\.venv\Scripts\python -m scripts.content.generate_workflow_map --check
+Set-Location ..
+```
+
+Obsidian 默认全局图谱排除 Governance、System、Inbox 和 Archive 四个运维目录，正文的来源与追溯链接仍完整保留。需要调查治理关系时可临时清除图谱过滤器，不要通过删除 Markdown 链接降噪。
+
 ## 3. 建立 Study
 
 ```powershell
@@ -70,6 +81,7 @@ Set-Location .\clinical-workflow
 Set-Location ..\clinical-llm-wiki
 ..\.venv\Scripts\python -m pytest -q
 ..\.venv\Scripts\python -m ruff check .
+..\.venv\Scripts\python -m scripts.content.generate_workflow_map --check
 ..\.venv\Scripts\python -m scripts.content.finalize_p5_content --check
 ```
 

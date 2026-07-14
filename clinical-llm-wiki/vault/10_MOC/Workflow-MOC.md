@@ -6,19 +6,18 @@ title: 十阶段工作流导航
 
 # 十阶段工作流导航
 
-Pipeline Contract 是固定顺序的唯一权威；本页只提供可维护的 Playbook 入口。
+Pipeline Contract 是固定顺序的唯一权威；本页只保留稳定导航入口，避免在多个 MOC 中手工复制十阶段顺序。
 
-| 阶段 | 入口 | 主要交付物 |
-| --- | --- | --- |
-| Protocol Analysis | [[30_Workflows/Stages/Protocol Analysis]] | Protocol 分析包 |
-| SAP Generation | [[30_Workflows/Stages/SAP Generation]] | SAP 草案 |
-| SDTM Spec | [[30_Workflows/Stages/SDTM Spec Baseline]] | SDTM 规范 |
-| SDTM Programming | [[30_Workflows/Stages/SDTM Programming]] | SDTM 数据集 |
-| ADaM Spec | [[30_Workflows/Stages/ADaM Spec]] | ADaM 规范 |
-| ADaM Programming | [[30_Workflows/Stages/ADaM Programming]] | ADaM 数据集 |
-| TFL Shell Design | [[30_Workflows/Stages/TFL Shell Design]] | TFL Shell |
-| TFL Programming | [[30_Workflows/Stages/TFL Programming]] | TFL 产出 |
-| QC Validation | [[30_Workflows/Stages/QC Validation]] | QC 结果 |
-| Submission Packaging | [[30_Workflows/Stages/Submission Packaging]] | 提交包 |
+## 从哪里进入
+
+- [[10_MOC/Clinical-Workflow-Map|Clinical Workflow 十阶段地图]]：由 Engine Pipeline Schema 生成，展示固定顺序并链接全部 Stage Playbook。
+- [[10_MOC/Stage-Traceability-MOC|十阶段纵向追溯导航]]：展示阶段之间的知识、交付物和 QC 追溯链。
+- [[50_Cases/Synthetic-Studies/SYNTH-ONCO-001 Longitudinal Case|SYNTH-ONCO-001 纵向案例]]：查看工作流与知识服务、当前 Study 决策和实际产物的结合方式。
+
+## 边界
+
+- 地图只投影控制顺序，不取代 Runtime 的 Pipeline Contract。
+- Playbook 解释“如何执行”，不能携带下一阶段、跳阶段或任意命令。
+- 当前 Study 规则、状态和产物留在 Study 工作区，不写入本 MOC。
 
 [[HOME|返回首页]]

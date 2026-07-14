@@ -20,6 +20,12 @@ from scripts.content.generate_workflow_map import (
 )
 
 
+GRAPH_FILTER = (
+    '-path:"80_Governance" -path:"90_System" '
+    '-path:"98_Inbox" -path:"99_Archive"'
+)
+
+
 def test_committed_workflow_map_matches_engine_contract_and_stage_notes() -> None:
     order = load_canonical_stage_order()
     notes = load_stage_notes(STAGE_NOTES, order)
@@ -92,3 +98,27 @@ def test_schema_dependency_drift_fails_closed(tmp_path: Path) -> None:
 
     with pytest.raises(WorkflowMapError, match="conflicts"):
         load_canonical_stage_order(schema_path)
+
+
+def test_stable_navigation_entries_point_to_generated_map() -> None:
+    for relative_path in (
+        "HOME.md",
+        "10_MOC/Workflow-MOC.md",
+        "10_MOC/Stage-Traceability-MOC.md",
+    ):
+        text = (VAULT / relative_path).read_text(encoding="utf-8")
+        assert "[[10_MOC/Clinical-Workflow-Map" in text
+
+    assert "30_Workflows/Stages/" not in (VAULT / "HOME.md").read_text(
+        encoding="utf-8"
+    )
+    assert "30_Workflows/Stages/" not in (
+        VAULT / "10_MOC" / "Workflow-MOC.md"
+    ).read_text(encoding="utf-8")
+
+
+def test_default_global_graph_excludes_operational_noise() -> None:
+    graph_path = VAULT / ".obsidian" / "graph.json"
+    graph = json.loads(graph_path.read_text(encoding="utf-8"))
+    assert graph["search"] == GRAPH_FILTER
+    assert graph["showAttachments"] is False

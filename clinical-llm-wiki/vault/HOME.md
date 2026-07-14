@@ -17,7 +17,8 @@ title: Clinical LLM Wiki 首页
 
 ## 按十阶段
 
-[[30_Workflows/Stages/Protocol Analysis|1. Protocol Analysis]] · [[30_Workflows/Stages/SAP Generation|2. SAP Generation]] · [[30_Workflows/Stages/SDTM Spec Baseline|3. SDTM Spec]] · [[30_Workflows/Stages/SDTM Programming|4. SDTM Programming]] · [[30_Workflows/Stages/ADaM Spec|5. ADaM Spec]] · [[30_Workflows/Stages/ADaM Programming|6. ADaM Programming]] · [[30_Workflows/Stages/TFL Shell Design|7. TFL Shell Design]] · [[30_Workflows/Stages/TFL Programming|8. TFL Programming]] · [[30_Workflows/Stages/QC Validation|9. QC Validation]] · [[30_Workflows/Stages/Submission Packaging|10. Submission Packaging]]
+- [[10_MOC/Clinical-Workflow-Map|Clinical Workflow 十阶段地图]]：查看固定顺序，再进入每个阶段的执行 Playbook。
+- [[10_MOC/Stage-Traceability-MOC|十阶段纵向追溯导航]]：查看工作流、领域知识、检查表与交付物之间的跨阶段关系。
 
 ## P5 引导路径
 

@@ -59,11 +59,15 @@ def test_templates_validate_against_mirrored_engine_contracts() -> None:
 def test_home_navigation_and_all_internal_wiki_links_resolve() -> None:
     home = VAULT / "HOME.md"
     home_text = home.read_text(encoding="utf-8")
+    assert "10_MOC/Clinical-Workflow-Map" in home_text
+    workflow_map = (VAULT / "10_MOC" / "Clinical-Workflow-Map.md").read_text(
+        encoding="utf-8"
+    )
     for stage in (
         "Protocol Analysis", "SAP Generation", "SDTM Spec", "SDTM Programming", "ADaM Spec",
         "ADaM Programming", "TFL Shell Design", "TFL Programming", "QC Validation", "Submission Packaging",
     ):
-        assert f"30_Workflows/Stages/{stage}" in home_text
+        assert f"30_Workflows/Stages/{stage}" in workflow_map
 
     failures: list[str] = []
     for note in VAULT.rglob("*.md"):

@@ -72,6 +72,8 @@ Obsidian 直接打开 `clinical-llm-wiki/vault/`。该目录只承载 Markdown/Y
 
 Wiki 不拥有 Pipeline 顺序、Runtime capability 白名单或任意命令执行权。Obsidian 只是编辑与浏览前端，不是 Runtime API，也不是生产索引本身。
 
+`vault/10_MOC/Clinical-Workflow-Map.md` 是十阶段 Pipeline 的生成式可视投影：生成器读取 Engine `pipeline-contract.schema.json` 的 canonical order、prefix dependency 和 stage enum，并将每个 Stage 精确匹配到一份 Wiki Playbook。合同缺失、依赖漂移、阶段缺失、重复或未知时必须 fail closed，不能写出部分地图。Obsidian 默认全局图谱只在显示层排除 `80_Governance`、`90_System`、`98_Inbox`、`99_Archive`；来源、证据和追溯链接不得为降噪而删除。
+
 ### 2.3 Study Instance
 
 负责某一实际研究的事实、锁定和产出：
@@ -237,6 +239,8 @@ proposed → approved | rejected → superseded
 ```
 
 AI 可以总结、拆分 semantic chunk、建议 relation 和影响范围，但不能自行批准规则。Markdown/YAML frontmatter 是知识源；SQLite/FTS 索引和 embedding（如后续采用）都是可重建派生物。
+
+Pipeline Contract 或 Stage Playbook 发生变化时，维护人运行 `python -m scripts.content.generate_workflow_map` 刷新地图，并用 `--check` 进入提交 Gate。HOME 与工作流 MOC 只链接这份生成地图，不再各自手工复制十阶段表；纵向追溯 MOC 继续保存跨阶段的知识、检查表和交付物关系。全局图谱过滤只影响默认视图，不参与批准、索引、查询或 Runtime Context 解析。
 
 ### 8.2 Runtime 接口
 

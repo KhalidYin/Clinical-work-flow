@@ -1,6 +1,6 @@
 ---
 phase_index: 4
-status: in-progress
+status: done
 created: 2026-07-14
 updated: 2026-07-14
 priority: 1
@@ -70,7 +70,7 @@ syncs_to:
 | Phase | 目标 | 依赖 | 状态 |
 |-------|------|------|------|
 | P1 | 生成契约驱动的工作流地图并建立漂移测试 | P3完成基线 | done |
-| P2 | 配置全局图谱降噪、整合导航入口并同步文档 | P1 | in-progress |
+| P2 | 配置全局图谱降噪、整合导航入口并同步文档 | P1 | done |
 
 ---
 
@@ -110,12 +110,12 @@ syncs_to:
 
 ### 完成标准
 
-- [ ] Obsidian 默认全局图谱不显示 Governance、System、Inbox、Archive 节点。
-- [ ] HOME 可一跳进入地图，地图可再一跳进入每个阶段手册。
-- [ ] 原有来源与追溯链接未删除，Knowledge Service 与 Runtime 行为不变。
-- [ ] 生成器 check、Wiki 全量测试、Ruff 和 Engine Pipeline Contract 定向测试通过。
-- [ ] 计划、PLAN、DEVLOG、SPEC/使用说明同步完成。
-- [ ] P2 独立 Git 提交完成，计划移动到 `plans/complete/`。
+- [x] Obsidian 默认全局图谱不显示 Governance、System、Inbox、Archive 节点。
+- [x] HOME 可一跳进入地图，地图可再一跳进入每个阶段手册。
+- [x] 原有来源与追溯链接未删除，Knowledge Service 与 Runtime 行为不变。
+- [x] 生成器 check、Wiki 全量测试、Ruff 和 Engine Pipeline Contract 定向测试通过。
+- [x] 计划、PLAN、DEVLOG、SPEC/使用说明同步完成。
+- [x] P2 独立 Git 提交完成，计划移动到 `plans/complete/`。
 
 ### 边界
 
@@ -155,3 +155,10 @@ syncs_to:
 |----|------|--------|------|------|
 | D1 | 工作区已有用户修改的受治理卡片、`graph.json` 和临时 `.base` | 规划 | 隔离要求 | 仅最小修改 `graph.json`，其余文件不覆盖、不暂存 |
 | D2 | 首次渲染相邻连线时对长度不同的序列使用 strict zip | P1 | 已解决 | 左侧改为 `node_ids[:-1]`，测试固定 10 节点与 9 条边；异常发生在写文件前 |
+| D3 | P5 内容测试把 MOC 数量硬编码为恰好 10，新增地图后全量回归失败 | P2 | 已解决 | 恢复 P5“至少 10 个成熟 MOC”的下限语义；P4 专项测试精确验证新增地图 |
+
+## 同步记录
+
+| 日期 | 已同步到 | 说明 |
+|------|----------|------|
+| 2026-07-14 | `USAGE.md`、Wiki README、SPEC-21 | 生成地图维护命令、控制权威、图谱显示过滤与追溯保留边界 |

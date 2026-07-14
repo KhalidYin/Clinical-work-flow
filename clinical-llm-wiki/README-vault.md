@@ -12,7 +12,9 @@
 
 ## 开始位置
 
-打开 [HOME](vault/HOME.md)。其中按角色、工作阶段、知识域和工具四种路径导航。核心数据视图同时有 Markdown MOC 作为无插件回退，并在 `90_System/Bases/` 提供 Obsidian 核心 Bases 文件。
+打开 [HOME](vault/HOME.md)。其中按角色、工作阶段、知识域和工具四种路径导航；[Clinical Workflow 十阶段地图](vault/10_MOC/Clinical-Workflow-Map.md) 是固定管线的首要可视入口。地图由 Engine Pipeline Schema 生成，不应手工编辑；核心数据视图同时有 Markdown MOC 作为无插件回退，并在 `90_System/Bases/` 提供 Obsidian 核心 Bases 文件。
+
+默认全局图谱通过 `.obsidian/graph.json` 排除 `80_Governance`、`90_System`、`98_Inbox`、`99_Archive`，让工作流与领域知识关系保持可读。该设置只是显示过滤器，不会删除来源、审核或追溯链接；需要调查治理关系时可在 Obsidian 中临时清除过滤器。
 
 ## 维护顺序
 

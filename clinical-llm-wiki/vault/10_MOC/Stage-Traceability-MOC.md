@@ -8,6 +8,8 @@ title: 十阶段纵向追溯导航
 
 本页展示知识与产物如何关联，不定义 Pipeline 顺序；顺序唯一权威仍是 Engine Pipeline Contract。
 
+固定顺序总览：[[10_MOC/Clinical-Workflow-Map|Clinical Workflow 十阶段地图]]。
+
 | 链路 | Workflow | 代表知识/模式 | 交付物检查 |
 | --- | --- | --- | --- |
 | 研究问题 → estimand | [[30_Workflows/Stages/Protocol Analysis]] → [[30_Workflows/Stages/SAP Generation]] | [[20_Knowledge/Methods/Estimand Framework]] | [[40_Toolkit/Checklists/Protocol to SAP Traceability Checklist]] |

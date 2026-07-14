@@ -16,11 +16,14 @@ Wiki 不控制 Pipeline 阶段顺序，也不执行任意命令。Study 必须�
 
 ```powershell
 python -m pytest
+python -m scripts.content.generate_workflow_map --check
 python -m service.main
 ```
 
 服务默认只绑定 `127.0.0.1`。只有另立并审核内网/云端部署计划后，才可以改变监听边界。
 
 知识获批后，通过 `POST http://127.0.0.1:8787/api/v1/admin/refresh` 重建派生索引。不可变快照位于 `snapshots/`；Study fallback 副本必须与 manifest 的 ID、version 和 hash 精确一致。备份必须同时覆盖 `vault/`、`.review_queue/`、`audit_trail.jsonl`、`sources/` 和 `snapshots/`；`indexes/` 可重建，不是权威源。
+
+十阶段总览位于 `vault/10_MOC/Clinical-Workflow-Map.md`，由 Engine Pipeline Schema 和十份 Stage Playbook 共同生成，不应手工编辑。合同或阶段手册发生变化后运行 `python -m scripts.content.generate_workflow_map`，提交前运行带 `--check` 的命令。Obsidian 默认全局图谱只隐藏 `80_Governance`、`90_System`、`98_Inbox`、`99_Archive` 四个运维目录；该过滤不删除 Markdown 追溯链接，也不影响服务索引。
 
 平台安装、恢复和回滚命令见 [根使用指南](../USAGE.md) 与 [部署指南](../docs/deploy/DEPLOY_GUIDE.md)。

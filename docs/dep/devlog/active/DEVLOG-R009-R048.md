@@ -292,3 +292,33 @@ Done — no next steps。内网/云端、多用户认证、GraphRAG、真实 Stu
 #### Files Changed / Commits
 - `clinical-llm-wiki/scripts/content/generate_workflow_map.py`、`tests/test_workflow_map.py`、`vault/10_MOC/Clinical-Workflow-Map.md`
 - `docs/dep/PLAN.md`、`docs/dep/TASK_STATE.md`、`docs/dep/plans/ongoing/P4-obsidian-workflow-visualization.md`、`docs/dep/devlog/**`
+
+---
+
+### R018 [10:20] [P4-obsidian-workflow-visualization] P2: 完成 Obsidian 图谱降噪与工作流入口整合
+
+#### Done
+- 在保留用户已有图谱布局参数的前提下，只为 `.obsidian/graph.json` 增加 Governance、System、Inbox、Archive 四目录排除条件。
+- HOME 改为一跳进入生成地图和纵向追溯，不再手工复制十阶段直链；Workflow MOC 收敛为地图、追溯和合成案例入口。
+- Stage Traceability MOC 保留有业务意义的跨阶段知识/交付物关系，并增加固定顺序地图入口；未删除来源、审核或证据链接。
+- 增加稳定入口、重复阶段直链消除和默认图谱过滤器测试；同步 Wiki README、Vault README、根使用指南和 SPEC-21。
+- P4 两阶段完成，执行计划归档到 `plans/complete/`。
+
+#### Issues / Blockers
+- Wiki 首轮全量测试有 1 个失败；根因是 P5 遗留测试把 MOC 数量硬编码为恰好 10，新增工作流地图后实际为 11。已把旧断言恢复为 P5 计划原意的“至少 10 个成熟 MOC”，新增地图继续由 P4 专项测试精确验证。
+- Python 3.14/Starlette 仍有 151 个既有 multipart/asyncio 弃用告警；不影响本 Gate，依赖升级仍需独立计划处理。
+
+#### Validation
+- `python -m pytest -q`（Wiki，52 passed，151 warnings）
+- `python -m ruff check .`（Wiki，success）
+- `python -m scripts.content.generate_workflow_map --check`（10 canonical stages）
+- `python -m scripts.content.finalize_p5_content --check`（68 governed records）
+- `python -m pytest -q tests/test_pipeline_contract.py`（Engine，16 passed）
+- `git diff --check`（无空白错误，仅既有 LF/CRLF 提示）
+
+#### Next
+Done — no next steps。Canvas、GraphRAG、关系类型重构和 Obsidian 社区插件继续保持计划外。
+
+#### Files Changed / Commits
+- `clinical-llm-wiki/vault/.obsidian/graph.json`、`vault/HOME.md`、`vault/10_MOC/Workflow-MOC.md`、`vault/10_MOC/Stage-Traceability-MOC.md`
+- `clinical-llm-wiki/tests/**`、Wiki README、`USAGE.md`、`docs/specs/21-Knowledge-Workflow-Integration.md`、`docs/dep/**`
