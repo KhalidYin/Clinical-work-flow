@@ -9,23 +9,38 @@
   "colorGroups": [
     {
       "query": "path:\"10_MOC/Workflow-Relations\"",
-      "color": {"a": 1, "rgb": 5011624}
+      "color": {
+        "a": 1,
+        "rgb": 5011624
+      }
     },
     {
       "query": "path:\"30_Workflows/Stages\"",
-      "color": {"a": 1, "rgb": 16090392}
+      "color": {
+        "a": 1,
+        "rgb": 16090392
+      }
     },
     {
       "query": "path:\"20_Knowledge\"",
-      "color": {"a": 1, "rgb": 5546571}
+      "color": {
+        "a": 1,
+        "rgb": 5546571
+      }
     },
     {
       "query": "path:\"40_Toolkit\"",
-      "color": {"a": 1, "rgb": 11696546}
+      "color": {
+        "a": 1,
+        "rgb": 11696546
+      }
     },
     {
       "query": "path:\"50_Cases\"",
-      "color": {"a": 1, "rgb": 14964566}
+      "color": {
+        "a": 1,
+        "rgb": 14964566
+      }
     }
   ],
   "collapse-display": true,
@@ -38,6 +53,6 @@
   "repelStrength": 10,
   "linkStrength": 1,
   "linkDistance": 250,
-  "scale": 0.9999999999999984,
+  "scale": 0.7132754626224391,
   "close": false
 }
