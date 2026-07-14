@@ -13,14 +13,14 @@ import hashlib
 import json
 import shutil
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, time
 from pathlib import Path
 from typing import Any, Callable
 
 import fitz
 
 
-PIPELINE_VERSION = "1.0.0"
+PIPELINE_VERSION = "1.1.0"
 MANIFEST_NAME = "source-manifest.json"
 
 
@@ -137,6 +137,172 @@ def ingest_pdf(
     return manifest
 
 
+def ingest_companion_artifact(
+    input_artifact: str | Path,
+    package_dir: str | Path,
+    *,
+    artifact_id: str,
+    role: str = "structured_companion",
+    media_type: str = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+) -> dict[str, Any]:
+    """Add one immutable companion artifact to an existing source package.
+
+    SDTMIG uses the PDF for complete narrative guidance and a companion XLSX
+    for normative tabular metadata. They share one logical source version but
+    retain independent byte hashes and locators. Re-ingestion is idempotent for
+    identical bytes and rejects replacement at the same artifact identity.
+    """
+
+    input_path = Path(input_artifact).resolve()
+    package = Path(package_dir).resolve()
+    if not input_path.is_file():
+        raise FileNotFoundError(input_path)
+    if not artifact_id or not role or not media_type:
+        raise ValueError("artifact_id, role, and media_type must be non-empty")
+
+    manifest = _read_manifest(package)
+    artifact_hash = sha256_file(input_path)
+    target = package / "original" / input_path.name
+    if target.exists():
+        if sha256_file(target) != artifact_hash:
+            raise SourceIntegrityError(
+                f"Refusing to overwrite immutable companion at {target}; "
+                "create a new source package/version instead."
+            )
+    else:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(input_path, target)
+
+    primary_artifact_id = f"artifact-{manifest['source_id'].removeprefix('src-')}-pdf"
+    artifacts = list(manifest.get("artifacts", []))
+    if not artifacts:
+        artifacts.append(
+            {
+                "artifact_id": primary_artifact_id,
+                "role": "primary_citation",
+                "media_type": "application/pdf",
+                "original_filename": manifest["original_filename"],
+                "original_relative_path": manifest["original_relative_path"],
+                "original_sha256": manifest["original_sha256"],
+                "original_size_bytes": manifest["original_size_bytes"],
+                "page_count": manifest["page_count"],
+            }
+        )
+
+    existing = next((item for item in artifacts if item["artifact_id"] == artifact_id), None)
+    candidate = {
+        "artifact_id": artifact_id,
+        "role": role,
+        "media_type": media_type,
+        "original_filename": input_path.name,
+        "original_relative_path": f"original/{input_path.name}",
+        "original_sha256": artifact_hash,
+        "original_size_bytes": target.stat().st_size,
+    }
+    if existing is not None and existing != candidate:
+        raise SourceIntegrityError(f"Existing artifact metadata conflicts for {artifact_id}")
+    if existing is None:
+        artifacts.append(candidate)
+
+    manifest.update(
+        {
+            "schema_version": "1.1.0",
+            "primary_artifact_id": primary_artifact_id,
+            "artifacts": sorted(artifacts, key=lambda item: item["artifact_id"]),
+            "pipeline_version": PIPELINE_VERSION,
+            "manifest_updated_at": _now(),
+        }
+    )
+    _write_json(package / MANIFEST_NAME, manifest)
+    return manifest
+
+
+def _json_cell_value(value: Any) -> Any:
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, (datetime, date, time)):
+        return value.isoformat()
+    return str(value)
+
+
+def build_xlsx_derivative(package_dir: str | Path, *, artifact_id: str) -> dict[str, Any]:
+    """Extract workbook values and sheet structure without changing the XLSX."""
+
+    from openpyxl import load_workbook
+
+    package = Path(package_dir).resolve()
+    source = _read_manifest(package)
+    artifact = next(
+        (item for item in source.get("artifacts", []) if item["artifact_id"] == artifact_id),
+        None,
+    )
+    if artifact is None:
+        raise SourceIntegrityError(f"Companion artifact is not registered: {artifact_id}")
+    if artifact["media_type"] != (
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    ):
+        raise ValueError(f"Artifact is not an XLSX workbook: {artifact_id}")
+
+    original_path = package / artifact["original_relative_path"]
+    if not original_path.is_file() or sha256_file(original_path) != artifact["original_sha256"]:
+        raise SourceIntegrityError("Companion artifact is missing or its hash has changed")
+
+    workbook = load_workbook(original_path, read_only=True, data_only=False)
+    sheets: list[dict[str, Any]] = []
+    try:
+        for worksheet in workbook.worksheets:
+            rows = [
+                [_json_cell_value(value) for value in row]
+                for row in worksheet.iter_rows(values_only=True)
+            ]
+            sheets.append(
+                {
+                    "name": worksheet.title,
+                    "state": worksheet.sheet_state,
+                    "max_row": worksheet.max_row,
+                    "max_column": worksheet.max_column,
+                    "rows": rows,
+                }
+            )
+        defined_names = sorted(str(name) for name in workbook.defined_names)
+        epoch = workbook.epoch.isoformat()
+    finally:
+        workbook.close()
+
+    extraction = {
+        "schema_version": "1.0.0",
+        "source_id": source["source_id"],
+        "source_sha256": source["original_sha256"],
+        "artifact_id": artifact_id,
+        "artifact_sha256": artifact["original_sha256"],
+        "epoch": epoch,
+        "defined_names": defined_names,
+        "sheets": sheets,
+    }
+    output_path = package / "derived" / "xlsx" / f"{artifact_id}.json"
+    _write_json(output_path, extraction)
+    outputs = {
+        str(output_path.relative_to(package)).replace("\\", "/"): sha256_file(output_path)
+    }
+    manifest = {
+        "schema_version": "1.0.0",
+        "source_id": source["source_id"],
+        "artifact_id": artifact_id,
+        "artifact_sha256": artifact["original_sha256"],
+        "pipeline_version": PIPELINE_VERSION,
+        "derivation": {
+            "tool": "scripts.pdf.source_pipeline.build_xlsx_derivative",
+            "tool_version": PIPELINE_VERSION,
+            "input_sha256": artifact["original_sha256"],
+            "created_at": _now(),
+        },
+        "outputs": outputs,
+        "output_manifest_sha256": _sha256_json(outputs),
+    }
+    _write_json(package / "derived" / "xlsx-manifest.json", manifest)
+    return manifest
+
+
 def _default_ocr(image_path: Path) -> OcrResult:
     """Attempt local OCR; unavailable engines are recorded, never ignored."""
 
@@ -200,7 +366,6 @@ def build_derived_package(
 
     derived = package / "derived"
     render_dir = derived / "render"
-    figure_dir = derived / "figures"
     document = fitz.open(original_path)
     pages: list[dict[str, Any]] = []
     full_text_parts: list[str] = []
@@ -227,8 +392,7 @@ def build_derived_package(
 
             # A full-page crop is a stable visual-evidence fallback even when
             # the source contains vector art rather than extractable bitmaps.
-            crop_path = figure_dir / f"page-{number:03d}-full.png"
-            _render_page(page, crop_path, dpi=dpi)
+            crop_path = render_path
             figures.append(
                 {
                     "figure_id": f"fig-{source['source_id']}-p{number:03d}-full",

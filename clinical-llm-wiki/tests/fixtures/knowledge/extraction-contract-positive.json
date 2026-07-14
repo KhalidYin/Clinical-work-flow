@@ -1,0 +1,98 @@
+{
+  "schema_version": "1.0.0",
+  "package_id": "extraction-synthetic-sdtmig34-ae",
+  "source_id": "src-cdisc-sdtmig-3-4",
+  "source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "artifacts": [
+    {
+      "artifact_id": "artifact-synthetic-sdtmig34-pdf",
+      "role": "primary_citation",
+      "media_type": "application/pdf",
+      "artifact_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "units": [
+    {
+      "unit_id": "unit-sdtmig34-ae-section",
+      "parent_unit_id": null,
+      "unit_type": "section",
+      "title": "Synthetic AE section",
+      "text_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "locator": {
+        "locator_id": "loc-sdtmig34-ae-section",
+        "artifact_id": "artifact-synthetic-sdtmig34-pdf",
+        "locator_type": "pdf_region",
+        "physical_page": 1,
+        "printed_page": "synthetic-1",
+        "section_path": [
+          "Events",
+          "Adverse Events"
+        ],
+        "bbox": [
+          10.0,
+          20.0,
+          500.0,
+          700.0
+        ],
+        "sheet_name": null,
+        "row_number": null,
+        "table_id": null,
+        "row_key": null
+      },
+      "processing_status": "candidate",
+      "processing_note": null,
+      "statement_ids": [
+        "stmt-sdtmig34-ae-synthetic"
+      ]
+    }
+  ],
+  "statements": [
+    {
+      "statement_id": "stmt-sdtmig34-ae-synthetic",
+      "knowledge_type": "requirement",
+      "subject": "AE synthetic fixture",
+      "statement": "Synthetic contract fixture only; not SDTMIG knowledge.",
+      "modality": "must",
+      "scope": {
+        "model": "SDTM-2.0",
+        "implementation_guide": "SDTMIG-3.4",
+        "domains": [
+          "AE"
+        ],
+        "variables": []
+      },
+      "conditions": [],
+      "exceptions": [],
+      "evidence": [
+        {
+          "source_id": "src-cdisc-sdtmig-3-4",
+          "artifact_id": "artifact-synthetic-sdtmig34-pdf",
+          "artifact_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "locator_id": "loc-sdtmig34-ae-section"
+        }
+      ],
+      "relation_ids": [
+        "rel-sdtmig34-ae-belongs"
+      ],
+      "review_status": "approved",
+      "review_receipt_id": "receipt-synthetic-contract"
+    }
+  ],
+  "relations": [
+    {
+      "relation_id": "rel-sdtmig34-ae-belongs",
+      "relation_type": "belongs_to",
+      "from_id": "stmt-sdtmig34-ae-synthetic",
+      "to_id": "topic-sdtmig34-ae",
+      "target_kind": "topic",
+      "evidence": [
+        {
+          "source_id": "src-cdisc-sdtmig-3-4",
+          "artifact_id": "artifact-synthetic-sdtmig34-pdf",
+          "artifact_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "locator_id": "loc-sdtmig34-ae-section"
+        }
+      ]
+    }
+  ]
+}

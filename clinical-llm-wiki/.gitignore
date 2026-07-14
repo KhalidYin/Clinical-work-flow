@@ -18,6 +18,8 @@ tmp/
 .env.local
 sources/**/original/
 !sources/**/original/.gitkeep
+sources/accessions/*.pdf
+sources/accessions/*.xlsx
 
 # Obsidian local session state is not shared; stable settings live in vault/.obsidian.
 vault/.obsidian/workspace*.json

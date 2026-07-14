@@ -1,0 +1,37 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": "artifact-cdisc-sdtmig-3-4-pdf",
+      "media_type": "application/pdf",
+      "original_filename": "SDTMIG v3.4-FINAL_2022-07-21.pdf",
+      "original_relative_path": "original/SDTMIG v3.4-FINAL_2022-07-21.pdf",
+      "original_sha256": "ea4ddbba4a3e10a55bb2f36d5e28d9cfc191090717c2426475279750a7f57021",
+      "original_size_bytes": 7214120,
+      "page_count": 461,
+      "role": "primary_citation"
+    },
+    {
+      "artifact_id": "artifact-cdisc-sdtmig-3-4-xlsx",
+      "media_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "original_filename": "SDTMIG_v3.4.xlsx",
+      "original_relative_path": "original/SDTMIG_v3.4.xlsx",
+      "original_sha256": "0176e72eb43764ce01cfd7896dcc9d5b97cc55d0ce766c1ad14034a0b9ccb991",
+      "original_size_bytes": 227944,
+      "role": "structured_companion"
+    }
+  ],
+  "ingested_at": "2026-07-14T07:14:13Z",
+  "manifest_updated_at": "2026-07-14T07:14:13Z",
+  "original_filename": "SDTMIG v3.4-FINAL_2022-07-21.pdf",
+  "original_relative_path": "original/SDTMIG v3.4-FINAL_2022-07-21.pdf",
+  "original_sha256": "ea4ddbba4a3e10a55bb2f36d5e28d9cfc191090717c2426475279750a7f57021",
+  "original_size_bytes": 7214120,
+  "page_count": 461,
+  "pdf_status": "quarantine",
+  "pipeline_version": "1.1.0",
+  "primary_artifact_id": "artifact-cdisc-sdtmig-3-4-pdf",
+  "rights_status": "restricted",
+  "schema_version": "1.1.0",
+  "source_id": "src-cdisc-sdtmig-3-4",
+  "storage_mode": "local_only"
+}

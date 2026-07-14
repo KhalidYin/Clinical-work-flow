@@ -1,0 +1,609 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://clinical-llm-wiki/schemas/extraction/knowledge-extraction",
+  "$defs": {
+    "StableId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)+$"
+    },
+    "SourceId": {
+      "type": "string",
+      "pattern": "^src-[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "Sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "NonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ArtifactIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "artifact_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "primary_citation",
+            "structured_companion",
+            "companion_evidence"
+          ]
+        },
+        "media_type": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "artifact_sha256": {
+          "$ref": "#/$defs/Sha256"
+        }
+      },
+      "required": [
+        "artifact_id",
+        "role",
+        "media_type",
+        "artifact_sha256"
+      ]
+    },
+    "Locator": {
+      "type": "object",
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "locator_type": {
+                "const": "pdf_region"
+              }
+            },
+            "required": [
+              "locator_type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "physical_page": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "locator_type": {
+                "const": "xlsx_row"
+              }
+            },
+            "required": [
+              "locator_type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "sheet_name": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "row_number": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "locator_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "artifact_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "locator_type": {
+          "type": "string",
+          "enum": [
+            "pdf_region",
+            "xlsx_row",
+            "web_section"
+          ]
+        },
+        "physical_page": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "printed_page": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NonEmptyString"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "section_path": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "bbox": {
+          "anyOf": [
+            {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "items": {
+                "type": "number",
+                "minimum": 0
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sheet_name": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NonEmptyString"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "row_number": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "table_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StableId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "row_key": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NonEmptyString"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "locator_id",
+        "artifact_id",
+        "locator_type",
+        "physical_page",
+        "printed_page",
+        "section_path",
+        "bbox",
+        "sheet_name",
+        "row_number",
+        "table_id",
+        "row_key"
+      ]
+    },
+    "SourceUnit": {
+      "type": "object",
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "processing_status": {
+                "const": "deferred"
+              }
+            },
+            "required": [
+              "processing_status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "processing_note": {
+                "$ref": "#/$defs/NonEmptyString"
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "unit_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "parent_unit_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StableId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unit_type": {
+          "type": "string",
+          "enum": [
+            "chapter",
+            "section",
+            "domain",
+            "table",
+            "variable_row",
+            "paragraph",
+            "example",
+            "cross_reference",
+            "erratum"
+          ]
+        },
+        "title": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NonEmptyString"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text_sha256": {
+          "$ref": "#/$defs/Sha256"
+        },
+        "locator": {
+          "$ref": "#/$defs/Locator"
+        },
+        "processing_status": {
+          "type": "string",
+          "enum": [
+            "candidate",
+            "context",
+            "example",
+            "navigation",
+            "deferred"
+          ]
+        },
+        "processing_note": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NonEmptyString"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "statement_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/StableId"
+          }
+        }
+      },
+      "required": [
+        "unit_id",
+        "parent_unit_id",
+        "unit_type",
+        "title",
+        "text_sha256",
+        "locator",
+        "processing_status",
+        "processing_note",
+        "statement_ids"
+      ]
+    },
+    "EvidenceReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source_id": {
+          "$ref": "#/$defs/SourceId"
+        },
+        "artifact_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "artifact_sha256": {
+          "$ref": "#/$defs/Sha256"
+        },
+        "locator_id": {
+          "$ref": "#/$defs/StableId"
+        }
+      },
+      "required": [
+        "source_id",
+        "artifact_id",
+        "artifact_sha256",
+        "locator_id"
+      ]
+    },
+    "StatementScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "implementation_guide": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "domains": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "variables": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        }
+      },
+      "required": [
+        "model",
+        "implementation_guide",
+        "domains",
+        "variables"
+      ]
+    },
+    "AtomicStatement": {
+      "type": "object",
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "review_status": {
+                "const": "approved"
+              }
+            },
+            "required": [
+              "review_status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "review_receipt_id": {
+                "$ref": "#/$defs/StableId"
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "statement_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "knowledge_type": {
+          "type": "string",
+          "enum": [
+            "definition",
+            "requirement",
+            "permission",
+            "prohibition",
+            "assumption",
+            "exception",
+            "example",
+            "variable_rule",
+            "cross_reference"
+          ]
+        },
+        "subject": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "statement": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "modality": {
+          "type": "string",
+          "enum": [
+            "must",
+            "should",
+            "may",
+            "must_not",
+            "descriptive",
+            "not_applicable"
+          ]
+        },
+        "scope": {
+          "$ref": "#/$defs/StatementScope"
+        },
+        "conditions": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "exceptions": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/EvidenceReference"
+          }
+        },
+        "relation_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/StableId"
+          }
+        },
+        "review_status": {
+          "type": "string",
+          "enum": [
+            "proposed",
+            "approved",
+            "rework",
+            "rejected"
+          ]
+        },
+        "review_receipt_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StableId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "statement_id",
+        "knowledge_type",
+        "subject",
+        "statement",
+        "modality",
+        "scope",
+        "conditions",
+        "exceptions",
+        "evidence",
+        "relation_ids",
+        "review_status",
+        "review_receipt_id"
+      ]
+    },
+    "TypedRelation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "relation_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "relation_type": {
+          "type": "string",
+          "enum": [
+            "contains",
+            "belongs_to",
+            "applies_to",
+            "requires",
+            "permits",
+            "prohibits",
+            "qualified_by",
+            "exception_to",
+            "references",
+            "supersedes",
+            "implemented_by"
+          ]
+        },
+        "from_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "to_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "target_kind": {
+          "type": "string",
+          "enum": [
+            "statement",
+            "source_unit",
+            "topic",
+            "external_dependency"
+          ]
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/EvidenceReference"
+          }
+        }
+      },
+      "required": [
+        "relation_id",
+        "relation_type",
+        "from_id",
+        "to_id",
+        "target_kind",
+        "evidence"
+      ]
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "package_id": {
+      "$ref": "#/$defs/StableId"
+    },
+    "source_id": {
+      "$ref": "#/$defs/SourceId"
+    },
+    "source_sha256": {
+      "$ref": "#/$defs/Sha256"
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/ArtifactIdentity"
+      }
+    },
+    "units": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/SourceUnit"
+      }
+    },
+    "statements": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/AtomicStatement"
+      }
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/TypedRelation"
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "package_id",
+    "source_id",
+    "source_sha256",
+    "artifacts",
+    "units",
+    "statements",
+    "relations"
+  ]
+}

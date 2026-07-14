@@ -8,7 +8,15 @@ import pytest
 
 from scripts.pdf import source_pipeline
 from scripts.pdf.create_synthetic_fixtures import create_fixtures
-from scripts.pdf.source_pipeline import OcrResult, SourceIntegrityError, build_derived_package, ingest_pdf, sha256_file
+from scripts.pdf.source_pipeline import (
+    OcrResult,
+    SourceIntegrityError,
+    build_derived_package,
+    build_xlsx_derivative,
+    ingest_companion_artifact,
+    ingest_pdf,
+    sha256_file,
+)
 from scripts.quality.pdf_visual_qa import render_pdf_pages, validate_pdf_visual_evidence
 
 
@@ -84,4 +92,52 @@ def test_derived_material_is_rebuildable_from_unchanged_original(tmp_path: Path)
 
     assert sha256_file(package / source["original_relative_path"]) == original_hash
     assert (package / "derived" / "extraction.json").read_bytes() == first_extraction
+    assert first["output_manifest_sha256"] == second["output_manifest_sha256"]
+
+
+def test_xlsx_companion_is_hash_locked_and_rebuildable(tmp_path: Path) -> None:
+    from openpyxl import Workbook
+
+    package = tmp_path / "src-multi-artifact"
+    ingest_pdf(
+        FIXTURES / "synthetic-digital.pdf",
+        package,
+        source_id="src-synthetic-multi-artifact",
+    )
+    workbook_path = tmp_path / "normative-metadata.xlsx"
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Variables"
+    sheet.append(["Version", "Dataset Name", "Variable Name", "Core"])
+    sheet.append(["Synthetic v1.0", "AE", "AETERM", "Req"])
+    workbook.save(workbook_path)
+    workbook.close()
+
+    source = ingest_companion_artifact(
+        workbook_path,
+        package,
+        artifact_id="artifact-synthetic-metadata-xlsx",
+    )
+    companion = next(
+        artifact
+        for artifact in source["artifacts"]
+        if artifact["artifact_id"] == "artifact-synthetic-metadata-xlsx"
+    )
+    original = package / companion["original_relative_path"]
+    before_hash = sha256_file(original)
+    first = build_xlsx_derivative(package, artifact_id=companion["artifact_id"])
+    extraction_path = package / "derived" / "xlsx" / f"{companion['artifact_id']}.json"
+    first_extraction = extraction_path.read_bytes()
+    shutil.rmtree(package / "derived")
+    second = build_xlsx_derivative(package, artifact_id=companion["artifact_id"])
+
+    extraction = json.loads(first_extraction)
+    assert sha256_file(original) == before_hash == companion["original_sha256"]
+    assert extraction["sheets"][0]["rows"][1] == [
+        "Synthetic v1.0",
+        "AE",
+        "AETERM",
+        "Req",
+    ]
+    assert first_extraction == extraction_path.read_bytes()
     assert first["output_manifest_sha256"] == second["output_manifest_sha256"]

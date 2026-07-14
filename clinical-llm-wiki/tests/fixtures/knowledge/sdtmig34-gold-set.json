@@ -1,0 +1,618 @@
+{
+  "schema_version": "1.0.0",
+  "package_id": "extraction-sdtmig34-gold-set",
+  "source_id": "src-cdisc-sdtmig-3-4",
+  "source_sha256": "ea4ddbba4a3e10a55bb2f36d5e28d9cfc191090717c2426475279750a7f57021",
+  "artifacts": [
+    {
+      "artifact_id": "artifact-cdisc-sdtmig-3-4-pdf",
+      "role": "primary_citation",
+      "media_type": "application/pdf",
+      "artifact_sha256": "ea4ddbba4a3e10a55bb2f36d5e28d9cfc191090717c2426475279750a7f57021"
+    },
+    {
+      "artifact_id": "artifact-cdisc-sdtmig-3-4-xlsx",
+      "role": "structured_companion",
+      "media_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "artifact_sha256": "0176e72eb43764ce01cfd7896dcc9d5b97cc55d0ce766c1ad14034a0b9ccb991"
+    },
+    {
+      "artifact_id": "artifact-cdisc-sdtmig-3-4-release-accession",
+      "role": "companion_evidence",
+      "media_type": "application/json",
+      "artifact_sha256": "d341ab793b932f0360607111d03c616ae162496367c846655eb61f5776916461"
+    }
+  ],
+  "units": [
+    {
+      "unit_id": "unit-sdtmig34-events-guidance",
+      "parent_unit_id": null,
+      "unit_type": "paragraph",
+      "title": "Events class representation guidance",
+      "text_sha256": "7423bb76440decdca39ac409fcdd0ebbc3a0925184d5501f17ab8e5caa01fba3",
+      "locator": {
+        "locator_id": "loc-sdtmig34-p133-events-guidance",
+        "artifact_id": "artifact-cdisc-sdtmig-3-4-pdf",
+        "locator_type": "pdf_region",
+        "physical_page": 133,
+        "printed_page": "133",
+        "section_path": [
+          "6.2 Models for Events Domains"
+        ],
+        "bbox": [
+          72.024,
+          266.14,
+          703.354,
+          290.748
+        ],
+        "sheet_name": null,
+        "row_number": null,
+        "table_id": null,
+        "row_key": null
+      },
+      "processing_status": "candidate",
+      "processing_note": null,
+      "statement_ids": [
+        "stmt-sdtmig34-events-class-guidance"
+      ]
+    },
+    {
+      "unit_id": "unit-sdtmig34-ae-definition",
+      "parent_unit_id": "unit-sdtmig34-events-guidance",
+      "unit_type": "domain",
+      "title": "AE description and overview",
+      "text_sha256": "43b30579972e91d64356aad06ec23186d333e9e2a8130cf9017348be2ac9af61",
+      "locator": {
+        "locator_id": "loc-sdtmig34-p133-ae-definition",
+        "artifact_id": "artifact-cdisc-sdtmig-3-4-pdf",
+        "locator_type": "pdf_region",
+        "physical_page": 133,
+        "printed_page": "133",
+        "section_path": [
+          "6.2 Models for Events Domains",
+          "6.2.1 Adverse Events (AE)",
+          "AE - Description/Overview"
+        ],
+        "bbox": [
+          72.024,
+          455.04,
+          715.003,
+          479.648
+        ],
+        "sheet_name": null,
+        "row_number": null,
+        "table_id": null,
+        "row_key": null
+      },
+      "processing_status": "candidate",
+      "processing_note": null,
+      "statement_ids": [
+        "stmt-sdtmig34-ae-definition"
+      ]
+    },
+    {
+      "unit_id": "unit-sdtmig34-ae-spec-table",
+      "parent_unit_id": "unit-sdtmig34-ae-definition",
+      "unit_type": "table",
+      "title": "AE specification table first page",
+      "text_sha256": "0e3d1f833fb04df9b5b789243235df2fbcb312bf9d9e8a6270289190ef637dcf",
+      "locator": {
+        "locator_id": "loc-sdtmig34-p134-ae-spec-table",
+        "artifact_id": "artifact-cdisc-sdtmig-3-4-pdf",
+        "locator_type": "pdf_region",
+        "physical_page": 134,
+        "printed_page": "134",
+        "section_path": [
+          "6.2.1 Adverse Events (AE)",
+          "AE - Specification"
+        ],
+        "bbox": [
+          72.024,
+          88.76,
+          718.98,
+          516.15
+        ],
+        "sheet_name": null,
+        "row_number": null,
+        "table_id": "table-sdtmig34-ae-specification",
+        "row_key": null
+      },
+      "processing_status": "candidate",
+      "processing_note": null,
+      "statement_ids": [
+        "stmt-sdtmig34-ae-structure"
+      ]
+    },
+    {
+      "unit_id": "unit-sdtmig34-aeterm-xlsx-row",
+      "parent_unit_id": "unit-sdtmig34-ae-spec-table",
+      "unit_type": "variable_row",
+      "title": "AE.AETERM normative metadata",
+      "text_sha256": "f604533743e7c933635dada46d1ccaecd53775b574a803ca9c1dce2523c76db0",
+      "locator": {
+        "locator_id": "loc-sdtmig34-xlsx-variables-r293",
+        "artifact_id": "artifact-cdisc-sdtmig-3-4-xlsx",
+        "locator_type": "xlsx_row",
+        "physical_page": null,
+        "printed_page": null,
+        "section_path": [
+          "Variables",
+          "Events",
+          "AE",
+          "AETERM"
+        ],
+        "bbox": null,
+        "sheet_name": "Variables",
+        "row_number": 293,
+        "table_id": "table-sdtmig34-xlsx-variables",
+        "row_key": "AE.AETERM"
+      },
+      "processing_status": "candidate",
+      "processing_note": null,
+      "statement_ids": [
+        "stmt-sdtmig34-aeterm-required"
+      ]
+    },
+    {
+      "unit_id": "unit-sdtmig34-aeterm-assumption",
+      "parent_unit_id": "unit-sdtmig34-ae-definition",
+      "unit_type": "paragraph",
+      "title": "AE assumption 2a for AETERM",
+      "text_sha256": "7f1379891b7180ecfac435e6510778f57b1af436b5e5f1760fa4e02f3fe88f0a",
+      "locator": {
+        "locator_id": "loc-sdtmig34-p137-aeterm-assumption",
+        "artifact_id": "artifact-cdisc-sdtmig-3-4-pdf",
+        "locator_type": "pdf_region",
+        "physical_page": 137,
+        "printed_page": "137",
+        "section_path": [
+          "6.2.1 Adverse Events (AE)",
+          "AE - Assumptions",
+          "2a"
+        ],
+        "bbox": [
+          108.02,
+          422.4,
+          709.565,
+          447.008
+        ],
+        "sheet_name": null,
+        "row_number": null,
+        "table_id": null,
+        "row_key": null
+      },
+      "processing_status": "candidate",
+      "processing_note": null,
+      "statement_ids": [
+        "stmt-sdtmig34-aeterm-required"
+      ]
+    },
+    {
+      "unit_id": "unit-sdtmig34-ae-example1",
+      "parent_unit_id": "unit-sdtmig34-ae-definition",
+      "unit_type": "example",
+      "title": "AE Example 1 introduction",
+      "text_sha256": "5acc174695ca636ef82528f86590db07f28dfb6999cac36c8872e1cc0052b3b4",
+      "locator": {
+        "locator_id": "loc-sdtmig34-p140-ae-example1",
+        "artifact_id": "artifact-cdisc-sdtmig-3-4-pdf",
+        "locator_type": "pdf_region",
+        "physical_page": 140,
+        "printed_page": "140",
+        "section_path": [
+          "6.2.1 Adverse Events (AE)",
+          "AE - Examples",
+          "Example 1"
+        ],
+        "bbox": [
+          72.024,
+          399.36,
+          708.024,
+          447.008
+        ],
+        "sheet_name": null,
+        "row_number": null,
+        "table_id": null,
+        "row_key": null
+      },
+      "processing_status": "example",
+      "processing_note": "Informative example; it must not be promoted to a universal requirement.",
+      "statement_ids": [
+        "stmt-sdtmig34-ae-example1"
+      ]
+    },
+    {
+      "unit_id": "unit-sdtmig34-aeenrf-crossref",
+      "parent_unit_id": "unit-sdtmig34-ae-spec-table",
+      "unit_type": "cross_reference",
+      "title": "AE.AEENRF relative timing reference",
+      "text_sha256": "5cfa64133cf8ad1663a4e750f894612ed2f7c6e1a82923d998cf59e35cff69b7",
+      "locator": {
+        "locator_id": "loc-sdtmig34-xlsx-variables-r342",
+        "artifact_id": "artifact-cdisc-sdtmig-3-4-xlsx",
+        "locator_type": "xlsx_row",
+        "physical_page": null,
+        "printed_page": null,
+        "section_path": [
+          "Variables",
+          "Events",
+          "AE",
+          "AEENRF"
+        ],
+        "bbox": null,
+        "sheet_name": "Variables",
+        "row_number": 342,
+        "table_id": "table-sdtmig34-xlsx-variables",
+        "row_key": "AE.AEENRF"
+      },
+      "processing_status": "candidate",
+      "processing_note": null,
+      "statement_ids": [
+        "stmt-sdtmig34-aeenrf-crossref"
+      ]
+    },
+    {
+      "unit_id": "unit-sdtmig34-erratum-lnkgrp",
+      "parent_unit_id": null,
+      "unit_type": "erratum",
+      "title": "Section 1.5 --LNKGRP correction",
+      "text_sha256": "1c191ac113557b72d479424ba7c6d1487e708e25e4d03654e5e63e77f61cdca6",
+      "locator": {
+        "locator_id": "loc-sdtmig34-web-errata-section15",
+        "artifact_id": "artifact-cdisc-sdtmig-3-4-release-accession",
+        "locator_type": "web_section",
+        "physical_page": null,
+        "printed_page": null,
+        "section_path": [
+          "Errata",
+          "SDTMIG v3.4",
+          "Section 1.5 - Known Issues"
+        ],
+        "bbox": null,
+        "sheet_name": null,
+        "row_number": null,
+        "table_id": null,
+        "row_key": null
+      },
+      "processing_status": "candidate",
+      "processing_note": "Companion erratum; it qualifies the PDF and must not overwrite the original bytes.",
+      "statement_ids": [
+        "stmt-sdtmig34-erratum-lnkgrp"
+      ]
+    }
+  ],
+  "statements": [
+    {
+      "statement_id": "stmt-sdtmig34-events-class-guidance",
+      "knowledge_type": "requirement",
+      "subject": "Subject-level observation representation",
+      "statement": "Subject-level study observations should be represented using the applicable SDTM general observation class.",
+      "modality": "should",
+      "scope": {
+        "model": "SDTM-2.0",
+        "implementation_guide": "SDTMIG-3.4",
+        "domains": [],
+        "variables": []
+      },
+      "conditions": [],
+      "exceptions": [],
+      "evidence": [
+        {
+          "source_id": "src-cdisc-sdtmig-3-4",
+          "artifact_id": "artifact-cdisc-sdtmig-3-4-pdf",
+          "artifact_sha256": "ea4ddbba4a3e10a55bb2f36d5e28d9cfc191090717c2426475279750a7f57021",
+          "locator_id": "loc-sdtmig34-p133-events-guidance"
+        }
+      ],
+      "relation_ids": [
+        "rel-sdtmig34-events-applies-ae"
+      ],
+      "review_status": "proposed",
+      "review_receipt_id": null
+    },
+    {
+      "statement_id": "stmt-sdtmig34-ae-definition",
+      "knowledge_type": "definition",
+      "subject": "AE domain",
+      "statement": "AE represents untoward medical occurrences without requiring a causal relationship to treatment.",
+      "modality": "descriptive",
+      "scope": {
+        "model": "SDTM-2.0",
+        "implementation_guide": "SDTMIG-3.4",
+        "domains": [
+          "AE"
+        ],
+        "variables": []
+      },
+      "conditions": [],
+      "exceptions": [],
+      "evidence": [
+        {
+          "source_id": "src-cdisc-sdtmig-3-4",
+          "artifact_id": "artifact-cdisc-sdtmig-3-4-pdf",
+          "artifact_sha256": "ea4ddbba4a3e10a55bb2f36d5e28d9cfc191090717c2426475279750a7f57021",
+          "locator_id": "loc-sdtmig34-p133-ae-definition"
+        }
+      ],
+      "relation_ids": [
+        "rel-sdtmig34-ae-definition-belongs"
+      ],
+      "review_status": "proposed",
+      "review_receipt_id": null
+    },
+    {
+      "statement_id": "stmt-sdtmig34-ae-structure",
+      "knowledge_type": "definition",
+      "subject": "AE dataset structure",
+      "statement": "The AE dataset structure is one record per adverse event per subject.",
+      "modality": "descriptive",
+      "scope": {
+        "model": "SDTM-2.0",
+        "implementation_guide": "SDTMIG-3.4",
+        "domains": [
+          "AE"
+        ],
+        "variables": []
+      },
+      "conditions": [],
+      "exceptions": [],
+      "evidence": [
+        {
+          "source_id": "src-cdisc-sdtmig-3-4",
+          "artifact_id": "artifact-cdisc-sdtmig-3-4-pdf",
+          "artifact_sha256": "ea4ddbba4a3e10a55bb2f36d5e28d9cfc191090717c2426475279750a7f57021",
+          "locator_id": "loc-sdtmig34-p134-ae-spec-table"
+        }
+      ],
+      "relation_ids": [
+        "rel-sdtmig34-ae-structure-belongs"
+      ],
+      "review_status": "proposed",
+      "review_receipt_id": null
+    },
+    {
+      "statement_id": "stmt-sdtmig34-aeterm-required",
+      "knowledge_type": "variable_rule",
+      "subject": "AE.AETERM",
+      "statement": "AETERM is the required AE topic variable and must contain the collected verbatim event term.",
+      "modality": "must",
+      "scope": {
+        "model": "SDTM-2.0",
+        "implementation_guide": "SDTMIG-3.4",
+        "domains": [
+          "AE"
+        ],
+        "variables": [
+          "AETERM"
+        ]
+      },
+      "conditions": [],
+      "exceptions": [],
+      "evidence": [
+        {
+          "source_id": "src-cdisc-sdtmig-3-4",
+          "artifact_id": "artifact-cdisc-sdtmig-3-4-pdf",
+          "artifact_sha256": "ea4ddbba4a3e10a55bb2f36d5e28d9cfc191090717c2426475279750a7f57021",
+          "locator_id": "loc-sdtmig34-p137-aeterm-assumption"
+        },
+        {
+          "source_id": "src-cdisc-sdtmig-3-4",
+          "artifact_id": "artifact-cdisc-sdtmig-3-4-xlsx",
+          "artifact_sha256": "0176e72eb43764ce01cfd7896dcc9d5b97cc55d0ce766c1ad14034a0b9ccb991",
+          "locator_id": "loc-sdtmig34-xlsx-variables-r293"
+        }
+      ],
+      "relation_ids": [
+        "rel-sdtmig34-aeterm-belongs"
+      ],
+      "review_status": "proposed",
+      "review_receipt_id": null
+    },
+    {
+      "statement_id": "stmt-sdtmig34-ae-example1",
+      "knowledge_type": "example",
+      "subject": "AE Example 1",
+      "statement": "The example demonstrates free-text AE collection, MedDRA coding, optional term modification, and seriousness-category collection in one study scenario.",
+      "modality": "not_applicable",
+      "scope": {
+        "model": "SDTM-2.0",
+        "implementation_guide": "SDTMIG-3.4",
+        "domains": [
+          "AE"
+        ],
+        "variables": []
+      },
+      "conditions": [
+        "Informative example only"
+      ],
+      "exceptions": [],
+      "evidence": [
+        {
+          "source_id": "src-cdisc-sdtmig-3-4",
+          "artifact_id": "artifact-cdisc-sdtmig-3-4-pdf",
+          "artifact_sha256": "ea4ddbba4a3e10a55bb2f36d5e28d9cfc191090717c2426475279750a7f57021",
+          "locator_id": "loc-sdtmig34-p140-ae-example1"
+        }
+      ],
+      "relation_ids": [
+        "rel-sdtmig34-ae-example-belongs"
+      ],
+      "review_status": "proposed",
+      "review_receipt_id": null
+    },
+    {
+      "statement_id": "stmt-sdtmig34-aeenrf-crossref",
+      "knowledge_type": "cross_reference",
+      "subject": "AE.AEENRF",
+      "statement": "Interpret allowable AEENRF codelist values together with the general relative-timing guidance in Section 4.4.7.",
+      "modality": "descriptive",
+      "scope": {
+        "model": "SDTM-2.0",
+        "implementation_guide": "SDTMIG-3.4",
+        "domains": [
+          "AE"
+        ],
+        "variables": [
+          "AEENRF"
+        ]
+      },
+      "conditions": [],
+      "exceptions": [],
+      "evidence": [
+        {
+          "source_id": "src-cdisc-sdtmig-3-4",
+          "artifact_id": "artifact-cdisc-sdtmig-3-4-xlsx",
+          "artifact_sha256": "0176e72eb43764ce01cfd7896dcc9d5b97cc55d0ce766c1ad14034a0b9ccb991",
+          "locator_id": "loc-sdtmig34-xlsx-variables-r342"
+        }
+      ],
+      "relation_ids": [
+        "rel-sdtmig34-aeenrf-references-timing"
+      ],
+      "review_status": "proposed",
+      "review_receipt_id": null
+    },
+    {
+      "statement_id": "stmt-sdtmig34-erratum-lnkgrp",
+      "knowledge_type": "exception",
+      "subject": "RELREC IDVAR for RELTYPE=MANY",
+      "statement": "Apply the published erratum: a RELTYPE=MANY row uses --LNKGRP rather than --LNKID for IDVAR.",
+      "modality": "must",
+      "scope": {
+        "model": "SDTM-2.0",
+        "implementation_guide": "SDTMIG-3.4",
+        "domains": [],
+        "variables": [
+          "RELTYPE",
+          "IDVAR",
+          "--LNKGRP",
+          "--LNKID"
+        ]
+      },
+      "conditions": [
+        "RELTYPE equals MANY"
+      ],
+      "exceptions": [],
+      "evidence": [
+        {
+          "source_id": "src-cdisc-sdtmig-3-4",
+          "artifact_id": "artifact-cdisc-sdtmig-3-4-release-accession",
+          "artifact_sha256": "d341ab793b932f0360607111d03c616ae162496367c846655eb61f5776916461",
+          "locator_id": "loc-sdtmig34-web-errata-section15"
+        }
+      ],
+      "relation_ids": [
+        "rel-sdtmig34-erratum-supersedes-lnkid"
+      ],
+      "review_status": "proposed",
+      "review_receipt_id": null
+    }
+  ],
+  "relations": [
+    {
+      "relation_id": "rel-sdtmig34-events-applies-ae",
+      "relation_type": "applies_to",
+      "from_id": "stmt-sdtmig34-events-class-guidance",
+      "to_id": "topic-sdtmig34-ae",
+      "target_kind": "topic",
+      "evidence": [
+        {
+          "source_id": "src-cdisc-sdtmig-3-4",
+          "artifact_id": "artifact-cdisc-sdtmig-3-4-pdf",
+          "artifact_sha256": "ea4ddbba4a3e10a55bb2f36d5e28d9cfc191090717c2426475279750a7f57021",
+          "locator_id": "loc-sdtmig34-p133-events-guidance"
+        }
+      ]
+    },
+    {
+      "relation_id": "rel-sdtmig34-ae-definition-belongs",
+      "relation_type": "belongs_to",
+      "from_id": "stmt-sdtmig34-ae-definition",
+      "to_id": "topic-sdtmig34-ae",
+      "target_kind": "topic",
+      "evidence": [
+        {
+          "source_id": "src-cdisc-sdtmig-3-4",
+          "artifact_id": "artifact-cdisc-sdtmig-3-4-pdf",
+          "artifact_sha256": "ea4ddbba4a3e10a55bb2f36d5e28d9cfc191090717c2426475279750a7f57021",
+          "locator_id": "loc-sdtmig34-p133-ae-definition"
+        }
+      ]
+    },
+    {
+      "relation_id": "rel-sdtmig34-ae-structure-belongs",
+      "relation_type": "belongs_to",
+      "from_id": "stmt-sdtmig34-ae-structure",
+      "to_id": "topic-sdtmig34-ae",
+      "target_kind": "topic",
+      "evidence": [
+        {
+          "source_id": "src-cdisc-sdtmig-3-4",
+          "artifact_id": "artifact-cdisc-sdtmig-3-4-pdf",
+          "artifact_sha256": "ea4ddbba4a3e10a55bb2f36d5e28d9cfc191090717c2426475279750a7f57021",
+          "locator_id": "loc-sdtmig34-p134-ae-spec-table"
+        }
+      ]
+    },
+    {
+      "relation_id": "rel-sdtmig34-aeterm-belongs",
+      "relation_type": "belongs_to",
+      "from_id": "stmt-sdtmig34-aeterm-required",
+      "to_id": "topic-sdtmig34-ae",
+      "target_kind": "topic",
+      "evidence": [
+        {
+          "source_id": "src-cdisc-sdtmig-3-4",
+          "artifact_id": "artifact-cdisc-sdtmig-3-4-xlsx",
+          "artifact_sha256": "0176e72eb43764ce01cfd7896dcc9d5b97cc55d0ce766c1ad14034a0b9ccb991",
+          "locator_id": "loc-sdtmig34-xlsx-variables-r293"
+        }
+      ]
+    },
+    {
+      "relation_id": "rel-sdtmig34-ae-example-belongs",
+      "relation_type": "belongs_to",
+      "from_id": "stmt-sdtmig34-ae-example1",
+      "to_id": "topic-sdtmig34-ae",
+      "target_kind": "topic",
+      "evidence": [
+        {
+          "source_id": "src-cdisc-sdtmig-3-4",
+          "artifact_id": "artifact-cdisc-sdtmig-3-4-pdf",
+          "artifact_sha256": "ea4ddbba4a3e10a55bb2f36d5e28d9cfc191090717c2426475279750a7f57021",
+          "locator_id": "loc-sdtmig34-p140-ae-example1"
+        }
+      ]
+    },
+    {
+      "relation_id": "rel-sdtmig34-aeenrf-references-timing",
+      "relation_type": "references",
+      "from_id": "stmt-sdtmig34-aeenrf-crossref",
+      "to_id": "section-sdtmig34-relative-timing",
+      "target_kind": "external_dependency",
+      "evidence": [
+        {
+          "source_id": "src-cdisc-sdtmig-3-4",
+          "artifact_id": "artifact-cdisc-sdtmig-3-4-xlsx",
+          "artifact_sha256": "0176e72eb43764ce01cfd7896dcc9d5b97cc55d0ce766c1ad14034a0b9ccb991",
+          "locator_id": "loc-sdtmig34-xlsx-variables-r342"
+        }
+      ]
+    },
+    {
+      "relation_id": "rel-sdtmig34-erratum-supersedes-lnkid",
+      "relation_type": "supersedes",
+      "from_id": "stmt-sdtmig34-erratum-lnkgrp",
+      "to_id": "statement-sdtmig34-original-lnkid",
+      "target_kind": "external_dependency",
+      "evidence": [
+        {
+          "source_id": "src-cdisc-sdtmig-3-4",
+          "artifact_id": "artifact-cdisc-sdtmig-3-4-release-accession",
+          "artifact_sha256": "d341ab793b932f0360607111d03c616ae162496367c846655eb61f5776916461",
+          "locator_id": "loc-sdtmig34-web-errata-section15"
+        }
+      ]
+    }
+  ]
+}

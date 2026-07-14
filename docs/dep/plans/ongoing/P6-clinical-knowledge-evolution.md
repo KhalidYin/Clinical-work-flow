@@ -26,7 +26,7 @@ syncs_to:
 
 ## 目标
 
-以 SDTMIG 3.4 官方 PDF 为首期真实来源，先证明长篇临床标准能够被完整定位、逐条解析、结构化复用并准确引用，再进入 Workflow 执行集成。P6 建立全文结构地图，并对通用原则、Events observation class 和 AE domain 做深度原子知识抽取、关系整理和查询验收。
+以 SDTMIG 3.4 官方 PDF 与配套规范元数据 XLSX 为首期真实来源，先证明长篇临床标准能够被完整定位、逐条解析、结构化复用并准确引用，再进入 Workflow 执行集成。XLSX 提供 dataset/variable 的行级结构真值，PDF 提供更完整的章节假设、规则、例外、示例和页级语境。P6 建立全文结构地图，并对通用原则、Events observation class 和 AE domain 做深度原子知识抽取、关系整理和查询验收。
 
 P6 的完成标准不是生成了多少篇 Markdown，而是选定深度范围内的每个来源单元都有处理状态，每个批准 statement 都能反向回到准确 PDF locator，规则、解释、示例和例外不会混淆。
 
@@ -50,7 +50,7 @@ P6 的完成标准不是生成了多少篇 Markdown，而是选定深度范围�
 
 ### 包含
 
-- 从 CDISC 官方渠道取得 SDTMIG 3.4 PDF；原件不可变保存并记录 hash、版本、页数、权利和获取来源。
+- 从 CDISC 官方授权渠道取得 SDTMIG 3.4 PDF 与规范元数据 XLSX；两份原件在同一来源包中分别不可变保存并记录独立 hash、版本、权利和用途。
 - 同步登记官方 release page、errata/known issues、SDTM v2.0、Controlled Terminology 和 Conformance Rules 依赖关系。
 - 全文物理页、目录、章节、领域、表格、变量行、段落、示例和跨章节引用的结构地图。
 - 为每个来源单元赋予稳定 locator 和处理状态：知识候选、上下文、示例、导航或明确暂缓。
@@ -106,7 +106,7 @@ P7 开始于：
 
 | 层级 | 对象 | 示例 | 表达位置 |
 |------|------|------|----------|
-| L0 | Source Version | SDTMIG 3.4 PDF | source manifest + Vault source card |
+| L0 | Source Version | SDTMIG 3.4 PDF + normative XLSX | source manifest + Vault source card |
 | L1 | Source Unit | 章节、表格、段落、变量行 | derived structure map + locator |
 | L2 | Knowledge Topic | General Assumptions、Events、AE | Vault knowledge card |
 | L3 | Atomic Statement | 一项定义/要求/假设/例外 | 卡片结构化 statement |
@@ -128,6 +128,8 @@ conditions: []
 exceptions: []
 evidence:
   source_id: src-cdisc-sdtmig-3-4
+  artifact_id: artifact-cdisc-sdtmig-3-4-pdf
+  artifact_sha256: ea4ddbba...
   locator_id: loc-sdtmig34-ae-aeterm
 relations:
   - relation_type: belongs_to
@@ -189,21 +191,21 @@ P1 可根据真实 SDTMIG 结构删减关系类型；不允许为了“图谱丰
 
 ### 输入条件
 
-- SDTMIG 3.4 官方发布页和版本身份可核验。
+- SDTMIG 3.4 官方发布页、PDF 和规范元数据 XLSX 的版本身份可核验。
 - 现有 PDF source pipeline、Schema 和合成 PDF tests 可复现。
 - CDISC PDF 下载如需账号，必须通过官方授权入口取得；不得用非官方镜像冒充原件。
 
 ### 产出
 
-- `sources/packages/src-cdisc-sdtmig-3-4/` 来源包和不可变 source manifest。
-- PDF 原件 hash、页数、书签/目录、文本层、页面渲染和获取证据。
+- `sources/packages/src-cdisc-sdtmig-3-4/` 双原件来源包和不可变 source manifest。
+- PDF 原件 hash、页数、书签/目录、文本层、页面渲染和获取证据；XLSX 原件 hash、sheet/row 结构和可重建值派生。
 - 官方 release/errata companion accession 及 SDTM v2.0/CT/Conformance 依赖登记。
 - SourceUnit、Locator、AtomicStatement、TypedRelation 和 ProcessingStatus 最小合同。
 - 覆盖 definition、normative paragraph、domain table、variable row、example、cross-reference 和 erratum 的人工 Gold Set。
 
 ### 完成标准
 
-- [ ] PDF 来自可证明的 CDISC 官方渠道，原件 hash/页数/版本已冻结；若官方授权阻断，明确记录 blocker，不使用替代文件冒充。
+- [x] 用户提供的 CDISC PDF 与 XLSX 已作为同一版本的不同证据面冻结，分别记录 hash、角色、权利和 local-only 存储；匿名官方入口的认证阻断仍保留在获取记录中。
 - [ ] 数字 PDF 的文本层、页面渲染和物理页/打印页映射通过人工检查。
 - [ ] release page 与 errata/known issues 被登记为 companion evidence，不覆盖 PDF 原文。
 - [ ] 知识类型、modality、scope、conditions、exceptions、evidence 和 relations 合同通过正反例测试。
@@ -221,14 +223,13 @@ P1 可根据真实 SDTMIG 结构删减关系类型；不允许为了“图谱丰
 | `clinical-llm-wiki/sources/packages/src-cdisc-sdtmig-3-4/**` | 新建来源包 |
 | `clinical-llm-wiki/sources/accessions/**` | 新增 PDF/release/errata accession |
 | `clinical-llm-wiki/scripts/pdf/**` | 补齐真实长文档摄取/结构输出 |
-| `clinical-workflow/schemas/knowledge/**` | 最小扩充解析知识合同 |
-| `clinical-llm-wiki/schemas/engine/**` | 镜像 Engine bundle |
+| `clinical-llm-wiki/schemas/extraction/**` | 新增 Wiki 内部解析知识合同；不改变 Runtime 公共 bundle |
 | `clinical-llm-wiki/tests/fixtures/knowledge/**` | 新增 Gold Set |
 | `clinical-llm-wiki/tests/**` | 来源、合同和质量正反例 |
 
 ### 关键决策
 
-- 原件只接受可证明的官方来源；无法匿名下载时保留明确阻断，不降级到非官方副本。
+- 原件只接受可证明的官方授权来源；PDF 与 XLSX 是互补证据，不允许互相替代。原始解析合同归 Wiki 内部所有，只有 P7 需要的稳定查询结果才进入 Engine 公共合同。
 
 ---
 
@@ -402,7 +403,8 @@ P1 可根据真实 SDTMIG 结构删减关系类型；不允许为了“图谱丰
 
 | ID | 描述 | 发现于 | 类型 | 处理 |
 |----|------|--------|------|------|
-| D1 | CDISC 匿名发布页要求登录后才能访问 SDTMIG 3.4 原始文件 | P1 | 阻断（原件取得） | 优先尝试官方 Library/API；若仍需账号，要求用户提供已授权 PDF，不使用非官方镜像 |
+| D1 | CDISC 匿名发布页要求登录后才能访问 SDTMIG 3.4 原始文件 | P1 | 已解决 | 用户于 2026-07-14 提供 PDF/XLSX；保留认证阻断记录，不使用非官方镜像 |
+| D2 | XLSX 自述为规范元数据，PDF 内容更完整；两者的 locator 形态不同 | P1 | 增强 | 同一 Source Version 内建立双 artifact，支持 `pdf_region`、`xlsx_row`、`web_section` 三类 locator |
 
 ## 关键决策记录
 
@@ -413,6 +415,8 @@ P1 可根据真实 SDTMIG 结构删减关系类型；不允许为了“图谱丰
 | 2026-07-14 | 图谱表达 | 全部 Wiki Link / typed relations+策展图 / Neo4j | typed relations+策展图 | 机器可查询，人类图谱保持清晰 |
 | 2026-07-14 | P6/P7 边界 | P6 同时实现 Runtime / P6 只做到高质量查询 | P6 只做到高质量查询 | 先验证知识质量，再验证实际执行 |
 | 2026-07-14 | 原件来源 | 官方授权 / 非官方镜像 / 网页替代 PDF | 只接受官方授权 | 保证来源权威和原件可审计 |
+| 2026-07-14 | PDF/XLSX 边界 | 只用 PDF / 只用 XLSX / 双 artifact | 双 artifact | XLSX 提供规范表格真值，PDF 提供完整语义和页级证据 |
+| 2026-07-14 | 解析合同所有权 | Engine 公共 bundle / Wiki 内部合同 | Wiki 内部合同 | 原始 source unit 不跨 Runtime 边界，避免无关 bundle/hash 漂移 |
 
 ## 同步记录
 
