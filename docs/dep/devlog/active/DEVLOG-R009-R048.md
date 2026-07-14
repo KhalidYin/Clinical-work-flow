@@ -262,3 +262,33 @@ Done — no next steps。内网/云端、多用户认证、GraphRAG、真实 Stu
 
 #### Files Changed / Commits
 - `clinical-workflow/**`、`clinical-llm-wiki/**`、`docs/**`、根协作/使用文档（P6完成，包含于 P6 阶段提交）
+
+---
+
+### R017 [10:14] [P4-obsidian-workflow-visualization] P1: 生成契约驱动的 Obsidian 工作流地图
+
+#### Done
+- 新增 `scripts.content.generate_workflow_map`，从 Engine Pipeline Schema 的 canonical order、prefix dependencies 与 stage enum 三处交叉验证固定管线。
+- 将十份 Wiki Stage Playbook 按 `workflow_stages` 精确匹配到契约，生成纵向 Mermaid 十阶段地图和可点击的 Playbook 表格。
+- 生成前完整检查合同、缺失、重复和未知阶段；只有全量验证成功才原子替换 Markdown，`--check` 用于防止提交过期地图。
+- 增加顺序、链接、幂等、缺失/重复/未知阶段、依赖漂移和旧地图保护测试。
+- 使用 Mermaid CLI 临时渲染生成图，人工确认 10 节点、9 条单向边、窄屏纵向布局可读。
+
+#### Issues / Blockers
+- 首次生成因相邻连线对长度不同的列表使用 `zip(..., strict=True)` 失败；根因是左侧包含最后一个无后继节点。已改为 `node_ids[:-1]` 与 `node_ids[1:]` 等长配对，并用边数断言回归；失败发生在原子写入之前，没有产生部分地图。
+- Python 3.14/Starlette 继续产生既有 multipart/asyncio 弃用告警；本阶段未改变服务依赖，不阻断地图 Gate。
+
+#### Validation
+- `python -m scripts.content.generate_workflow_map --check`（10 canonical stages）
+- `python -m pytest -q tests/test_workflow_map.py tests/test_vault_contracts.py`（10 passed，12 warnings）
+- `python -m ruff check scripts/content/generate_workflow_map.py tests/test_workflow_map.py`（success）
+- Mermaid CLI 渲染与人工视觉检查（success）
+- `git diff --check`（无空白错误，仅既有 LF/CRLF 提示）
+
+#### Next
+1. P2：配置 Obsidian 全局图谱四目录过滤器，并保留用户现有布局参数。
+2. P2：让 HOME、Workflow MOC 和 Stage Traceability MOC 直接进入生成地图，同步 SPEC/使用文档并完成全量 Gate。
+
+#### Files Changed / Commits
+- `clinical-llm-wiki/scripts/content/generate_workflow_map.py`、`tests/test_workflow_map.py`、`vault/10_MOC/Clinical-Workflow-Map.md`
+- `docs/dep/PLAN.md`、`docs/dep/TASK_STATE.md`、`docs/dep/plans/ongoing/P4-obsidian-workflow-visualization.md`、`docs/dep/devlog/**`

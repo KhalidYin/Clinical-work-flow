@@ -10,5 +10,6 @@
 | R014 | 2026-07-13 | 19:36 | P3-clinical-knowledge-workflow-platform | P5 | Complete the governed ADAE knowledge execution vertical slice | `clinical-workflow/`, `clinical-llm-wiki/`, `docs/specs/21-Knowledge-Workflow-Integration.md` | active/DEVLOG-R009-R048.md |
 | R015 | 2026-07-13 | 21:34 | P3-clinical-knowledge-workflow-platform | P6 | Build the local release candidate and open the blocking human acceptance gate | `clinical-workflow/`, `clinical-llm-wiki/`, `USAGE.md`, `docs/deploy/`, `docs/reviews/` | active/DEVLOG-R009-R048.md |
 | R016 | 2026-07-14 | 00:27 | P3-clinical-knowledge-workflow-platform | P6 | 完成人类验收、Obsidian纯Vault边界与本地发布基线 | `clinical-workflow/`, `clinical-llm-wiki/`, `docs/`, `USAGE.md` | active/DEVLOG-R009-R048.md |
+| R017 | 2026-07-14 | 10:14 | P4-obsidian-workflow-visualization | P1 | 生成契约驱动的十阶段 Obsidian 工作流地图与防漂移测试 | `clinical-llm-wiki/scripts/content/`, `clinical-llm-wiki/vault/10_MOC/`, `clinical-llm-wiki/tests/`, `docs/dep/` | active/DEVLOG-R009-R048.md |
 
 > Legacy rounds R001-R008 remain immutable in [DEVLOG-legacy.md](archive/DEVLOG-legacy.md). They predate the searchable index and were intentionally not rewritten during adoption.

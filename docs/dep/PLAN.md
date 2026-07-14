@@ -8,7 +8,7 @@ updated: 2026-07-14
 
 | # | 子计划 | 文件 | 当前阶段 | 已用轮次 | 开始日期 |
 |---|--------|------|----------|----------|----------|
-| - | 当前无进行中的子计划 | - | - | - | - |
+| P4 | Obsidian 工作流可视化与图谱降噪 | [P4-obsidian-workflow-visualization.md](plans/ongoing/P4-obsidian-workflow-visualization.md) | P2：图谱降噪与入口整合 | 1 | 2026-07-14 |
 
 ## 待开始
 
