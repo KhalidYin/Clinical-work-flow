@@ -381,3 +381,33 @@ Done — no next steps。若需要跨阶段全量语义图，应另立 typed-rel
 #### Files Changed / Commits
 - `clinical-llm-wiki/.review_queue/archive/`、`audit_trail.jsonl`、SDTMIG 3.4 source manifest/acquisition、Gold Set 与测试
 - `docs/dep/plans/ongoing/P6-clinical-knowledge-evolution.md`、`docs/dep/PLAN.md`、`docs/dep/devlog/**`
+
+---
+
+### R021 [23:12] [P0-local-review-panel] P1: 建立本地 Review Panel 脚手架与队列注册合同
+
+#### Done
+- 将 P0 Review Panel 计划从 backlog 移入 ongoing，并把 PLAN 指针更新为 P1 已完成、P2 待开始。
+- 新增根目录 `review-panel/` Python 包，建立 setuptools 包元数据、CLI 自检入口、loopback-only 配置解析和 Engine Review Schema loader。
+- 实现服务器 allowlist 队列注册：只发现根 `.review_queue/`、`clinical-llm-wiki/.review_queue/` 和 `clinical-studies/*/.review_queue/`；queue ID/kind 为 Panel 自有元数据，`.queue_scope.json` 仅作为 Review Protocol scope 校验。
+- 新增 API wrapper 合同模型，表达 pending、decided_waiting_confirmation、confirmed、invalid 和 partial 等派生状态，不引入数据库或第二状态机。
+- 增加真实 P6 SDTMIG 3.4 ReviewPacket/DecisionReceipt/ConfirmationReceipt Schema 回归，以及 synthetic repo 的 allowlist、scope mismatch、unknown queue、symlink escape 和 CLI 自检测试。
+
+#### Issues / Blockers
+- `python -m review_panel` 初次从 `review-panel/` 运行失败；根因是 `src/` layout 未安装时模块不在 `sys.path`。已补 setuptools build metadata，并用源码目录 CLI 自检与 root-level wheel build 验证。
+- ruff/pytest/pip 在 `review-panel/` 下创建缓存或构建目录时出现权限错误；根因是当前 sandbox shell 对该子目录新建目录受限。P1 验证改用 pytest 无缓存配置、ruff `--no-cache` 和从仓库根发起 wheel build，未影响包源码。
+
+#### Validation
+- `python -m pytest -q`（`review-panel/`，9 passed，1 skipped）
+- `python -m ruff check --no-cache .`（`review-panel/`，success）
+- `python -m review_panel check --repo-root 'G:\Project\Python\Clinical work flow'`（从 `review-panel/src` 运行，success；发现 Wiki 队列）
+- `python -m pip wheel '.\review-panel' --no-deps --no-build-isolation --no-cache-dir --wheel-dir '.\.tmp\review-panel-wheel'`（从仓库根运行，success；临时产物已清理）
+- `git diff --check`（success；仅 LF/CRLF 提示）
+
+#### Next
+1. P2：实现 FastAPI list/detail/source/decision endpoints 与只读 partial error 语义。
+2. P2：实现 packet hash、finding 覆盖、reviewer role、重复提交和原子独占写入校验。
+
+#### Files Changed / Commits
+- `review-panel/**`（P1 新模块、合同和测试，包含于 P1 阶段提交）
+- `docs/dep/PLAN.md`、`docs/dep/plans/ongoing/P0-local-review-panel.md`、`docs/dep/devlog/**`（P1 Gate 与记录，包含于 P1 阶段提交）

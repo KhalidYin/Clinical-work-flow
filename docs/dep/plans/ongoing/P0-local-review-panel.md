@@ -1,6 +1,6 @@
 ---
 phase_index: 0
-status: planning
+status: in-progress
 created: 2026-07-14
 updated: 2026-07-14
 priority: 1
@@ -170,7 +170,7 @@ Browser UI (native HTML/CSS/ES Modules)
 
 | Phase | 目标 | 预估轮次 | 依赖 | 状态 |
 |-------|------|----------|------|------|
-| P1 | 建立根模块脚手架、队列注册和 Review API 合同 | 2-3 | P6-P1 已完成 | pending |
+| P1 | 建立根模块脚手架、队列注册和 Review API 合同 | 2-3 | P6-P1 已完成 | done |
 | P2 | 实现只读 Review API 与原子 DecisionReceipt 写入 | 2-3 | P1 | pending |
 | P3 | 实现浏览器 UI、E2E、视觉验收和文档同步 | 2-3 | P2 | pending |
 
@@ -195,11 +195,11 @@ Browser UI (native HTML/CSS/ES Modules)
 
 ### 完成标准
 
-- [ ] 根模块可以安装，并能运行 config/Schema/registry 自检命令；HTTP health endpoint 与正式服务留在 P2。
-- [ ] registry 只发现 root、Wiki 和 `clinical-studies/*` 允许路径；符号链接、`..`、任意绝对路径和未知 queue ID fail closed。
-- [ ] Engine Review Schema 是唯一协议权威；Schema 缺失、损坏或不兼容时启动/测试失败。
-- [ ] API wrapper 字段均有来源，能表达 pending、decided_waiting_confirmation、confirmed、invalid/partial，而不维护数据库状态机。
-- [ ] P1 单元/合同测试、ruff 和 `git diff --check` 通过；P1 独立提交，未暂存用户 Vault 改动。
+- [x] 根模块可以安装，并能运行 config/Schema/registry 自检命令；HTTP health endpoint 与正式服务留在 P2。
+- [x] registry 只发现 root、Wiki 和 `clinical-studies/*` 允许路径；符号链接、`..`、任意绝对路径和未知 queue ID fail closed。
+- [x] Engine Review Schema 是唯一协议权威；Schema 缺失、损坏或不兼容时启动/测试失败。
+- [x] API wrapper 字段均有来源，能表达 pending、decided_waiting_confirmation、confirmed、invalid/partial，而不维护数据库状态机。
+- [x] P1 单元/合同测试、ruff 和 `git diff --check` 通过；P1 独立提交，未暂存用户 Vault 改动。
 
 ### 边界（本 Phase 明确不做）
 

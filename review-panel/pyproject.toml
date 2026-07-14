@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "clinical-review-panel"
+version = "0.1.0"
+description = "Loopback-only local review panel for Clinical AI Workflow review queues."
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.111",
+    "jsonschema>=4.23",
+    "pydantic>=2.0",
+    "uvicorn>=0.30",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "ruff",
+]
+
+[project.scripts]
+clinical-review-panel = "review_panel.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-p no:asyncio -p no:cacheprovider"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
