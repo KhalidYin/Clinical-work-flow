@@ -1,0 +1,421 @@
+---
+phase_index: 6
+status: in-progress
+created: 2026-07-14
+updated: 2026-07-14
+priority: 1
+estimated_rounds: 13-20
+depends_on:
+  - P3-clinical-knowledge-workflow-platform.md
+  - P5-obsidian-curated-relation-graph.md
+tags:
+  - sdtmig-3-4
+  - knowledge-extraction
+  - extraction-quality
+  - typed-relations
+  - citation-closure
+  - obsidian
+syncs_to:
+  - 02-SDTM.md
+  - 07-Phase-TA-Config.md
+  - 13-Environment-Files.md
+  - 21-Knowledge-Workflow-Integration.md
+---
+
+# SDTMIG 3.4 知识解析质量与引用基线
+
+## 目标
+
+以 SDTMIG 3.4 官方 PDF 为首期真实来源，先证明长篇临床标准能够被完整定位、逐条解析、结构化复用并准确引用，再进入 Workflow 执行集成。P6 建立全文结构地图，并对通用原则、Events observation class 和 AE domain 做深度原子知识抽取、关系整理和查询验收。
+
+P6 的完成标准不是生成了多少篇 Markdown，而是选定深度范围内的每个来源单元都有处理状态，每个批准 statement 都能反向回到准确 PDF locator，规则、解释、示例和例外不会混淆。
+
+## 背景
+
+- 当前 Wiki 已有 PDF 不可变摄取、文本/页面坐标/渲染派生、Vault、来源 accession、Knowledge Service、Snapshot 和少量受治理内容。
+- 当前 SDTMIG 3.3 只登记了粗粒度章节，尚未证明长文档中的表格、变量行、规则强度、条件、例外和跨章节关系能被稳定解析。
+- 当前 Obsidian 图谱已收敛为工作流主干；不能为了细粒度知识把每个 locator、变量和 statement 都变成 Markdown 节点，重新制造图谱噪声。
+- SDTMIG 3.4 应与 SDTM v2.0 配合使用，官方发布页还维护 errata/known issues；首期必须登记这些依赖，但不在 P6 同时深度抽取所有配套标准。
+- 用户于 2026-07-14 批准“全文结构地图 + Core/Events/AE 深度抽取”，并要求先把知识来源解析质量打通。
+
+## 方案选择
+
+| 方案 | 优点 | 缺点 | 结论 |
+|------|------|------|------|
+| 全书一次性深度抽取 | 表面覆盖广 | 难校准、难审核、容易产生大量错误知识 | 不采用 |
+| 只抽取 AE | 快速形成结果 | 缺少通用规则和跨章节依赖 | 不采用 |
+| 全文结构地图 + Core/Events/AE 深挖 | 保留全局完整性，同时可以逐条校准 | 首期不产生全书全部 approved statements | 采用 |
+
+## 涉及范围
+
+### 包含
+
+- 从 CDISC 官方渠道取得 SDTMIG 3.4 PDF；原件不可变保存并记录 hash、版本、页数、权利和获取来源。
+- 同步登记官方 release page、errata/known issues、SDTM v2.0、Controlled Terminology 和 Conformance Rules 依赖关系。
+- 全文物理页、目录、章节、领域、表格、变量行、段落、示例和跨章节引用的结构地图。
+- 为每个来源单元赋予稳定 locator 和处理状态：知识候选、上下文、示例、导航或明确暂缓。
+- 通用原则、提交/元数据语境、通用假设、Events observation class 和 AE domain 的深度原子知识抽取。
+- definition、requirement、permission、prohibition、assumption、exception、example、variable_rule 和 cross_reference 的类型区分。
+- 通用规则、领域规则、变量规则、实现模式和示例之间的复用关系。
+- Obsidian 人工图和机器 typed relations 的分层；原子 statement/locator 不全部成为图谱节点。
+- 引用闭包、解析覆盖、语义准确、关系完整和查询质量测试。
+- 发布一个只含人工批准深度范围的 locked Snapshot，供 P7 使用。
+
+### 不包含
+
+- 在首期深度批准 SDTMIG 3.4 的所有 domain。
+- 同时深度解析 SDTM v2.0、全部 Controlled Terminology、FDA 规则或全部 Conformance Rules。
+- GraphRAG、Neo4j、向量数据库或独立知识编辑 Web UI。
+- 在 Wiki 中生成或执行实际 SAS/R/Python 临床程序。
+- P7 的 MappingSpec、程序生成、AE 数据集执行和 artifact applied evidence。
+- 把 LLM 摘要、示例或实现建议直接提升为规范要求。
+
+## 与 P7 的边界
+
+P6 结束于：
+
+```text
+用户问题
+  → Knowledge Service 查询
+  → 返回经过质量验证的规则、关系、适用范围和 PDF 引用
+```
+
+P7 开始于：
+
+```text
+规则 + 当前 Study Context
+  → LLM 生成 MappingSpec/程序候选
+  → 受控执行和验证
+  → AE artifact 与 applied evidence
+```
+
+## 主文档影响
+
+完成后需要更新：
+
+- `02-SDTM.md`：SDTMIG 3.4 来源依赖、知识颗粒度和 AE 规则引用基线。
+- `07-Phase-TA-Config.md`：知识适用范围、来源版本和按需加载边界。
+- `13-Environment-Files.md`：source package、local-only 原件、derived、quality fixtures 和备份策略。
+- `21-Knowledge-Workflow-Integration.md`：解析质量 Gate、typed relations、引用闭包和 P6/P7 边界。
+
+`syncs_to` 与本节一致；实际命令和维护方式同步到根 `USAGE.md` 与 Wiki README。
+
+---
+
+## 来源与知识颗粒度
+
+| 层级 | 对象 | 示例 | 表达位置 |
+|------|------|------|----------|
+| L0 | Source Version | SDTMIG 3.4 PDF | source manifest + Vault source card |
+| L1 | Source Unit | 章节、表格、段落、变量行 | derived structure map + locator |
+| L2 | Knowledge Topic | General Assumptions、Events、AE | Vault knowledge card |
+| L3 | Atomic Statement | 一项定义/要求/假设/例外 | 卡片结构化 statement |
+| L4 | Variable Rule | AETERM、AEDECOD、AESTDTC 等 | 卡内 statement/variable rule |
+| L5 | Example/Case | 文档示例、反例、特殊情况 | example/case，不能冒充 requirement |
+
+每条原子 statement 至少携带：
+
+```yaml
+rule_id: rule-sdtmig34-ae-aeterm
+knowledge_type: requirement
+subject: AE.AETERM
+statement: 人工确认后的归纳
+modality: must
+scope:
+  model: SDTM-2.0
+  implementation_guide: SDTMIG-3.4
+conditions: []
+exceptions: []
+evidence:
+  source_id: src-cdisc-sdtmig-3-4
+  locator_id: loc-sdtmig34-ae-aeterm
+relations:
+  - relation_type: belongs_to
+    target_id: domain-ae
+```
+
+字段名称可以在 P1 根据现有 Schema 最小调整，但必须表达知识类型、modality、scope、条件、例外和精确证据。
+
+## 图谱边界
+
+### Obsidian 人工图
+
+只展示来源、通用主题、observation class、domain、知识卡和编程模式等高价值节点。README、模板、每个变量行、每个 locator 和每条 statement 不进入默认主图。
+
+### 机器关系
+
+原子层使用 typed relation，由 YAML/Schema 和可重建索引表达：
+
+- `contains`
+- `belongs_to`
+- `applies_to`
+- `requires`
+- `permits`
+- `prohibits`
+- `qualified_by`
+- `exception_to`
+- `references`
+- `supersedes`
+- `implemented_by`
+
+P1 可根据真实 SDTMIG 结构删减关系类型；不允许为了“图谱丰富”创造没有查询或追溯价值的边。
+
+## 质量 Gate
+
+1. **结构完整性**：深度范围外也必须在全文结构地图中可定位；每个 source unit 有处理状态。
+2. **引用完整性**：100% approved statement 具有 source/version/locator/hash，0 dangling reference。
+3. **原子性**：一条 statement 只表达一个主要规范判断；多来源或多条件必须显式记录。
+4. **语义保真**：modality、否定、条件、例外和示例身份不因归纳改变。
+5. **人工审核**：首期深度范围的高权威 normative statements 全量人工审核，不只抽样。
+6. **关系质量**：approved statement 无孤立引用；通用规则不在多个 domain 重复复制为不同事实。
+7. **查询质量**：预定义问题返回预期规则、关系和 locator，且能区分规则/解释/示例/实现建议。
+8. **版本隔离**：3.3、3.4 和 errata 不静默混用；旧 Snapshot 不自动升级。
+
+---
+
+## Phase 总览
+
+| Phase | 目标 | 预估轮次 | 依赖 | 状态 |
+|-------|------|----------|------|------|
+| P1 | 冻结 SDTMIG 3.4 来源、解析合同和人工 Gold Set | 2-3 | 现有 Wiki/PDF 基线 | in-progress |
+| P2 | 建立全文结构地图和 locator 覆盖 | 3-4 | P1 | pending |
+| P3 | 深度抽取 Core/Events/AE 原子知识并校准质量 | 4-6 | P2 | pending |
+| P4 | 整理可复用知识与 typed relation 图谱 | 2-3 | P3 | pending |
+| P5 | 完成引用、图谱、查询和 Snapshot 发布验收 | 2-4 | P4 | pending |
+
+---
+
+## P1：来源冻结、解析合同与 Gold Set
+
+### 输入条件
+
+- SDTMIG 3.4 官方发布页和版本身份可核验。
+- 现有 PDF source pipeline、Schema 和合成 PDF tests 可复现。
+- CDISC PDF 下载如需账号，必须通过官方授权入口取得；不得用非官方镜像冒充原件。
+
+### 产出
+
+- `sources/packages/src-cdisc-sdtmig-3-4/` 来源包和不可变 source manifest。
+- PDF 原件 hash、页数、书签/目录、文本层、页面渲染和获取证据。
+- 官方 release/errata companion accession 及 SDTM v2.0/CT/Conformance 依赖登记。
+- SourceUnit、Locator、AtomicStatement、TypedRelation 和 ProcessingStatus 最小合同。
+- 覆盖 definition、normative paragraph、domain table、variable row、example、cross-reference 和 erratum 的人工 Gold Set。
+
+### 完成标准
+
+- [ ] PDF 来自可证明的 CDISC 官方渠道，原件 hash/页数/版本已冻结；若官方授权阻断，明确记录 blocker，不使用替代文件冒充。
+- [ ] 数字 PDF 的文本层、页面渲染和物理页/打印页映射通过人工检查。
+- [ ] release page 与 errata/known issues 被登记为 companion evidence，不覆盖 PDF 原文。
+- [ ] 知识类型、modality、scope、conditions、exceptions、evidence 和 relations 合同通过正反例测试。
+- [ ] Gold Set 覆盖不同来源形态并保存人工期望值，可用于 P2/P3 回归。
+
+### 边界（本 Phase 明确不做）
+
+- 不批量生成正式知识卡。
+- 不修改 Runtime 或发布 Snapshot。
+
+### 涉及文件
+
+| 文件 | 操作 |
+|------|------|
+| `clinical-llm-wiki/sources/packages/src-cdisc-sdtmig-3-4/**` | 新建来源包 |
+| `clinical-llm-wiki/sources/accessions/**` | 新增 PDF/release/errata accession |
+| `clinical-llm-wiki/scripts/pdf/**` | 补齐真实长文档摄取/结构输出 |
+| `clinical-workflow/schemas/knowledge/**` | 最小扩充解析知识合同 |
+| `clinical-llm-wiki/schemas/engine/**` | 镜像 Engine bundle |
+| `clinical-llm-wiki/tests/fixtures/knowledge/**` | 新增 Gold Set |
+| `clinical-llm-wiki/tests/**` | 来源、合同和质量正反例 |
+
+### 关键决策
+
+- 原件只接受可证明的官方来源；无法匿名下载时保留明确阻断，不降级到非官方副本。
+
+---
+
+## P2：全文结构地图与 locator 覆盖
+
+### 输入条件
+
+- P1 原件、合同和 Gold Set 通过 Gate。
+
+### 产出
+
+- PDF 全文 Chapter→Section→Domain→Table→Variable Row→Paragraph/Example 结构地图。
+- 稳定 locator ID、physical/printed page、section、bbox/row identity 和跨章节引用。
+- 每个 source unit 的 processing status 与暂缓原因。
+- 结构覆盖、表格边界、页码和重建一致性报告。
+
+### 完成标准
+
+- [ ] 全部物理页、目录章节和识别出的 domain/table 都进入结构地图，无不明页面。
+- [ ] 深度范围内的变量行、assumption、example 和 cross-reference 可稳定定位。
+- [ ] 每个 source unit 标记为 candidate/context/example/navigation/deferred，并对 deferred 给出原因。
+- [ ] 删除 derived 后可从原件和 manifest 重建相同稳定 identity。
+- [ ] Gold Set locator 命中率为 100%，页面和表格顺序经视觉抽查无错位。
+
+### 边界（本 Phase 明确不做）
+
+- 不把所有结构单元自动提升为知识 statement。
+- 不生成 Obsidian 大量原子节点。
+
+### 涉及文件
+
+| 文件 | 操作 |
+|------|------|
+| `clinical-llm-wiki/scripts/pdf/**` | 扩充结构/表格/locator 解析 |
+| `clinical-llm-wiki/sources/packages/**/derived/**` | 生成可重建结构地图 |
+| `clinical-llm-wiki/tests/**` | 覆盖、页码、表格和重建测试 |
+
+### 关键决策
+
+- 先建立来源结构完整性，再调用 LLM 做语义抽取；不以 LLM 返回数量推断文档覆盖率。
+
+---
+
+## P3：Core/Events/AE 深度知识抽取
+
+### 输入条件
+
+- P2 全文结构地图完整，Gold Set locator 全部通过。
+- 深度范围的具体 section/domain 边界已根据 PDF 实际目录冻结。
+
+### 产出
+
+- 通用模型/实施原则、提交与元数据语境、通用假设、Events observation class 和 AE domain 的原子 Proposal。
+- 规则、定义、假设、例外、变量规则、示例和跨章节引用的类型化内容。
+- LLM 抽取结果与 Gold Set 的逐轮差异、提示/Schema 调整记录和人工复核清单。
+- 解析覆盖、statement 原子性、语义保真和重复规则报告。
+
+### 完成标准
+
+- [ ] 深度范围内每个 source unit 已生成候选或有明确 non-knowledge/deferred 解释。
+- [ ] modality、否定、conditions、exceptions 和 example 身份与来源一致。
+- [ ] 每条 Proposal 带稳定 source/locator；跨来源归纳显式列出全部 evidence。
+- [ ] 高权威 normative statements 完成人工逐条审核，未确认内容保持 proposed/rework。
+- [ ] 不把 SDTM v2.0、CT、FDA 或组织惯例中缺失的信息补写成 SDTMIG 3.4 原文事实。
+
+### 边界（本 Phase 明确不做）
+
+- 不深度批准其他所有 domain。
+- 不生成实际 AE 映射程序。
+
+### 涉及文件
+
+| 文件 | 操作 |
+|------|------|
+| `clinical-llm-wiki/scripts/content/**` | 新增结构单元→Proposal 抽取与质量报告 |
+| `clinical-llm-wiki/vault/98_Inbox/**` | 保存原子知识候选 |
+| `clinical-llm-wiki/vault/60_Sources/**` | 增加 SDTMIG 3.4 来源卡 |
+| `clinical-llm-wiki/tests/**` | Gold Set、覆盖、语义和重复测试 |
+
+### 关键决策
+
+- 抽取采用小批次校准；先通过 Gold Set 再扩大，不一次性调用 LLM 生成全书知识。
+
+---
+
+## P4：知识复用与 typed relation 图谱
+
+### 输入条件
+
+- P3 深度范围的候选完成逐条复核，类型和引用稳定。
+
+### 产出
+
+- 通用规则、Events/AE domain、变量规则、实现模式和示例的去重/复用结构。
+- 最小 typed relation 集及关系闭包校验。
+- SDTMIG 3.4→通用原则→Events→AE→相关知识/来源的 Obsidian 策展视图。
+- 机器关系投影和查询索引；不改变现有十阶段默认主图。
+
+### 完成标准
+
+- [ ] 相同通用规则不会在多个知识卡中复制成冲突事实。
+- [ ] approved/proposed statement 的 typed relations 均解析到存在对象或明确 external dependency。
+- [ ] Obsidian 全局图不出现 locator/变量行/README 星团；AE 本地图可查看高价值关系。
+- [ ] 机器查询可以沿 domain→rule→source locator 和 rule→exception/example 反向追踪。
+- [ ] 图谱派生可重建，不成为第二知识权威。
+
+### 边界（本 Phase 明确不做）
+
+- 不引入图数据库或 GraphRAG。
+- 不为视觉丰富添加无业务意义关系。
+
+### 涉及文件
+
+| 文件 | 操作 |
+|------|------|
+| `clinical-llm-wiki/vault/20_Knowledge/**` | 整理经批准知识正文 |
+| `clinical-llm-wiki/vault/10_MOC/**` | 增加策展式 SDTMIG/AE 入口 |
+| `clinical-llm-wiki/scripts/content/**` | 生成 typed relation/导航派生 |
+| `clinical-llm-wiki/service/**` | 索引关系字段 |
+| `clinical-llm-wiki/tests/**` | 去重、关系和图谱降噪测试 |
+
+### 关键决策
+
+- Obsidian 管理人类可读主题，原子关系由结构化字段和可重建索引承载。
+
+---
+
+## P5：引用、查询与发布验收
+
+### 输入条件
+
+- P4 的批准知识、关系和导航全部具备审核证据。
+
+### 产出
+
+- SDTMIG 3.4 深度范围的 approved-only Snapshot。
+- 正向、组合、边界、反向、缺失和错版本查询 benchmark。
+- 结构覆盖、语义质量、关系完整、引用闭包和图谱质量报告。
+- P7 可消费的 AE citation bundle 和明确的未覆盖知识清单。
+
+### 完成标准
+
+- [ ] 100% approved statement 具有 source/version/locator/hash，0 dangling reference。
+- [ ] 查询能区分 requirement、definition、assumption、exception、example 和 implementation guidance。
+- [ ] AETERM/AEDECOD/timing/CT/域边界等代表问题能返回预期规则、关系和 PDF locator。
+- [ ] 删除任一必需 locator、混入 3.3 rule 或使用未批准内容时 Gate 必须失败。
+- [ ] Snapshot 只包含人工批准的深度范围，不用结构地图条目填充知识数量。
+- [ ] P7 可以一次查询获得 AE MappingSpec 所需的规则集合和引用；缺口明确返回而非猜测。
+- [ ] Wiki 全量 tests、ruff、PDF visual QA、内容/关系生成器 check 和人工验收通过。
+
+### 边界（本 Phase 明确不做）
+
+- 不执行 AE 程序或生成 SDTM dataset。
+- 不把首期知识质量结论外推到尚未深度抽取的 domain。
+
+### 涉及文件
+
+| 文件 | 操作 |
+|------|------|
+| `clinical-llm-wiki/snapshots/**` | 发布批准 Snapshot |
+| `clinical-llm-wiki/service/**` | 完成查询/关系返回 |
+| `clinical-llm-wiki/tests/**` | benchmark 和失败 Gate |
+| `docs/reviews/**` | 人工质量验收 |
+| `USAGE.md`、Wiki README、SPEC-02/07/13/21 | 同步实际能力 |
+
+### 关键决策
+
+- P6 以解析质量和引用完整性完成，不以全书知识数量或 Runtime 执行完成。
+
+## 执行中发现
+
+| ID | 描述 | 发现于 | 类型 | 处理 |
+|----|------|--------|------|------|
+| D1 | CDISC 匿名发布页要求登录后才能访问 SDTMIG 3.4 原始文件 | P1 | 阻断（原件取得） | 优先尝试官方 Library/API；若仍需账号，要求用户提供已授权 PDF，不使用非官方镜像 |
+
+## 关键决策记录
+
+| 日期 | 决策 | 选项 | 选择 | 理由 |
+|------|------|------|------|------|
+| 2026-07-14 | 首期解析范围 | 全书深度 / AE only / 全文结构+Core/Events/AE 深度 | 全文结构+Core/Events/AE 深度 | 同时保证全局不漏和局部逐条质量 |
+| 2026-07-14 | 知识颗粒度 | 章节摘要 / 每条一个文件 / 主题卡+原子 statement | 主题卡+原子 statement | 支持逐条引用且避免 Obsidian 图谱爆炸 |
+| 2026-07-14 | 图谱表达 | 全部 Wiki Link / typed relations+策展图 / Neo4j | typed relations+策展图 | 机器可查询，人类图谱保持清晰 |
+| 2026-07-14 | P6/P7 边界 | P6 同时实现 Runtime / P6 只做到高质量查询 | P6 只做到高质量查询 | 先验证知识质量，再验证实际执行 |
+| 2026-07-14 | 原件来源 | 官方授权 / 非官方镜像 / 网页替代 PDF | 只接受官方授权 | 保证来源权威和原件可审计 |
+
+## 同步记录
+
+| 日期 | 已同步到 | 说明 |
+|------|----------|------|
+| - | 尚未同步 | 计划完成后按 `syncs_to` 执行 |

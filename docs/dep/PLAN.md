@@ -8,18 +8,17 @@ updated: 2026-07-14
 
 | # | 子计划 | 文件 | 当前阶段 | 已用轮次 | 开始日期 |
 |---|--------|------|----------|----------|----------|
-| - | 当前无进行中的子计划 | - | - | - | - |
+| P6 | SDTMIG 3.4 知识解析质量与引用基线 | [P6-clinical-knowledge-evolution.md](plans/ongoing/P6-clinical-knowledge-evolution.md) | 内部 P1：来源冻结、解析合同与 Gold Set | - | 2026-07-14 |
 
 ## 待开始
 
 | # | 子计划 | 文件 | 预估轮次 | 依赖 |
 |---|--------|------|----------|------|
-| P6 | 临床知识来源摄取与引用闭包 | [P6-clinical-knowledge-evolution.md](plans/backlog/P6-clinical-knowledge-evolution.md) | 10-16 | P3、P5 完成 |
 | P7 | AE 数据集知识驱动执行闭环 | [P7-safety-analysis-vertical-workflow.md](plans/backlog/P7-safety-analysis-vertical-workflow.md) | 10-16 | P6 完成 |
 | P8 | Workflow Application API 与本地 Study Console | [P8-workflow-api-study-console.md](plans/backlog/P8-workflow-api-study-console.md) | 25-40（执行前重估） | P7 完成并重新确认范围 |
 | P9 | 多 Study 内网协作与受控部署 | [P9-multi-study-intranet-collaboration.md](plans/backlog/P9-multi-study-intranet-collaboration.md) | 20-32（执行前重估） | P8 完成并重新确认部署授权 |
 
-> 当前执行视野只展开 P6 → P7：P6 用一个来源包建立不可遗漏的引用闭包，P7 用“生成 SDTM AE”证明 Wiki + LLM + Workflow 的实际执行价值。P8/P9 保留长期方向，但必须基于 P7 的真实 API、状态和协作证据重新确认范围，不允许提前扩展。后续知识按实际 Workflow 缺口增量摄取，不再先建大而全知识库。
+> 当前执行视野只展开 P6 → P7：P6 以 SDTMIG 3.4 建立全文结构地图，并对 Core/Events/AE 做逐条知识解析、关系和引用质量验收；P7 再用“生成 SDTM AE”证明 Wiki + LLM + Workflow 的实际执行价值。P8/P9 保留长期方向，但必须基于 P7 的真实证据重新确认范围，不允许提前扩展。后续知识按同一质量 Gate 随实际 Workflow 缺口增量摄取。
 
 ## 最近完成
 
