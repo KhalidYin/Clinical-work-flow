@@ -1,0 +1,49 @@
+{
+  "review_id": "sdtm_spec_sdtmig34_gold_v1_001",
+  "reviewer": "Human Knowledge Owner (Codex task user)",
+  "reviewer_role": "human_knowledge_owner",
+  "timestamp": "2026-07-14T16:52:34+08:00",
+  "decisions": [
+    {
+      "finding_id": "F-001",
+      "decision": "approved",
+      "comment": "Approved as the SDTMIG 3.4 dual-artifact extraction calibration baseline."
+    },
+    {
+      "finding_id": "F-002",
+      "decision": "approved",
+      "comment": "Approved as the should-level Events representation calibration."
+    },
+    {
+      "finding_id": "F-003",
+      "decision": "approved",
+      "comment": "Approved as the descriptive AE domain definition calibration."
+    },
+    {
+      "finding_id": "F-004",
+      "decision": "approved",
+      "comment": "Approved as the descriptive AE dataset structure calibration."
+    },
+    {
+      "finding_id": "F-005",
+      "decision": "approved",
+      "comment": "Approved as the dual-evidence must-level AETERM variable rule calibration."
+    },
+    {
+      "finding_id": "F-006",
+      "decision": "approved",
+      "comment": "Approved as an informative example and not a universal requirement."
+    },
+    {
+      "finding_id": "F-007",
+      "decision": "approved",
+      "comment": "Approved as a typed AEENRF cross-reference to Section 4.4.7."
+    },
+    {
+      "finding_id": "F-008",
+      "decision": "approved",
+      "comment": "Approved as qualifying erratum evidence that supersedes the affected wording."
+    }
+  ],
+  "general_notes": "The user explicitly replied '认可' after receiving the complete F-001 through F-008 summary. This approval freezes extraction-test expectations and source QA for P6; it does not publish production Wiki knowledge or constitute Sponsor, regulatory, Study, or GxP approval."
+}

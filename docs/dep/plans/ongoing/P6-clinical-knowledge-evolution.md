@@ -179,7 +179,7 @@ P1 可根据真实 SDTMIG 结构删减关系类型；不允许为了“图谱丰
 
 | Phase | 目标 | 预估轮次 | 依赖 | 状态 |
 |-------|------|----------|------|------|
-| P1 | 冻结 SDTMIG 3.4 来源、解析合同和人工 Gold Set | 2-3 | 现有 Wiki/PDF 基线 | in-progress |
+| P1 | 冻结 SDTMIG 3.4 来源、解析合同和人工 Gold Set | 2-3 | 现有 Wiki/PDF 基线 | done |
 | P2 | 建立全文结构地图和 locator 覆盖 | 3-4 | P1 | pending |
 | P3 | 深度抽取 Core/Events/AE 原子知识并校准质量 | 4-6 | P2 | pending |
 | P4 | 整理可复用知识与 typed relation 图谱 | 2-3 | P3 | pending |
@@ -206,10 +206,10 @@ P1 可根据真实 SDTMIG 结构删减关系类型；不允许为了“图谱丰
 ### 完成标准
 
 - [x] 用户提供的 CDISC PDF 与 XLSX 已作为同一版本的不同证据面冻结，分别记录 hash、角色、权利和 local-only 存储；匿名官方入口的认证阻断仍保留在获取记录中。
-- [ ] 数字 PDF 的文本层、页面渲染和物理页/打印页映射通过人工检查。
-- [ ] release page 与 errata/known issues 被登记为 companion evidence，不覆盖 PDF 原文。
-- [ ] 知识类型、modality、scope、conditions、exceptions、evidence 和 relations 合同通过正反例测试。
-- [ ] Gold Set 覆盖不同来源形态并保存人工期望值，可用于 P2/P3 回归。
+- [x] 数字 PDF 的文本层、页面渲染和物理页/打印页映射通过人工检查。
+- [x] release page 与 errata/known issues 被登记为 companion evidence，不覆盖 PDF 原文。
+- [x] 知识类型、modality、scope、conditions、exceptions、evidence 和 relations 合同通过正反例测试。
+- [x] Gold Set 覆盖不同来源形态并保存人工期望值，可用于 P2/P3 回归。
 
 ### 边界（本 Phase 明确不做）
 
@@ -417,6 +417,7 @@ P1 可根据真实 SDTMIG 结构删减关系类型；不允许为了“图谱丰
 | 2026-07-14 | 原件来源 | 官方授权 / 非官方镜像 / 网页替代 PDF | 只接受官方授权 | 保证来源权威和原件可审计 |
 | 2026-07-14 | PDF/XLSX 边界 | 只用 PDF / 只用 XLSX / 双 artifact | 双 artifact | XLSX 提供规范表格真值，PDF 提供完整语义和页级证据 |
 | 2026-07-14 | 解析合同所有权 | Engine 公共 bundle / Wiki 内部合同 | Wiki 内部合同 | 原始 source unit 不跨 Runtime 边界，避免无关 bundle/hash 漂移 |
+| 2026-07-14 | P1 人工 Gold Set | 全部批准 / 修改 / 拒绝 | F-001 至 F-008 全部批准 | 用户明确认可双 artifact、七条 statement 分类和证据预期；批准仅用于解析校准与 source human QA，不发布生产知识 |
 
 ## 同步记录
 

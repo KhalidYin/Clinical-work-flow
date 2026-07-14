@@ -27,7 +27,7 @@
   "original_sha256": "ea4ddbba4a3e10a55bb2f36d5e28d9cfc191090717c2426475279750a7f57021",
   "original_size_bytes": 7214120,
   "page_count": 461,
-  "pdf_status": "quarantine",
+  "pdf_status": "human_qa",
   "pipeline_version": "1.1.0",
   "primary_artifact_id": "artifact-cdisc-sdtmig-3-4-pdf",
   "rights_status": "restricted",

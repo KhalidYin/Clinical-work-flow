@@ -8,7 +8,7 @@ updated: 2026-07-14
 
 | # | 子计划 | 文件 | 当前阶段 | 已用轮次 | 开始日期 |
 |---|--------|------|----------|----------|----------|
-| P6 | SDTMIG 3.4 知识解析质量与引用基线 | [P6-clinical-knowledge-evolution.md](plans/ongoing/P6-clinical-knowledge-evolution.md) | 内部 P1：来源冻结、解析合同与 Gold Set | - | 2026-07-14 |
+| P6 | SDTMIG 3.4 知识解析质量与引用基线 | [P6-clinical-knowledge-evolution.md](plans/ongoing/P6-clinical-knowledge-evolution.md) | 内部 P1 已完成；P2：全文结构地图待开始 | - | 2026-07-14 |
 
 ## 待开始
 

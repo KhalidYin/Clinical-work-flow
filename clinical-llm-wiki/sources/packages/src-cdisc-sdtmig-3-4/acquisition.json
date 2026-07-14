@@ -67,6 +67,6 @@
     }
   ],
   "source_manifest": "source-manifest.json",
-  "next_action": "Complete locator Gold Set and promote pdf_status only through the integrity, machine-QA, human-QA, and citation-ready gates.",
+  "next_action": "Use the approved Gold Set to build and verify the P6-P2 full-document structure map; citation_ready remains a later publication gate.",
   "checked_at": "2026-07-14T15:22:00+08:00"
 }

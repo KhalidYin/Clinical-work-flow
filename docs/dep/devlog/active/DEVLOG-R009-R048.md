@@ -354,3 +354,30 @@ Done — no next steps。若需要跨阶段全量语义图，应另立 typed-rel
 #### Files Changed / Commits
 - `clinical-llm-wiki/scripts/content/generate_workflow_map.py`、`vault/10_MOC/Workflow-Relations/**`、`vault/.obsidian/graph.json`、Vault导航与测试
 - Wiki README、`USAGE.md`、`docs/specs/21-Knowledge-Workflow-Integration.md`、`docs/dep/**`
+
+---
+
+### R020 [17:01] [P6-clinical-knowledge-evolution] P1: 冻结 SDTMIG 3.4 双制品来源与人工 Gold Set
+
+#### Done
+- 将用户对 F-001 至 F-008 的明确认可序列化为共享 Schema 有效的 DecisionReceipt，并生成 ConfirmationReceipt；ReviewPacket 三件套归档，活动队列恢复为空。
+- 将 PDF/XLSX 双 artifact、七条 Gold Set statement、类型、modality、跨引用和 erratum 预期冻结为人工批准的解析回归基线；批准范围仅限解析校准，不发布生产 Wiki 知识。
+- 将 PDF 来源状态从 `quarantine` 提升到 `human_qa`；保留 `restricted + local_only`，并明确 `citation_ready` 属于后续发布 Gate。
+- 增加 ReviewPacket→DecisionReceipt→ConfirmationReceipt 覆盖与 Schema 回归，要求 8 项 finding 全覆盖、全部 applied；P1 五项完成标准全部关闭。
+
+#### Issues / Blockers
+- 首轮定向测试 1 项失败：知识解析合同的 `review_receipt_id` 要求连字符 slug，而 Review Protocol 的 `review_id` 使用下划线。根因是两个合同字段语义相关但格式不同；保留协议 ID，并使用 `review-sdtmig34-gold-v1-001` 作为知识引用 ID，在审计记录中显式映射，未放宽 Schema。
+- openpyxl 在 Python 3.14 下仍报告 `datetime.utcnow()` 弃用警告；来源于第三方依赖，不影响本阶段 Gate。
+
+#### Validation
+- `python -m pytest -q tests/test_p6_extraction_contract.py tests/test_pdf_source_pipeline.py`（18 passed，8 warnings）
+- DecisionReceipt 与 ConfirmationReceipt 通过共享 Review Protocol Schema；8/8 finding 已应用，0 adjusted，0 failed。
+- Gold Set 通过 Wiki extraction Schema、引用闭包、artifact hash 和本地原件定位测试。
+
+#### Next
+1. 先编写并确认根目录轻量 Review Panel 前置子计划，作为后续人工知识审阅和 P8 Study Console 的兼容基础。
+2. 前置审阅层按独立 Phase 提交后，再进入 P6-P2 全文结构地图。
+
+#### Files Changed / Commits
+- `clinical-llm-wiki/.review_queue/archive/`、`audit_trail.jsonl`、SDTMIG 3.4 source manifest/acquisition、Gold Set 与测试
+- `docs/dep/plans/ongoing/P6-clinical-knowledge-evolution.md`、`docs/dep/PLAN.md`、`docs/dep/devlog/**`

@@ -307,8 +307,8 @@
       "relation_ids": [
         "rel-sdtmig34-events-applies-ae"
       ],
-      "review_status": "proposed",
-      "review_receipt_id": null
+      "review_status": "approved",
+      "review_receipt_id": "review-sdtmig34-gold-v1-001"
     },
     {
       "statement_id": "stmt-sdtmig34-ae-definition",
@@ -337,8 +337,8 @@
       "relation_ids": [
         "rel-sdtmig34-ae-definition-belongs"
       ],
-      "review_status": "proposed",
-      "review_receipt_id": null
+      "review_status": "approved",
+      "review_receipt_id": "review-sdtmig34-gold-v1-001"
     },
     {
       "statement_id": "stmt-sdtmig34-ae-structure",
@@ -367,8 +367,8 @@
       "relation_ids": [
         "rel-sdtmig34-ae-structure-belongs"
       ],
-      "review_status": "proposed",
-      "review_receipt_id": null
+      "review_status": "approved",
+      "review_receipt_id": "review-sdtmig34-gold-v1-001"
     },
     {
       "statement_id": "stmt-sdtmig34-aeterm-required",
@@ -405,8 +405,8 @@
       "relation_ids": [
         "rel-sdtmig34-aeterm-belongs"
       ],
-      "review_status": "proposed",
-      "review_receipt_id": null
+      "review_status": "approved",
+      "review_receipt_id": "review-sdtmig34-gold-v1-001"
     },
     {
       "statement_id": "stmt-sdtmig34-ae-example1",
@@ -437,8 +437,8 @@
       "relation_ids": [
         "rel-sdtmig34-ae-example-belongs"
       ],
-      "review_status": "proposed",
-      "review_receipt_id": null
+      "review_status": "approved",
+      "review_receipt_id": "review-sdtmig34-gold-v1-001"
     },
     {
       "statement_id": "stmt-sdtmig34-aeenrf-crossref",
@@ -469,8 +469,8 @@
       "relation_ids": [
         "rel-sdtmig34-aeenrf-references-timing"
       ],
-      "review_status": "proposed",
-      "review_receipt_id": null
+      "review_status": "approved",
+      "review_receipt_id": "review-sdtmig34-gold-v1-001"
     },
     {
       "statement_id": "stmt-sdtmig34-erratum-lnkgrp",
@@ -504,8 +504,8 @@
       "relation_ids": [
         "rel-sdtmig34-erratum-supersedes-lnkid"
       ],
-      "review_status": "proposed",
-      "review_receipt_id": null
+      "review_status": "approved",
+      "review_receipt_id": "review-sdtmig34-gold-v1-001"
     }
   ],
   "relations": [

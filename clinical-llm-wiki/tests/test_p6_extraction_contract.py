@@ -23,7 +23,11 @@ ACQUISITION = (
     ROOT / "sources" / "packages" / "src-cdisc-sdtmig-3-4" / "acquisition.json"
 )
 REVIEW_PACKET = (
-    ROOT / ".review_queue" / "sdtm_spec_sdtmig34_gold_v1_001.json"
+    ROOT / ".review_queue" / "archive" / "sdtm_spec_sdtmig34_gold_v1_001.json"
+)
+DECISION_RECEIPT = REVIEW_PACKET.with_name("sdtm_spec_sdtmig34_gold_v1_001_decision.json")
+CONFIRMATION_RECEIPT = REVIEW_PACKET.with_name(
+    "sdtm_spec_sdtmig34_gold_v1_001_confirmation.json"
 )
 
 
@@ -65,7 +69,10 @@ def test_sdtmig34_gold_set_covers_required_source_and_knowledge_shapes() -> None
         "artifact-cdisc-sdtmig-3-4-pdf",
         "artifact-cdisc-sdtmig-3-4-xlsx",
     }
-    assert all(statement["review_status"] == "proposed" for statement in gold_set["statements"])
+    assert all(statement["review_status"] == "approved" for statement in gold_set["statements"])
+    assert {
+        statement["review_receipt_id"] for statement in gold_set["statements"]
+    } == {"review-sdtmig34-gold-v1-001"}
 
 
 def test_gold_set_review_packet_is_schema_valid_and_covers_every_statement() -> None:
@@ -89,6 +96,44 @@ def test_gold_set_review_packet_is_schema_valid_and_covers_every_statement() -> 
     assert {statement["statement_id"] for statement in gold_set["statements"]} <= reviewed_locations
     assert packet["auto_approved_count"] == 0
     assert packet["urgency"] == "blocking"
+
+
+def test_gold_set_human_review_triplet_is_valid_and_complete() -> None:
+    schema_path = (
+        ROOT.parent
+        / "clinical-workflow"
+        / "schemas"
+        / "review"
+        / "review-protocol.schema.json"
+    )
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+
+    def definition(name: str) -> dict[str, object]:
+        value = deepcopy(schema["$defs"][name])
+        value.pop("$id", None)
+        value["$schema"] = schema["$schema"]
+        value["$defs"] = schema["$defs"]
+        return value
+
+    packet = json.loads(REVIEW_PACKET.read_text(encoding="utf-8"))
+    decision = json.loads(DECISION_RECEIPT.read_text(encoding="utf-8"))
+    confirmation = json.loads(CONFIRMATION_RECEIPT.read_text(encoding="utf-8"))
+    Draft202012Validator(definition("decision_receipt")).validate(decision)
+    Draft202012Validator(definition("confirmation_receipt")).validate(confirmation)
+
+    finding_ids = {finding["id"] for finding in packet["findings"]}
+    assert {item["finding_id"] for item in decision["decisions"]} == finding_ids
+    assert {item["finding_id"] for item in confirmation["results"]} == finding_ids
+    assert {item["decision"] for item in decision["decisions"]} == {"approved"}
+    assert {item["application_status"] for item in confirmation["results"]} == {
+        "applied"
+    }
+    assert confirmation["summary"] == {
+        "total": 8,
+        "applied": 8,
+        "adjusted": 0,
+        "failed": 0,
+    }
 
 
 def test_local_sdtmig34_gold_set_text_hashes_bind_to_exact_artifacts() -> None:
@@ -226,6 +271,7 @@ def test_sdtmig34_dual_artifact_acquisition_is_hash_locked_and_local_only() -> N
     assert manifest["storage_mode"] == "local_only"
     assert manifest["rights_status"] == "restricted"
     assert manifest["page_count"] == 461
+    assert manifest["pdf_status"] == "human_qa"
     assert {artifact["role"] for artifact in manifest["artifacts"]} == {
         "primary_citation",
         "structured_companion",
