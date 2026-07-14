@@ -14,7 +14,9 @@
 
 打开 [HOME](vault/HOME.md)。其中按角色、工作阶段、知识域和工具四种路径导航；[Clinical Workflow 十阶段地图](vault/10_MOC/Clinical-Workflow-Map.md) 是固定管线的首要可视入口。地图由 Engine Pipeline Schema 生成，不应手工编辑；核心数据视图同时有 Markdown MOC 作为无插件回退，并在 `90_System/Bases/` 提供 Obsidian 核心 Bases 文件。
 
-默认全局图谱通过 `.obsidian/graph.json` 排除 `80_Governance`、`90_System`、`98_Inbox`、`99_Archive`，让工作流与领域知识关系保持可读。该设置只是显示过滤器，不会删除来源、审核或追溯链接；需要调查治理关系时可在 Obsidian 中临时清除过滤器。
+默认全局图通过 `.obsidian/graph.json` 只显示 `10_MOC/Workflow-Relations/` 的十个蓝色阶段投影和 `30_Workflows/Stages/` 的十个橙色 Playbook，隐藏 orphan/unresolved 并显示方向箭头。README 继续用于文件夹维护，但不会进入默认关系图。
+
+需要看某阶段的知识关系时，打开对应的 `Workflow-Relations` 笔记并执行 **Open local graph**，depth 设为 1：知识、工具和案例分别以绿色、紫色、红色区分。需要调查来源或治理关系时使用 MOC/搜索，或临时清除图谱过滤器。所有过滤只影响显示，不删除正文链接，也不参与 Knowledge Service 或 Runtime 解析。
 
 ## 维护顺序
 

@@ -105,9 +105,10 @@ def test_representative_content_inventory_is_within_p5_scope(repository: VaultRe
         VAULT / "10_MOC", VAULT / "20_Knowledge", VAULT / "30_Workflows",
         VAULT / "40_Toolkit", VAULT / "50_Cases" / "Synthetic-Studies",
     )
+    generated_relations = VAULT / "10_MOC" / "Workflow-Relations"
     articles = [
         path for root in article_roots for path in root.rglob("*.md")
-        if path.name != "README.md"
+        if path.name != "README.md" and generated_relations not in path.parents
     ]
     assert 60 <= len(articles) <= 80
 

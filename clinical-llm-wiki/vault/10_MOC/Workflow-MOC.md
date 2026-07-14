@@ -11,6 +11,7 @@ Pipeline Contract 是固定顺序的唯一权威；本页只保留稳定导航�
 ## 从哪里进入
 
 - [[10_MOC/Clinical-Workflow-Map|Clinical Workflow 十阶段地图]]：由 Engine Pipeline Schema 生成，展示固定顺序并链接全部 Stage Playbook。
+- [[10_MOC/Workflow-Relations/01 Protocol Analysis|逐阶段关系图]]：默认全局图使用的阶段主干；从阶段节点打开本地图以展开知识、工具和案例。
 - [[10_MOC/Stage-Traceability-MOC|十阶段纵向追溯导航]]：展示阶段之间的知识、交付物和 QC 追溯链。
 - [[50_Cases/Synthetic-Studies/SYNTH-ONCO-001 Longitudinal Case|SYNTH-ONCO-001 纵向案例]]：查看工作流与知识服务、当前 Study 决策和实际产物的结合方式。
 

@@ -24,6 +24,8 @@ python -m service.main
 
 知识获批后，通过 `POST http://127.0.0.1:8787/api/v1/admin/refresh` 重建派生索引。不可变快照位于 `snapshots/`；Study fallback 副本必须与 manifest 的 ID、version 和 hash 精确一致。备份必须同时覆盖 `vault/`、`.review_queue/`、`audit_trail.jsonl`、`sources/` 和 `snapshots/`；`indexes/` 可重建，不是权威源。
 
-十阶段总览位于 `vault/10_MOC/Clinical-Workflow-Map.md`，由 Engine Pipeline Schema 和十份 Stage Playbook 共同生成，不应手工编辑。合同或阶段手册发生变化后运行 `python -m scripts.content.generate_workflow_map`，提交前运行带 `--check` 的命令。Obsidian 默认全局图谱只隐藏 `80_Governance`、`90_System`、`98_Inbox`、`99_Archive` 四个运维目录；该过滤不删除 Markdown 追溯链接，也不影响服务索引。
+十阶段总览位于 `vault/10_MOC/Clinical-Workflow-Map.md`；同一生成器还会根据受治理卡片的 `workflow_stages` 生成 `vault/10_MOC/Workflow-Relations/` 十个阶段关系投影。二者均不应手工编辑。合同、阶段手册或卡片适用阶段变化后运行 `python -m scripts.content.generate_workflow_map`，提交前运行带 `--check` 的命令。
+
+Obsidian 默认全局图只显示 10 个阶段关系投影和 10 个 Stage Playbook：蓝色节点是关系投影，橙色节点是执行手册，箭头表示下一阶段或 Playbook 引用。README、普通 MOC、知识卡、来源和治理记录不会进入默认主干图。从某个阶段投影打开本地图并使用 depth 1，可按需展开绿色知识、紫色工具和红色案例节点；这只改变可视化，不删除 Markdown 追溯链接，也不影响服务索引。
 
 平台安装、恢复和回滚命令见 [根使用指南](../USAGE.md) 与 [部署指南](../docs/deploy/DEPLOY_GUIDE.md)。

@@ -45,7 +45,7 @@ Set-Location .\clinical-llm-wiki
 Set-Location ..
 ```
 
-Obsidian 默认全局图谱排除 Governance、System、Inbox 和 Archive 四个运维目录，正文的来源与追溯链接仍完整保留。需要调查治理关系时可临时清除图谱过滤器，不要通过删除 Markdown 链接降噪。
+Obsidian 默认全局图只显示 `Workflow-Relations` 的十个阶段投影和十份 Stage Playbook，README、普通 MOC、知识卡、来源及治理记录不会挤入主干图。蓝色表示阶段关系投影，橙色表示 Playbook，并显示方向箭头。需要查看某阶段关联知识时，打开对应阶段投影，执行 **Open local graph**，把 depth 设为 1；绿色、紫色、红色分别表示知识、工具和案例。需要调查来源/治理关系时使用搜索/MOC，或临时清除过滤器，不要通过删除 Markdown 链接降噪。
 
 ## 3. 建立 Study
 

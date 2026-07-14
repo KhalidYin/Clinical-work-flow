@@ -18,6 +18,7 @@ title: Clinical LLM Wiki 首页
 ## 按十阶段
 
 - [[10_MOC/Clinical-Workflow-Map|Clinical Workflow 十阶段地图]]：查看固定顺序，再进入每个阶段的执行 Playbook。
+- [[10_MOC/Workflow-Relations/01 Protocol Analysis|逐阶段关系图]]：从当前阶段打开本地图，查看关联知识、工具和案例。
 - [[10_MOC/Stage-Traceability-MOC|十阶段纵向追溯导航]]：查看工作流、领域知识、检查表与交付物之间的跨阶段关系。
 
 ## P5 引导路径

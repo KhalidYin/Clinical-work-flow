@@ -322,3 +322,35 @@ Done — no next steps。Canvas、GraphRAG、关系类型重构和 Obsidian 社�
 #### Files Changed / Commits
 - `clinical-llm-wiki/vault/.obsidian/graph.json`、`vault/HOME.md`、`vault/10_MOC/Workflow-MOC.md`、`vault/10_MOC/Stage-Traceability-MOC.md`
 - `clinical-llm-wiki/tests/**`、Wiki README、`USAGE.md`、`docs/specs/21-Knowledge-Workflow-Integration.md`、`docs/dep/**`
+
+---
+
+### R019 [10:39] [P5-obsidian-curated-relation-graph] P1: 重构为策展式工作流关系图
+
+#### Done
+- 审计 118 篇 Vault Markdown，确认 29 个 README 节点及 MOC 导航边主导旧图；41 张知识卡和 8 张工具卡虽有 `workflow_stages`，正文通常没有 Obsidian Link。
+- 扩展工作流生成器，从 Engine 十阶段合同和 50 个业务条目的 `workflow_stages` 生成 10 个 Stage Relation Projection，不修改受治理卡片或 content hash。
+- 每个 Projection 指向对应 Playbook、下一阶段及该阶段知识/工具/案例；默认全局图只显示 10 个 Projection 和 10 个 Playbook。
+- 图谱改为隐藏 unresolved/orphan、显示箭头，并按 Projection、Playbook、知识、工具、案例配置蓝/橙/绿/紫/红颜色组。
+- HOME、Workflow MOC、Wiki README、USAGE 和 SPEC-21 同步“全局主干 + 阶段 local graph depth 1”使用方式。
+- Mermaid 拓扑渲染人工确认主链与 Playbook 分支清晰，无 README 星团；用户已有 scale/force 参数保持为工作区个性化状态。
+
+#### Issues / Blockers
+- Wiki 首轮全量测试有 1 个失败：P5 内容库存把十个生成 Projection 当作知识正文，导致文章计数 81 超过旧上限 80。已明确排除导航派生目录，内容基线恢复为 71，Projection 由专项测试精确验证。
+- 一次验收计数命令从 Wiki 工作目录重复拼接 `clinical-llm-wiki/`，仅造成只读路径不存在；改用 `vault/...` 重跑后确认 10 个投影、0 个 README，无文件影响。
+- Python 3.14/Starlette 仍有 151 个既有 multipart/asyncio 弃用告警；不阻断本次图谱 Gate。
+
+#### Validation
+- `python -m pytest -q`（Wiki，54 passed，151 warnings）
+- `python -m ruff check .`（Wiki，success）
+- `python -m scripts.content.generate_workflow_map --check`（10 stages + 10 relation projections）
+- `python -m scripts.content.finalize_p5_content --check`（68 governed records，未改知识 hash）
+- `python -m pytest -q tests/test_pipeline_contract.py`（Engine，16 passed）
+- Mermaid 20 节点默认主干拓扑渲染与人工视觉检查（success）
+
+#### Next
+Done — no next steps。若需要跨阶段全量语义图，应另立 typed-relation/GraphRAG 计划，不再扩大 Obsidian 默认全局图。
+
+#### Files Changed / Commits
+- `clinical-llm-wiki/scripts/content/generate_workflow_map.py`、`vault/10_MOC/Workflow-Relations/**`、`vault/.obsidian/graph.json`、Vault导航与测试
+- Wiki README、`USAGE.md`、`docs/specs/21-Knowledge-Workflow-Integration.md`、`docs/dep/**`

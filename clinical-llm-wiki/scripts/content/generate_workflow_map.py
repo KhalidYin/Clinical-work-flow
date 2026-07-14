@@ -30,6 +30,18 @@ PIPELINE_SCHEMA = (
 )
 STAGE_NOTES = VAULT / "30_Workflows" / "Stages"
 OUTPUT = VAULT / "10_MOC" / "Clinical-Workflow-Map.md"
+RELATION_DIRECTORY = VAULT / "10_MOC" / "Workflow-Relations"
+
+_RELATION_ROOTS = {
+    "knowledge": Path("20_Knowledge"),
+    "toolkit": Path("40_Toolkit"),
+    "case": Path("50_Cases"),
+}
+_RELATION_HEADINGS = {
+    "knowledge": "领域知识",
+    "toolkit": "工具与交付物",
+    "case": "案例",
+}
 
 _ACRONYMS = {
     "adam": "ADaM",
@@ -49,6 +61,14 @@ class StageNote:
     stage_id: str
     title: str
     link: str
+
+
+@dataclass(frozen=True, slots=True)
+class RelationItem:
+    category: str
+    title: str
+    link: str
+    workflow_stages: tuple[str, ...]
 
 
 def _read_schema(schema_path: Path) -> tuple[dict[str, Any], bytes]:
@@ -148,6 +168,157 @@ def load_stage_notes(
     return discovered
 
 
+def load_relation_items(
+    vault: Path,
+    stage_order: tuple[str, ...],
+) -> tuple[RelationItem, ...]:
+    """Load governed business records that declare canonical workflow stages."""
+    expected_stages = set(stage_order)
+    items: list[RelationItem] = []
+    for category, relative_root in _RELATION_ROOTS.items():
+        root = vault / relative_root
+        if not root.is_dir():
+            raise WorkflowMapError(f"relation source directory does not exist: {root}")
+        for path in sorted(root.rglob("*.md")):
+            if path.name == "README.md":
+                continue
+            try:
+                metadata, _ = parse_markdown_card(vault, path)
+            except RepositoryError as exc:
+                raise WorkflowMapError(f"cannot parse relation source {path}: {exc}") from exc
+            raw_stages = metadata.get("workflow_stages")
+            if not isinstance(raw_stages, list) or not raw_stages:
+                raise WorkflowMapError(
+                    f"relation source {path.name} must declare workflow_stages"
+                )
+            if (
+                not all(isinstance(stage_id, str) for stage_id in raw_stages)
+                or len(raw_stages) != len(set(raw_stages))
+            ):
+                raise WorkflowMapError(
+                    f"relation source {path.name} has invalid workflow_stages"
+                )
+            unknown = [stage_id for stage_id in raw_stages if stage_id not in expected_stages]
+            if unknown:
+                raise WorkflowMapError(
+                    f"relation source {path.name} declares unknown stages: "
+                    + ", ".join(unknown)
+                )
+            title = metadata.get("title")
+            if not isinstance(title, str) or not title.strip():
+                raise WorkflowMapError(f"relation source {path.name} has no title")
+            if "|" in title or "]]" in title:
+                raise WorkflowMapError(
+                    f"relation source {path.name} title cannot be used as a Wiki Link alias"
+                )
+            try:
+                link = path.relative_to(vault).with_suffix("").as_posix()
+            except ValueError as exc:
+                raise WorkflowMapError(
+                    f"relation source must stay inside the Vault: {path}"
+                ) from exc
+            items.append(
+                RelationItem(
+                    category=category,
+                    title=title.strip(),
+                    link=link,
+                    workflow_stages=tuple(raw_stages),
+                )
+            )
+    return tuple(sorted(items, key=lambda item: (item.category, item.title.casefold(), item.link)))
+
+
+def _relation_link(ordinal: int, stage_id: str) -> str:
+    return f"10_MOC/Workflow-Relations/{ordinal:02d} {_display_name(stage_id)}"
+
+
+def render_stage_relation(
+    *,
+    ordinal: int,
+    stage_id: str,
+    stage_order: tuple[str, ...],
+    stage_note: StageNote,
+    relation_items: tuple[RelationItem, ...],
+    contract_sha256: str,
+) -> str:
+    """Render one stage-specific graph projection without changing governed cards."""
+    display_name = _display_name(stage_id)
+    lines = [
+        "---",
+        f"id: relation-{stage_id.replace('_', '-')}",
+        "type: navigation",
+        f"title: {ordinal:02d} {display_name} 关系视图",
+        f"stage_id: {stage_id}",
+        "generated_by: scripts.content.generate_workflow_map",
+        "generated_from: workflow_stages + Engine Pipeline Contract",
+        f"contract_sha256: {contract_sha256}",
+        "---",
+        "",
+        "<!-- AUTO-GENERATED STAGE RELATION: do not edit by hand. -->",
+        "",
+        f"# {ordinal:02d} {display_name} 关系视图",
+        "",
+        "> [!info] 图谱投影",
+        "> 本页把受治理卡片的 `workflow_stages` 属性投影为 Obsidian Wiki Links。",
+        "> 它只服务导航和图谱展示，不改变知识正文、批准状态或 Runtime Context。",
+        "",
+        "## 工作流主干",
+        "",
+        f"- Stage Playbook：[[{stage_note.link}|{stage_note.title}]]",
+    ]
+    if ordinal < len(stage_order):
+        next_stage = stage_order[ordinal]
+        lines.append(
+            f"- 下一阶段：[[{_relation_link(ordinal + 1, next_stage)}|"
+            f"{ordinal + 1:02d} {_display_name(next_stage)} 关系视图]]"
+        )
+
+    for category in _RELATION_ROOTS:
+        matched = [
+            item
+            for item in relation_items
+            if item.category == category and stage_id in item.workflow_stages
+        ]
+        lines.extend(["", f"## {_RELATION_HEADINGS[category]}（{len(matched)}）", ""])
+        if not matched:
+            lines.append("- 当前无已投影条目。")
+            continue
+        lines.extend(f"- [[{item.link}|{item.title}]]" for item in matched)
+
+    lines.extend(
+        [
+            "",
+            "## 导航",
+            "",
+            "- [[10_MOC/Clinical-Workflow-Map|返回十阶段地图]]",
+            "- [[HOME|返回首页]]",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def render_stage_relations(
+    stage_order: tuple[str, ...],
+    stage_notes: dict[str, StageNote],
+    relation_items: tuple[RelationItem, ...],
+    *,
+    contract_sha256: str,
+) -> dict[str, str]:
+    """Render all canonical relation projections keyed by relative filename."""
+    return {
+        f"{ordinal:02d} {_display_name(stage_id)}.md": render_stage_relation(
+            ordinal=ordinal,
+            stage_id=stage_id,
+            stage_order=stage_order,
+            stage_note=stage_notes[stage_id],
+            relation_items=relation_items,
+            contract_sha256=contract_sha256,
+        )
+        for ordinal, stage_id in enumerate(stage_order, start=1)
+    }
+
+
 def render_workflow_map(
     stage_order: tuple[str, ...],
     stage_notes: dict[str, StageNote],
@@ -208,6 +379,7 @@ def render_workflow_map(
             "",
             "## 相关导航",
             "",
+            "- [[10_MOC/Workflow-Relations/01 Protocol Analysis|逐阶段关系图入口]]",
             "- [[10_MOC/Workflow-MOC|十阶段工作流导航]]",
             "- [[10_MOC/Stage-Traceability-MOC|十阶段纵向追溯导航]]",
             "- [[HOME|返回首页]]",
@@ -223,35 +395,78 @@ def generate_workflow_map(
     stage_notes: Path = STAGE_NOTES,
     output_path: Path = OUTPUT,
     vault: Path = VAULT,
+    relation_directory: Path | None = None,
     check: bool = False,
 ) -> int:
-    """Write or verify the generated map, returning the number of stages."""
+    """Write or verify the workflow map and stage relation projections."""
     order = load_canonical_stage_order(schema_path)
     notes = load_stage_notes(stage_notes, order, vault=vault)
+    relation_items = load_relation_items(vault, order)
     _, raw_schema = _read_schema(schema_path)
-    expected = render_workflow_map(
+    source_sha256 = hashlib.sha256(raw_schema).hexdigest()
+    expected_map = render_workflow_map(
         order,
         notes,
-        source_sha256=hashlib.sha256(raw_schema).hexdigest(),
+        source_sha256=source_sha256,
     )
-    actual = (
-        output_path.read_text(encoding="utf-8").replace("\r\n", "\n")
-        if output_path.exists()
-        else None
+    relation_directory = relation_directory or (
+        vault / "10_MOC" / "Workflow-Relations"
     )
-    if actual == expected:
+    relation_outputs = render_stage_relations(
+        order,
+        notes,
+        relation_items,
+        contract_sha256=source_sha256,
+    )
+
+    expected_outputs = {output_path: expected_map}
+    expected_outputs.update(
+        {relation_directory / filename: text for filename, text in relation_outputs.items()}
+    )
+    stale = [
+        path
+        for path, expected in expected_outputs.items()
+        if not path.exists()
+        or path.read_text(encoding="utf-8").replace("\r\n", "\n") != expected
+    ]
+    existing_relations = (
+        set(relation_directory.glob("*.md")) if relation_directory.is_dir() else set()
+    )
+    expected_relations = {path for path in expected_outputs if path.parent == relation_directory}
+    unexpected_relations = existing_relations - expected_relations
+    if not stale and not unexpected_relations:
         return len(order)
     if check:
-        raise WorkflowMapError(f"generated workflow map is stale: {output_path}")
+        affected = sorted(
+            path.as_posix() for path in [*stale, *unexpected_relations]
+        )
+        raise WorkflowMapError("generated workflow graph is stale: " + ", ".join(affected))
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = output_path.with_name(f".{output_path.name}.tmp")
+    for path in unexpected_relations:
+        try:
+            content = path.read_text(encoding="utf-8")
+        except OSError as exc:
+            raise WorkflowMapError(f"cannot inspect stale relation note {path}: {exc}") from exc
+        if "<!-- AUTO-GENERATED STAGE RELATION:" not in content:
+            raise WorkflowMapError(
+                f"refusing to remove non-generated note from relation directory: {path}"
+            )
+
+    temporary_outputs: dict[Path, Path] = {}
     try:
-        temporary.write_text(expected, encoding="utf-8")
-        temporary.replace(output_path)
+        for path, expected in expected_outputs.items():
+            path.parent.mkdir(parents=True, exist_ok=True)
+            temporary = path.with_name(f".{path.name}.tmp")
+            temporary.write_text(expected, encoding="utf-8")
+            temporary_outputs[path] = temporary
+        for path, temporary in temporary_outputs.items():
+            temporary.replace(path)
+        for path in unexpected_relations:
+            path.unlink()
     except OSError as exc:
-        temporary.unlink(missing_ok=True)
-        raise WorkflowMapError(f"cannot replace workflow map {output_path}: {exc}") from exc
+        for temporary in temporary_outputs.values():
+            temporary.unlink(missing_ok=True)
+        raise WorkflowMapError(f"cannot replace generated workflow graph: {exc}") from exc
     return len(order)
 
 
@@ -261,7 +476,7 @@ def main() -> None:
     args = parser.parse_args()
     count = generate_workflow_map(check=args.check)
     action = "verified" if args.check else "generated"
-    print(f"Workflow map {action}: {count} canonical stages")
+    print(f"Workflow graph {action}: {count} canonical stages and relation projections")
 
 
 if __name__ == "__main__":

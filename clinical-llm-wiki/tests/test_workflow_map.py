@@ -11,19 +11,25 @@ import pytest
 from scripts.content.generate_workflow_map import (
     OUTPUT,
     PIPELINE_SCHEMA,
+    RELATION_DIRECTORY,
     STAGE_NOTES,
     VAULT,
     WorkflowMapError,
     generate_workflow_map,
     load_canonical_stage_order,
+    load_relation_items,
     load_stage_notes,
 )
 
 
-GRAPH_FILTER = (
-    '-path:"80_Governance" -path:"90_System" '
-    '-path:"98_Inbox" -path:"99_Archive"'
-)
+GRAPH_FILTER = '(path:"10_MOC/Workflow-Relations" OR path:"30_Workflows/Stages")'
+GRAPH_GROUPS = {
+    'path:"10_MOC/Workflow-Relations"': 5011624,
+    'path:"30_Workflows/Stages"': 16090392,
+    'path:"20_Knowledge"': 5546571,
+    'path:"40_Toolkit"': 11696546,
+    'path:"50_Cases"': 14964566,
+}
 
 
 def test_committed_workflow_map_matches_engine_contract_and_stage_notes() -> None:
@@ -39,6 +45,34 @@ def test_committed_workflow_map_matches_engine_contract_and_stage_notes() -> Non
         note = notes[stage_id]
         assert f"[[{note.link}|{note.title}]]" in text
         assert (VAULT / f"{note.link}.md").is_file()
+
+
+def test_stage_relation_projections_cover_governed_business_records() -> None:
+    order = load_canonical_stage_order()
+    notes = load_stage_notes(STAGE_NOTES, order)
+    items = load_relation_items(VAULT, order)
+    relation_files = sorted(RELATION_DIRECTORY.glob("*.md"))
+
+    assert len(relation_files) == 10
+    assert all(path.name != "README.md" for path in relation_files)
+    assert sum(item.category == "knowledge" for item in items) == 41
+    assert sum(item.category == "toolkit" for item in items) == 8
+    assert sum(item.category == "case" for item in items) == 1
+
+    for ordinal, stage_id in enumerate(order, start=1):
+        relation = relation_files[ordinal - 1]
+        assert relation.name.startswith(f"{ordinal:02d} ")
+        text = relation.read_text(encoding="utf-8")
+        note = notes[stage_id]
+        assert f"[[{note.link}|{note.title}]]" in text
+        for item in items:
+            if stage_id in item.workflow_stages:
+                assert f"[[{item.link}|{item.title}]]" in text
+        if ordinal < len(order):
+            next_link = relation_files[ordinal].relative_to(VAULT).with_suffix("").as_posix()
+            assert f"[[{next_link}|" in text
+        else:
+            assert "下一阶段" not in text
 
 
 def test_stale_map_is_detected_without_being_rewritten(tmp_path: Path) -> None:
@@ -100,6 +134,36 @@ def test_schema_dependency_drift_fails_closed(tmp_path: Path) -> None:
         load_canonical_stage_order(schema_path)
 
 
+def test_invalid_relation_stage_fails_before_replacing_outputs(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    stage_notes = vault / "30_Workflows" / "Stages"
+    shutil.copytree(STAGE_NOTES, stage_notes)
+    for relative_root in ("20_Knowledge", "40_Toolkit", "50_Cases"):
+        shutil.copytree(VAULT / relative_root, vault / relative_root)
+    card = vault / "20_Knowledge" / "Methods" / "Estimand Framework.md"
+    card.write_text(
+        card.read_text(encoding="utf-8").replace(
+            "- protocol_analysis",
+            "- invented_stage",
+            1,
+        ),
+        encoding="utf-8",
+    )
+    output = vault / "10_MOC" / "Clinical-Workflow-Map.md"
+    output.parent.mkdir(parents=True)
+    output.write_text("last valid map\n", encoding="utf-8")
+
+    with pytest.raises(WorkflowMapError, match="unknown stages"):
+        generate_workflow_map(
+            schema_path=PIPELINE_SCHEMA,
+            stage_notes=stage_notes,
+            output_path=output,
+            vault=vault,
+        )
+    assert output.read_text(encoding="utf-8") == "last valid map\n"
+    assert not (vault / "10_MOC" / "Workflow-Relations").exists()
+
+
 def test_stable_navigation_entries_point_to_generated_map() -> None:
     for relative_path in (
         "HOME.md",
@@ -122,3 +186,9 @@ def test_default_global_graph_excludes_operational_noise() -> None:
     graph = json.loads(graph_path.read_text(encoding="utf-8"))
     assert graph["search"] == GRAPH_FILTER
     assert graph["showAttachments"] is False
+    assert graph["hideUnresolved"] is True
+    assert graph["showOrphans"] is False
+    assert graph["showArrow"] is True
+    assert {
+        group["query"]: group["color"]["rgb"] for group in graph["colorGroups"]
+    } == GRAPH_GROUPS

@@ -22,6 +22,7 @@ updated: 2026-07-14
 
 | 日期 | 子计划 | 文件 | 已同步到 |
 |------|--------|------|----------|
+| 2026-07-14 | Obsidian 策展式工作流关系图 | [P5-obsidian-curated-relation-graph.md](plans/complete/P5-obsidian-curated-relation-graph.md) | SPEC-21、USAGE、Wiki README、Vault关系投影与客户端配置 |
 | 2026-07-14 | Obsidian 工作流可视化与图谱降噪 | [P4-obsidian-workflow-visualization.md](plans/complete/P4-obsidian-workflow-visualization.md) | SPEC-21、USAGE、Wiki README、Vault导航与客户端配置 |
 | 2026-07-14 | Clinical Knowledge Workflow Platform 总体整合 | [P3-clinical-knowledge-workflow-platform.md](plans/complete/P3-clinical-knowledge-workflow-platform.md) | SPEC-06/07/09/13/14/15/18/21、USAGE、部署/迁移/验收与DEVLOG |
 
