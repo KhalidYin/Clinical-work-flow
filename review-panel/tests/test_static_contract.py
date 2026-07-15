@@ -76,6 +76,8 @@ def test_css_covers_accessibility_and_narrow_layout():
     assert "grid-template-columns: 1fr" in css
     assert "button:focus-visible" in css
     assert "min-height: 44px" in css
+    assert "[hidden]" in css
+    assert ".button.primary:disabled" in css
+    assert "fieldset:disabled" in css
     assert "oklch(" in css
     assert "border-radius: var(--radius)" in css
-

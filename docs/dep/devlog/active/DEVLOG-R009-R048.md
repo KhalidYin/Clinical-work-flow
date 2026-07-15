@@ -477,3 +477,38 @@ Done — no next steps。若需要跨阶段全量语义图，应另立 typed-rel
 - `review-panel/src/review_panel/static/**`、`review-panel/src/review_panel/app.py`、`review-panel/pyproject.toml`（P3 implementation checkpoint）
 - `review-panel/tests/test_static_contract.py`、`test_ui_api_contract.py`、`test_browser_review_flow.py`（P3 tests）
 - `README.md`、`USAGE.md`、SPEC-13/15/16/21、`docs/dep/**`（P3 checkpoint 状态与文档同步）
+
+---
+
+### R024 [10:30] [P0-local-review-panel] P3: 关闭浏览器 Gate 并归档本地 Review Panel
+
+#### Done
+- 将浏览器 E2E 从 Chrome-only 改为 Edge→Chrome fallback；提权运行 Selenium Manager 后，当前 Windows 环境可用 Edge 完成真实浏览器流程。
+- 浏览器 E2E 暴露并修复无 `required_reviewers` 时隐藏 `role-input` 仍参与必填判断的问题，避免 2/2 finding 已批准但提交按钮仍禁用。
+- 修复 submitted/waiting confirmation 后的只读状态：非 pending review 禁用所有 finding fieldset，显示 read-only 文案，并补 `[hidden]`、disabled primary/input/fieldset 视觉规则。
+- 通过最终截图人工视觉核验：local-only 顶栏、waiting confirmation 状态、无误显 role 下拉、finding 决策区只读、提交按钮禁用态均清晰。
+- P0 三个内部阶段全部关闭，计划从 `plans/ongoing/` 归档到 `plans/complete/`；PLAN 当前焦点回到 P6-P2。
+
+#### Issues / Blockers
+- 普通沙箱无法访问/下载 WebDriver；根因是 Selenium Manager 需要联网获取 EdgeDriver/ChromeDriver。提权运行后 EdgeDriver 可用；该要求已记录为本地浏览器 E2E 的环境前提。
+- `agent-browser` 仍不作为本 Gate 的权威执行器；此前 CDP 启动失败未影响最终 Edge/Selenium E2E。
+- 早期失败的 `.tmp/review-panel-browser` 目录在 Windows 下 ACL 异常，普通与提权删除、`takeown` 均被拒绝；`.tmp/` 已加入 `.gitignore`，避免临时产物污染 Git 状态。后续可由用户在系统文件管理器或重启后手工清理。
+- Python 3.14/Starlette、websockets/uvicorn 仍有第三方弃用告警；不影响 P0 功能，但后续依赖升级需单独处理。
+
+#### Validation
+- `python -m pytest tests/test_browser_review_flow.py -q -rs --basetemp '..\.tmp\review-panel-browser-elevated6'`（提权，1 passed，10 warnings）
+- 最终浏览器截图人工视觉核验（success）
+- `python -m pytest -q`（`review-panel/`，25 passed，3 skipped，80 warnings；浏览器 driver 在普通沙箱下 skip，提权 E2E 见上一条）
+- `python -m ruff check --no-cache .`（`review-panel/`，success）
+- `python -m review_panel check --repo-root 'G:\Project\Python\Clinical work flow'`（success）
+- `python -m pip wheel '.\review-panel' --no-deps --no-build-isolation --no-cache-dir --wheel-dir '.\.tmp\review-panel-wheel'`（success）
+- `git diff --check`（success；仅 LF/CRLF 提示）
+
+#### Next
+1. P6-P2：恢复 SDTMIG 3.4 全文结构地图。
+2. 后续若要内网共享、身份认证或多人审核，按 P9 另立部署/权限计划，不在 P0 Web Panel 扩大。
+
+#### Files Changed / Commits
+- `review-panel/src/review_panel/static/app.js`、`styles.css`（P3 browser Gate 修复）
+- `review-panel/tests/test_browser_review_flow.py`、`test_static_contract.py`（浏览器 fallback 与 UI 回归）
+- `.gitignore`、`docs/dep/PLAN.md`、`TASK_STATE.md`、`plans/complete/P0-local-review-panel.md`、DEVLOG/INDEX（P0 归档）

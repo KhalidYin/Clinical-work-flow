@@ -126,7 +126,7 @@ function renderDetail() {
   `;
   els.detail.append(header);
   renderSources(detail);
-  renderFindings(packet);
+  renderFindings(packet, detail.status !== "pending");
   renderSubmitPanel(detail);
 }
 
@@ -166,7 +166,7 @@ async function openSource(sourceIndex) {
   }
 }
 
-function renderFindings(packet) {
+function renderFindings(packet, locked) {
   const section = document.createElement("section");
   section.className = "findings-section";
   section.innerHTML = "<h3>Findings</h3>";
@@ -180,13 +180,13 @@ function renderFindings(packet) {
     card.querySelector(".finding-proposed").textContent = finding.proposed_value || "(empty)";
     card.querySelector(".finding-rationale").textContent = finding.rationale;
     card.querySelector(".finding-evidence").textContent = `Evidence: ${finding.evidence_refs.join(", ")}`;
-    prepareDecisionControls(card, finding);
+    prepareDecisionControls(card, finding, locked);
     section.append(card);
   }
   els.detail.append(section);
 }
 
-function prepareDecisionControls(card, finding) {
+function prepareDecisionControls(card, finding, locked) {
   const radios = [...card.querySelectorAll("input[type='radio']")];
   for (const radio of radios) {
     radio.name = `decision-${finding.id}`;
@@ -195,7 +195,10 @@ function prepareDecisionControls(card, finding) {
   for (const field of card.querySelectorAll("textarea, select, input[type='text']")) {
     field.addEventListener("input", () => updateDecision(card, finding));
   }
-  if (finding.auto_approved) {
+  if (locked) {
+    card.querySelector(".decision-fieldset").disabled = true;
+    card.querySelector(".decision-error").textContent = "Decision receipt already exists; this review is read-only.";
+  } else if (finding.auto_approved) {
     card.classList.add("auto-approved");
     card.querySelector(".decision-fieldset").disabled = true;
     card.querySelector(".decision-error").textContent = "Auto-approved by packet; no human action required.";
@@ -280,12 +283,14 @@ function renderSubmitState() {
   const actionableIds = packet.findings.filter((finding) => !finding.auto_approved).map((finding) => finding.id);
   const reviewer = document.querySelector("#reviewer-input");
   const role = document.querySelector("#role-input");
+  const roleLabel = document.querySelector("#role-label");
   const submit = document.querySelector("#submit-button");
   const status = document.querySelector("#submit-status");
   if (!submit || !status) return;
   const hasAllDecisions = actionableIds.every((id) => state.decisions.has(id));
   const hasReviewer = reviewer?.value.trim().length >= 2;
-  const hasRole = !role || role.value;
+  const roleRequired = role && roleLabel && !roleLabel.hidden;
+  const hasRole = !roleRequired || role.value;
   const locked = detail.status !== "pending";
   submit.disabled = locked || !hasAllDecisions || !hasReviewer || !hasRole;
   status.textContent = locked

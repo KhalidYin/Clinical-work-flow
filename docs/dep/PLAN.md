@@ -8,7 +8,6 @@ updated: 2026-07-15
 
 | # | 子计划 | 文件 | 当前阶段 | 已用轮次 | 开始日期 |
 |---|--------|------|----------|----------|----------|
-| P0 | 根目录轻量本地 Review Panel | [P0-local-review-panel.md](plans/ongoing/P0-local-review-panel.md) | 内部 P3：UI 实现检查点完成；浏览器视觉 Gate 待关闭 | 3 | 2026-07-14 |
 | P6 | SDTMIG 3.4 知识解析质量与引用基线 | [P6-clinical-knowledge-evolution.md](plans/ongoing/P6-clinical-knowledge-evolution.md) | 内部 P1 已完成；P2：全文结构地图待开始 | - | 2026-07-14 |
 
 ## 待开始
@@ -27,9 +26,9 @@ updated: 2026-07-15
 
 | 日期 | 子计划 | 文件 | 已同步到 |
 |------|--------|------|----------|
+| 2026-07-15 | 根目录轻量本地 Review Panel | [P0-local-review-panel.md](plans/complete/P0-local-review-panel.md) | review-panel 模块、SPEC-13/15/16/21、README、USAGE、DEVLOG |
 | 2026-07-14 | Obsidian 策展式工作流关系图 | [P5-obsidian-curated-relation-graph.md](plans/complete/P5-obsidian-curated-relation-graph.md) | SPEC-21、USAGE、Wiki README、Vault关系投影与客户端配置 |
 | 2026-07-14 | Obsidian 工作流可视化与图谱降噪 | [P4-obsidian-workflow-visualization.md](plans/complete/P4-obsidian-workflow-visualization.md) | SPEC-21、USAGE、Wiki README、Vault导航与客户端配置 |
-| 2026-07-14 | Clinical Knowledge Workflow Platform 总体整合 | [P3-clinical-knowledge-workflow-platform.md](plans/complete/P3-clinical-knowledge-workflow-platform.md) | SPEC-06/07/09/13/14/15/18/21、USAGE、部署/迁移/验收与DEVLOG |
 
 ## 延后
 

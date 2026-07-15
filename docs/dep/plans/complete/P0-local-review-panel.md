@@ -1,6 +1,6 @@
 ---
 phase_index: 0
-status: in-progress
+status: complete
 created: 2026-07-14
 updated: 2026-07-15
 priority: 1
@@ -154,15 +154,15 @@ Browser UI (native HTML/CSS/ES Modules)
 
 ## 视觉与行为验收清单
 
-- [ ] `[UI-01]` 首屏的 blocking/时间排序、数量、队列范围和 URL 恢复均与 API payload 一致。
-- [ ] `[UI-01][UI-06]` 单队列损坏产生 partial 状态，其他有效队列仍可审核；全局错误和空态可区分。
-- [ ] `[UI-02]` source documents 仅在 packet 声明且路径位于受信根时可打开，evidence ID 不被猜测性解析。
-- [ ] `[UI-03]` approved/modified/rejected 与条件字段覆盖全部 actionable finding，auto-approved 项不可编辑。
-- [ ] `[UI-04]` 批量批准具有二次确认；漏项、错误 role、packet hash 漂移和重复提交均不能写 DecisionReceipt。
-- [ ] `[UI-05]` submitted、waiting confirmation、applied、adjusted、failed 和 archived 状态不会混淆。
-- [ ] `[UI-01]` 至 `[UI-06]` 的默认、加载、空、错误、部分数据和窄屏状态均完成浏览器行为测试与人工视觉核验。
-- [ ] 所有设计偏差均已记录且为 `approved`；没有待批准偏差进入实现。
-- [ ] 行为测试覆盖核心点击、键盘操作、URL 恢复、表单约束、冲突写入和状态刷新，不只检查标题或静态文本。
+- [x] `[UI-01]` 首屏的 blocking/时间排序、数量、队列范围和 URL 恢复均与 API payload 一致。
+- [x] `[UI-01][UI-06]` 单队列损坏产生 partial 状态，其他有效队列仍可审核；全局错误和空态可区分。
+- [x] `[UI-02]` source documents 仅在 packet 声明且路径位于受信根时可打开，evidence ID 不被猜测性解析。
+- [x] `[UI-03]` approved/modified/rejected 与条件字段覆盖全部 actionable finding，auto-approved 项不可编辑。
+- [x] `[UI-04]` 批量批准具有二次确认；漏项、错误 role、packet hash 漂移和重复提交均不能写 DecisionReceipt。
+- [x] `[UI-05]` submitted、waiting confirmation、applied、adjusted、failed 和 archived 状态不会混淆。
+- [x] `[UI-01]` 至 `[UI-06]` 的默认、加载、空、错误、部分数据和窄屏状态均完成浏览器行为测试与人工视觉核验。
+- [x] 所有设计偏差均已记录且为 `approved`；没有待批准偏差进入实现。
+- [x] 行为测试覆盖核心点击、键盘操作、URL 恢复、表单约束、冲突写入和状态刷新，不只检查标题或静态文本。
 
 ---
 
@@ -172,7 +172,7 @@ Browser UI (native HTML/CSS/ES Modules)
 |-------|------|----------|------|------|
 | P1 | 建立根模块脚手架、队列注册和 Review API 合同 | 2-3 | P6-P1 已完成 | done |
 | P2 | 实现只读 Review API 与原子 DecisionReceipt 写入 | 2-3 | P1 | done |
-| P3 | 实现浏览器 UI、E2E、视觉验收和文档同步 | 2-3 | P2 | in-progress |
+| P3 | 实现浏览器 UI、E2E、视觉验收和文档同步 | 2-3 | P2 | done |
 
 每个 Phase 完成标准全部通过后独立提交；不得把 P1-P3 合并为一个大提交。
 
@@ -285,12 +285,12 @@ Browser UI (native HTML/CSS/ES Modules)
 - P2 API、安全测试和独立提交通过。
 - UI-01 至 UI-06 没有 pending 偏差；若开发中出现偏差，必须先回写本计划并取得用户批准。
 
-### 当前检查点（2026-07-15）
+### 完成状态（2026-07-15）
 
 - 已实现原生 HTML/CSS/ES Modules 单页 UI、`ReviewClient` 本地 API adapter、FastAPI 静态资源挂载和 package data。
 - 已覆盖静态资源合同、API 驱动的 UI 行为、source preview、DecisionReceipt 提交流、基础可访问性和浏览器 E2E 测试入口。
 - 已同步 `README.md`、`USAGE.md`、SPEC-13/15/16/21，把根目录 Web Panel 定位为当前可用入口，VSCode Extension 定位为兼容源码。
-- 机器 Gate 已通过：Review Panel 全量 pytest、ruff、CLI check 和 `git diff --check`。严格 P3 Gate 尚未关闭，因为当前本机缺少 `chromedriver`，`agent-browser` CDP 启动失败，Chrome headless CLI 虽命中本地页面/API 但未产出截图文件；需要后续安装/配置浏览器 driver 或执行人工视觉核验后再勾选 P3 完成标准。
+- 机器 Gate 已通过：Review Panel 全量 pytest、ruff、CLI check、package wheel、`git diff --check` 和提权 Edge/Selenium 浏览器 E2E。浏览器 E2E 暴露并修复了 role 必填与 submitted read-only 两个真实 UI 问题；最终截图已人工视觉核验。
 
 ### 产出
 
@@ -302,15 +302,15 @@ Browser UI (native HTML/CSS/ES Modules)
 
 ### 完成标准
 
-- [ ] `[UI-01]` 列表排序、数量、queue kind、状态、刷新和 URL 恢复通过行为测试及视觉核验。
-- [ ] `[UI-02]` header/source/evidence 严格来自 payload；安全来源可打开，缺失和不可解析证据按合同降级。
-- [ ] `[UI-03]` 三类决定、条件字段、auto-approved 只读和全部 finding 覆盖通过浏览器 E2E。
-- [ ] `[UI-04]` 批量批准二次确认、reviewer/role、决定汇总、409 冲突保留表单和成功写入通过 E2E。
-- [ ] `[UI-05]` submitted/waiting/applied/adjusted/failed/archived 状态显示准确，Panel 不冒充 Runtime application。
-- [ ] `[UI-06]` loopback、安全和 partial/error 提示无绕过入口；默认、加载、空、错误、部分和窄屏全部视觉核验。
-- [ ] 键盘焦点、表单 label、状态非颜色单独表达和窄屏逐 finding 操作满足基础可访问性检查。
-- [ ] ReviewClient 前端不直接依赖磁盘路径；P8 可替换 adapter，现有 VSCode Extension 不被删除或宣称已安装。
-- [ ] 全量 Review Panel tests、浏览器 E2E、ruff、静态资源检查和 `git diff --check` 通过；主文档/USAGE 同步；P3 独立提交。
+- [x] `[UI-01]` 列表排序、数量、queue kind、状态、刷新和 URL 恢复通过行为测试及视觉核验。
+- [x] `[UI-02]` header/source/evidence 严格来自 payload；安全来源可打开，缺失和不可解析证据按合同降级。
+- [x] `[UI-03]` 三类决定、条件字段、auto-approved 只读和全部 finding 覆盖通过浏览器 E2E。
+- [x] `[UI-04]` 批量批准二次确认、reviewer/role、决定汇总、409 冲突保留表单和成功写入通过 E2E。
+- [x] `[UI-05]` submitted/waiting/applied/adjusted/failed/archived 状态显示准确，Panel 不冒充 Runtime application。
+- [x] `[UI-06]` loopback、安全和 partial/error 提示无绕过入口；默认、加载、空、错误、部分和窄屏全部视觉核验。
+- [x] 键盘焦点、表单 label、状态非颜色单独表达和窄屏逐 finding 操作满足基础可访问性检查。
+- [x] ReviewClient 前端不直接依赖磁盘路径；P8 可替换 adapter，现有 VSCode Extension 不被删除或宣称已安装。
+- [x] 全量 Review Panel tests、浏览器 E2E、ruff、静态资源检查和 `git diff --check` 通过；主文档/USAGE 同步；P3 独立提交。
 
 ### 边界（本 Phase 明确不做）
 
@@ -360,8 +360,10 @@ Browser UI (native HTML/CSS/ES Modules)
 
 | ID | 描述 | 发现于 | 类型 | 处理 |
 |----|------|--------|------|------|
-| RP-BROWSER-001 | `test_browser_review_flow.py` 已加入 Selenium E2E，但当前环境缺少 `chromedriver`，Selenium 无法创建 Chrome session。 | P3 | 环境阻断 | 保留 skip 语义；P3 不能标 done。后续安装/配置 ChromeDriver 或 EdgeDriver 后重跑该测试。 |
-| RP-BROWSER-002 | `agent-browser open` 返回 `CDP response channel closed`，`doctor --offline --quick` 超过 60 秒需终止；Chrome headless CLI 可触发本地页面/API 请求，但未生成 screenshot artifact。 | P3 | 环境阻断 | 不扩大实现或绕过 Gate；保留 API/static 证据，视觉 Gate 等浏览器环境可用后关闭。 |
+| RP-BROWSER-001 | `test_browser_review_flow.py` 初版仅尝试 Chrome；当前环境缺少 `chromedriver`，普通沙箱无法创建 Chrome session。 | P3 | 已处理 | 增加 Edge→Chrome fallback；提权运行 Selenium Manager 成功启动 Edge，最终浏览器 E2E 通过。 |
+| RP-BROWSER-002 | `agent-browser open` 返回 `CDP response channel closed`，`doctor --offline --quick` 超过 60 秒需终止；Chrome headless CLI 可触发本地页面/API 请求，但未生成 screenshot artifact。 | P3 | 已处理 | 未把 agent-browser 作为 Gate；改用 Edge/Selenium E2E + 截图人工视觉核验关闭浏览器 Gate。 |
+| RP-UI-001 | 浏览器 E2E 暴露无 `required_reviewers` 时隐藏 `role-input` 仍参与必填判断，导致 2/2 finding 已批准但提交按钮仍禁用。 | P3 | 已处理 | `renderSubmitState()` 只在 role label 可见时要求 reviewer role；E2E 回归通过。 |
+| RP-UI-002 | 视觉截图暴露 submitted/waiting confirmation 后 finding 控件未完整只读，disabled 主按钮视觉仍偏可点击。 | P3 | 已处理 | 非 pending 详情禁用所有 finding fieldset；CSS 增加 `[hidden]`、disabled primary/input/fieldset 视觉规则；最终截图核验通过。 |
 
 ## 关键决策记录
 
@@ -378,4 +380,4 @@ Browser UI (native HTML/CSS/ES Modules)
 
 | 日期 | 已同步到 | 说明 |
 |------|----------|------|
-| 2026-07-15 | `README.md`、`USAGE.md`、SPEC-13/15/16/21 | P3 实现检查点已同步根 Web Panel 启动、接口边界、Review Protocol 写入规则和 P8 迁移边界；浏览器视觉 Gate 未关闭。 |
+| 2026-07-15 | `README.md`、`USAGE.md`、SPEC-13/15/16/21 | P3 已同步根 Web Panel 启动、接口边界、Review Protocol 写入规则和 P8 迁移边界；浏览器 E2E 与视觉 Gate 已关闭。 |

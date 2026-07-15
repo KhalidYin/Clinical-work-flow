@@ -52,8 +52,8 @@ def wait_for_port(port: int) -> None:
 
 def test_browser_can_batch_approve_and_submit_review(tmp_path: Path):
     pytest.importorskip("selenium")
-    from selenium.common.exceptions import WebDriverException
-    from selenium.webdriver import Chrome, ChromeOptions
+    from selenium.common.exceptions import TimeoutException, WebDriverException
+    from selenium.webdriver import Chrome, ChromeOptions, Edge, EdgeOptions
     from selenium.webdriver.common.by import By
     from selenium.webdriver.support import expected_conditions as ec
     from selenium.webdriver.support.ui import WebDriverWait
@@ -61,15 +61,33 @@ def test_browser_can_batch_approve_and_submit_review(tmp_path: Path):
     repo = make_repo(tmp_path)
     write_packet(repo, packet())
 
-    options = ChromeOptions()
-    options.add_argument("--headless=new")
-    options.add_argument("--disable-gpu")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--window-size=1280,900")
+    driver = None
+    errors: list[str] = []
+
+    edge_options = EdgeOptions()
+    add_browser_options(edge_options)
+    for edge_binary in (
+        Path("C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"),
+        Path("C:/Program Files/Microsoft/Edge/Application/msedge.exe"),
+    ):
+        if edge_binary.exists():
+            edge_options.binary_location = str(edge_binary)
+            break
     try:
-        driver = Chrome(options=options)
+        driver = Edge(options=edge_options)
     except WebDriverException as exc:
-        pytest.skip(f"Selenium Chrome driver unavailable: {exc}")
+        errors.append(f"Edge: {exc}")
+
+    options = ChromeOptions()
+    add_browser_options(options)
+    if driver is None:
+        try:
+            driver = Chrome(options=options)
+        except WebDriverException as exc:
+            errors.append(f"Chrome: {exc}")
+
+    if driver is None:
+        pytest.skip(f"Selenium browser driver unavailable: {' | '.join(errors)}")
 
     with driver:
         with live_server(repo) as base_url:
@@ -79,9 +97,37 @@ def test_browser_can_batch_approve_and_submit_review(tmp_path: Path):
             driver.find_element(By.CSS_SELECTOR, "#reviewer-input").send_keys("Lead Programmer")
             driver.find_element(By.CSS_SELECTOR, "#approve-all-button").click()
             driver.switch_to.alert.accept()
-            submit = driver.find_element(By.CSS_SELECTOR, "#submit-button")
-            assert submit.is_enabled()
+            try:
+                submit = wait.until(enabled_element(By.CSS_SELECTOR, "#submit-button"))
+            except TimeoutException as exc:
+                diagnostics = driver.execute_script(
+                    """
+                    return {
+                      reviewer: document.querySelector('#reviewer-input')?.value,
+                      status: document.querySelector('#submit-status')?.textContent,
+                      disabled: document.querySelector('#submit-button')?.disabled,
+                      checkedApproved: document.querySelectorAll("input[value='approved']:checked").length
+                    };
+                    """
+                )
+                driver.save_screenshot(str(tmp_path / "review-panel-debug.png"))
+                raise AssertionError(diagnostics) from exc
             submit.click()
             driver.switch_to.alert.accept()
             wait.until(ec.text_to_be_present_in_element((By.CSS_SELECTOR, "#submit-status"), "waiting for Runtime confirmation"))
             driver.save_screenshot(str(tmp_path / "review-panel-browser-flow.png"))
+
+
+def add_browser_options(options):
+    options.add_argument("--headless=new")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--window-size=1280,900")
+
+
+def enabled_element(by: str, selector: str):
+    def _predicate(driver):
+        element = driver.find_element(by, selector)
+        return element if element.is_enabled() else False
+
+    return _predicate
