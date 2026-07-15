@@ -25,5 +25,6 @@
 | R029 | 2026-07-15 | 13:50 | P6-clinical-knowledge-evolution | P2 | 完成 P2-E、归档结构审核并关闭 P2 Gate | `clinical-llm-wiki/`, `clinical-workflow/`, `docs/specs/`, `docs/main/memory/`, `docs/dep/`, `USAGE.md` | active/DEVLOG-R009-R048.md |
 | R030 | 2026-07-15 | 14:07 | P6-clinical-knowledge-evolution | P3 | 完成 P3-A Proposal Batch、覆盖台账与 Gold 确定性评分合同 | `clinical-llm-wiki/schemas/extraction/`, `clinical-llm-wiki/scripts/content/`, `clinical-llm-wiki/tests/`, `docs/dep/` | active/DEVLOG-R009-R048.md |
 | R031 | 2026-07-15 | 14:52 | P6-clinical-knowledge-evolution | P3 | 完成 P3-B Gold 候选校准并记录 7/7 结构评分 | `clinical-llm-wiki/scripts/content/`, `clinical-llm-wiki/tests/fixtures/knowledge/`, `clinical-llm-wiki/tests/`, `clinical-llm-wiki/sources/packages/`, `docs/dep/` | active/DEVLOG-R009-R048.md |
+| R032 | 2026-07-15 | 16:16 | P6-clinical-knowledge-evolution | P3 | 完成 P3-C Core 小批次 proposed 候选、覆盖台账、质量报告与 Obsidian 审阅入口 | `clinical-llm-wiki/scripts/content/`, `clinical-llm-wiki/tests/fixtures/knowledge/`, `clinical-llm-wiki/tests/`, `clinical-llm-wiki/sources/packages/`, `clinical-llm-wiki/vault/`, `docs/dep/` | active/DEVLOG-R009-R048.md |
 
 > Legacy rounds R001-R008 remain immutable in [DEVLOG-legacy.md](archive/DEVLOG-legacy.md). They predate the searchable index and were intentionally not rewritten during adoption.

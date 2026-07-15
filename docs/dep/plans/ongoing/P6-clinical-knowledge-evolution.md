@@ -316,11 +316,11 @@ P2-A 至 P2-E 是一个内部 Phase 的原子执行切片；每个切片完成�
 |------|------|------|--------------|
 | P3-A | done | 定义 Proposal Batch、逐 source unit 覆盖台账与 Gold Set 确定性评分合同；只使用合成正反例，不生成正式候选 | `feat: define SDTMIG 3.4 proposal batch contract` |
 | P3-B | done | 对人工 Gold Set 执行首轮候选校准，记录字段级差异和提示/Schema 版本；未通过 Gate 不扩大范围 | `feat: calibrate SDTMIG 3.4 gold proposals` |
-| P3-C | next | 按小批次抽取 Core 范围并形成逐单元覆盖、原子性和语义质量报告 | `feat: extract SDTMIG 3.4 core proposals` |
-| P3-D | pending | 按小批次抽取 Events/AE，执行跨证据、重复和变量规则检查，生成中文 blocking ReviewPacket | `feat: open SDTMIG 3.4 proposal review gate` |
+| P3-C | done | 按小批次抽取 Core 范围并形成逐单元覆盖、原子性和语义质量报告 | `feat: extract SDTMIG 3.4 core proposals` |
+| P3-D | next | 按小批次抽取 Events/AE，执行跨证据、重复和变量规则检查，生成中文 blocking ReviewPacket | `feat: open SDTMIG 3.4 proposal review gate` |
 | P3-E | pending | 应用人工决定、保留未确认项为 proposed/rework、归档审核三件套并关闭 P3 Gate | `feat: close SDTMIG 3.4 proposal review gate` |
 
-P3-A 至 P3-E 是质量优先的内部切片；每个切片完成并验证后独立提交。P3-A/P3-B 不得产生 `approved` statement，P3-D 后必须停在人工 Gate，只有 P3-E 才能把人工确认结果应用到知识候选。
+P3-A 至 P3-E 是质量优先的内部切片；每个切片完成并验证后独立提交。P3-A/P3-B/P3-C 不得产生 `approved` statement，P3-D 后必须停在人工 Gate，只有 P3-E 才能把人工确认结果应用到知识候选。
 
 ### P3-B 校准记录
 
@@ -329,6 +329,14 @@ P3-A 至 P3-E 是质量优先的内部切片；每个切片完成并验证后独
 - 候选生成方式记录为 `llm_assisted` replay：模型语义输出 fixture 只包含 proposal semantics，证据、覆盖台账、source hash、structure map hash 和 `proposed` 状态由生成器注入。
 - `gold-proposal-calibration-report.json` 显示 Gold 结构评分 7/7，0 missing，0 unexpected，7 条文本均为 paraphrase，全部保留为后续人工语义复核对象。
 - 完整候选 batch 和带 source text 的输入投影写入 local-only `derived/`，提交文件只保留无 PDF/XLSX 原文的 prompt、response fixture、生成器、compact report 和测试。
+
+### P3-C Core 小批次记录
+
+- Core 抽取提示冻结为 `prompt-sdtmig34-core-proposal-v1`，prompt hash 为 `cda50802a9b123085443eea495a9d65b734e3bee57eabad1ade412dd1d05a9c4`。
+- 小批次范围覆盖 SDTM 基础概念、变量角色、domain/dataset 结构、conformance、Core designation、missing value 和 study day 规则；共 25 个 source unit，其中 23 个 `candidate`、2 个 `non_knowledge`。
+- 生成 `core-proposal-quality-report.json`：21 条 proposed statement、0 blocking issue、0 duplicate evidence key、0 candidate-without-proposal；2 个 non-knowledge 单元均有 rationale。
+- 新增 `vault/60_Sources/Registry/CDISC SDTMIG 3.4.md` 作为 proposed/inbox 来源入口；新增 `vault/98_Inbox/SDTMIG 3.4 Core Proposal Batch.md` 作为中文候选审阅入口。两者都不进入 approved-only Runtime 调用范围。
+- 完整 batch 和带 source text 的输入投影继续写入 local-only `derived/`，提交文件只保留无 PDF/XLSX 原文的 prompt、response fixture、生成器、compact report、Vault 入口卡和测试。
 
 ### P3 质量 Gate
 

@@ -10,11 +10,18 @@ title: 来源、页码与视觉证据导航
 
 - [[60_Sources/Registry/ICH E9 R1]]
 - [[60_Sources/Registry/CDISC SDTMIG 3.3]]
+- [[60_Sources/Registry/CDISC SDTMIG 3.4]]
 - [[60_Sources/Registry/CDISC ADaMIG 1.3]]
 - [[60_Sources/Registry/CDISC ADaM Conformance Rules 5.0]]
 - [[60_Sources/Registry/FDA Study Data Technical Conformance Guide]]
 
 访问快照保存项目自写元数据与释义，并回链官方 URL；规范原文仍是最终权威。
+
+## P6 解析候选
+
+- [[98_Inbox/SDTMIG 3.4 Core Proposal Batch|SDTMIG 3.4 Core 小批次候选]]
+
+候选卡只用于治理审阅，不进入 approved-only 索引。
 
 ## 合成视觉证据
 

@@ -1,0 +1,655 @@
+{
+  "schema_version": "1.0.0",
+  "response_id": "response-sdtmig34-core-proposals-v1",
+  "source_id": "src-cdisc-sdtmig-3-4",
+  "source_sha256": "ea4ddbba4a3e10a55bb2f36d5e28d9cfc191090717c2426475279750a7f57021",
+  "prompt_id": "prompt-sdtmig34-core-proposal-v1",
+  "prompt_sha256": "cda50802a9b123085443eea495a9d65b734e3bee57eabad1ade412dd1d05a9c4",
+  "model_id": "codex-session-gpt-5-2026-07-15",
+  "proposals": [
+    {
+      "proposal_key": "observation-framework",
+      "source_unit_ids": [
+        "unit-sdtmig34-deep-p0011-b003"
+      ],
+      "knowledge_type": "definition",
+      "subject": "SDTM observation framework",
+      "statement": "SDTMIG 3.4 organizes human clinical trial submission data as observations collected about study subjects.",
+      "modality": "descriptive",
+      "scope": {
+        "model": "SDTM-2.0",
+        "implementation_guide": "SDTMIG-3.4",
+        "domains": [],
+        "variables": []
+      },
+      "conditions": [],
+      "exceptions": [],
+      "relations": [
+        {
+          "relation_type": "applies_to",
+          "to_id": "topic-sdtm-observation-model",
+          "target_kind": "topic",
+          "source_unit_ids": [
+            "unit-sdtmig34-deep-p0011-b003"
+          ]
+        }
+      ]
+    },
+    {
+      "proposal_key": "identifier-variable-role",
+      "source_unit_ids": [
+        "unit-sdtmig34-deep-p0011-b004"
+      ],
+      "knowledge_type": "definition",
+      "subject": "Identifier variables",
+      "statement": "Identifier variables identify the study, subject, domain, and record sequence for an SDTM record.",
+      "modality": "descriptive",
+      "scope": {
+        "model": "SDTM-2.0",
+        "implementation_guide": "SDTMIG-3.4",
+        "domains": [],
+        "variables": []
+      },
+      "conditions": [],
+      "exceptions": [],
+      "relations": [
+        {
+          "relation_type": "belongs_to",
+          "to_id": "topic-sdtm-variable-roles",
+          "target_kind": "topic",
+          "source_unit_ids": [
+            "unit-sdtmig34-deep-p0011-b004"
+          ]
+        }
+      ]
+    },
+    {
+      "proposal_key": "topic-variable-role",
+      "source_unit_ids": [
+        "unit-sdtmig34-deep-p0011-b005"
+      ],
+      "knowledge_type": "definition",
+      "subject": "Topic variables",
+      "statement": "Topic variables specify the focus of an SDTM observation.",
+      "modality": "descriptive",
+      "scope": {
+        "model": "SDTM-2.0",
+        "implementation_guide": "SDTMIG-3.4",
+        "domains": [],
+        "variables": []
+      },
+      "conditions": [],
+      "exceptions": [],
+      "relations": [
+        {
+          "relation_type": "belongs_to",
+          "to_id": "topic-sdtm-variable-roles",
+          "target_kind": "topic",
+          "source_unit_ids": [
+            "unit-sdtmig34-deep-p0011-b005"
+          ]
+        }
+      ]
+    },
+    {
+      "proposal_key": "timing-variable-role",
+      "source_unit_ids": [
+        "unit-sdtmig34-deep-p0011-b006"
+      ],
+      "knowledge_type": "definition",
+      "subject": "Timing variables",
+      "statement": "Timing variables describe when an SDTM observation occurs.",
+      "modality": "descriptive",
+      "scope": {
+        "model": "SDTM-2.0",
+        "implementation_guide": "SDTMIG-3.4",
+        "domains": [],
+        "variables": []
+      },
+      "conditions": [],
+      "exceptions": [],
+      "relations": [
+        {
+          "relation_type": "belongs_to",
+          "to_id": "topic-sdtm-variable-roles",
+          "target_kind": "topic",
+          "source_unit_ids": [
+            "unit-sdtmig34-deep-p0011-b006"
+          ]
+        }
+      ]
+    },
+    {
+      "proposal_key": "qualifier-variable-role",
+      "source_unit_ids": [
+        "unit-sdtmig34-deep-p0011-b007"
+      ],
+      "knowledge_type": "definition",
+      "subject": "Qualifier variables",
+      "statement": "Qualifier variables add descriptive text or numeric values that further characterize an SDTM observation.",
+      "modality": "descriptive",
+      "scope": {
+        "model": "SDTM-2.0",
+        "implementation_guide": "SDTMIG-3.4",
+        "domains": [],
+        "variables": []
+      },
+      "conditions": [],
+      "exceptions": [],
+      "relations": [
+        {
+          "relation_type": "belongs_to",
+          "to_id": "topic-sdtm-variable-roles",
+          "target_kind": "topic",
+          "source_unit_ids": [
+            "unit-sdtmig34-deep-p0011-b007"
+          ]
+        }
+      ]
+    },
+    {
+      "proposal_key": "rule-variable-role",
+      "source_unit_ids": [
+        "unit-sdtmig34-deep-p0011-b008"
+      ],
+      "knowledge_type": "definition",
+      "subject": "Rule variables",
+      "statement": "Rule variables describe start, end, branch, or loop conditions in the Trial Design Model.",
+      "modality": "descriptive",
+      "scope": {
+        "model": "SDTM-2.0",
+        "implementation_guide": "SDTMIG-3.4",
+        "domains": [],
+        "variables": []
+      },
+      "conditions": [],
+      "exceptions": [],
+      "relations": [
+        {
+          "relation_type": "belongs_to",
+          "to_id": "topic-sdtm-variable-roles",
+          "target_kind": "topic",
+          "source_unit_ids": [
+            "unit-sdtmig34-deep-p0011-b008"
+          ]
+        }
+      ]
+    },
+    {
+      "proposal_key": "domain-definition",
+      "source_unit_ids": [
+        "unit-sdtmig34-deep-p0011-b017"
+      ],
+      "knowledge_type": "definition",
+      "subject": "SDTM domain",
+      "statement": "An SDTM domain is a collection of logically related observations with a common topic.",
+      "modality": "descriptive",
+      "scope": {
+        "model": "SDTM-2.0",
+        "implementation_guide": "SDTMIG-3.4",
+        "domains": [],
+        "variables": []
+      },
+      "conditions": [],
+      "exceptions": [],
+      "relations": [
+        {
+          "relation_type": "belongs_to",
+          "to_id": "topic-sdtm-domains",
+          "target_kind": "topic",
+          "source_unit_ids": [
+            "unit-sdtmig34-deep-p0011-b017"
+          ]
+        }
+      ]
+    },
+    {
+      "proposal_key": "domain-code-consistency",
+      "source_unit_ids": [
+        "unit-sdtmig34-deep-p0011-b018",
+        "unit-sdtmig34-deep-p0012-b001"
+      ],
+      "knowledge_type": "requirement",
+      "subject": "Two-character domain code",
+      "statement": "Use each domain dataset's unique two-character code consistently as the dataset name, DOMAIN value, most variable-name prefix, and RDOMAIN relationship value.",
+      "modality": "should",
+      "scope": {
+        "model": "SDTM-2.0",
+        "implementation_guide": "SDTMIG-3.4",
+        "domains": [],
+        "variables": [
+          "DOMAIN",
+          "RDOMAIN"
+        ]
+      },
+      "conditions": [],
+      "exceptions": [],
+      "relations": [
+        {
+          "relation_type": "applies_to",
+          "to_id": "topic-sdtm-domains",
+          "target_kind": "topic",
+          "source_unit_ids": [
+            "unit-sdtmig34-deep-p0011-b018",
+            "unit-sdtmig34-deep-p0012-b001"
+          ]
+        }
+      ]
+    },
+    {
+      "proposal_key": "dataset-flat-file-structure",
+      "source_unit_ids": [
+        "unit-sdtmig34-deep-p0012-b002"
+      ],
+      "knowledge_type": "definition",
+      "subject": "SDTM dataset structure",
+      "statement": "SDTM datasets are flat files where rows represent observations, columns represent variables, and metadata describe the variables used.",
+      "modality": "descriptive",
+      "scope": {
+        "model": "SDTM-2.0",
+        "implementation_guide": "SDTMIG-3.4",
+        "domains": [],
+        "variables": []
+      },
+      "conditions": [],
+      "exceptions": [],
+      "relations": [
+        {
+          "relation_type": "belongs_to",
+          "to_id": "topic-sdtm-dataset-structure",
+          "target_kind": "topic",
+          "source_unit_ids": [
+            "unit-sdtmig34-deep-p0012-b002"
+          ]
+        }
+      ]
+    },
+    {
+      "proposal_key": "general-observation-classes",
+      "source_unit_ids": [
+        "unit-sdtmig34-deep-p0012-b006"
+      ],
+      "knowledge_type": "requirement",
+      "subject": "Subject-level observation classes",
+      "statement": "Most subject-level observations collected during a study should be represented using one of the three SDTM general observation classes: Interventions, Events, or Findings.",
+      "modality": "should",
+      "scope": {
+        "model": "SDTM-2.0",
+        "implementation_guide": "SDTMIG-3.4",
+        "domains": [],
+        "variables": []
+      },
+      "conditions": [
+        "The source observation is a subject-level observation collected during the study."
+      ],
+      "exceptions": [],
+      "relations": [
+        {
+          "relation_type": "applies_to",
+          "to_id": "topic-sdtm-general-observation-classes",
+          "target_kind": "topic",
+          "source_unit_ids": [
+            "unit-sdtmig34-deep-p0012-b006"
+          ]
+        }
+      ]
+    },
+    {
+      "proposal_key": "conformance-required-expected-columns",
+      "source_unit_ids": [
+        "unit-sdtmig34-deep-p0021-b012"
+      ],
+      "knowledge_type": "requirement",
+      "subject": "Required and Expected variable columns",
+      "statement": "For SDTMIG conformance, standard domains include all Required and Expected variables as columns, and all Required variables are populated.",
+      "modality": "must",
+      "scope": {
+        "model": "SDTM-2.0",
+        "implementation_guide": "SDTMIG-3.4",
+        "domains": [],
+        "variables": []
+      },
+      "conditions": [
+        "Conformance is being assessed for an SDTMIG standard domain."
+      ],
+      "exceptions": [],
+      "relations": [
+        {
+          "relation_type": "requires",
+          "to_id": "topic-sdtm-conformance",
+          "target_kind": "topic",
+          "source_unit_ids": [
+            "unit-sdtmig34-deep-p0021-b012"
+          ]
+        }
+      ]
+    },
+    {
+      "proposal_key": "core-required-variable",
+      "source_unit_ids": [
+        "unit-sdtmig34-deep-p0023-b001"
+      ],
+      "knowledge_type": "variable_rule",
+      "subject": "Required Core variable",
+      "statement": "A Required Core variable is essential to identifying or interpreting a record and must always be included and populated.",
+      "modality": "must",
+      "scope": {
+        "model": "SDTM-2.0",
+        "implementation_guide": "SDTMIG-3.4",
+        "domains": [],
+        "variables": []
+      },
+      "conditions": [
+        "The variable is designated Required in the Core column."
+      ],
+      "exceptions": [],
+      "relations": [
+        {
+          "relation_type": "belongs_to",
+          "to_id": "topic-sdtm-core-designations",
+          "target_kind": "topic",
+          "source_unit_ids": [
+            "unit-sdtmig34-deep-p0023-b001"
+          ]
+        }
+      ]
+    },
+    {
+      "proposal_key": "core-expected-variable",
+      "source_unit_ids": [
+        "unit-sdtmig34-deep-p0023-b002"
+      ],
+      "knowledge_type": "variable_rule",
+      "subject": "Expected Core variable",
+      "statement": "An Expected Core variable is needed to make a domain record useful; if the study lacks the data item, include a null column and document that absence in Define-XML.",
+      "modality": "must",
+      "scope": {
+        "model": "SDTM-2.0",
+        "implementation_guide": "SDTMIG-3.4",
+        "domains": [],
+        "variables": []
+      },
+      "conditions": [
+        "The variable is designated Expected in the Core column."
+      ],
+      "exceptions": [
+        "Expected variables may contain some null values."
+      ],
+      "relations": [
+        {
+          "relation_type": "belongs_to",
+          "to_id": "topic-sdtm-core-designations",
+          "target_kind": "topic",
+          "source_unit_ids": [
+            "unit-sdtmig34-deep-p0023-b002"
+          ]
+        }
+      ]
+    },
+    {
+      "proposal_key": "core-permissible-variable",
+      "source_unit_ids": [
+        "unit-sdtmig34-deep-p0023-b003"
+      ],
+      "knowledge_type": "variable_rule",
+      "subject": "Permissible Core variable",
+      "statement": "A Permissible Core variable should be used in an SDTM dataset where appropriate unless SDTMIG restrictions or domain assumptions specifically restrict it.",
+      "modality": "should",
+      "scope": {
+        "model": "SDTM-2.0",
+        "implementation_guide": "SDTMIG-3.4",
+        "domains": [],
+        "variables": []
+      },
+      "conditions": [
+        "The variable is designated Permissible in the Core column."
+      ],
+      "exceptions": [
+        "Use may be restricted by SDTMIG Section 2.7 or by specific domain assumptions."
+      ],
+      "relations": [
+        {
+          "relation_type": "belongs_to",
+          "to_id": "topic-sdtm-core-designations",
+          "target_kind": "topic",
+          "source_unit_ids": [
+            "unit-sdtmig34-deep-p0023-b003"
+          ]
+        }
+      ]
+    },
+    {
+      "proposal_key": "permissible-generally-not-used",
+      "source_unit_ids": [
+        "unit-sdtmig34-deep-p0023-b004"
+      ],
+      "knowledge_type": "permission",
+      "subject": "Permissible variable generally-not-used assumption",
+      "statement": "A domain assumption saying a Permissible variable is generally not used does not prohibit using that variable.",
+      "modality": "may",
+      "scope": {
+        "model": "SDTM-2.0",
+        "implementation_guide": "SDTMIG-3.4",
+        "domains": [],
+        "variables": []
+      },
+      "conditions": [
+        "A domain assumption states that the Permissible variable is generally not used."
+      ],
+      "exceptions": [],
+      "relations": [
+        {
+          "relation_type": "qualified_by",
+          "to_id": "topic-sdtm-core-designations",
+          "target_kind": "topic",
+          "source_unit_ids": [
+            "unit-sdtmig34-deep-p0023-b004"
+          ]
+        }
+      ]
+    },
+    {
+      "proposal_key": "permissible-include-when-data-item-exists",
+      "source_unit_ids": [
+        "unit-sdtmig34-deep-p0023-b005"
+      ],
+      "knowledge_type": "variable_rule",
+      "subject": "Permissible variable for collected data item",
+      "statement": "If a study includes a data item represented by a Permissible variable, include that variable in the SDTM dataset and document unavailable data for it in Define-XML.",
+      "modality": "must",
+      "scope": {
+        "model": "SDTM-2.0",
+        "implementation_guide": "SDTMIG-3.4",
+        "domains": [],
+        "variables": []
+      },
+      "conditions": [
+        "The study includes a data item represented by a Permissible variable."
+      ],
+      "exceptions": [
+        "The variable is included even if the values are null."
+      ],
+      "relations": [
+        {
+          "relation_type": "requires",
+          "to_id": "topic-sdtm-core-designations",
+          "target_kind": "topic",
+          "source_unit_ids": [
+            "unit-sdtmig34-deep-p0023-b005"
+          ]
+        }
+      ]
+    },
+    {
+      "proposal_key": "permissible-omit-when-data-item-absent",
+      "source_unit_ids": [
+        "unit-sdtmig34-deep-p0023-b006"
+      ],
+      "knowledge_type": "variable_rule",
+      "subject": "Permissible variable for absent data item",
+      "statement": "If a study did not include a data item represented by a Permissible variable, do not include the variable in the SDTM dataset or declare it in Define-XML.",
+      "modality": "should",
+      "scope": {
+        "model": "SDTM-2.0",
+        "implementation_guide": "SDTMIG-3.4",
+        "domains": [],
+        "variables": []
+      },
+      "conditions": [
+        "The study did not include a data item represented by a Permissible variable."
+      ],
+      "exceptions": [],
+      "relations": [
+        {
+          "relation_type": "prohibits",
+          "to_id": "topic-sdtm-core-designations",
+          "target_kind": "topic",
+          "source_unit_ids": [
+            "unit-sdtmig34-deep-p0023-b006"
+          ]
+        }
+      ]
+    },
+    {
+      "proposal_key": "missing-values-as-nulls",
+      "source_unit_ids": [
+        "unit-sdtmig34-deep-p0029-b014"
+      ],
+      "knowledge_type": "requirement",
+      "subject": "Missing individual data item values",
+      "statement": "Represent missing values for individual SDTM data items as nulls.",
+      "modality": "should",
+      "scope": {
+        "model": "SDTM-2.0",
+        "implementation_guide": "SDTMIG-3.4",
+        "domains": [],
+        "variables": []
+      },
+      "conditions": [
+        "The missing value is for an individual data item."
+      ],
+      "exceptions": [
+        "Observations not done are addressed through --STAT and --REASND conventions and domain models."
+      ],
+      "relations": [
+        {
+          "relation_type": "references",
+          "to_id": "section-sdtmig34-tests-not-done",
+          "target_kind": "external_dependency",
+          "source_unit_ids": [
+            "unit-sdtmig34-deep-p0029-b014"
+          ]
+        }
+      ]
+    },
+    {
+      "proposal_key": "study-day-variable-purpose",
+      "source_unit_ids": [
+        "unit-sdtmig34-deep-p0041-b017"
+      ],
+      "knowledge_type": "variable_rule",
+      "subject": "Study day variables",
+      "statement": "Study day variables describe an observation's relative day using the reference date as day 1.",
+      "modality": "descriptive",
+      "scope": {
+        "model": "SDTM-2.0",
+        "implementation_guide": "SDTMIG-3.4",
+        "domains": [],
+        "variables": [
+          "--DY",
+          "--STDY",
+          "--ENDY",
+          "--DTC",
+          "--STDTC",
+          "--ENDTC",
+          "RFSTDTC"
+        ]
+      },
+      "conditions": [],
+      "exceptions": [],
+      "relations": [
+        {
+          "relation_type": "belongs_to",
+          "to_id": "topic-sdtm-study-day",
+          "target_kind": "topic",
+          "source_unit_ids": [
+            "unit-sdtmig34-deep-p0041-b017"
+          ]
+        }
+      ]
+    },
+    {
+      "proposal_key": "study-day-reference-and-limit",
+      "source_unit_ids": [
+        "unit-sdtmig34-deep-p0042-b001"
+      ],
+      "knowledge_type": "variable_rule",
+      "subject": "Study day reference date",
+      "statement": "RFSTDTC is study day 1, the day before it is study day -1, there is no study day 0, and raw dates should be used instead of study day values for numeric duration calculations.",
+      "modality": "should",
+      "scope": {
+        "model": "SDTM-2.0",
+        "implementation_guide": "SDTMIG-3.4",
+        "domains": [
+          "DM"
+        ],
+        "variables": [
+          "RFSTDTC",
+          "--DY",
+          "--STDY",
+          "--ENDY"
+        ]
+      },
+      "conditions": [],
+      "exceptions": [
+        "Study day values are not suited for subsequent numeric duration calculations."
+      ],
+      "relations": [
+        {
+          "relation_type": "qualified_by",
+          "to_id": "topic-sdtm-study-day",
+          "target_kind": "topic",
+          "source_unit_ids": [
+            "unit-sdtmig34-deep-p0042-b001"
+          ]
+        }
+      ]
+    },
+    {
+      "proposal_key": "study-day-calculation-method",
+      "source_unit_ids": [
+        "unit-sdtmig34-deep-p0042-b003",
+        "unit-sdtmig34-deep-p0042-b004"
+      ],
+      "knowledge_type": "variable_rule",
+      "subject": "--DY calculation",
+      "statement": "Calculate --DY from the date portion of --DTC and RFSTDTC, adding 1 when --DTC is on or after RFSTDTC and not adding 1 when --DTC precedes RFSTDTC; use this method across domains.",
+      "modality": "should",
+      "scope": {
+        "model": "SDTM-2.0",
+        "implementation_guide": "SDTMIG-3.4",
+        "domains": [],
+        "variables": [
+          "--DY",
+          "--DTC",
+          "RFSTDTC"
+        ]
+      },
+      "conditions": [
+        "--DTC and RFSTDTC date portions are available."
+      ],
+      "exceptions": [],
+      "relations": [
+        {
+          "relation_type": "implemented_by",
+          "to_id": "topic-sdtm-study-day",
+          "target_kind": "topic",
+          "source_unit_ids": [
+            "unit-sdtmig34-deep-p0042-b003",
+            "unit-sdtmig34-deep-p0042-b004"
+          ]
+        }
+      ]
+    }
+  ]
+}

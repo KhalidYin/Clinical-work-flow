@@ -766,3 +766,45 @@ Done — no next steps。若需要跨阶段全量语义图，应另立 typed-rel
 - `clinical-llm-wiki/tests/test_p6_gold_proposal_calibration.py`
 - `clinical-llm-wiki/sources/packages/src-cdisc-sdtmig-3-4/gold-proposal-calibration-report.json`
 - `docs/dep/PLAN.md`、`plans/ongoing/P6-clinical-knowledge-evolution.md`、DEVLOG/INDEX
+
+---
+
+### R032 [16:16] [P6-clinical-knowledge-evolution] P3: 完成 P3-C Core 小批次 proposed 候选
+
+#### Done
+- 新增 `sdtmig34_core_proposals.py`，沿用 P3-A Proposal Batch 合同和 P3-B 来源投影/证据注入模式，但范围扩大为 Core anchor 小批次；来源 hash、deep map hash、prompt hash、response source id/hash、未知 source unit 和 non-knowledge 误引用均 fail closed。
+- 冻结 P3-C prompt `prompt-sdtmig34-core-proposal-v1`，response fixture 只保存 proposal semantics，不保存 PDF/XLSX 受限原文；生成器注入 evidence、coverage、quality summary、`proposed` 状态和空 review receipt。
+- 生成 `core-proposal-quality-report.json`：25 个 source unit、23 个 candidate、2 个 non-knowledge、21 条 proposed statement、0 blocking issue、0 duplicate evidence key、0 candidate-without-proposal。
+- 2 个 non-knowledge source unit 均显式保留 rationale：一个是上下文表格边界，一个是 Core designation 的引导句；二者不生成 statement，避免把导航/布局内容误当知识。
+- 新增 Obsidian proposed/inbox 入口：`vault/60_Sources/Registry/CDISC SDTMIG 3.4.md` 作为 3.4 来源卡，`vault/98_Inbox/SDTMIG 3.4 Core Proposal Batch.md` 作为中文候选审阅入口；两者均不进入 approved-only Runtime 调用范围。
+- `Sources-MOC` 新增 SDTMIG 3.4 来源和 P6 Core 候选链接，保证 Obsidian 中可从来源导航找到本批候选，但不混入 approved 标准知识卡列表。
+
+#### Issues / Blockers
+- 定向测试首轮 1 项失败：测试把允许的元数据字段 `source_text_included` 误判为原文泄露。根因是断言按字符串包含 `source_text` 过宽，而报告实际没有 `source_text` / `source_text_sha256` 原文键。按 systematic debugging 修正为递归检查禁止原文键，保留运行元数据。
+- 新增 SDTMIG 3.4 来源卡刻意保持 `proposed/inbox`，不设为 approved；否则现有治理合同会要求完整人工审批 receipt 和 citation_ready。P3-C 只建立审阅入口，不批准来源或知识 statement。
+- P3-C 仍不生成 ReviewPacket；中文 blocking ReviewPacket 留到 P3-D 汇总 Events/AE 后打开。
+
+#### Validation
+- `python -m scripts.content.sdtmig34_core_proposals --include-source-text`（success；21 proposals / 25 source units，gate pass）
+- `pytest tests/test_p6_core_proposals.py`（7 passed，1 warning）
+- `pytest tests/test_p6_proposal_batch_contract.py tests/test_p6_gold_proposal_calibration.py tests/test_vault_contracts.py`（20 passed，14 warnings）
+- `ruff check scripts/content/sdtmig34_core_proposals.py tests/test_p6_core_proposals.py`（success）
+- `python -m pytest -q --disable-warnings`（`clinical-llm-wiki/`，132 passed，193 warnings）
+- `python -m ruff check --no-cache service scripts tests`（Wiki，success）
+- Vault content hash：新 Inbox card 与 SDTMIG 3.4 source card 均通过 `test_vault_contracts.py` 和 P3-C 定向 hash 校验。
+
+#### Next
+1. P3-D：按小批次抽取 Events/AE 候选，执行跨证据、重复和变量规则检查。
+2. 生成中文 blocking ReviewPacket，要求人工逐条确认 statement 语义、适用范围、conditions、exceptions 和 locator。
+3. P3-D 完成后必须停在人工 Gate；P3-E 才能应用人工决定并关闭 P3。
+
+#### Files Changed / Commits
+- `clinical-llm-wiki/scripts/content/prompts/sdtmig34_core_proposal_v1.md`
+- `clinical-llm-wiki/scripts/content/sdtmig34_core_proposals.py`
+- `clinical-llm-wiki/tests/fixtures/knowledge/sdtmig34-core-proposal-response-v1.json`
+- `clinical-llm-wiki/tests/test_p6_core_proposals.py`
+- `clinical-llm-wiki/sources/packages/src-cdisc-sdtmig-3-4/core-proposal-quality-report.json`
+- `clinical-llm-wiki/vault/60_Sources/Registry/CDISC SDTMIG 3.4.md`
+- `clinical-llm-wiki/vault/98_Inbox/SDTMIG 3.4 Core Proposal Batch.md`
+- `clinical-llm-wiki/vault/10_MOC/Sources-MOC.md`
+- `docs/dep/PLAN.md`、`plans/ongoing/P6-clinical-knowledge-evolution.md`、DEVLOG/INDEX
