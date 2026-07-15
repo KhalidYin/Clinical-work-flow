@@ -15,5 +15,6 @@
 | R019 | 2026-07-14 | 10:39 | P5-obsidian-curated-relation-graph | P1 | 生成十阶段关系投影并收敛 Obsidian 默认图为 20 节点工作流主干 | `clinical-llm-wiki/scripts/content/`, `clinical-llm-wiki/vault/`, `clinical-llm-wiki/tests/`, `USAGE.md`, `docs/specs/21-Knowledge-Workflow-Integration.md`, `docs/dep/` | active/DEVLOG-R009-R048.md |
 | R020 | 2026-07-14 | 17:01 | P6-clinical-knowledge-evolution | P1 | 冻结双制品来源、人工批准 Gold Set 并归档 Review 三件套 | `clinical-llm-wiki/.review_queue/`, `sources/packages/`, `tests/fixtures/knowledge/`, `docs/dep/` | active/DEVLOG-R009-R048.md |
 | R021 | 2026-07-14 | 23:12 | P0-local-review-panel | P1 | 建立本地 Review Panel 脚手架与队列注册合同 | `review-panel/`, `docs/dep/` | active/DEVLOG-R009-R048.md |
+| R022 | 2026-07-15 | 00:20 | P0-local-review-panel | P2 | 实现 Review API 与安全 DecisionReceipt 写入 | `review-panel/src/review_panel/`, `review-panel/tests/`, `docs/dep/` | active/DEVLOG-R009-R048.md |
 
 > Legacy rounds R001-R008 remain immutable in [DEVLOG-legacy.md](archive/DEVLOG-legacy.md). They predate the searchable index and were intentionally not rewritten during adoption.

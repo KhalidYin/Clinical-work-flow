@@ -17,6 +17,11 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument("--repo-root", type=Path, default=None)
     check.add_argument("--host", default="127.0.0.1")
     check.add_argument("--port", type=int, default=8790)
+
+    serve = subparsers.add_parser("serve", help="Run the loopback Review Panel API.")
+    serve.add_argument("--repo-root", type=Path, default=None)
+    serve.add_argument("--host", default="127.0.0.1")
+    serve.add_argument("--port", type=int, default=8790)
     return parser
 
 
@@ -45,6 +50,17 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "check":
         return run_check(args)
+    if args.command == "serve":
+        import uvicorn
+
+        from review_panel.app import create_app
+
+        config = ReviewPanelConfig.from_repo_root(
+            args.repo_root,
+            bind_host=args.host,
+            port=args.port,
+        )
+        uvicorn.run(create_app(config.repo_root), host=config.bind_host, port=config.port)
+        return 0
     parser.error(f"Unknown command: {args.command}")
     return 2
-

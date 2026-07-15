@@ -411,3 +411,35 @@ Done — no next steps。若需要跨阶段全量语义图，应另立 typed-rel
 #### Files Changed / Commits
 - `review-panel/**`（P1 新模块、合同和测试，包含于 P1 阶段提交）
 - `docs/dep/PLAN.md`、`docs/dep/plans/ongoing/P0-local-review-panel.md`、`docs/dep/devlog/**`（P1 Gate 与记录，包含于 P1 阶段提交）
+
+## 2026-07-15
+
+### R022 [00:20] [P0-local-review-panel] P2: 实现 Review API 与安全 DecisionReceipt 写入
+
+#### Done
+- 新增 FastAPI app 与 `/api/v1/health`、`/api/v1/reviews`、`/api/v1/reviews/{queue_id}/{review_id}`、source preview 和 decision submit endpoints。
+- 实现 repository 层，按受信 queue registry 读取活动 ReviewPacket、派生 pending/decided_waiting_confirmation/confirmed/partial 状态，并让单个坏 packet 形成 partial error 而不污染同 queue 其他 review。
+- 实现 source preview，只允许读取 packet 声明的 source index，并通过 owner root resolve 检查阻断路径穿越和 symlink escape。
+- 实现 DecisionReceipt 写入服务，校验 packet SHA256、全部 actionable finding 覆盖、重复 finding、assigned reviewer role、共享 Schema 条件字段和重复提交。
+- 使用 temp file + `os.link` 的原子独占创建写入 receipt；并发提交只生成一个 receipt，写失败会清理 temp，不覆盖已有文件。
+- 增加 API、decision service 和 path security 测试，显式断言 Panel 不写 ConfirmationReceipt、不归档、不改 artifact、不执行 Git/Runtime。
+
+#### Issues / Blockers
+- 首轮 API 测试中，坏 JSON packet 会让整个 queue 被跳过；根因是 `read_json_file` 的 schema 解析异常未转换为单 packet `ReviewValidationError`。已在 repository 层收敛为单文件 partial error。
+- source preview 测试最初假设 LF 换行；Windows text write 产生 CRLF，服务正确保留原文内容。测试改为归一化换行后比较语义内容。
+- Starlette/Python 3.14 仍报告 `python_multipart` 与 `asyncio.iscoroutinefunction` 弃用告警；属于依赖兼容风险，不影响 P2 Gate。
+
+#### Validation
+- `python -m pytest -q`（`review-panel/`，19 passed，2 skipped，64 warnings）
+- `python -m ruff check --no-cache .`（`review-panel/`，success）
+- `python -m review_panel check --repo-root 'G:\Project\Python\Clinical work flow'`（从 `review-panel/src` 运行，success）
+- `git diff --check`（success；仅 LF/CRLF 提示）
+
+#### Next
+1. P3：实现原生 HTML/CSS/ES Modules 审核 UI 与 ReviewClient adapter。
+2. P3：补浏览器行为测试、基础视觉验收，并同步 SPEC-13/15/16/21、README 和 USAGE。
+
+#### Files Changed / Commits
+- `review-panel/src/review_panel/app.py`、`repository.py`、`source_service.py`、`decision_service.py`、`errors.py`、`cli.py`（P2 API 与服务实现，包含于 P2 阶段提交）
+- `review-panel/tests/test_review_api.py`、`test_decision_service.py`、`test_path_security.py`（P2 后端与安全测试，包含于 P2 阶段提交）
+- `docs/dep/PLAN.md`、`docs/dep/plans/ongoing/P0-local-review-panel.md`、`docs/dep/devlog/**`（P2 Gate 与记录，包含于 P2 阶段提交）

@@ -2,7 +2,7 @@
 phase_index: 0
 status: in-progress
 created: 2026-07-14
-updated: 2026-07-14
+updated: 2026-07-15
 priority: 1
 estimated_rounds: 6-9
 depends_on: []
@@ -171,7 +171,7 @@ Browser UI (native HTML/CSS/ES Modules)
 | Phase | 目标 | 预估轮次 | 依赖 | 状态 |
 |-------|------|----------|------|------|
 | P1 | 建立根模块脚手架、队列注册和 Review API 合同 | 2-3 | P6-P1 已完成 | done |
-| P2 | 实现只读 Review API 与原子 DecisionReceipt 写入 | 2-3 | P1 | pending |
+| P2 | 实现只读 Review API 与原子 DecisionReceipt 写入 | 2-3 | P1 | done |
 | P3 | 实现浏览器 UI、E2E、视觉验收和文档同步 | 2-3 | P2 | pending |
 
 每个 Phase 完成标准全部通过后独立提交；不得把 P1-P3 合并为一个大提交。
@@ -244,12 +244,12 @@ Browser UI (native HTML/CSS/ES Modules)
 
 ### 完成标准
 
-- [ ] 列表和详情只返回 Schema 有效 packet；单个无效 packet/queue 形成可见 partial error，不污染其他队列。
-- [ ] source endpoint 只读取 packet 声明且位于 owner root 内的文件；路径穿越、符号链接逃逸、未声明索引和受限目录被拒绝。
-- [ ] DecisionReceipt 只有在 review ID、packet hash、全部 actionable findings、条件字段和 reviewer role 均有效时才原子创建。
-- [ ] 已存在 receipt、packet 被修改/归档、两个并发提交和磁盘写失败均不覆盖文件、不留下半文件，并返回稳定 4xx/5xx 合同。
-- [ ] API 不写 ConfirmationReceipt、不归档、不改 artifact、不执行 Git/Runtime；测试显式断言这些边界。
-- [ ] P2 全量后端测试、ruff 和 `git diff --check` 通过；P2 独立提交。
+- [x] 列表和详情只返回 Schema 有效 packet；单个无效 packet/queue 形成可见 partial error，不污染其他队列。
+- [x] source endpoint 只读取 packet 声明且位于 owner root 内的文件；路径穿越、符号链接逃逸、未声明索引和受限目录被拒绝。
+- [x] DecisionReceipt 只有在 review ID、packet hash、全部 actionable findings、条件字段和 reviewer role 均有效时才原子创建。
+- [x] 已存在 receipt、packet 被修改/归档、两个并发提交和磁盘写失败均不覆盖文件、不留下半文件，并返回稳定 4xx/5xx 合同。
+- [x] API 不写 ConfirmationReceipt、不归档、不改 artifact、不执行 Git/Runtime；测试显式断言这些边界。
+- [x] P2 全量后端测试、ruff 和 `git diff --check` 通过；P2 独立提交。
 
 ### 边界（本 Phase 明确不做）
 
