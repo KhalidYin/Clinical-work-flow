@@ -67,6 +67,13 @@ SAS / R (可选; 用于代码执行):
 Claude Code:
   · MCP Server (stdio 协议)
   · .claude/settings.json 配置
+
+Root Review Panel:
+  · review-panel/ 独立 Python 包
+  · FastAPI loopback API + 原生 HTML/CSS/ES Modules
+  · 仅绑定 127.0.0.1:8790
+  · 读取根 .review_queue/、clinical-llm-wiki/.review_queue/、clinical-studies/*/.review_queue/
+  · 只原子写 DecisionReceipt，不写 ConfirmationReceipt、不归档、不执行 Runtime/Git
 ```
 
 ### 1.3 环境变量
@@ -546,6 +553,37 @@ def resume():
 > **v3.0 变更**: `.workflow/` 目录已完全移除。原 `.workflow/pipeline/state.yaml` 的元数据移入 `project.yaml`，
 > 状态信息改为文件系统推导（见 §3.6）。原 `.workflow/audit/` 的多个日志统一为 `audit_trail.jsonl`。
 > 原 `.workflow/versions/` 和 `.workflow/diffs/` 由 Git 版本控制替代。
+
+### 4.4 根目录 Review Panel 文件结构
+
+```text
+review-panel/
+├── pyproject.toml
+├── src/review_panel/
+│   ├── app.py                 # FastAPI app 与静态资源挂载
+│   ├── cli.py                 # check / serve 本地入口
+│   ├── queue_registry.py      # server allowlist 队列发现
+│   ├── repository.py          # ReviewPacket/receipt/confirmation 只读 adapter
+│   ├── decision_service.py    # DecisionReceipt Schema + 原子独占写入
+│   ├── source_service.py      # packet 声明来源预览
+│   └── static/                # 原生 HTML/CSS/ES Modules
+└── tests/
+```
+
+启动命令：
+
+```powershell
+cd review-panel
+python -m review_panel serve --repo-root .. --port 8790
+```
+
+自检命令：
+
+```powershell
+python -m review_panel check --repo-root ..
+```
+
+该模块是当前可直接使用的浏览器审核入口。浏览器只传 `queue_id/review_id/source_index`，不能提交磁盘路径；服务端从受信 registry 解析真实路径，并用 Engine `review-protocol.schema.json` 作为唯一协议权威。
 
 ---
 

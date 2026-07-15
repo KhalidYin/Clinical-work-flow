@@ -4,7 +4,8 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from review_panel.config import ReviewPanelConfig
 from review_panel.decision_service import DecisionService
@@ -24,6 +25,9 @@ def create_app(repo_root: str | Path | None = None) -> FastAPI:
     decision_service = DecisionService(repository)
 
     app = FastAPI(title="Clinical Review Panel", version="0.1.0")
+    static_dir = Path(__file__).resolve().parent / "static"
+    if static_dir.is_dir():
+        app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
     @app.exception_handler(ReviewPanelServiceError)
     async def service_error_handler(
@@ -53,8 +57,10 @@ def create_app(repo_root: str | Path | None = None) -> FastAPI:
         return decision_service.submit_decision(queue_id, review_id, body)
 
     @app.get("/")
-    def root() -> dict[str, str]:
-        raise HTTPException(status_code=404, detail="Static Review Panel UI is delivered in P3.")
+    def root() -> FileResponse:
+        index = static_dir / "index.html"
+        if not index.is_file():
+            raise HTTPException(status_code=404, detail="Static Review Panel UI is not available.")
+        return FileResponse(index)
 
     return app
-

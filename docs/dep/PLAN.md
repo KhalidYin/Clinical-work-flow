@@ -8,7 +8,7 @@ updated: 2026-07-15
 
 | # | 子计划 | 文件 | 当前阶段 | 已用轮次 | 开始日期 |
 |---|--------|------|----------|----------|----------|
-| P0 | 根目录轻量本地 Review Panel | [P0-local-review-panel.md](plans/ongoing/P0-local-review-panel.md) | 内部 P2 已完成；P3：浏览器 UI、E2E 与文档同步待开始 | 2 | 2026-07-14 |
+| P0 | 根目录轻量本地 Review Panel | [P0-local-review-panel.md](plans/ongoing/P0-local-review-panel.md) | 内部 P3：UI 实现检查点完成；浏览器视觉 Gate 待关闭 | 3 | 2026-07-14 |
 | P6 | SDTMIG 3.4 知识解析质量与引用基线 | [P6-clinical-knowledge-evolution.md](plans/ongoing/P6-clinical-knowledge-evolution.md) | 内部 P1 已完成；P2：全文结构地图待开始 | - | 2026-07-14 |
 
 ## 待开始

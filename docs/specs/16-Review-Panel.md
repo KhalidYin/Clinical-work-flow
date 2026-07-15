@@ -1,10 +1,12 @@
-# Review Panel 前端规格 — VSCode 侧边栏审核界面
+# Review Panel 前端规格 — 本地 Web Panel 与 VSCode 兼容源码
 
 ## 文档编号: SPEC-16
 ## 版本: 1.0
 ## 依赖: SPEC-00 (v3.0), SPEC-15 (Review Protocol)
 
 ---
+
+> **P0/P3 更新（2026-07-15）**：当前可直接使用的 Review Panel 位于仓库根目录 `review-panel/`，形态为 loopback-only FastAPI + 原生 HTML/CSS/ES Modules。`clinical-workflow/src/review_panel/` 中的 VSCode Extension 源码保留为兼容/历史入口，不宣称已安装，也不再作为 Codex 桌面端的当前可用审核界面。
 
 ## 1. 设计目标
 
@@ -13,6 +15,56 @@
 Review Panel 是人工审核的操作界面。它不参与 Agent 推理, 不做数据转换,
 只做一件事: **把 ReviewPacket 渲染成可交互的审核表单, 把人工操作序列化
 为 DecisionReceipt 写回文件系统。**
+
+当前 Web Panel 额外约束：
+
+- 只绑定 `127.0.0.1`，P9 前不开放内网或云端访问。
+- 只从 server allowlist 发现根 `.review_queue/`、`clinical-llm-wiki/.review_queue/` 和 `clinical-studies/*/.review_queue/`。
+- 浏览器不能传磁盘路径，只能传 `queue_id/review_id/source_index`。
+- 共享 Engine `review-protocol.schema.json` 是唯一协议权威；前端不维护第二套 Schema。
+- Panel 只写 DecisionReceipt；不写 ConfirmationReceipt、不归档、不改 artifact、不执行 Git/Runtime。
+
+### 1.1 当前 Web Panel 布局
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│ Local only · Clinical Review Panel                 Refresh   │
+├───────────────────────┬──────────────────────────────────────┤
+│ Active reviews         │ Review header / source / evidence    │
+│ - queue kind           │ Findings                             │
+│ - review_id            │ - current/proposed/rationale         │
+│ - urgency/status       │ - approve / modify / reject          │
+│ - actionable count     │ Reviewer / role / notes / submit     │
+└───────────────────────┴──────────────────────────────────────┘
+```
+
+窄屏时列表位于详情上方，finding 卡片变成单列；决定按钮、来源、证据和提交状态不得隐藏。
+
+### 1.2 当前 Web Panel 技术架构
+
+```text
+Browser UI (native HTML/CSS/ES Modules)
+  -> ReviewClient
+  -> FastAPI /api/v1/*
+  -> Queue Registry + Repository + DecisionService
+  -> Engine Review Schema
+  -> File-system Review queues
+```
+
+核心文件：
+
+| 路径 | 责任 |
+|------|------|
+| `review-panel/src/review_panel/app.py` | FastAPI app、API endpoints、静态资源挂载 |
+| `review-panel/src/review_panel/static/index.html` | 页面结构和模板 |
+| `review-panel/src/review_panel/static/app.js` | 列表、详情、来源、finding 决策和提交交互 |
+| `review-panel/src/review_panel/static/review-client.js` | API adapter；未来 P8 可替换后端 |
+| `review-panel/src/review_panel/static/styles.css` | 工作台式布局、窄屏和基础可访问性 |
+| `review-panel/src/review_panel/decision_service.py` | DecisionReceipt 校验与原子写入 |
+
+### 1.3 VSCode 规格状态
+
+下方原 VSCode 侧边栏设计保留为历史设计证据和兼容源码说明。它不能覆盖当前 Web Panel 的 P0/P3 实现边界；若未来恢复 VSCode Extension，需要同样消费 Engine Schema，并与 Web Panel 的 DecisionReceipt 行为合同保持一致。
 
 ```
 ┌─ VSCode Window ──────────────────────────────────────────────┐
@@ -98,7 +150,9 @@ ReviewPanelExtension (activation: workspace contains .review_queue/)
 校验:      ajv (JSON Schema validator) + 自定义 CDISC 规则
 ```
 
-### 2.3 为什么不选 Web UI
+### 2.3 历史说明：早期为什么选择 VSCode UI
+
+以下内容是早期 VSCode Extension 方案的取舍记录，不再代表当前 P0/P3 的实现选择。
 
 ```
 VSCode Extension 的优势:
@@ -108,12 +162,14 @@ VSCode Extension 的优势:
   · 原生 Git 集成 (查看历史, blame)
   · 用户已经在 VSCode 中工作 — 不需要额外浏览器窗口
 
-Web UI 的劣势:
+当时认为 Web UI 的劣势:
   · 需要独立部署和维护
   · 需要 WebSocket 服务器做实时通信
   · 与终端分离 → 人工需在两个窗口间切换
   · 审计追踪需要额外集成 (Git blame 不如 VSCode 原生)
 ```
+
+当前实现改为根 Web Panel 的原因是：Codex 桌面端没有已安装 VSCode Extension UI，而后续 P6/P7 会持续产生结构化 ReviewPacket；一个 loopback-only Web Panel 能最小化解除人工审核障碍，并通过 `ReviewClient` adapter 为 P8 Study Console 留出替换后端的边界。
 
 ---
 
@@ -1139,6 +1195,37 @@ Review Panel 完全离线可用:
 ---
 
 ## 9. 文件结构
+
+### 9.1 当前 Web Panel
+
+```text
+review-panel/
+├── pyproject.toml
+├── src/review_panel/
+│   ├── app.py
+│   ├── cli.py
+│   ├── config.py
+│   ├── contracts.py
+│   ├── queue_registry.py
+│   ├── repository.py
+│   ├── decision_service.py
+│   ├── source_service.py
+│   └── static/
+│       ├── index.html
+│       ├── app.js
+│       ├── review-client.js
+│       └── styles.css
+└── tests/
+```
+
+启动：
+
+```powershell
+cd review-panel
+python -m review_panel serve --repo-root .. --port 8790
+```
+
+### 9.2 VSCode Extension 兼容源码
 
 ```
 src/review_panel/

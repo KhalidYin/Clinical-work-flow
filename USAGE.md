@@ -9,7 +9,7 @@
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python -m pip install --upgrade pip
-.\.venv\Scripts\python -m pip install -e ".\clinical-workflow[dev]" -e ".\clinical-llm-wiki[dev,pdf]"
+.\.venv\Scripts\python -m pip install -e ".\clinical-workflow[dev]" -e ".\clinical-llm-wiki[dev,pdf]" -e ".\review-panel[dev]"
 Set-Location .\clinical-workflow\src\review_panel
 npm ci
 npm run compile
@@ -47,7 +47,25 @@ Set-Location ..
 
 Obsidian 默认全局图只显示 `Workflow-Relations` 的十个阶段投影和十份 Stage Playbook，README、普通 MOC、知识卡、来源及治理记录不会挤入主干图。蓝色表示阶段关系投影，橙色表示 Playbook，并显示方向箭头。需要查看某阶段关联知识时，打开对应阶段投影，执行 **Open local graph**，把 depth 设为 1；绿色、紫色、红色分别表示知识、工具和案例。需要调查来源/治理关系时使用搜索/MOC，或临时清除过滤器，不要通过删除 Markdown 链接降噪。
 
-## 3. 建立 Study
+## 3. 启动本地 Review Panel
+
+根目录轻量 Review Panel 是当前可直接使用的人工审核入口。它汇总根 `.review_queue/`、`clinical-llm-wiki/.review_queue/` 和 `clinical-studies/*/.review_queue/`，浏览器只提交 `queue_id/review_id`，不能传入磁盘路径。
+
+```powershell
+Set-Location .\review-panel
+..\.venv\Scripts\python -m review_panel serve --repo-root .. --port 8790
+```
+
+打开 `http://127.0.0.1:8790/`。Panel 只绑定 `127.0.0.1`；提交时校验 packet hash、finding 覆盖、reviewer role 和共享 Review Schema，只原子写入 DecisionReceipt。它不会写 ConfirmationReceipt、不会归档、不会修改 canonical artifact，也不会执行 Git 或 Runtime。
+
+若只想检查配置、Schema 和受信队列：
+
+```powershell
+Set-Location .\review-panel
+..\.venv\Scripts\python -m review_panel check --repo-root ..
+```
+
+## 4. 建立 Study
 
 ```powershell
 Copy-Item -Recurse .\clinical-workflow\study_template .\clinical-studies\STUDY-001
@@ -57,7 +75,7 @@ Copy-Item -Recurse .\clinical-workflow\study_template .\clinical-studies\STUDY-0
 
 当前 Study 的项目规则放在 `knowledge/decisions/`，必须引用同一 Study 内已应用的 ReviewPacket、DecisionReceipt 和 ConfirmationReceipt。一般规则仍在 Wiki，既往 Study 只能作为候选参考，不能覆盖当前批准决定。
 
-## 4. 运行固定工作流
+## 5. 运行固定工作流
 
 ```powershell
 Set-Location .\clinical-workflow
@@ -71,7 +89,7 @@ Set-Location .\clinical-workflow
 
 Runtime 生成 `ReviewPacket` 后会暂停。使用 Review Panel 批量提交决定；只有成功应用的 ConfirmationReceipt 才能推进需要审核的 canonical artifact。ADaM Spec 先进入 `output/adam/drafts/`，审核成功后才提升到 `output/adam/specs/`。
 
-## 5. 验证
+## 6. 验证
 
 ```powershell
 Set-Location .\clinical-workflow
@@ -83,6 +101,10 @@ Set-Location ..\clinical-llm-wiki
 ..\.venv\Scripts\python -m ruff check .
 ..\.venv\Scripts\python -m scripts.content.generate_workflow_map --check
 ..\.venv\Scripts\python -m scripts.content.finalize_p5_content --check
+
+Set-Location ..\review-panel
+..\.venv\Scripts\python -m pytest -q
+..\.venv\Scripts\python -m ruff check --no-cache .
 ```
 
 本地备份、恢复、索引重建和 Git 回滚见 [DEPLOY_GUIDE.md](docs/deploy/DEPLOY_GUIDE.md)。内网、云端、OAuth、多租户、公开 Obsidian Publish 和自动远程推送均未获本地首版授权。

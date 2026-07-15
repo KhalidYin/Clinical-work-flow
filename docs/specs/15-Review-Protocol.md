@@ -81,6 +81,40 @@
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
+### 2.1 当前本地 Web Review Panel
+
+当前可直接使用的人工入口是仓库根目录 `review-panel/`：
+
+```text
+Browser UI
+  -> ReviewClient
+  -> 127.0.0.1 Local Review API
+  -> Engine review-protocol.schema.json
+  -> trusted Queue Registry
+     - <repo>/.review_queue/
+     - clinical-llm-wiki/.review_queue/
+     - clinical-studies/*/.review_queue/
+```
+
+API 基线：
+
+| Method | Path | 作用 |
+|--------|------|------|
+| GET | `/api/v1/health` | 返回 loopback、Schema 和队列自检状态 |
+| GET | `/api/v1/reviews` | 返回受信队列中的活动 ReviewPacket 摘要和 partial errors |
+| GET | `/api/v1/reviews/{queue_id}/{review_id}` | 返回验证后的 packet、packet SHA256、状态、receipt/confirmation 摘要和来源可用性 |
+| GET | `/api/v1/reviews/{queue_id}/{review_id}/sources/{source_index}` | 只读预览 packet 声明且仍位于 owner root 内的来源 |
+| POST | `/api/v1/reviews/{queue_id}/{review_id}/decisions` | 校验并原子创建 DecisionReceipt |
+
+固定规则：
+
+- 浏览器不能提交磁盘路径；`queue_id`、`review_id` 和 `source_index` 均由服务端 registry 解析。
+- 详情响应携带 `packet_sha256`；提交时 hash 不一致返回 409，不写 receipt。
+- DecisionReceipt 必须覆盖所有非 `auto_approved` finding，且不得包含 auto-approved 或未知 finding。
+- `required_reviewers` 存在时必须提交合法 `reviewer_role`，文件名为 `{review_id}_decision_{role}.json`；单审核人模式写 `{review_id}_decision.json`。
+- 写入采用临时文件加原子独占创建；重复提交、并发提交或写失败不得覆盖既有 receipt，也不得留下半文件。
+- Panel 只写 DecisionReceipt；ConfirmationReceipt、archive、artifact 提升和 Runtime 推进仍由 Agent/Runtime 负责。
+
 ---
 
 ## 3. 数据模型
@@ -1036,11 +1070,14 @@ Decision JSON 格式错误          Review Panel 前端拦截 (提交前校验)
 Phase 1 (已完成): Python 数据模型 + Schema + ReviewQueue
   src/runtime/review_protocol.py  ✓
 
-Phase 2 (已实现本地基线): VSCode Review Panel
-  clinical-workflow/src/review_panel/extension.ts   — 侧边栏入口
-  clinical-workflow/src/review_panel/renderer.ts    — 按 review_type 模板化渲染
-  clinical-workflow/src/review_panel/schema_validator.ts — 共享 Schema 校验
-  clinical-workflow/src/review_panel/git_integration.ts  — Git diff/blame 集成
+Phase 2 (当前可用入口): 根目录 Web Review Panel
+  review-panel/src/review_panel/app.py              — loopback FastAPI API + 静态 UI
+  review-panel/src/review_panel/static/             — 原生 HTML/CSS/ES Modules 审核界面
+  review-panel/src/review_panel/decision_service.py — DecisionReceipt Schema + 原子写入
+  review-panel/src/review_panel/repository.py       — 受信队列读取与状态派生
+
+Phase 2b (兼容源码): VSCode Review Panel
+  clinical-workflow/src/review_panel/               — 保留的 VSCode Extension 源码，当前不作为 Codex 桌面端可用入口
 
 Phase 3 (部分实现/后续增强): Agent SDK Schema Integration
   Runtime、Python 与 Panel 已消费共享 JSON Schema；外部 Agent SDK 的 provider-specific `schema` 参数仍需独立接入计划。

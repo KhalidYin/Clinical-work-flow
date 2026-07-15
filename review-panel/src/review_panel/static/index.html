@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Clinical Review Panel</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Local only</p>
+        <h1>Clinical Review Panel</h1>
+      </div>
+      <div class="topbar-actions">
+        <span id="service-state" class="state-pill" aria-live="polite">Loading</span>
+        <button id="refresh-button" class="button secondary" type="button" aria-label="Refresh reviews">
+          ↻ Refresh
+        </button>
+      </div>
+    </header>
+
+    <main class="review-shell" aria-busy="true">
+      <section class="review-list-panel" aria-labelledby="review-list-heading">
+        <div class="panel-heading">
+          <h2 id="review-list-heading">Active reviews</h2>
+          <span id="review-count" class="muted">0</span>
+        </div>
+        <div id="global-alerts" class="alerts" aria-live="polite"></div>
+        <div id="review-list" class="review-list" role="listbox" aria-label="Active review list"></div>
+      </section>
+
+      <section class="review-detail-panel" aria-labelledby="review-detail-heading">
+        <div id="detail-empty" class="empty-state">
+          <h2 id="review-detail-heading">No review selected</h2>
+          <p>Select a pending review when one is available.</p>
+        </div>
+        <article id="review-detail" class="review-detail" hidden></article>
+      </section>
+    </main>
+
+    <template id="review-item-template">
+      <button class="review-item" type="button" role="option">
+        <span class="review-item-title"></span>
+        <span class="review-item-meta"></span>
+        <span class="review-item-status"></span>
+      </button>
+    </template>
+
+    <template id="finding-template">
+      <section class="finding-card">
+        <header class="finding-header">
+          <div>
+            <h3 class="finding-title"></h3>
+            <p class="finding-meta"></p>
+          </div>
+          <span class="finding-severity"></span>
+        </header>
+        <dl class="finding-values">
+          <div>
+            <dt>Current</dt>
+            <dd class="finding-current"></dd>
+          </div>
+          <div>
+            <dt>Proposed</dt>
+            <dd class="finding-proposed"></dd>
+          </div>
+        </dl>
+        <p class="finding-rationale"></p>
+        <p class="finding-evidence"></p>
+        <fieldset class="decision-fieldset">
+          <legend>Decision</legend>
+          <label><input type="radio" value="approved" /> Approve</label>
+          <label><input type="radio" value="modified" /> Modify</label>
+          <label><input type="radio" value="rejected" /> Reject</label>
+        </fieldset>
+        <div class="conditional-fields" hidden>
+          <label class="modified-field" hidden>
+            Modified value
+            <textarea data-field="modified_value" rows="2"></textarea>
+          </label>
+          <div class="rejected-fields" hidden>
+            <label>
+              Rejection reason
+              <select data-field="rejection_reason">
+                <option value="">Select reason</option>
+                <option value="wrong_domain_assignment">Wrong domain assignment</option>
+                <option value="incorrect_variable_mapping">Incorrect variable mapping</option>
+                <option value="incorrect_derivation">Incorrect derivation</option>
+                <option value="wrong_ct_value">Wrong CT value</option>
+                <option value="missing_variable">Missing variable</option>
+                <option value="incorrect_population">Incorrect population</option>
+                <option value="incorrect_method">Incorrect method</option>
+                <option value="insufficient_evidence">Insufficient evidence</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <label>
+              Human correction
+              <textarea data-field="human_correction" rows="2"></textarea>
+            </label>
+            <label>
+              Reference
+              <input data-field="reference" type="text" />
+            </label>
+          </div>
+          <label>
+            Comment
+            <textarea data-field="comment" rows="2" maxlength="500"></textarea>
+          </label>
+        </div>
+        <p class="decision-error" aria-live="polite"></p>
+      </section>
+    </template>
+
+    <script type="module" src="/static/app.js"></script>
+  </body>
+</html>
+

@@ -41,10 +41,13 @@ G:\Project\Python\Clinical work flow\  # 单一 Git 仓库；平台 monorepo 根
 ├── clinical-workflow\                 # Workflow Engine 模块
 ├── clinical-llm-wiki\                 # Wiki Vault + Knowledge Service 模块
 ├── clinical-studies\                  # Study 实例容器
+├── review-panel\                      # loopback-only 浏览器审核入口
 └── docs\                              # 平台级规格、计划、DEVLOG、Review
 ```
 
 根目录是唯一 Git 边界，只承载平台级文档、顶层协作说明和模块入口。业务代码、Wiki正文和Study实例分别落在三个模块目录；不保留嵌套 Git。跨模块合同一致性通过同一提交、Schema hash、测试矩阵和 Phase Gate 保证。
+
+`review-panel/` 是根级交互适配模块，不是第四个业务权威边界。它通过受信 queue registry 汇总 Platform、Wiki 和 Study 的 `.review_queue/`，用浏览器展示 ReviewPacket，并只写 DecisionReceipt。它不拥有 Pipeline、知识正文、Study 事实或 artifact 推进权。
 
 ### 2.1 Workflow Engine
 
@@ -263,6 +266,17 @@ Runtime-context 必须默认 approved-only，支持结构化 filters + SQLite FT
 - 两者均不可用或 hash/兼容校验失败：停止 Stage，写 blocking ReviewPacket；
 - 禁止回退到未批准的内置模板或“模型常识”。
 
+### 8.4 本地 Review Panel 交互
+
+根 `review-panel/` 提供当前可用的人工审核浏览器入口：
+
+- `GET /api/v1/reviews` 汇总根、Wiki 和 Study 受信队列中的活动 ReviewPacket；
+- `GET /api/v1/reviews/{queue_id}/{review_id}` 返回 packet、hash、状态、receipt/confirmation 摘要和 source availability；
+- `GET /api/v1/reviews/{queue_id}/{review_id}/sources/{source_index}` 只读预览 packet 声明且位于 owner root 内的来源；
+- `POST /api/v1/reviews/{queue_id}/{review_id}/decisions` 只原子写 DecisionReceipt。
+
+Panel 的状态来自文件组合：packet、decision receipt 和 confirmation receipt。它不能写 ConfirmationReceipt、不能归档、不能提升 canonical artifact、不能执行 Runtime/Git，也不能通过浏览器选择任意目录。未来 P8 Study Console 可以替换 `ReviewClient` 后端，但不得改变 Review Protocol 的文件权威和 Engine Schema 权威。
+
 ---
 
 ## 9. 单仓 Git、配置、Schema 与审计
@@ -365,7 +379,8 @@ P1 的 `runtime_change_allowed` 为 false。以上条目是后续 Phase 输入�
 | `clinical-workflow/src/agents/prompts/` | workflow knowledge candidate | 迁移为 Wiki proposal，保留最小系统安全 prompt |
 | `clinical-workflow/src/mcp_tools/` | deterministic execution | 保留；纳入 Action Policy 和版本锁定 |
 | `clinical-workflow/src/knowledge/` | hardcoded domain migration candidate | P3/P5 双轨迁移后移除生产依赖 |
-| `clinical-workflow/src/review_panel/` | review UI | P4 消费共享 Schema，不拥有业务规则 |
+| `clinical-workflow/src/review_panel/` | legacy review UI source | 保留 VSCode Extension 源码，不作为当前 Codex 可用入口 |
+| `review-panel/` | current review UI adapter | 根 Web Panel；消费共享 Schema，只写 DecisionReceipt |
 | `clinical-workflow/src/change_management/` | machine audit/impact | P4 扩展知识和 manifest 影响分析 |
 | `clinical-workflow/src/config/` | engine/study config loader | P2/P4 扩展知识服务和锁定配置 |
 | `clinical-workflow/schemas/project.schema.json` | shared machine contract | P2 扩展或组合，不在 Wiki 重定义 |

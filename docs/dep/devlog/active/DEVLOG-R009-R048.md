@@ -443,3 +443,37 @@ Done — no next steps。若需要跨阶段全量语义图，应另立 typed-rel
 - `review-panel/src/review_panel/app.py`、`repository.py`、`source_service.py`、`decision_service.py`、`errors.py`、`cli.py`（P2 API 与服务实现，包含于 P2 阶段提交）
 - `review-panel/tests/test_review_api.py`、`test_decision_service.py`、`test_path_security.py`（P2 后端与安全测试，包含于 P2 阶段提交）
 - `docs/dep/PLAN.md`、`docs/dep/plans/ongoing/P0-local-review-panel.md`、`docs/dep/devlog/**`（P2 Gate 与记录，包含于 P2 阶段提交）
+
+---
+
+### R023 [09:46] [P0-local-review-panel] P3: 完成 Web UI 实现检查点并暴露浏览器 Gate 阻断
+
+#### Done
+- 新增原生 HTML/CSS/ES Modules 单页 Review UI，宽屏为左侧活动审核列表 + 右侧详情，窄屏降为单列；顶部明确 loopback/local-only 服务状态。
+- 新增 `ReviewClient` 本地 API adapter，前端只使用 `/api/v1/*` 合同，不拼接磁盘路径；P8 可通过替换 adapter 迁移到 Application API。
+- 详情页覆盖 header/source/evidence、finding 三类决定、条件字段、auto-approved 只读、批量批准二次确认、reviewer/role、提交汇总和 `decided_waiting_confirmation` 只读状态。
+- FastAPI app 挂载 package 内静态资源并提供 `/` 入口；package data 纳入 `pyproject.toml`。
+- 增加静态合同、API 驱动 UI 行为、基础可访问性和 Selenium 浏览器 E2E 入口测试；同步 `README.md`、`USAGE.md`、SPEC-13/15/16/21。
+
+#### Issues / Blockers
+- Selenium E2E 在当前环境跳过；根因是本机未安装或未暴露 `chromedriver`，Selenium 无法创建 Chrome session。测试代码已保留，后续配置 driver 后可直接重跑。
+- `agent-browser open` 失败，报 `CDP response channel closed`；`agent-browser doctor --offline --quick` 超过 60 秒未返回，已终止相关进程。根因在浏览器自动化环境，不在 Review Panel API/UI 合同。
+- 已安装 Chrome 可执行文件，临时本地服务日志证明 Chrome headless 访问了 `/`、静态资源和 API，但 CLI 没有生成 screenshot artifact。因此 P3 严格视觉 Gate 未关闭，P0 不能归档。
+- Starlette/Python 3.14 仍报告既有 multipart/asyncio 弃用告警；不阻断当前机器测试，但仍是后续依赖风险。
+
+#### Validation
+- `python -m pytest -q`（`review-panel/`，25 passed，3 skipped，80 warnings；skips 为浏览器 driver 不可用及 Windows symlink 限制）
+- `python -m ruff check --no-cache .`（`review-panel/`，success）
+- `python -m review_panel check --repo-root 'G:\Project\Python\Clinical work flow'`（从 `review-panel/src` 运行，success）
+- `python -m pip wheel '.\review-panel' --no-deps --no-build-isolation --no-cache-dir --wheel-dir '.\.tmp\review-panel-wheel'`（success；wheel 包含 `review_panel/static/*.html|css|js`，临时产物已清理）
+- `git diff --check`（success；仅 LF/CRLF 提示）
+- 临时 loopback server + Chrome headless smoke：server 收到 `/`、`/static/styles.css`、`/static/app.js`、`/static/review-client.js`、`/api/v1/health`、`/api/v1/reviews` 和 review detail 请求；screenshot artifact 未生成。
+
+#### Next
+1. 安装/配置 ChromeDriver 或 EdgeDriver，或执行人工视觉核验并保存证据；随后重跑 `test_browser_review_flow.py`。
+2. 关闭 P3 完成标准后，将 P0 从 `ongoing/` 归档到 `complete/`，再恢复 P6-P2 全文结构地图。
+
+#### Files Changed / Commits
+- `review-panel/src/review_panel/static/**`、`review-panel/src/review_panel/app.py`、`review-panel/pyproject.toml`（P3 implementation checkpoint）
+- `review-panel/tests/test_static_contract.py`、`test_ui_api_contract.py`、`test_browser_review_flow.py`（P3 tests）
+- `README.md`、`USAGE.md`、SPEC-13/15/16/21、`docs/dep/**`（P3 checkpoint 状态与文档同步）

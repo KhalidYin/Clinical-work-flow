@@ -8,6 +8,7 @@
 clinical-workflow/   Workflow Engine、机器合同、MCP 工具、Review Panel 和测试
 clinical-llm-wiki/   独立 Vault、机器审核队列、Knowledge Service、来源治理和知识测试
 clinical-studies/    Study 实例容器脚手架；生产 Study 进入前需单独授权和去标识策略
+review-panel/        根目录轻量 Web Review Panel；汇总 Wiki/Study/Platform 审核队列
 docs/                平台级规格、计划、DEVLOG 和审查记录
 ```
 
@@ -32,6 +33,15 @@ cd clinical-llm-wiki
 python -m pytest
 python -m ruff check service scripts tests
 ```
+
+启动本地浏览器审核层：
+
+```powershell
+cd review-panel
+python -m review_panel serve --repo-root .. --port 8790
+```
+
+然后打开 `http://127.0.0.1:8790/`。该 Panel 只绑定 loopback，只读取受信 `.review_queue/`，只写 DecisionReceipt，不应用决定或推进 Runtime。
 
 平台已完成的执行合同见 `docs/dep/plans/complete/P3-clinical-knowledge-workflow-platform.md`。
 

@@ -172,7 +172,7 @@ Browser UI (native HTML/CSS/ES Modules)
 |-------|------|----------|------|------|
 | P1 | 建立根模块脚手架、队列注册和 Review API 合同 | 2-3 | P6-P1 已完成 | done |
 | P2 | 实现只读 Review API 与原子 DecisionReceipt 写入 | 2-3 | P1 | done |
-| P3 | 实现浏览器 UI、E2E、视觉验收和文档同步 | 2-3 | P2 | pending |
+| P3 | 实现浏览器 UI、E2E、视觉验收和文档同步 | 2-3 | P2 | in-progress |
 
 每个 Phase 完成标准全部通过后独立提交；不得把 P1-P3 合并为一个大提交。
 
@@ -285,6 +285,13 @@ Browser UI (native HTML/CSS/ES Modules)
 - P2 API、安全测试和独立提交通过。
 - UI-01 至 UI-06 没有 pending 偏差；若开发中出现偏差，必须先回写本计划并取得用户批准。
 
+### 当前检查点（2026-07-15）
+
+- 已实现原生 HTML/CSS/ES Modules 单页 UI、`ReviewClient` 本地 API adapter、FastAPI 静态资源挂载和 package data。
+- 已覆盖静态资源合同、API 驱动的 UI 行为、source preview、DecisionReceipt 提交流、基础可访问性和浏览器 E2E 测试入口。
+- 已同步 `README.md`、`USAGE.md`、SPEC-13/15/16/21，把根目录 Web Panel 定位为当前可用入口，VSCode Extension 定位为兼容源码。
+- 机器 Gate 已通过：Review Panel 全量 pytest、ruff、CLI check 和 `git diff --check`。严格 P3 Gate 尚未关闭，因为当前本机缺少 `chromedriver`，`agent-browser` CDP 启动失败，Chrome headless CLI 虽命中本地页面/API 但未产出截图文件；需要后续安装/配置浏览器 driver 或执行人工视觉核验后再勾选 P3 完成标准。
+
 ### 产出
 
 - 原生 HTML/CSS/ES Modules 单页 Review UI 与 `ReviewClient` 本地 API adapter。
@@ -353,7 +360,8 @@ Browser UI (native HTML/CSS/ES Modules)
 
 | ID | 描述 | 发现于 | 类型 | 处理 |
 |----|------|--------|------|------|
-| - | 尚未开始执行 | - | - | - |
+| RP-BROWSER-001 | `test_browser_review_flow.py` 已加入 Selenium E2E，但当前环境缺少 `chromedriver`，Selenium 无法创建 Chrome session。 | P3 | 环境阻断 | 保留 skip 语义；P3 不能标 done。后续安装/配置 ChromeDriver 或 EdgeDriver 后重跑该测试。 |
+| RP-BROWSER-002 | `agent-browser open` 返回 `CDP response channel closed`，`doctor --offline --quick` 超过 60 秒需终止；Chrome headless CLI 可触发本地页面/API 请求，但未生成 screenshot artifact。 | P3 | 环境阻断 | 不扩大实现或绕过 Gate；保留 API/static 证据，视觉 Gate 等浏览器环境可用后关闭。 |
 
 ## 关键决策记录
 
@@ -370,4 +378,4 @@ Browser UI (native HTML/CSS/ES Modules)
 
 | 日期 | 已同步到 | 说明 |
 |------|----------|------|
-| - | 尚未同步 | P3 完成后同步 SPEC-13/15/16/21、README 和 USAGE |
+| 2026-07-15 | `README.md`、`USAGE.md`、SPEC-13/15/16/21 | P3 实现检查点已同步根 Web Panel 启动、接口边界、Review Protocol 写入规则和 P8 迁移边界；浏览器视觉 Gate 未关闭。 |

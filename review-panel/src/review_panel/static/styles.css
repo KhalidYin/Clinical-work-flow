@@ -1,0 +1,380 @@
+:root {
+  color-scheme: light;
+  --background: oklch(0.985 0.004 250);
+  --surface: oklch(1 0 0);
+  --surface-muted: oklch(0.965 0.006 250);
+  --foreground: oklch(0.17 0.02 255);
+  --muted: oklch(0.46 0.025 255);
+  --border: oklch(0.88 0.01 250);
+  --primary: oklch(0.36 0.11 170);
+  --primary-strong: oklch(0.29 0.1 170);
+  --danger: oklch(0.52 0.18 28);
+  --warning: oklch(0.68 0.13 82);
+  --success: oklch(0.48 0.12 155);
+  --radius: 8px;
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  letter-spacing: 0;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 0;
+  font-size: 1.25rem;
+}
+
+h2 {
+  font-size: 1.05rem;
+}
+
+h3 {
+  font-size: 0.95rem;
+}
+
+.eyebrow {
+  margin-bottom: 0.25rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.topbar-actions,
+.submit-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.button,
+.review-item,
+.source-row {
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--foreground);
+  cursor: pointer;
+}
+
+.button {
+  padding: 0.55rem 0.8rem;
+}
+
+.button.primary {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: white;
+}
+
+.button.secondary:hover,
+.review-item:hover,
+.source-row:hover:not(:disabled) {
+  border-color: var(--primary);
+}
+
+.button:disabled,
+.source-row:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.state-pill,
+.finding-severity,
+.review-item-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.75rem;
+}
+
+.state-pill[data-state="ok"] {
+  border-color: var(--success);
+}
+
+.state-pill[data-state="partial"],
+.alert.warning {
+  border-color: var(--warning);
+}
+
+.state-pill[data-state="error"],
+.alert.error {
+  border-color: var(--danger);
+}
+
+.review-shell {
+  display: grid;
+  grid-template-columns: minmax(18rem, 25rem) minmax(0, 1fr);
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.review-list-panel,
+.review-detail-panel {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.panel-heading,
+.detail-header,
+.source-section,
+.findings-section,
+.submit-panel,
+.empty-state {
+  padding: 1rem;
+}
+
+.panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.alerts {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+}
+
+.alert {
+  margin: 0;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-muted);
+  font-size: 0.85rem;
+}
+
+.alert.success {
+  border-color: var(--success);
+}
+
+.review-list {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0 1rem 1rem;
+}
+
+.review-item {
+  display: grid;
+  gap: 0.25rem;
+  width: 100%;
+  padding: 0.75rem;
+  text-align: left;
+}
+
+.review-item[aria-selected="true"] {
+  border-color: var(--primary);
+  background: oklch(0.96 0.03 170);
+}
+
+.review-item-title {
+  font-family: var(--font-mono);
+  font-size: 0.86rem;
+  overflow-wrap: anywhere;
+}
+
+.review-item-meta {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.review-detail-panel {
+  min-height: 28rem;
+}
+
+.detail-grid,
+.finding-values {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+dt {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+dd {
+  margin: 0.15rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.source-list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.source-row {
+  width: 100%;
+  padding: 0.6rem;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.source-preview {
+  max-height: 16rem;
+  overflow: auto;
+  margin: 0.75rem 0 0;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: oklch(0.98 0.006 250);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  white-space: pre-wrap;
+}
+
+.findings-section {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.finding-card {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.finding-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.finding-title {
+  margin-bottom: 0.25rem;
+  overflow-wrap: anywhere;
+}
+
+.finding-meta,
+.finding-rationale,
+.finding-evidence,
+.decision-error {
+  margin-bottom: 0;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.decision-fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+}
+
+.conditional-fields,
+.rejected-fields {
+  display: grid;
+  gap: 0.75rem;
+}
+
+label {
+  display: grid;
+  gap: 0.35rem;
+  color: var(--foreground);
+}
+
+input[type="text"],
+select,
+textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.55rem;
+  background: var(--surface);
+  color: var(--foreground);
+}
+
+input:focus,
+select:focus,
+textarea:focus,
+button:focus-visible {
+  outline: 3px solid oklch(0.8 0.08 170);
+  outline-offset: 2px;
+}
+
+.submit-panel {
+  display: grid;
+  gap: 0.85rem;
+  border-top: 1px solid var(--border);
+  background: var(--surface-muted);
+}
+
+@media (max-width: 900px) {
+  .topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .review-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-grid,
+  .finding-values {
+    grid-template-columns: 1fr;
+  }
+
+  .finding-header,
+  .topbar-actions,
+  .submit-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
