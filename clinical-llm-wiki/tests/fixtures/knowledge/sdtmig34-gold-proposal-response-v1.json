@@ -1,0 +1,231 @@
+{
+  "schema_version": "1.0.0",
+  "response_id": "response-sdtmig34-gold-calibration-v1",
+  "source_id": "src-cdisc-sdtmig-3-4",
+  "source_sha256": "ea4ddbba4a3e10a55bb2f36d5e28d9cfc191090717c2426475279750a7f57021",
+  "prompt_id": "prompt-sdtmig34-atomic-proposal-v1",
+  "prompt_sha256": "4d663a16ebec8a323503dab35ec6cb6c969ff8271ed2b1b6a90ca54eb0b6a7a2",
+  "model_id": "codex-session-gpt-5-2026-07-15",
+  "proposals": [
+    {
+      "proposal_key": "events-class-guidance",
+      "source_unit_ids": [
+        "unit-sdtmig34-events-guidance"
+      ],
+      "knowledge_type": "requirement",
+      "subject": "Subject-level observation representation",
+      "statement": "Use the applicable SDTM general observation class when representing subject-level observations collected in a study.",
+      "modality": "should",
+      "scope": {
+        "model": "SDTM-2.0",
+        "implementation_guide": "SDTMIG-3.4",
+        "domains": [],
+        "variables": []
+      },
+      "conditions": [],
+      "exceptions": [],
+      "relations": [
+        {
+          "relation_type": "applies_to",
+          "to_id": "topic-sdtmig34-ae",
+          "target_kind": "topic",
+          "source_unit_ids": [
+            "unit-sdtmig34-events-guidance"
+          ]
+        }
+      ]
+    },
+    {
+      "proposal_key": "ae-definition",
+      "source_unit_ids": [
+        "unit-sdtmig34-ae-definition"
+      ],
+      "knowledge_type": "definition",
+      "subject": "AE domain",
+      "statement": "AE covers untoward medical occurrences, and the occurrence does not need to have a causal treatment relationship.",
+      "modality": "descriptive",
+      "scope": {
+        "model": "SDTM-2.0",
+        "implementation_guide": "SDTMIG-3.4",
+        "domains": [
+          "AE"
+        ],
+        "variables": []
+      },
+      "conditions": [],
+      "exceptions": [],
+      "relations": [
+        {
+          "relation_type": "belongs_to",
+          "to_id": "topic-sdtmig34-ae",
+          "target_kind": "topic",
+          "source_unit_ids": [
+            "unit-sdtmig34-ae-definition"
+          ]
+        }
+      ]
+    },
+    {
+      "proposal_key": "ae-structure",
+      "source_unit_ids": [
+        "unit-sdtmig34-ae-spec-table"
+      ],
+      "knowledge_type": "definition",
+      "subject": "AE dataset structure",
+      "statement": "AE is organized as one record for each adverse event for each subject.",
+      "modality": "descriptive",
+      "scope": {
+        "model": "SDTM-2.0",
+        "implementation_guide": "SDTMIG-3.4",
+        "domains": [
+          "AE"
+        ],
+        "variables": []
+      },
+      "conditions": [],
+      "exceptions": [],
+      "relations": [
+        {
+          "relation_type": "belongs_to",
+          "to_id": "topic-sdtmig34-ae",
+          "target_kind": "topic",
+          "source_unit_ids": [
+            "unit-sdtmig34-ae-spec-table"
+          ]
+        }
+      ]
+    },
+    {
+      "proposal_key": "aeterm-required",
+      "source_unit_ids": [
+        "unit-sdtmig34-aeterm-assumption",
+        "unit-sdtmig34-xlsx-variable-ae-aeterm"
+      ],
+      "knowledge_type": "variable_rule",
+      "subject": "AE.AETERM",
+      "statement": "AE.AETERM is required as the topic variable and records the collected verbatim adverse-event term.",
+      "modality": "must",
+      "scope": {
+        "model": "SDTM-2.0",
+        "implementation_guide": "SDTMIG-3.4",
+        "domains": [
+          "AE"
+        ],
+        "variables": [
+          "AETERM"
+        ]
+      },
+      "conditions": [],
+      "exceptions": [],
+      "relations": [
+        {
+          "relation_type": "belongs_to",
+          "to_id": "topic-sdtmig34-ae",
+          "target_kind": "topic",
+          "source_unit_ids": [
+            "unit-sdtmig34-xlsx-variable-ae-aeterm"
+          ]
+        }
+      ]
+    },
+    {
+      "proposal_key": "ae-example1",
+      "source_unit_ids": [
+        "unit-sdtmig34-ae-example1"
+      ],
+      "knowledge_type": "example",
+      "subject": "AE Example 1",
+      "statement": "Example 1 is illustrative only and shows free-text AE capture, MedDRA coding, optional modified term, and seriousness-category collection in one study scenario.",
+      "modality": "not_applicable",
+      "scope": {
+        "model": "SDTM-2.0",
+        "implementation_guide": "SDTMIG-3.4",
+        "domains": [
+          "AE"
+        ],
+        "variables": []
+      },
+      "conditions": [
+        "Informative example only"
+      ],
+      "exceptions": [],
+      "relations": [
+        {
+          "relation_type": "belongs_to",
+          "to_id": "topic-sdtmig34-ae",
+          "target_kind": "topic",
+          "source_unit_ids": [
+            "unit-sdtmig34-ae-example1"
+          ]
+        }
+      ]
+    },
+    {
+      "proposal_key": "aeenrf-crossref",
+      "source_unit_ids": [
+        "unit-sdtmig34-xlsx-variable-ae-aeenrf"
+      ],
+      "knowledge_type": "cross_reference",
+      "subject": "AE.AEENRF",
+      "statement": "Read AE.AEENRF values together with the general relative-timing guidance in Section 4.4.7.",
+      "modality": "descriptive",
+      "scope": {
+        "model": "SDTM-2.0",
+        "implementation_guide": "SDTMIG-3.4",
+        "domains": [
+          "AE"
+        ],
+        "variables": [
+          "AEENRF"
+        ]
+      },
+      "conditions": [],
+      "exceptions": [],
+      "relations": [
+        {
+          "relation_type": "references",
+          "to_id": "section-sdtmig34-relative-timing",
+          "target_kind": "external_dependency",
+          "source_unit_ids": [
+            "unit-sdtmig34-xlsx-variable-ae-aeenrf"
+          ]
+        }
+      ]
+    },
+    {
+      "proposal_key": "erratum-lnkgrp",
+      "source_unit_ids": [
+        "unit-sdtmig34-web-errata-section15"
+      ],
+      "knowledge_type": "exception",
+      "subject": "RELREC IDVAR for RELTYPE=MANY",
+      "statement": "For RELTYPE=MANY, apply the published erratum that uses --LNKGRP rather than --LNKID for IDVAR.",
+      "modality": "must",
+      "scope": {
+        "model": "SDTM-2.0",
+        "implementation_guide": "SDTMIG-3.4",
+        "domains": [],
+        "variables": [
+          "RELTYPE",
+          "IDVAR",
+          "--LNKGRP",
+          "--LNKID"
+        ]
+      },
+      "conditions": [
+        "RELTYPE equals MANY"
+      ],
+      "exceptions": [],
+      "relations": [
+        {
+          "relation_type": "supersedes",
+          "to_id": "statement-sdtmig34-original-lnkid",
+          "target_kind": "external_dependency",
+          "source_unit_ids": [
+            "unit-sdtmig34-web-errata-section15"
+          ]
+        }
+      ]
+    }
+  ]
+}

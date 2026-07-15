@@ -729,3 +729,40 @@ Done — no next steps。若需要跨阶段全量语义图，应另立 typed-rel
 - `clinical-llm-wiki/scripts/content/proposal_batch_contract.py`
 - `clinical-llm-wiki/tests/test_p6_proposal_batch_contract.py`
 - `docs/dep/PLAN.md`、`plans/ongoing/P6-clinical-knowledge-evolution.md`、DEVLOG/INDEX
+
+---
+
+### R031 [14:52] [P6-clinical-knowledge-evolution] P3: 完成 P3-B Gold 候选校准
+
+#### Done
+- 新增 `sdtmig34_gold_calibration.py`，把 P3-B 校准拆成来源输入投影、模型语义 response replay、证据注入、Proposal Batch 组装、Gold 评分和 compact report 生成；来源 hash、deep map hash、prompt hash、response source id/hash 和未知 source unit 全部 fail closed。
+- 冻结首版 prompt `prompt-sdtmig34-atomic-proposal-v1`，模型 response fixture 只保存 7 条候选 proposal semantics，不包含 PDF/XLSX 受限原文；所有候选由生成器强制保持 `proposed` 且 `review_receipt_id=null`。
+- 从 P2 deep structure map 投影 7 个 PDF/XLSX source unit，从 release accession 投影 1 个 companion errata unit；Gold Set 只作为评分答案，不作为输入正文来源。
+- 生成 `gold-proposal-calibration-report.json`：Gold 结构评分 7/7、0 missing、0 unexpected；7 条文本均为 paraphrase，保留为后续人工语义复核对象。
+- 完整 batch 与带 source text 的输入投影写入 ignored `derived/`，提交范围只包含 prompt、response fixture、生成器、无受限原文的 compact report、测试和计划记录。
+- P6 计划更新为 P3-B done、P3-C next；PLAN 已用轮次更新为 8。
+
+#### Issues / Blockers
+- 首轮定向测试 1 项失败：测试直接读取 `comparisons[0]`，但评分器按 evidence key 排序，不保证 mismatch 位于第 1 项。根因是测试断言假设了不存在的顺序合同；已改为按 `status == field_mismatch` 定位目标比较项。
+- P3-B 仅证明 Gold 校准链路，不批准任何 statement，也不打开 ReviewPacket；P3-C 扩到 Core 小批次前仍需维持同一 coverage/gold gate。
+- Wiki 全量测试仍有既有第三方告警 193 个；无新增失败或 blocker。
+
+#### Validation
+- `python -m scripts.content.sdtmig34_gold_calibration --include-source-text`（success；Gold 7/7、0 missing、0 unexpected）
+- `python -m pytest tests/test_p6_gold_proposal_calibration.py tests/test_p6_proposal_batch_contract.py -q --disable-warnings`（16 passed，2 warnings）
+- `python -m pytest -q --disable-warnings`（`clinical-llm-wiki/`，125 passed，193 warnings）
+- `python -m ruff check --no-cache service scripts tests`（Wiki，success）
+- 文档一致性：标准 `docs/main/PROJECT_*` 四件套在本仓库未建立，现有权威为 `docs/specs/` 与 `USAGE.md`；本轮新增 P3-B 计划/报告与“候选不得自动成为 approved、ReviewPacket/DecisionReceipt/ConfirmationReceipt 才能提升生产资格”的既有表述一致（success）
+- `git diff --check`（success）
+
+#### Next
+1. P3-C：基于同一 Proposal Batch/coverage/gold gate，扩到 Core 小批次 source units，形成逐单元覆盖、原子性和语义质量报告。
+2. P3-C 仍不生成 approved statement；P3-D 才汇总 Events/AE 候选并打开中文 blocking ReviewPacket。
+
+#### Files Changed / Commits
+- `clinical-llm-wiki/scripts/content/prompts/sdtmig34_atomic_proposal_v1.md`
+- `clinical-llm-wiki/scripts/content/sdtmig34_gold_calibration.py`
+- `clinical-llm-wiki/tests/fixtures/knowledge/sdtmig34-gold-proposal-response-v1.json`
+- `clinical-llm-wiki/tests/test_p6_gold_proposal_calibration.py`
+- `clinical-llm-wiki/sources/packages/src-cdisc-sdtmig-3-4/gold-proposal-calibration-report.json`
+- `docs/dep/PLAN.md`、`plans/ongoing/P6-clinical-knowledge-evolution.md`、DEVLOG/INDEX
