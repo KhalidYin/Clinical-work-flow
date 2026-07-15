@@ -1,0 +1,134 @@
+{
+  "agent_summary": "P6-P2 human gate for the SDTMIG 3.4 full navigation map and the bounded Core/Events/AE deep locator layer. Approval accepts structure and traceability only; it does not promote knowledge statements or publish restricted source text.",
+  "auto_approved_count": 0,
+  "created_at": "2026-07-15T13:15:09+08:00",
+  "findings": [
+    {
+      "auto_approved": false,
+      "category": "compliance",
+      "current_value": "461/461 pages and 220/220 outline entries are mapped with zero unexplained pages.",
+      "evidence_refs": [
+        "structure-review:CHK-001"
+      ],
+      "id": "F-001",
+      "location": "p6-p2-structure-map#CHK-001",
+      "proposed_value": "Approve the page-to-outline navigation layer as the P2 full-document coverage baseline.",
+      "rationale": "Navigation coverage prevents later extraction from silently skipping source regions.",
+      "severity": "info",
+      "title": "Accept the full-document navigation coverage baseline"
+    },
+    {
+      "auto_approved": false,
+      "category": "mapping",
+      "current_value": "63 domains, 704 PDF table boundaries, 63 dataset rows, and 1917 variable rows are indexed with no skipped data rows.",
+      "evidence_refs": [
+        "structure-review:CHK-002"
+      ],
+      "id": "F-002",
+      "location": "p6-p2-structure-map#CHK-002",
+      "proposed_value": "Approve the PDF navigation boundaries and structured workbook index as complementary source structure.",
+      "rationale": "PDF and XLSX provide different locator granularity and must remain separately traceable.",
+      "severity": "info",
+      "title": "Accept PDF boundary detection and XLSX row indexing"
+    },
+    {
+      "auto_approved": false,
+      "category": "compliance",
+      "current_value": "The approved 100-page scope contains 844 paragraph units, 177 assumption roles, 289 examples, and 85 cross-reference units.",
+      "evidence_refs": [
+        "structure-review:CHK-003"
+      ],
+      "id": "F-003",
+      "location": "p6-p2-structure-map#CHK-003",
+      "proposed_value": "Approve deep segmentation only for Core chapters 1-4, section 6.2 Events, and section 6.2.1 AE.",
+      "rationale": "A bounded deep layer preserves retrieval quality without claiming full-book paragraph extraction.",
+      "severity": "info",
+      "title": "Accept the bounded Core and Events deep-locator scope"
+    },
+    {
+      "auto_approved": false,
+      "category": "mapping",
+      "current_value": "All 204 Events PDF variable rows align to 204 workbook rows across seven domains with no missing, ambiguous, or order-difference result.",
+      "evidence_refs": [
+        "structure-review:CHK-004"
+      ],
+      "id": "F-004",
+      "location": "p6-p2-structure-map#CHK-004",
+      "proposed_value": "Approve the 204 typed alignment references as the Events variable trace baseline.",
+      "rationale": "Variable-level traceability is required before extracting executable SDTM guidance.",
+      "severity": "warning",
+      "title": "Accept Events PDF-to-XLSX variable alignment"
+    },
+    {
+      "auto_approved": false,
+      "category": "mapping",
+      "current_value": "The AE specification is one table unit with four page locators on pages 134-137 and 60/60 PDF/XLSX variable rows.",
+      "evidence_refs": [
+        "structure-review:CHK-005",
+        "visual-qa:pages-134-136-137-140"
+      ],
+      "id": "F-005",
+      "location": "p6-p2-structure-map#CHK-005",
+      "proposed_value": "Approve the cross-page AE table boundary and the first/middle/last locator visual checks.",
+      "rationale": "Treating continuation pages as unrelated tables would break AE variable context and citations.",
+      "severity": "warning",
+      "title": "Accept the AE cross-page table locator"
+    },
+    {
+      "auto_approved": false,
+      "category": "compliance",
+      "current_value": "117 SDTMIG section references resolve internally, five SDTM or ICH E3 references remain typed external dependencies, and none are unresolved.",
+      "evidence_refs": [
+        "structure-review:CHK-006"
+      ],
+      "id": "F-006",
+      "location": "p6-p2-structure-map#CHK-006",
+      "proposed_value": "Approve the reference closure and preserve external standards as dependencies rather than guessed SDTMIG targets.",
+      "rationale": "Typed reference boundaries prevent missing citations and false internal links.",
+      "severity": "info",
+      "title": "Accept internal and external reference classification"
+    },
+    {
+      "auto_approved": false,
+      "category": "compliance",
+      "current_value": "All seven P2-expressible Gold locators match at field level; the web erratum remains explicitly outside the PDF/XLSX map.",
+      "evidence_refs": [
+        "structure-review:CHK-007",
+        "tests/fixtures/knowledge/sdtmig34-gold-set.json"
+      ],
+      "id": "F-007",
+      "location": "p6-p2-structure-map#CHK-007",
+      "proposed_value": "Approve 7/7 Gold compatibility without converting the release-page erratum into a false source locator.",
+      "rationale": "Gold preservation anchors later extraction while keeping source modalities honest.",
+      "severity": "warning",
+      "title": "Accept P1 Gold locator compatibility"
+    },
+    {
+      "auto_approved": false,
+      "category": "compliance",
+      "current_value": "The local maps match the committed base hash 15e6db580a3b6c4d5bef56c9a30fcc59c1463a820295e5ce7792c5654e092a76 and deep hash 56d35561c70504e0fa1b631a0809d563591cbaf629264626eae4cd73831c2cbc; each hash was reproduced in two recorded runs.",
+      "evidence_refs": [
+        "structure-review:CHK-008",
+        "source-manifest.json#storage_mode"
+      ],
+      "id": "F-008",
+      "location": "p6-p2-structure-map#CHK-008",
+      "proposed_value": "Approve ignored rebuildable maps plus committed generators, tests, and compact hash/count reports as the P2 storage boundary.",
+      "rationale": "This keeps restricted content out of Git and Obsidian while preserving deterministic reconstruction and drift detection.",
+      "severity": "warning",
+      "title": "Accept hash-locked rebuild identity and storage boundary"
+    }
+  ],
+  "generated_by": "P6-P2 SDTMIG 3.4 structure-map review builder",
+  "review_id": "sdtm_spec_sdtmig34_structure_v1_001",
+  "review_type": "sdtm_spec",
+  "source_documents": [
+    "sources/packages/src-cdisc-sdtmig-3-4/structure-map-review-report.json",
+    "sources/packages/src-cdisc-sdtmig-3-4/structure-map-summary.json",
+    "sources/packages/src-cdisc-sdtmig-3-4/deep-structure-summary.json",
+    "sources/packages/src-cdisc-sdtmig-3-4/source-manifest.json",
+    "tests/fixtures/knowledge/sdtmig34-gold-set.json",
+    "schemas/extraction/source-structure-map.schema.json"
+  ],
+  "urgency": "blocking"
+}

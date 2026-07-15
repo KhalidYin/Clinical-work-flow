@@ -621,3 +621,40 @@ Done — no next steps。若需要跨阶段全量语义图，应另立 typed-rel
 - `clinical-llm-wiki/tests/test_p6_structure_map_deep.py`、`test_p6_structure_map_builder.py`、`test_p6_structure_map_contract.py`
 - `clinical-llm-wiki/sources/packages/src-cdisc-sdtmig-3-4/deep-structure-summary.json`
 - `docs/dep/PLAN.md`、`plans/ongoing/P6-clinical-knowledge-evolution.md`、DEVLOG/INDEX
+
+---
+
+### R028 [13:23] [P6-clinical-knowledge-evolution] P2: 完成 P2-D 并打开结构地图人工审核门
+
+#### Done
+- 新增 deterministic `structure_map_review.py`：在开门前加载并校验 P2-B/P2-C local-only 地图，要求实际文件 hash 与 committed summary、source manifest 和 deep→base binding 全部一致；任一计数或 hash 漂移即 fail closed。
+- 生成不含受限正文的 `structure-map-review-report.json`，用 8 项机器 check 汇总全书导航、PDF/XLSX 索引、Core/Events 深度范围、Events 对齐、AE 跨页表格、引用分类、Gold 兼容和重建 identity；8/8 passed、0 failed。
+- 生成 active blocking `sdtm_spec_sdtmig34_structure_v1_001` ReviewPacket，包含 F-001 至 F-008，`auto_approved_count=0`；未生成 DecisionReceipt 或 ConfirmationReceipt。
+- Review Panel 真实仓库读取成功：packet 状态 `pending`、8 项 actionable finding、6 个声明来源全部 available，compact report 可完整预览；Panel 不接触 local-only PDF/XLSX。
+- P2 前六项机器完成标准关闭；P2-E 只等待人类对 8 项 finding 的结构化决定，不自动批准或进入知识抽取。
+
+#### Issues / Blockers
+- 首次从 `review-panel/` 运行 CLI 时提示 `No module named review_panel`，同时读取文件的命令重复了目录前缀；根因是该模块未安装到当前解释器且工作目录已在模块根。已依据项目 `src` layout 设置临时 `PYTHONPATH=src` 并使用正确相对路径，自检通过；未安装或修改依赖。
+- 当前唯一 blocker 是 P2-D 设计要求的人类 Review Gate；这不是代码失败。P2-E 必须收到覆盖 F-001 至 F-008 的 DecisionReceipt 后才能执行。
+- Wiki 全量测试仍有 191 个既有第三方告警；Review Panel 有 89 个告警与 2 个预期 skip，均未影响合同或 Gate。
+
+#### Validation
+- `python -m pytest tests/test_p6_structure_map_review.py -q --disable-warnings`（6 passed）
+- `python -m pytest -q --disable-warnings`（`clinical-llm-wiki/`，104 passed，191 warnings）
+- `python -m ruff check --no-cache service scripts tests`（`clinical-llm-wiki/`，success）
+- `PYTHONPATH=src python -m review_panel check --repo-root ..`（success；loopback Wiki queue discovered）
+- 真实 Review Panel API 只读验证（success；pending/blocking、8 findings、6/6 sources、0 decision、0 confirmation）
+- `python -m pytest -q --disable-warnings`（`review-panel/`，26 passed，2 skipped，89 warnings）
+- P2-D 报告重建与 committed JSON 精确相等（success；base/deep local map hash 均匹配 summary）
+
+#### Next
+1. 人工在根 Review Panel 处理 `sdtm_spec_sdtmig34_structure_v1_001` 的 F-001 至 F-008；批准、修改或拒绝都必须形成完整 DecisionReceipt。
+2. 收到回执后执行 P2-E：验证并应用决定、写 ConfirmationReceipt、归档审核三件套、关闭 P2 Phase Gate，独立提交。
+3. P2-E 关闭前不得开始 P3 知识抽取。
+
+#### Files Changed / Commits
+- `clinical-llm-wiki/scripts/pdf/structure_map_review.py`
+- `clinical-llm-wiki/sources/packages/src-cdisc-sdtmig-3-4/structure-map-review-report.json`
+- `clinical-llm-wiki/.review_queue/sdtm_spec_sdtmig34_structure_v1_001.json`
+- `clinical-llm-wiki/tests/test_p6_structure_map_review.py`
+- `docs/dep/PLAN.md`、`plans/ongoing/P6-clinical-knowledge-evolution.md`、`TASK_STATE.md`、DEVLOG/INDEX
