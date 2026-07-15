@@ -874,3 +874,46 @@ Done — no next steps。若需要跨阶段全量语义图，应另立 typed-rel
 - `USAGE.md`
 - `docs/dep/devlog/INDEX.md`
 - `docs/dep/devlog/active/DEVLOG-R009-R048.md`
+
+---
+
+### R035 [17:21] [P6-clinical-knowledge-evolution] P3: 关闭 SDTMIG 3.4 proposal review gate
+
+#### Done
+- 将用户在 Codex task 中明确回复的“全部同意”结构化为 P3-D proposal ReviewPacket 的 DecisionReceipt：`sdtm_spec_sdtmig34_proposals_v1_001_decision.json`，F-001 至 F-028 全部 `approved`，reviewer role 为 `human_knowledge_owner`。
+- 新增 `sdtmig34_proposal_finalize.py`：复核 P3-D ReviewPacket 与 `proposal-review-gate-report.json` 未漂移后，生成 ConfirmationReceipt、追加 audit event、归档三件套，并支持 `--check` 幂等验证。
+- 生成 `approved-proposal-release.json`：不回写 P3-B/P3-C proposed batch，而是另行合并 28 条 approved statement，统一绑定 `review-sdtm-spec-sdtmig34-proposals-v1-001`；release package 通过 `validate_extraction_package`。
+- 新增 Obsidian release 入口 `60_Sources/Registry/SDTMIG 3.4 Approved Proposal Release.md` 和治理说明 `80_Governance/Review-Receipts/sdtmig34-proposals-v1-001.md`；Sources-MOC 改为链接 approved proposal release。
+- 更新 P6 子计划和 PLAN：P3 标记 done，下一阶段为 P4 typed relation / 可复用知识整理。
+
+#### Issues / Blockers
+- P3-E 只批准 proposal release，不声明逐条 Runtime governed knowledge card 已完成。P4 需要把 release 拆成可复用知识卡、typed relation 图谱和查询入口后，才能进入 P5 查询/Snapshot 验收。
+- 原 P3-C Inbox 卡仍保留 proposed/inbox，作为可复算输入；批准结果不回写该卡，避免重跑 P3-C 覆盖 P3-E 证据。
+- Wiki 全量测试首轮 3 项 `test_workflow_map.py` 失败。根因是 release 导航卡最初写入 `20_Knowledge/Standards/`，而 workflow map 生成器会扫描 `20_Knowledge/**` 下所有非 README Markdown 并要求 `workflow_stages`。该卡不是 P4 后的 Runtime knowledge card，因此修复为移入 `60_Sources/Registry/` 并同步 Sources-MOC、测试和文档路径，避免污染工作流关系投影。
+
+#### Validation
+- `python -m scripts.content.sdtmig34_proposal_finalize --approve-all --decision-timestamp "2026-07-15T17:17:24+08:00" --applied-at "2026-07-15T17:17:24+08:00"`（success；28 applied）
+- `python -m pytest tests/test_p6_proposal_review_gate.py tests/test_p6_proposal_review_finalize.py -q`（10 passed）
+- `python -m ruff check scripts/content/sdtmig34_proposal_finalize.py tests/test_p6_proposal_review_gate.py tests/test_p6_proposal_review_finalize.py`（success）
+- `python -m scripts.content.sdtmig34_proposal_finalize --check`（success；28 applied）
+- `python -m pytest tests/test_vault_contracts.py tests/test_p6_core_proposals.py tests/test_p6_proposal_batch_contract.py tests/test_p6_gold_proposal_calibration.py tests/test_p6_release_quality.py -q`（30 passed，14 warnings）
+- `python -m pytest tests/test_workflow_map.py tests/test_p6_proposal_review_finalize.py tests/test_vault_contracts.py -q`（19 passed，12 warnings；验证 release 卡不再进入 workflow relation source）
+- `python -m pytest -q --disable-warnings`（`clinical-llm-wiki/`，142 passed，193 warnings）
+- `python -m ruff check --no-cache service scripts tests`（Wiki，success）
+
+#### Next
+1. P4：基于 approved proposal release 整理通用规则、Events/AE domain、变量规则、实现模式和示例的复用结构。
+2. 建立最小 typed relation 集和关系闭包校验，避免把 locator/变量行节点直接挤入 Obsidian 主图。
+3. P4 完成后再进入 P5 查询质量与 Snapshot 发布验收。
+
+#### Files Changed / Commits
+- `clinical-llm-wiki/scripts/content/sdtmig34_proposal_finalize.py`
+- `clinical-llm-wiki/tests/test_p6_proposal_review_finalize.py`
+- `clinical-llm-wiki/tests/test_p6_proposal_review_gate.py`
+- `clinical-llm-wiki/.review_queue/archive/sdtm_spec_sdtmig34_proposals_v1_001*.json`
+- `clinical-llm-wiki/sources/packages/src-cdisc-sdtmig-3-4/approved-proposal-release.json`
+- `clinical-llm-wiki/vault/60_Sources/Registry/SDTMIG 3.4 Approved Proposal Release.md`
+- `clinical-llm-wiki/vault/80_Governance/Review-Receipts/sdtmig34-proposals-v1-001.md`
+- `clinical-llm-wiki/vault/10_MOC/Sources-MOC.md`
+- `clinical-llm-wiki/audit_trail.jsonl`
+- `docs/dep/PLAN.md`、`plans/ongoing/P6-clinical-knowledge-evolution.md`、DEVLOG/INDEX

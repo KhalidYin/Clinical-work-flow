@@ -17,11 +17,12 @@ title: 来源、页码与视觉证据导航
 
 访问快照保存项目自写元数据与释义，并回链官方 URL；规范原文仍是最终权威。
 
-## P6 解析候选
+## P6 SDTMIG 3.4 解析 release
 
-- [[98_Inbox/SDTMIG 3.4 Core Proposal Batch|SDTMIG 3.4 Core 小批次候选]]
+- [[60_Sources/Registry/SDTMIG 3.4 Approved Proposal Release|SDTMIG 3.4 Core/Events/AE 已批准 proposal release]]
+- [[98_Inbox/SDTMIG 3.4 Core Proposal Batch|SDTMIG 3.4 Core 小批次候选输入]]
 
-候选卡只用于治理审阅，不进入 approved-only 索引。
+Release 卡是 P6-P3-E 的 Obsidian 审阅入口；逐条 Runtime governed knowledge card 与 typed relation 图谱在 P4 整理。
 
 ## 合成视觉证据
 

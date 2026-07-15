@@ -18,7 +18,12 @@ from scripts.content.sdtmig34_proposal_review import (
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKET = ROOT / ".review_queue" / PACKET_NAME
+ACTIVE_PACKET = ROOT / ".review_queue" / PACKET_NAME
+ARCHIVED_PACKET = ROOT / ".review_queue" / "archive" / PACKET_NAME
+
+
+def _packet_path() -> Path:
+    return ACTIVE_PACKET if ACTIVE_PACKET.exists() else ARCHIVED_PACKET
 
 
 def _read(path: Path) -> dict[str, object]:
@@ -47,7 +52,7 @@ def test_proposal_review_report_opens_pending_human_gate() -> None:
 
 
 def test_proposal_review_packet_is_blocking_schema_valid_and_chinese() -> None:
-    packet = _read(PACKET)
+    packet = _read(_packet_path())
     Draft202012Validator(schema_definition(ROOT, "review_packet")).validate(packet)
 
     assert packet["review_id"] == REVIEW_ID
@@ -72,7 +77,7 @@ def test_proposal_review_packet_is_blocking_schema_valid_and_chinese() -> None:
 
 
 def test_proposal_review_source_documents_are_committed_review_inputs() -> None:
-    packet = _read(PACKET)
+    packet = _read(_packet_path())
 
     for declared in packet["source_documents"]:
         path = ROOT / declared
@@ -84,13 +89,18 @@ def test_proposal_review_source_documents_are_committed_review_inputs() -> None:
 
 
 def test_proposal_review_gate_is_active_without_decision_or_confirmation() -> None:
-    assert PACKET.is_file()
-    assert not PACKET.with_name(f"{REVIEW_ID}_decision.json").exists()
-    assert not PACKET.with_name(f"{REVIEW_ID}_confirmation.json").exists()
+    if ACTIVE_PACKET.exists():
+        assert not ACTIVE_PACKET.with_name(f"{REVIEW_ID}_decision.json").exists()
+        assert not ACTIVE_PACKET.with_name(f"{REVIEW_ID}_confirmation.json").exists()
+        return
+
+    assert ARCHIVED_PACKET.is_file()
+    assert ARCHIVED_PACKET.with_name(f"{REVIEW_ID}_decision.json").is_file()
+    assert ARCHIVED_PACKET.with_name(f"{REVIEW_ID}_confirmation.json").is_file()
 
 
 def test_proposal_review_artifacts_rebuild_exactly() -> None:
-    packet = _read(PACKET)
+    packet = _read(_packet_path())
     report, rebuilt_packet = build_proposal_review_artifacts(
         wiki_root=ROOT,
         created_at=packet["created_at"],

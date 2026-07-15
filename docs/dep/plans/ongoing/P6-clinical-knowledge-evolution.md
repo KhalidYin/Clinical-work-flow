@@ -182,7 +182,7 @@ P1 可根据真实 SDTMIG 结构删减关系类型；不允许为了“图谱丰
 |-------|------|----------|------|------|
 | P1 | 冻结 SDTMIG 3.4 来源、解析合同和人工 Gold Set | 2-3 | 现有 Wiki/PDF 基线 | done |
 | P2 | 建立全文结构地图和分层 locator 覆盖 | 4-6 | P1 | done |
-| P3 | 深度抽取 Core/Events/AE 原子知识并校准质量 | 4-6 | P2 | in_progress |
+| P3 | 深度抽取 Core/Events/AE 原子知识并校准质量 | 4-6 | P2 | done |
 | P4 | 整理可复用知识与 typed relation 图谱 | 2-3 | P3 | pending |
 | P5 | 完成引用、图谱、查询和 Snapshot 发布验收 | 2-4 | P4 | pending |
 
@@ -318,7 +318,7 @@ P2-A 至 P2-E 是一个内部 Phase 的原子执行切片；每个切片完成�
 | P3-B | done | 对人工 Gold Set 执行首轮候选校准，记录字段级差异和提示/Schema 版本；未通过 Gate 不扩大范围 | `feat: calibrate SDTMIG 3.4 gold proposals` |
 | P3-C | done | 按小批次抽取 Core 范围并形成逐单元覆盖、原子性和语义质量报告 | `feat: extract SDTMIG 3.4 core proposals` |
 | P3-D | done | 按小批次抽取 Events/AE，执行跨证据、重复和变量规则检查，生成中文 blocking ReviewPacket | `feat: open SDTMIG 3.4 proposal review gate` |
-| P3-E | next | 应用人工决定、保留未确认项为 proposed/rework、归档审核三件套并关闭 P3 Gate | `feat: close SDTMIG 3.4 proposal review gate` |
+| P3-E | done | 应用人工全部批准决定，归档审核三件套，生成 approved proposal release 并关闭 P3 Gate | `feat: close SDTMIG 3.4 proposal review gate` |
 
 P3-A 至 P3-E 是质量优先的内部切片；每个切片完成并验证后独立提交。P3-A/P3-B/P3-C 不得产生 `approved` statement，P3-D 后必须停在人工 Gate，只有 P3-E 才能把人工确认结果应用到知识候选。
 
@@ -345,6 +345,13 @@ P3-A 至 P3-E 是质量优先的内部切片；每个切片完成并验证后独
 - 生成 active ReviewPacket `.review_queue/sdtm_spec_sdtmig34_proposals_v1_001.json`，`urgency=blocking`，28 个 finding 的人工阅读字段使用中文，source documents 仅引用提交的报告、来源卡和 Inbox 卡，不引用 `original/`、`derived/`、PDF 或 XLSX。
 - 本阶段明确停在人工 Gate：不写 DecisionReceipt、不写 ConfirmationReceipt、不归档、不提升任何 statement 为 approved。
 
+### P3-E 应用记录
+
+- 用户在 Codex task 中明确回复“全部同意，继续下一步”；该授权被结构化为 `.review_queue/archive/sdtm_spec_sdtmig34_proposals_v1_001_decision.json`，28 个 finding 全部 `approved`。
+- 新增 `sdtmig34_proposal_finalize.py`，复核 P3-D ReviewPacket 与 `proposal-review-gate-report.json` 未漂移后，生成 ConfirmationReceipt、追加 audit event，并把三件套从 active queue 移入 archive。
+- 新增 `sources/packages/src-cdisc-sdtmig-3-4/approved-proposal-release.json`：保留 P3-B/P3-C 原始 proposed batch 不变，另行合并 28 条 `approved` statement，统一绑定 `review-sdtm-spec-sdtmig34-proposals-v1-001`。
+- 新增 Obsidian release 入口 `vault/60_Sources/Registry/SDTMIG 3.4 Approved Proposal Release.md` 和治理说明 `vault/80_Governance/Review-Receipts/sdtmig34-proposals-v1-001.md`；该卡是 P3-E 审阅导航，不声明逐条 Runtime governed card 已完成，P4 再拆解为复用知识卡和 typed relation 图谱。
+
 ### P3 质量 Gate
 
 - 覆盖台账必须让每个批准范围内的 source unit 恰好出现一次，状态只能是 `candidate`、`non_knowledge` 或 `deferred`；后两者必须说明原因。
@@ -354,11 +361,11 @@ P3-A 至 P3-E 是质量优先的内部切片；每个切片完成并验证后独
 
 ### 完成标准
 
-- [ ] 深度范围内每个 source unit 已生成候选或有明确 non-knowledge/deferred 解释。
-- [ ] modality、否定、conditions、exceptions 和 example 身份与来源一致。
-- [ ] 每条 Proposal 带稳定 source/locator；跨来源归纳显式列出全部 evidence。
-- [ ] 高权威 normative statements 完成人工逐条审核，未确认内容保持 proposed/rework。
-- [ ] 不把 SDTM v2.0、CT、FDA 或组织惯例中缺失的信息补写成 SDTMIG 3.4 原文事实。
+- [x] 深度范围内每个 source unit 已生成候选或有明确 non-knowledge/deferred 解释。
+- [x] modality、否定、conditions、exceptions 和 example 身份与来源一致。
+- [x] 每条 Proposal 带稳定 source/locator；跨来源归纳显式列出全部 evidence。
+- [x] 高权威 normative statements 完成人工逐条审核；本轮 28/28 全部批准，因此无 proposed/rework 遗留项。
+- [x] 不把 SDTM v2.0、CT、FDA 或组织惯例中缺失的信息补写成 SDTMIG 3.4 原文事实。
 
 ### 边界（本 Phase 明确不做）
 
