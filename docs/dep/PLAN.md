@@ -8,7 +8,7 @@ updated: 2026-07-15
 
 | # | 子计划 | 文件 | 当前阶段 | 已用轮次 | 开始日期 |
 |---|--------|------|----------|----------|----------|
-| P6 | SDTMIG 3.4 知识解析质量与引用基线 | [P6-clinical-knowledge-evolution.md](plans/ongoing/P6-clinical-knowledge-evolution.md) | 内部 P2-B 已完成；P2-C：Core/Events/AE 深度 locator 待开始 | 3 | 2026-07-14 |
+| P6 | SDTMIG 3.4 知识解析质量与引用基线 | [P6-clinical-knowledge-evolution.md](plans/ongoing/P6-clinical-knowledge-evolution.md) | 内部 P2-C 已完成；P2-D：覆盖/重建/差异报告与 blocking ReviewPacket 待开始 | 4 | 2026-07-14 |
 
 ## 待开始
 

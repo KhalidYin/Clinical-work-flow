@@ -1,0 +1,99 @@
+{
+  "base_structure_map_sha256": "15e6db580a3b6c4d5bef56c9a30fcc59c1463a820295e5ce7792c5654e092a76",
+  "coverage": {
+    "ae_pdf_variable_rows": 60,
+    "ae_specification_pages": [
+      134,
+      135,
+      136,
+      137
+    ],
+    "ae_specification_segments": 4,
+    "ae_xlsx_variable_rows": 60,
+    "deep_cross_reference_units": 85,
+    "deep_domain_units": 1,
+    "deep_example_units": 289,
+    "deep_paragraph_units": 844,
+    "deep_physical_pages": 100,
+    "deep_role_assumption": 177,
+    "deep_role_context": 667,
+    "deep_role_cross_reference": 85,
+    "deep_role_example": 289,
+    "deep_role_specification": 1,
+    "event_ambiguous_spec_hits": 0,
+    "event_domain_count": 7,
+    "event_missing_variables": {},
+    "event_order_mismatches": {},
+    "event_pdf_variable_rows": 204,
+    "event_xlsx_variable_rows": 204,
+    "example_heading_blocks": 36,
+    "external_textual_references": 5,
+    "gold_locator_expected": 7,
+    "gold_locator_field_differences": {},
+    "gold_locator_field_matches": 7,
+    "gold_locator_hits": 7,
+    "gold_locator_missing": [],
+    "gold_web_locator_excluded": 1,
+    "header_footer_blocks": 198,
+    "outline_heading_blocks": 95,
+    "outside_or_empty_blocks": 55,
+    "pdf_xlsx_alignment_references": 204,
+    "renamed_gold_xlsx_locators": [
+      "loc-sdtmig34-xlsx-variables-r293",
+      "loc-sdtmig34-xlsx-variables-r342"
+    ],
+    "resolved_textual_references": 117,
+    "selected_source_blocks": 3078,
+    "semantic_heading_blocks": 30,
+    "specification_descriptor_blocks": 12,
+    "table_blocks": 1488,
+    "unresolved_section_labels": {},
+    "unresolved_textual_references": 0
+  },
+  "deep_builder_version": "1.0.0",
+  "deep_structure_map_sha256": "56d35561c70504e0fa1b631a0809d563591cbaf629264626eae4cd73831c2cbc",
+  "locator_count": 4334,
+  "reference_count": 326,
+  "schema_version": "1.0.0",
+  "scope": [
+    {
+      "end": [
+        60,
+        0.0
+      ],
+      "label": "core",
+      "start": [
+        7,
+        72.0
+      ]
+    },
+    {
+      "end": [
+        180,
+        0.0
+      ],
+      "label": "events",
+      "start": [
+        133,
+        233.0
+      ]
+    }
+  ],
+  "source_id": "src-cdisc-sdtmig-3-4",
+  "source_sha256": "ea4ddbba4a3e10a55bb2f36d5e28d9cfc191090717c2426475279750a7f57021",
+  "structure_map_id": "structure-map-sdtmig34",
+  "unit_counts": {
+    "appendix": 7,
+    "chapter": 9,
+    "cross_reference": 85,
+    "dataset": 63,
+    "domain": 64,
+    "example": 289,
+    "front_matter": 4,
+    "index": 3,
+    "paragraph": 844,
+    "section": 137,
+    "table": 705,
+    "variable_row": 2121
+  }
+}

@@ -68,13 +68,13 @@ def test_synthetic_pdf_and_xlsx_cover_p2b_structure_shapes(tmp_path: Path) -> No
         assert document.page_count == 4
         assert document.get_toc(simple=True) == [
             [1, "1 Synthetic Fundamentals", 2],
-            [2, "1.1 Synthetic Adverse Events", 3],
+            [2, "1.1 Synthetic Adverse Events (AE)", 3],
         ]
-        assert "AE Specification - Segment 1" in document[2].get_text()
-        assert "AE Specification - Segment 2" in document[3].get_text()
+        assert "AE - Specification" in document[2].get_text()
+        assert "AE - Assumptions" in document[3].get_text()
         assert workbook.sheetnames == ["Datasets", "Variables"]
         assert list(workbook["Datasets"].values)[1][0] == "AE"
-        assert [row[1] for row in list(workbook["Variables"].values)[1:]] == [
+        assert [row[2] for row in list(workbook["Variables"].values)[1:]] == [
             "AETERM",
             "AEDECOD",
         ]

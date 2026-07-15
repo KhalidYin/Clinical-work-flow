@@ -20,5 +20,6 @@
 | R024 | 2026-07-15 | 10:30 | P0-local-review-panel | P3 | 关闭浏览器 Gate 并归档本地 Review Panel | `review-panel/src/review_panel/static/`, `review-panel/tests/`, `docs/dep/` | active/DEVLOG-R009-R048.md |
 | R025 | 2026-07-15 | 11:33 | P6-clinical-knowledge-evolution | P2 | 完成 P2-A 分层结构地图合同 | `clinical-llm-wiki/schemas/extraction/`, `clinical-llm-wiki/scripts/pdf/`, `clinical-llm-wiki/tests/`, `docs/dep/` | active/DEVLOG-R009-R048.md |
 | R026 | 2026-07-15 | 12:49 | P6-clinical-knowledge-evolution | P2 | 完成 P2-B 全书导航结构地图 | `clinical-llm-wiki/scripts/pdf/`, `clinical-llm-wiki/sources/packages/`, `clinical-llm-wiki/tests/`, `docs/dep/` | active/DEVLOG-R009-R048.md |
+| R027 | 2026-07-15 | 13:09 | P6-clinical-knowledge-evolution | P2 | 完成 P2-C Core/Events/AE 深度 locator | `clinical-llm-wiki/scripts/pdf/`, `clinical-llm-wiki/sources/packages/`, `clinical-llm-wiki/tests/`, `docs/dep/` | active/DEVLOG-R009-R048.md |
 
 > Legacy rounds R001-R008 remain immutable in [DEVLOG-legacy.md](archive/DEVLOG-legacy.md). They predate the searchable index and were intentionally not rewritten during adoption.

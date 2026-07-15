@@ -256,8 +256,8 @@ P1 可根据真实 SDTMIG 结构删减关系类型；不允许为了“图谱丰
 |------|------|------|----------|
 | P2-A | done | 定义结构地图 Schema、稳定 ID、page assignment、locator 与处理状态合同；建立合成 PDF/XLSX 正反例 | `feat: define SDTMIG 3.4 structure map contract` |
 | P2-B | done | 生成 461 页全书导航结构层、PDF outline/domain/table 边界和 XLSX 全量 dataset/variable 行索引 | `feat: build SDTMIG 3.4 full structure map` |
-| P2-C | next | 补齐 Core/Events/AE 深度 locator、AE 跨页表格和 PDF/XLSX 变量对应 | `feat: add Core Events AE locator coverage` |
-| P2-D | pending | 生成覆盖/重建/差异报告并创建 blocking ReviewPacket | `feat: open SDTMIG 3.4 structure review gate` |
+| P2-C | done | 补齐 Core/Events/AE 深度 locator、AE 跨页表格和 PDF/XLSX 变量对应 | `feat: add Core Events AE locator coverage` |
+| P2-D | next | 生成覆盖/重建/差异报告并创建 blocking ReviewPacket | `feat: open SDTMIG 3.4 structure review gate` |
 | P2-E | pending | 应用人工决定、归档审核三件套并关闭 P2 Phase Gate | `feat: close SDTMIG 3.4 structure map gate` |
 
 P2-A 至 P2-E 是一个内部 Phase 的原子执行切片；每个切片完成并验证后独立提交，但只有 P2-E 通过后 P2 才标记为 `done`。
@@ -431,6 +431,8 @@ P2-A 至 P2-E 是一个内部 Phase 的原子执行切片；每个切片完成�
 | D3 | P1 `SourceUnit` 是单 locator 的语义抽取合同，无法无损表达 P2 多 locator、分页归属和跨页表格 | P2-A | 增强 | P2 使用独立结构地图 Schema 和 locator 注册表，并提供投影到 P1 locator 合同的校验边界；不扩大 Runtime 公共合同 |
 | D4 | XLSX 使用 `SUPPQUAL`，PDF outline 使用通用占位名 `SUPP--`；单靠括号代码会形成 62/63 domain 假缺口 | P2-B | 已解决 | 对该规范化别名显式映射，PDF/XLSX domain 覆盖达到 63/63；不做模糊名称猜测 |
 | D5 | 宽泛匹配叙述中的 `specification` 会制造表格假边界；PyMuPDF 全 461 页几何扫描约需 7-8 分钟 | P2-B | 已解决/风险 | marker 收紧为正式 domain specification、`.xpt` 或编号 Table；704 个边界中 636 个来自几何、68 个来自正式 marker；后续可优化派生缓存但不改变身份 |
+| D6 | 规范表 Notes 列会重复出现变量名，仅按文本最早命中会制造歧义和 MH 顺序假差异 | P2-C | 已解决 | Events PDF variable row 只接受表格首列命中；7 个域 204/204 行与 XLSX 对齐，0 missing、0 ambiguity、0 order mismatch |
+| D7 | `SDTM Section 3.1.x` 与 `ICH E3 Section 10.x` 是外部规范引用，不应按 SDTMIG outline 判定为 unresolved | P2-C | 已解决 | 117 条 SDTMIG 内部引用解析到 source unit，5 条显式标为 external dependency，0 unresolved；Gold locator 7/7 字段级一致 |
 
 ## 关键决策记录
 
@@ -448,6 +450,7 @@ P2-A 至 P2-E 是一个内部 Phase 的原子执行切片；每个切片完成�
 | 2026-07-15 | P2 人工审核入口 | 扩建 Panel PDF 预览 / Panel 记录决定+外部视觉核验 | Panel 记录决定+外部视觉核验 | 复用现有 Review Protocol，并把富媒体预览留在后续真实需求阶段 |
 | 2026-07-15 | P2 结构合同 | 复用 P1 SourceUnit / 独立结构地图+locator 注册表 | 独立结构地图+locator 注册表 | 支持一个结构单元对应多个证据位置、跨页表格和全书 page assignment，同时保留向 P1 locator 的明确投影 |
 | 2026-07-15 | P2-B Git 边界 | 提交完整结构地图 / ignored 地图+提交紧凑摘要 | ignored 地图+提交紧凑摘要 | 3 MB 地图含受限来源标题和 XLSX 行元数据，必须从本地原件重建；Git 只保留生成器、测试及不含正文的计数/哈希报告 |
+| 2026-07-15 | P2-C 派生边界 | 覆盖 P2-B 地图 / 另建 deep 派生地图 | 另建 deep 派生地图 | 保留 P2-B 全书导航哈希作为稳定基线；P2-C 从基线增量生成 local-only deep map，摘要分别记录 base/deep hash，便于定位漂移层级 |
 
 ## 同步记录
 

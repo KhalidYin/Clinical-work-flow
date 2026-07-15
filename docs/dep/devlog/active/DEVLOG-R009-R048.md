@@ -581,3 +581,43 @@ Done — no next steps。若需要跨阶段全量语义图，应另立 typed-rel
 - `clinical-llm-wiki/tests/test_p6_structure_map_builder.py`
 - `clinical-llm-wiki/sources/packages/src-cdisc-sdtmig-3-4/structure-map-summary.json`
 - `docs/dep/PLAN.md`、`plans/ongoing/P6-clinical-knowledge-evolution.md`、DEVLOG/INDEX
+
+---
+
+### R027 [13:09] [P6-clinical-knowledge-evolution] P2: 完成 P2-C Core/Events/AE 深度 locator
+
+#### Done
+- 以 P2-B 哈希 `15e6db580a3b6c4d5bef56c9a30fcc59c1463a820295e5ce7792c5654e092a76` 为只读基线，增量生成独立 local-only deep map，不覆盖全书导航地图。
+- 深度范围严格限定为 Core 物理页 7-59 与 Events 133-179，共 100 页；生成 844 个 paragraph、177 个 assumption role、289 个 example、85 个 cross-reference unit。
+- Events 7 个域的 204 个 PDF specification variable row 与 XLSX 204 行逐条对齐：0 missing、0 ambiguity、0 order mismatch，并形成 204 条 resolved alignment reference。
+- 将 AE specification 物理页 134-137 合并为一个 4-locator table unit；AE PDF/XLSX 变量 60/60 对齐。
+- 解析 117 条 SDTMIG 内部 section reference；5 条显式 SDTM/ICH E3 引用标为 external dependency；0 unresolved。
+- P1 Gold Set 的 7 个 P2 可表达 locator 完成 ID 与字段级 7/7 一致；web errata locator 明确留在 P1 web evidence，不伪装为 P2 PDF/XLSX locator。
+- 同代码两次重建得到相同 deep map SHA-256：`56d35561c70504e0fa1b631a0809d563591cbaf629264626eae4cd73831c2cbc`。
+
+#### Issues / Blockers
+- 首轮 scope 计数把下一章页的页眉计入，形成 102 页；根因是半开区间的 end page 枚举仍包含 page 60/180，已将页首 outline boundary 归一为 `(page, 0)`，实际范围回到 100 页。
+- 首轮 Events 表格匹配产生 32 个 ambiguity 和 MH 顺序假差异；根因是 Notes 列重复出现变量名，已限定变量名首列，204 行全部闭合。
+- 首轮 5 条 section reference 被标为 unresolved；原文证据显示其前缀分别为 SDTM 和 ICH E3，已改为 external dependency，内部 unresolved 为 0。
+- Gold 审计发现 AE 首段 bbox 有亚点级几何差异，两个 XLSX row key 使用机器索引格式；对固定 source hash 保留已批准 Gold bbox/row key，并新增字段级差异报告。
+- 一次从仓库根运行 pytest 触发全局 `pytest-asyncio` 与 pytest 版本冲突；根因是未加载 `clinical-llm-wiki/` 的测试配置，回到 Wiki 工作目录后测试通过。后续 Wiki 测试必须从模块目录运行。
+- openpyxl/Python 3.14 等既有第三方弃用告警仍存在；不影响合同、定位、哈希或视觉结果。
+
+#### Validation
+- `python -m pytest tests/test_p6_structure_map_deep.py tests/test_p6_structure_map_builder.py tests/test_p6_structure_map_contract.py -q --disable-warnings`（31 passed，32 warnings）
+- `python -m pytest -q --disable-warnings`（`clinical-llm-wiki/`，98 passed，191 warnings）
+- `python -m ruff check --no-cache service scripts tests`（`clinical-llm-wiki/`，success）
+- 同代码两次 P2-C deep map 重建（success；SHA-256 均为 `56d35561c70504e0fa1b631a0809d563591cbaf629264626eae4cd73831c2cbc`）
+- AE pages 134/136/137/140 原始渲染视觉抽查（success；首/中/末变量、Assumptions 与 Example 1 无错位或裁切）
+- Gold locator 字段级比对（7/7 match；1 个 web locator 按合同排除）
+- `git diff --check`（success；仅 LF/CRLF 提示）
+
+#### Next
+1. P2-D：汇总 P2-A/B/C 合同、覆盖、重建、Gold、PDF/XLSX 差异和视觉证据，生成 blocking ReviewPacket。
+2. Review Panel 只记录逐 finding 决定；P2-D 提交后必须停在人工 Gate，不自动批准或进入 P2-E。
+
+#### Files Changed / Commits
+- `clinical-llm-wiki/scripts/pdf/structure_map_deep.py`、`create_synthetic_fixtures.py`
+- `clinical-llm-wiki/tests/test_p6_structure_map_deep.py`、`test_p6_structure_map_builder.py`、`test_p6_structure_map_contract.py`
+- `clinical-llm-wiki/sources/packages/src-cdisc-sdtmig-3-4/deep-structure-summary.json`
+- `docs/dep/PLAN.md`、`plans/ongoing/P6-clinical-knowledge-evolution.md`、DEVLOG/INDEX

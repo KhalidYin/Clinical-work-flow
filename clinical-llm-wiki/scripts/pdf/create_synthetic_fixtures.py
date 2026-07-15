@@ -66,28 +66,59 @@ def create_structure_fixtures(directory: str | Path) -> tuple[Path, Path]:
         )
         pages[1].insert_text((520, 760), "1", fontsize=9)
 
-        pages[2].insert_text((72, 72), "1.1 Synthetic Adverse Events", fontsize=16)
-        pages[2].insert_text((72, 112), "AE Specification - Segment 1", fontsize=13)
-        pages[2].draw_rect(fitz.Rect(72, 135, 540, 700), color=(0, 0, 0))
-        pages[2].insert_text((84, 165), "Variable | Label | Core", fontsize=10)
-        pages[2].insert_text((84, 195), "AETERM | Synthetic reported term | Req", fontsize=10)
+        pages[2].insert_text((72, 72), "1.1 Synthetic Adverse Events (AE)", fontsize=16)
+        pages[2].insert_text((72, 112), "AE - Description/Overview", fontsize=13)
+        pages[2].insert_text(
+            (72, 132),
+            "A synthetic events domain used only for deterministic tests.",
+            fontsize=10,
+        )
+        pages[2].insert_text((72, 168), "AE - Specification", fontsize=13)
+        pages[2].insert_text(
+            (72, 188),
+            "ae.xpt, Synthetic Adverse Events - Events.",
+            fontsize=10,
+        )
+        for x in (72, 190, 430, 540):
+            pages[2].draw_line((x, 210), (x, 300), color=(0, 0, 0))
+        for y in (210, 240, 270, 300):
+            pages[2].draw_line((72, y), (540, y), color=(0, 0, 0))
+        pages[2].insert_text((84, 230), "Variable Name", fontsize=10)
+        pages[2].insert_text((205, 230), "Variable Label", fontsize=10)
+        pages[2].insert_text((450, 230), "Core", fontsize=10)
+        pages[2].insert_text((84, 260), "AETERM", fontsize=10)
+        pages[2].insert_text((205, 260), "Synthetic reported term", fontsize=10)
+        pages[2].insert_text((450, 260), "Req", fontsize=10)
         pages[2].insert_text((520, 760), "2", fontsize=9)
 
-        pages[3].insert_text((72, 72), "AE Specification - Segment 2", fontsize=13)
-        pages[3].draw_rect(fitz.Rect(72, 95, 540, 500), color=(0, 0, 0))
-        pages[3].insert_text((84, 125), "Variable | Label | Core", fontsize=10)
-        pages[3].insert_text((84, 155), "AEDECOD | Synthetic coded term | Req", fontsize=10)
-        pages[3].insert_text((72, 540), "AE - Assumptions", fontsize=13)
+        for x in (72, 190, 430, 540):
+            pages[3].draw_line((x, 72), (x, 162), color=(0, 0, 0))
+        for y in (72, 102, 132, 162):
+            pages[3].draw_line((72, y), (540, y), color=(0, 0, 0))
+        pages[3].insert_text((84, 92), "Variable Name", fontsize=10)
+        pages[3].insert_text((205, 92), "Variable Label", fontsize=10)
+        pages[3].insert_text((450, 92), "Core", fontsize=10)
+        pages[3].insert_text((84, 122), "AEDECOD", fontsize=10)
+        pages[3].insert_text((205, 122), "Synthetic coded term", fontsize=10)
+        pages[3].insert_text((450, 122), "Req", fontsize=10)
+        pages[3].insert_text((72, 200), "AE - Assumptions", fontsize=13)
         pages[3].insert_text(
-            (84, 570),
-            "1. This synthetic assumption is informative test content.",
+            (84, 230),
+            "1. AETERM is required in this synthetic example. See Section 1.",
+            fontsize=10,
+        )
+        pages[3].insert_text((72, 270), "AE - Examples", fontsize=13)
+        pages[3].insert_text((72, 300), "Example 1", fontsize=11)
+        pages[3].insert_text(
+            (84, 330),
+            "This synthetic example demonstrates a deterministic locator.",
             fontsize=10,
         )
         pages[3].insert_text((520, 760), "3", fontsize=9)
         document.set_toc(
             [
                 [1, "1 Synthetic Fundamentals", 2],
-                [2, "1.1 Synthetic Adverse Events", 3],
+                [2, "1.1 Synthetic Adverse Events (AE)", 3],
             ]
         )
         document.save(pdf_path)
@@ -100,9 +131,15 @@ def create_structure_fixtures(directory: str | Path) -> tuple[Path, Path]:
         datasets.append(["Dataset Name", "Description", "Class"])
         datasets.append(["AE", "Synthetic Adverse Events", "EVENTS"])
         variables = workbook.create_sheet("Variables")
-        variables.append(["Dataset Name", "Variable Name", "Variable Label", "Core"])
-        variables.append(["AE", "AETERM", "Synthetic reported term", "Req"])
-        variables.append(["AE", "AEDECOD", "Synthetic coded term", "Req"])
+        variables.append(
+            ["Class", "Dataset Name", "Variable Name", "Variable Label", "Core"]
+        )
+        variables.append(
+            ["Events", "AE", "AETERM", "Synthetic reported term", "Req"]
+        )
+        variables.append(
+            ["Events", "AE", "AEDECOD", "Synthetic coded term", "Req"]
+        )
         workbook.save(xlsx_path)
         workbook.close()
 
