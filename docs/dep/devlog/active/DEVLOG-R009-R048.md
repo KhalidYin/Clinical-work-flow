@@ -808,3 +808,38 @@ Done — no next steps。若需要跨阶段全量语义图，应另立 typed-rel
 - `clinical-llm-wiki/vault/98_Inbox/SDTMIG 3.4 Core Proposal Batch.md`
 - `clinical-llm-wiki/vault/10_MOC/Sources-MOC.md`
 - `docs/dep/PLAN.md`、`plans/ongoing/P6-clinical-knowledge-evolution.md`、DEVLOG/INDEX
+
+---
+
+### R033 [16:42] [P6-clinical-knowledge-evolution] P3: 打开 SDTMIG 3.4 proposed 候选中文 ReviewPacket
+
+#### Done
+- 新增 `sdtmig34_proposal_review.py`，组合 P3-C Core batch 与 P3-B Events/AE Gold-calibrated batch，构建统一 proposal review gate；脚本只写 compact report 与 ReviewPacket，不写 DecisionReceipt/ConfirmationReceipt。
+- 生成 `proposal-review-gate-report.json`：6/6 machine checks passed，28 条 proposed statement 待人工审核，0 duplicate evidence identity，0 auto-approved，9 条 variable_rule 均有 subject/scope/evidence。
+- 生成 active ReviewPacket `.review_queue/sdtm_spec_sdtmig34_proposals_v1_001.json`：`review_type=sdtm_spec`、`urgency=blocking`、28 个 finding，人工阅读字段均为中文；稳定 ID、proposal ID、locator ID 和枚举保持英文机器标识。
+- ReviewPacket source documents 只引用已提交的 compact reports、source manifest、SDTMIG 3.4 source card 和 Core Inbox card；不引用 `original/`、`derived/`、PDF 或 XLSX。
+- P3-D 明确停在人工 Gate：不归档 active packet，不提升任何 statement 为 approved，P3-E 必须等待 DecisionReceipt 后才能执行。
+
+#### Issues / Blockers
+- 首次执行 P3-D 脚本时 CHK-006 失败。根因是 source boundary check 要求 `proposal-review-gate-report.json` 在 build 阶段已经存在，但该报告与 packet 同次生成，形成自引用顺序问题；已修正为允许本次将生成的 review report 在 build 阶段尚不存在，同时仍检查其路径不在 `original/`、`derived/` 且不是 PDF/XLSX。
+- 当前阶段的预期 blocker 是人工审核：P3-E 不能在 `.review_queue/sdtm_spec_sdtmig34_proposals_v1_001_decision.json` 出现并通过校验前继续。
+
+#### Validation
+- `python -m scripts.content.sdtmig34_proposal_review`（success；pending_human_review，28 findings）
+- `pytest tests/test_p6_proposal_review_gate.py`（5 passed）
+- `pytest tests/test_p6_proposal_review_gate.py tests/test_p6_core_proposals.py tests/test_p6_gold_proposal_calibration.py tests/test_p6_proposal_batch_contract.py tests/test_vault_contracts.py`（32 passed，14 warnings）
+- `ruff check scripts/content/sdtmig34_proposal_review.py tests/test_p6_proposal_review_gate.py`（success）
+- `python -m pytest -q --disable-warnings`（`clinical-llm-wiki/`，137 passed，193 warnings）
+- `python -m ruff check --no-cache service scripts tests`（Wiki，success）
+
+#### Next
+1. 人工通过 Review Panel 审核 `sdtm_spec_sdtmig34_proposals_v1_001` 的 F-001 至 F-028。
+2. 收到 DecisionReceipt 后执行 P3-E：校验 packet/receipt 完整覆盖，应用 approved/modified/rejected 决定，未确认项保留 proposed/rework，归档审核三件套。
+3. P3-E 关闭前不得把任何 SDTMIG 3.4 proposed statement 作为 approved Runtime 知识调用。
+
+#### Files Changed / Commits
+- `clinical-llm-wiki/scripts/content/sdtmig34_proposal_review.py`
+- `clinical-llm-wiki/tests/test_p6_proposal_review_gate.py`
+- `clinical-llm-wiki/sources/packages/src-cdisc-sdtmig-3-4/proposal-review-gate-report.json`
+- `clinical-llm-wiki/.review_queue/sdtm_spec_sdtmig34_proposals_v1_001.json`
+- `docs/dep/PLAN.md`、`plans/ongoing/P6-clinical-knowledge-evolution.md`、DEVLOG/INDEX

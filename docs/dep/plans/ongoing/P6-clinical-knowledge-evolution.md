@@ -317,8 +317,8 @@ P2-A 至 P2-E 是一个内部 Phase 的原子执行切片；每个切片完成�
 | P3-A | done | 定义 Proposal Batch、逐 source unit 覆盖台账与 Gold Set 确定性评分合同；只使用合成正反例，不生成正式候选 | `feat: define SDTMIG 3.4 proposal batch contract` |
 | P3-B | done | 对人工 Gold Set 执行首轮候选校准，记录字段级差异和提示/Schema 版本；未通过 Gate 不扩大范围 | `feat: calibrate SDTMIG 3.4 gold proposals` |
 | P3-C | done | 按小批次抽取 Core 范围并形成逐单元覆盖、原子性和语义质量报告 | `feat: extract SDTMIG 3.4 core proposals` |
-| P3-D | next | 按小批次抽取 Events/AE，执行跨证据、重复和变量规则检查，生成中文 blocking ReviewPacket | `feat: open SDTMIG 3.4 proposal review gate` |
-| P3-E | pending | 应用人工决定、保留未确认项为 proposed/rework、归档审核三件套并关闭 P3 Gate | `feat: close SDTMIG 3.4 proposal review gate` |
+| P3-D | done | 按小批次抽取 Events/AE，执行跨证据、重复和变量规则检查，生成中文 blocking ReviewPacket | `feat: open SDTMIG 3.4 proposal review gate` |
+| P3-E | next | 应用人工决定、保留未确认项为 proposed/rework、归档审核三件套并关闭 P3 Gate | `feat: close SDTMIG 3.4 proposal review gate` |
 
 P3-A 至 P3-E 是质量优先的内部切片；每个切片完成并验证后独立提交。P3-A/P3-B/P3-C 不得产生 `approved` statement，P3-D 后必须停在人工 Gate，只有 P3-E 才能把人工确认结果应用到知识候选。
 
@@ -337,6 +337,13 @@ P3-A 至 P3-E 是质量优先的内部切片；每个切片完成并验证后独
 - 生成 `core-proposal-quality-report.json`：21 条 proposed statement、0 blocking issue、0 duplicate evidence key、0 candidate-without-proposal；2 个 non-knowledge 单元均有 rationale。
 - 新增 `vault/60_Sources/Registry/CDISC SDTMIG 3.4.md` 作为 proposed/inbox 来源入口；新增 `vault/98_Inbox/SDTMIG 3.4 Core Proposal Batch.md` 作为中文候选审阅入口。两者都不进入 approved-only Runtime 调用范围。
 - 完整 batch 和带 source text 的输入投影继续写入 local-only `derived/`，提交文件只保留无 PDF/XLSX 原文的 prompt、response fixture、生成器、compact report、Vault 入口卡和测试。
+
+### P3-D 审核门记录
+
+- 新增 `sdtmig34_proposal_review.py`，组合 P3-C Core batch 与 P3-B Events/AE Gold-calibrated batch，形成统一的 proposal review gate。
+- 生成 `proposal-review-gate-report.json`：6/6 machine checks passed，28 条 proposed statement 进入人工审核，0 duplicate evidence identity，0 auto-approved。
+- 生成 active ReviewPacket `.review_queue/sdtm_spec_sdtmig34_proposals_v1_001.json`，`urgency=blocking`，28 个 finding 的人工阅读字段使用中文，source documents 仅引用提交的报告、来源卡和 Inbox 卡，不引用 `original/`、`derived/`、PDF 或 XLSX。
+- 本阶段明确停在人工 Gate：不写 DecisionReceipt、不写 ConfirmationReceipt、不归档、不提升任何 statement 为 approved。
 
 ### P3 质量 Gate
 

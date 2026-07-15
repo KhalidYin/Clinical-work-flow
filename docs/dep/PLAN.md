@@ -8,7 +8,7 @@ updated: 2026-07-15
 
 | # | 子计划 | 文件 | 当前阶段 | 已用轮次 | 开始日期 |
 |---|--------|------|----------|----------|----------|
-| P6 | SDTMIG 3.4 知识解析质量与引用基线 | [P6-clinical-knowledge-evolution.md](plans/ongoing/P6-clinical-knowledge-evolution.md) | P3-C Core 小批次抽取已完成；P3-D：Events/AE 候选与中文 ReviewPacket | 9 | 2026-07-14 |
+| P6 | SDTMIG 3.4 知识解析质量与引用基线 | [P6-clinical-knowledge-evolution.md](plans/ongoing/P6-clinical-knowledge-evolution.md) | P3-D 中文 ReviewPacket 已打开；P3-E：等待人工决定后应用 | 10 | 2026-07-14 |
 
 ## 待开始
 
