@@ -545,3 +545,39 @@ Done — no next steps。若需要跨阶段全量语义图，应另立 typed-rel
 - `clinical-llm-wiki/scripts/pdf/structure_map_contract.py`、`create_synthetic_fixtures.py`
 - `clinical-llm-wiki/tests/fixtures/knowledge/source-structure-map-positive.json`、`tests/test_p6_structure_map_contract.py`
 - `docs/dep/PLAN.md`、`plans/ongoing/P6-clinical-knowledge-evolution.md`、DEVLOG/INDEX
+
+---
+
+### R026 [12:49] [P6-clinical-knowledge-evolution] P2: 完成 P2-B 全书导航结构地图
+
+#### Done
+- 实现确定性结构地图生成器：使用 PDF outline 作为全书导航主干、PyMuPDF 几何与正式 marker 作为表格边界、XLSX 非空数据行作为 Dataset→Variable 索引。
+- 真实 SDTMIG 3.4 覆盖 461/461 物理页、220/220 outline、63/63 PDF/XLSX domain、63 个 dataset 和 1917 个 variable 行；0 unexplained page、0 被误计的空数据行。
+- 识别 704 个 PDF 表格边界，其中 636 个来自几何检测、68 个来自正式 marker fallback；fallback 审计为 67 个 `.xpt` 和 1 个 specification，无非规范 marker。
+- 完整 `derived/structure-map.json` 保持 local-only/ignored；提交不含受限正文的摘要，记录结构地图哈希 `15e6db580a3b6c4d5bef56c9a30fcc59c1463a820295e5ce7792c5654e092a76`。
+- 连续两次从同一受控输入独立重建，地图哈希和全部覆盖计数完全一致。
+
+#### Issues / Blockers
+- 合成测试首次使用字典 `>=` 比较子集，触发 `TypeError`；根因是测试断言语法错误，已改为逐键等值校验，生成器合同未失败。
+- 初版 marker 规则匹配任意叙述中的 `specification`，形成 111 个 fallback；收紧到正式 domain specification、`.xpt` 或编号 Table 后降至 68 个，并完成人工模式审计。
+- XLSX 的 `SUPPQUAL` 与 PDF 的 `SUPP--` 命名不同，初次形成 62/63 假缺口；已加入唯一明确别名，达到 63/63，不引入模糊匹配。
+- 首次修订重建被 64 秒命令包装器超时终止；根因是全书几何扫描需约 7-8 分钟，改用 10 分钟上限后成功。后续可缓存可重建的几何边界以优化耗时，但不得把缓存纳入稳定 identity。
+- openpyxl/Python 3.14 与既有第三方路径仍产生弃用告警；不影响地图、哈希或测试。
+
+#### Validation
+- `python -m pytest tests/test_p6_structure_map_builder.py tests/test_p6_structure_map_contract.py -q --disable-warnings`（26 passed，20 warnings）
+- `python -m pytest -q --disable-warnings`（`clinical-llm-wiki/`，93 passed，179 warnings）
+- `python -m ruff check --no-cache service scripts tests`（`clinical-llm-wiki/`，success）
+- 同代码两次 461 页全量重建（success；SHA-256 均为 `15e6db580a3b6c4d5bef56c9a30fcc59c1463a820295e5ce7792c5654e092a76`）
+- fallback 标题、页面角色、印刷页号与 PDF/XLSX domain 差异审计（success）
+- `git diff --check`（success）
+
+#### Next
+1. P2-C：仅对第 1-4 章 Core、6.2 Events 和 6.2.1 AE 增加 Paragraph/Assumption/Example/Cross-reference/Variable Row 深度 locator。
+2. 将 AE specification 跨页表格合并为一个多 locator 单元，并与 XLSX AE variable 行逐条对齐；差异必须显式报告。
+
+#### Files Changed / Commits
+- `clinical-llm-wiki/scripts/pdf/structure_map_builder.py`
+- `clinical-llm-wiki/tests/test_p6_structure_map_builder.py`
+- `clinical-llm-wiki/sources/packages/src-cdisc-sdtmig-3-4/structure-map-summary.json`
+- `docs/dep/PLAN.md`、`plans/ongoing/P6-clinical-knowledge-evolution.md`、DEVLOG/INDEX
