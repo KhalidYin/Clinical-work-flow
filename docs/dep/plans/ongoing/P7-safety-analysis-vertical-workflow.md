@@ -114,7 +114,7 @@ User: build SDTM AE
 |-------|------|----------|------|------|
 | P1 | 冻结 AE fixture、MappingSpec 和验收结果 | 2-3 | P6 Snapshot | done |
 | P2 | 实现一次 Wiki 查询和 LLM MappingSpec 候选 | 3-4 | P1 | done |
-| P3 | 实现受控程序生成、执行和 SDTM 验证 | 3-5 | P2 | pending |
+| P3 | 实现受控程序生成、执行和 SDTM 验证 | 3-5 | P2 | done |
 | P4 | 完成 Review、引用追溯和端到端验收 | 2-4 | P3 | pending |
 
 ---
@@ -233,13 +233,23 @@ User: build SDTM AE
 - SDTM AE 数据集、结构/内容验证结果和 artifact provenance。
 - 可选开源实现的一页轻量决策记录（只有实际使用时创建）。
 
+### P3 实施记录
+
+- 新增 `src/agents/ae_execution.py`，实现 fixture-scoped `p7_synthetic_ae_python_adapter_v1`。入口 `run_controlled_ae_execution()` 先复用 P2 context/candidate gate，再通过 Engine `ActionPolicy` 授权 `sdtm_program_runner`，拒绝未登记 adapter、`script_path`、`command` 等任意执行字段。
+- 受控 adapter 只实现 P1/P2 已闭合的 9 个 mapped 变量：STUDYID、DOMAIN、USUBJID、AESEQ、AETERM、AESTDTC、AEENDTC、AESTDY、AEENDY；AEDECOD、AESEV、AEENRF 仍保留为显式 gap，不写入 draft AE。
+- 成功执行时写入 Study-local draft artifacts：`output/sdtm/drafts/ae.csv`、`programs/ae_program_manifest.json`、`validation/ae_validation_report.json`、`logs/ae_execution_log.json` 和 `ae.csv.provenance.json`。P3 不写 canonical AE，`canonical_dataset_path` 明确为 `null`。
+- program manifest 对每个 adapter step 记录 `mapping_id`、target variable、source refs、rule refs、study decision refs 和固定 adapter operation；provenance 记录 context hash、MappingSpec hash、draft dataset hash、applied mapping、applied rule evidence、source locator/hash 与 explicit gaps。
+- validation gate 检查输出列、必填值、DOMAIN、日期顺序和 P1 expected AE baseline；存在 blocking finding 时只写 program/log/validation，不写 draft 或 canonical dataset。
+- 新增 `test_p7_ae_execution.py`，覆盖成功产物、provenance/rule evidence、未登记 adapter、任意脚本字段拒绝、validation mismatch 阻断且无 canonical/draft artifact。
+- P3 未评估 sdtm.oak、CDISC CORE 或其他开源实现，因此未创建开源 adapter 决策记录；这保持“开源项目不是知识权威或 P7 前置平台”的边界。
+
 ### 完成标准
 
-- [ ] 程序只能通过登记 adapter 执行，不能接受任意 command/script path 或隐式网络访问。
-- [ ] 程序实现与 MappingSpec 的 mapping ID/rule refs 可对应，不隐藏额外临床默认值。
-- [ ] 执行失败、超时、日志错误或 blocking validation finding 不产生 canonical AE。
-- [ ] 输出 AE 与 P1 金标准一致，差异形成结构化 finding。
-- [ ] 若评估 sdtm.oak/CORE 等，只针对本 fixture 比较正确性、可复现性、许可和接入成本，不建设通用评估系统。
+- [x] 程序只能通过登记 adapter 执行，不能接受任意 command/script path 或隐式网络访问。
+- [x] 程序实现与 MappingSpec 的 mapping ID/rule refs 可对应，不隐藏额外临床默认值。
+- [x] 执行失败、超时、日志错误或 blocking validation finding 不产生 canonical AE。
+- [x] 输出 AE 与 P1 金标准一致，差异形成结构化 finding。
+- [x] 若评估 sdtm.oak/CORE 等，只针对本 fixture 比较正确性、可复现性、许可和接入成本，不建设通用评估系统。
 
 ### 边界（本 Phase 明确不做）
 
@@ -308,6 +318,7 @@ User: build SDTM AE
 | D1 | P1 若把 AE MappingSpec 直接加入 Engine shared `schemas/`，会迫使 contract-bundle 从 1.1.0 升级，并使 P6 已发布 snapshot 的 schema bundle lock 立即漂移 | P1 | 已解决 | P1 使用 fixture-local draft contracts 冻结字段与 gate；P2/P3 Runtime 接入前再决定是否升级 shared bundle，并同步 Wiki mirror/snapshot 迁移 |
 | D2 | P6 citation bundle 未覆盖所有基础映射会用到的 Core statement，但 approved release 已包含 28 条批准 statement | P1 | 已解决 | P1 的 `rule_refs` 验证 against `approved-proposal-release.json`，gap 验证 against `ae-citation-bundle.json`；P2 的一次查询需组合规则与 gap 返回 |
 | D3 | schema 的 `const` 会比闭合校验更早拦截错误 P6 lock，若不统一异常类型会让调用方同时处理 schema 和 context 两套失败形态 | P2 | 已解决 | `validate_ae_mapping_candidate()` 将 schema 错误统一包装为 `AEMappingCandidateError`，并对 P6 lock 错误保留明确失败信息 |
+| D4 | P3 可以用 deterministic Python adapter 证明受控执行闭环，不需要引入真实 SAS/R 运行时或开源 SDTM 平台 | P3 | 已解决 | P3 将 adapter 限定为 synthetic fixture scope，只产生 draft artifact；真实语言后端和开源 adapter 评估保留给后续实际需求 |
 
 ## 关键决策记录
 

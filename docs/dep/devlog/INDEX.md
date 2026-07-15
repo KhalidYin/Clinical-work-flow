@@ -33,5 +33,6 @@
 | R037 | 2026-07-15 | 20:50 | P6-clinical-knowledge-evolution | P5 | 发布 SDTMIG 3.4 引用、查询与 Snapshot 验收基线 | `clinical-llm-wiki/scripts/content/`, `clinical-llm-wiki/sources/packages/`, `clinical-llm-wiki/snapshots/`, `clinical-llm-wiki/tests/`, `docs/specs/`, `docs/dep/` | active/DEVLOG-R009-R048.md |
 | R038 | 2026-07-15 | 22:30 | P7-safety-analysis-vertical-workflow | P1 | 冻结 synthetic AE fixture 与 MappingSpec 合同 | `clinical-workflow/tests/fixtures/studies/ae-pilot/`, `clinical-workflow/tests/test_p7_ae_mapping_contract.py`, `docs/dep/` | active/DEVLOG-R009-R048.md |
 | R039 | 2026-07-16 | 00:21 | P7-safety-analysis-vertical-workflow | P2 | 建立 AE 一次查询上下文与 MappingSpec 候选闭合门 | `clinical-workflow/src/agents/ae_mapping.py`, `clinical-workflow/tests/test_p7_ae_mapping_context.py`, `docs/dep/` | active/DEVLOG-R009-R048.md |
+| R040 | 2026-07-16 | 00:38 | P7-safety-analysis-vertical-workflow | P3 | 实现受控 AE adapter、draft artifact、SDTM 验证和失败门 | `clinical-workflow/src/agents/ae_execution.py`, `clinical-workflow/tests/test_p7_ae_execution.py`, `docs/dep/` | active/DEVLOG-R009-R048.md |
 
 > Legacy rounds R001-R008 remain immutable in [DEVLOG-legacy.md](archive/DEVLOG-legacy.md). They predate the searchable index and were intentionally not rewritten during adoption.

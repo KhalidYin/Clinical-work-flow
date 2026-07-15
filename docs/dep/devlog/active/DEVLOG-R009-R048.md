@@ -1080,3 +1080,37 @@ Done — no next steps。若需要跨阶段全量语义图，应另立 typed-rel
 - `docs/dep/PLAN.md`
 - `docs/dep/TASK_STATE.md`
 - `docs/dep/devlog/**`
+
+---
+
+### R040 [00:38] [P7-safety-analysis-vertical-workflow] P3: 实现受控 AE adapter、draft artifact 和验证门
+
+#### Done
+- 新增 `clinical-workflow/src/agents/ae_execution.py`，实现 P7 synthetic-only `p7_synthetic_ae_python_adapter_v1`，入口复用 P2 context/candidate gate，并通过 Engine `ActionPolicy` 授权 `sdtm_program_runner`。
+- adapter 拒绝未登记 adapter、`script_path` 等任意命令/脚本字段，不访问网络，不接受外部程序路径。
+- adapter 只执行 P1/P2 已闭合的 9 个 mapped AE 变量；AEDECOD、AESEV、AEENRF 继续作为 explicit gap 进入 provenance，不由执行层补默认值。
+- 成功时写入 Study-local draft artifacts：`output/sdtm/drafts/ae.csv`、program manifest、validation report、execution log 和 provenance；P3 不写 canonical AE。
+- validation gate 检查输出列、必填值、DOMAIN、日期顺序和 P1 expected AE baseline；blocking finding 时只写 program/log/validation，不写 draft 或 canonical dataset。
+- 新增 `test_p7_ae_execution.py`，覆盖成功执行、provenance/rule evidence、未登记 adapter、任意脚本字段拒绝和 validation mismatch 阻断。
+- 更新 P7 子计划和 PLAN：P3 标记 done，下一阶段为 P4 Review、追溯与端到端验收。
+
+#### Issues / Blockers
+- P3 没有引入真实 SAS/R 后端或 sdtm.oak/CDISC CORE。原因是本 Phase 的目标是证明“受控执行 + 引用闭包 + draft 验证”的最小链路，开源平台评估不是阻断条件；如后续真实 Study 需要，再以 fixture 驱动的一页决策记录接入。
+- P3 明确不写 canonical AE；canonical promotion 留给 P4 的 Review/Decision/Confirmation 闭环。
+
+#### Validation
+- `python -m pytest tests/test_p7_ae_execution.py tests/test_p7_ae_mapping_context.py tests/test_p7_ae_mapping_contract.py -q`（19 passed）
+- `python -m ruff check src/agents/ae_execution.py src/agents/ae_mapping.py tests/test_p7_ae_execution.py tests/test_p7_ae_mapping_context.py tests/test_p7_ae_mapping_contract.py`（success）
+
+#### Next
+1. P7-P4：实现“生成 AE 数据集”的端到端主链入口，不需要人工拼接 Wiki/context/mapping/execution。
+2. P7-P4：生成中文 ReviewPacket、模拟批准 DecisionReceipt/ConfirmationReceipt，并把 draft AE 提升为 canonical AE。
+3. P7-P4：生成 artifact→mapping→rule/study decision→source locator/hash 的追溯报告和验收证据。
+
+#### Files Changed / Commits
+- `clinical-workflow/src/agents/ae_execution.py`
+- `clinical-workflow/tests/test_p7_ae_execution.py`
+- `docs/dep/plans/ongoing/P7-safety-analysis-vertical-workflow.md`
+- `docs/dep/PLAN.md`
+- `docs/dep/TASK_STATE.md`
+- `docs/dep/devlog/**`
