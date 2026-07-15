@@ -2,9 +2,9 @@
 phase_index: 6
 status: in-progress
 created: 2026-07-14
-updated: 2026-07-14
+updated: 2026-07-15
 priority: 1
-estimated_rounds: 13-20
+estimated_rounds: 14-22
 depends_on:
   - P3-clinical-knowledge-workflow-platform.md
   - P5-obsidian-curated-relation-graph.md
@@ -26,7 +26,7 @@ syncs_to:
 
 ## 目标
 
-以 SDTMIG 3.4 官方 PDF 与配套规范元数据 XLSX 为首期真实来源，先证明长篇临床标准能够被完整定位、逐条解析、结构化复用并准确引用，再进入 Workflow 执行集成。XLSX 提供 dataset/variable 的行级结构真值，PDF 提供更完整的章节假设、规则、例外、示例和页级语境。P6 建立全文结构地图，并对通用原则、Events observation class 和 AE domain 做深度原子知识抽取、关系整理和查询验收。
+以 SDTMIG 3.4 官方 PDF 与配套规范元数据 XLSX 为首期真实来源，先证明长篇临床标准能够被完整定位、逐条解析、结构化复用并准确引用，再进入 Workflow 执行集成。XLSX 提供 dataset/variable 的行级结构真值，PDF 提供更完整的章节假设、规则、例外、示例和页级语境。P6 先建立覆盖全书的导航结构层，再只对第 1-4 章 Core、6.2 Events 和 6.2.1 AE 建立段落、表格、变量行、示例与交叉引用的深度 locator，之后完成原子知识抽取、关系整理和查询验收。
 
 P6 的完成标准不是生成了多少篇 Markdown，而是选定深度范围内的每个来源单元都有处理状态，每个批准 statement 都能反向回到准确 PDF locator，规则、解释、示例和例外不会混淆。
 
@@ -52,7 +52,8 @@ P6 的完成标准不是生成了多少篇 Markdown，而是选定深度范围�
 
 - 从 CDISC 官方授权渠道取得 SDTMIG 3.4 PDF 与规范元数据 XLSX；两份原件在同一来源包中分别不可变保存并记录独立 hash、版本、权利和用途。
 - 同步登记官方 release page、errata/known issues、SDTM v2.0、Controlled Terminology 和 Conformance Rules 依赖关系。
-- 全文物理页、目录、章节、领域、表格、变量行、段落、示例和跨章节引用的结构地图。
+- 全书物理页、目录、章节、domain 和表格边界的导航结构地图，以及 XLSX dataset/variable 行的全量结构索引。
+- 第 1-4 章 Core、6.2 Events 和 6.2.1 AE 范围内的段落、假设、示例、交叉引用、PDF 表格行与变量行深度 locator。
 - 为每个来源单元赋予稳定 locator 和处理状态：知识候选、上下文、示例、导航或明确暂缓。
 - 通用原则、提交/元数据语境、通用假设、Events observation class 和 AE domain 的深度原子知识抽取。
 - definition、requirement、permission、prohibition、assumption、exception、example、variable_rule 和 cross_reference 的类型区分。
@@ -180,7 +181,7 @@ P1 可根据真实 SDTMIG 结构删减关系类型；不允许为了“图谱丰
 | Phase | 目标 | 预估轮次 | 依赖 | 状态 |
 |-------|------|----------|------|------|
 | P1 | 冻结 SDTMIG 3.4 来源、解析合同和人工 Gold Set | 2-3 | 现有 Wiki/PDF 基线 | done |
-| P2 | 建立全文结构地图和 locator 覆盖 | 3-4 | P1 | pending |
+| P2 | 建立全文结构地图和分层 locator 覆盖 | 4-6 | P1 | pending |
 | P3 | 深度抽取 Core/Events/AE 原子知识并校准质量 | 4-6 | P2 | pending |
 | P4 | 整理可复用知识与 typed relation 图谱 | 2-3 | P3 | pending |
 | P5 | 完成引用、图谱、查询和 Snapshot 发布验收 | 2-4 | P4 | pending |
@@ -233,7 +234,7 @@ P1 可根据真实 SDTMIG 结构删减关系类型；不允许为了“图谱丰
 
 ---
 
-## P2：全文结构地图与 locator 覆盖
+## P2：全文结构地图与分层 locator 覆盖
 
 ### 输入条件
 
@@ -241,35 +242,57 @@ P1 可根据真实 SDTMIG 结构删减关系类型；不允许为了“图谱丰
 
 ### 产出
 
-- PDF 全文 Chapter→Section→Domain→Table→Variable Row→Paragraph/Example 结构地图。
-- 稳定 locator ID、physical/printed page、section、bbox/row identity 和跨章节引用。
-- 每个 source unit 的 processing status 与暂缓原因。
-- 结构覆盖、表格边界、页码和重建一致性报告。
+- PDF 全书 Page→Chapter→Section→Domain→Table 的导航结构层，覆盖全部物理页和 PDF outline。
+- XLSX 全量 Dataset→Variable Row 结构索引；实际数据行数按内容识别，不直接把 worksheet `max_row` 当作知识数量。
+- 第 1-4 章 Core、6.2 Events 和 6.2.1 AE 的 Paragraph/Assumption/Example/Cross-reference/PDF Variable Row 深度 locator 层。
+- 稳定 locator ID、physical/printed page、section path、bbox/row identity、source order 和跨章节引用。
+- 每个 page/source unit 的 processing status 与暂缓原因。
+- 结构覆盖、PDF/XLSX 对齐、表格边界、页码、Gold Set 命中和重建一致性报告。
+- 通过根 `review-panel/` 审核的结构地图 ReviewPacket/DecisionReceipt/ConfirmationReceipt；Panel 记录决定，视觉证据仍由原 PDF 和本地渲染页核验。
+
+### 执行切片与提交边界
+
+| 切片 | 内容 | 独立提交 |
+|------|------|----------|
+| P2-A | 定义结构地图 Schema、稳定 ID、page assignment、locator 与处理状态合同；建立合成 PDF/XLSX 正反例 | `feat: define SDTMIG 3.4 structure map contract` |
+| P2-B | 生成 461 页全书导航结构层、PDF outline/domain/table 边界和 XLSX 全量 dataset/variable 行索引 | `feat: build SDTMIG 3.4 full structure map` |
+| P2-C | 补齐 Core/Events/AE 深度 locator、AE 跨页表格和 PDF/XLSX 变量对应 | `feat: add Core Events AE locator coverage` |
+| P2-D | 生成覆盖/重建/差异报告并创建 blocking ReviewPacket | `feat: open SDTMIG 3.4 structure review gate` |
+| P2-E | 应用人工决定、归档审核三件套并关闭 P2 Phase Gate | `feat: close SDTMIG 3.4 structure map gate` |
+
+P2-A 至 P2-E 是一个内部 Phase 的原子执行切片；每个切片完成并验证后独立提交，但只有 P2-E 通过后 P2 才标记为 `done`。
 
 ### 完成标准
 
-- [ ] 全部物理页、目录章节和识别出的 domain/table 都进入结构地图，无不明页面。
-- [ ] 深度范围内的变量行、assumption、example 和 cross-reference 可稳定定位。
+- [ ] 461/461 物理页和全部 PDF outline 条目进入导航结构层；每页有唯一主要结构归属或明确的 front-matter/navigation/deferred 解释，0 unexplained page。
+- [ ] 全部识别出的 PDF domain/table 边界和 XLSX dataset/variable 数据行进入结构索引；工作簿空行、说明行和合并单元格不被误计为变量知识。
+- [ ] 第 1-4 章 Core、6.2 Events 和 6.2.1 AE 的变量行、assumption、example 和 cross-reference 可稳定定位；AE 跨页表格和 PDF/XLSX 变量顺序完成对齐，差异必须显式报告。
 - [ ] 每个 source unit 标记为 candidate/context/example/navigation/deferred，并对 deferred 给出原因。
-- [ ] 删除 derived 后可从原件和 manifest 重建相同稳定 identity。
-- [ ] Gold Set locator 命中率为 100%，页面和表格顺序经视觉抽查无错位。
+- [ ] 删除 `derived/structure-map*` 后可从原件和 manifest 重建相同稳定 identity、内容 hash 与 source order；生成时间不参与 identity。
+- [ ] 现有 Gold Set locator 命中率为 100%，页面、章节边界、AE 表格续页及首/中/末变量行经视觉抽查无错位或裁切。
+- [ ] blocking ReviewPacket 的全部 finding 获得人工决定并形成可验证的 DecisionReceipt/ConfirmationReceipt 后，P2 才能关闭。
 
 ### 边界（本 Phase 明确不做）
 
-- 不把所有结构单元自动提升为知识 statement。
-- 不生成 Obsidian 大量原子节点。
+- 不对深度范围外的 PDF 正文逐段、逐示例或逐变量行做精细 bbox 抽取；全书的细粒度变量索引由结构化 XLSX 承担。
+- 不把任何结构单元自动提升为知识 statement，也不调用 LLM 批量生成知识。
+- 不生成 Obsidian 大量原子节点，不修改 Knowledge Service、Workflow Runtime 或 P7。
+- 不在 P2 扩建 Review Panel 的图片/PDF 预览；Panel 只记录结构化人工决定。
 
 ### 涉及文件
 
 | 文件 | 操作 |
 |------|------|
-| `clinical-llm-wiki/scripts/pdf/**` | 扩充结构/表格/locator 解析 |
-| `clinical-llm-wiki/sources/packages/**/derived/**` | 生成可重建结构地图 |
-| `clinical-llm-wiki/tests/**` | 覆盖、页码、表格和重建测试 |
+| `clinical-llm-wiki/schemas/extraction/source-structure-map.schema.json` | 新增 Wiki 内部结构地图合同 |
+| `clinical-llm-wiki/scripts/pdf/**` | 扩充结构、page assignment、表格和 locator 解析 |
+| `clinical-llm-wiki/sources/packages/**/derived/structure-map*` | 生成 Git 忽略、可重建的结构地图与机器报告 |
+| `clinical-llm-wiki/tests/fixtures/knowledge/**` | 增加无版权正文的结构期望与合成 fixture |
+| `clinical-llm-wiki/.review_queue/**` | 保存结构地图人工审核三件套 |
+| `clinical-llm-wiki/tests/**` | 覆盖 Schema、页码、outline、表格、对齐和重建测试 |
 
 ### 关键决策
 
-- 先建立来源结构完整性，再调用 LLM 做语义抽取；不以 LLM 返回数量推断文档覆盖率。
+- 先建立来源结构完整性，再调用 LLM 做语义抽取；不以 LLM 返回数量推断文档覆盖率。全书保证导航覆盖，只有 Core/Events/AE 保证深度 locator，避免把“无盲区”误写成“全书逐段抽取”。
 
 ---
 
@@ -418,6 +441,8 @@ P1 可根据真实 SDTMIG 结构删减关系类型；不允许为了“图谱丰
 | 2026-07-14 | PDF/XLSX 边界 | 只用 PDF / 只用 XLSX / 双 artifact | 双 artifact | XLSX 提供规范表格真值，PDF 提供完整语义和页级证据 |
 | 2026-07-14 | 解析合同所有权 | Engine 公共 bundle / Wiki 内部合同 | Wiki 内部合同 | 原始 source unit 不跨 Runtime 边界，避免无关 bundle/hash 漂移 |
 | 2026-07-14 | P1 人工 Gold Set | 全部批准 / 修改 / 拒绝 | F-001 至 F-008 全部批准 | 用户明确认可双 artifact、七条 statement 分类和证据预期；批准仅用于解析校准与 source human QA，不发布生产知识 |
+| 2026-07-15 | P2 结构颗粒度 | 全书逐段 / 仅 AE / 全书导航结构+Core/Events/AE 深度 locator | 全书导航结构+Core/Events/AE 深度 locator | 保证 461 页无结构盲区，同时不把 P2 扩张为全书语义抽取 |
+| 2026-07-15 | P2 人工审核入口 | 扩建 Panel PDF 预览 / Panel 记录决定+外部视觉核验 | Panel 记录决定+外部视觉核验 | 复用现有 Review Protocol，并把富媒体预览留在后续真实需求阶段 |
 
 ## 同步记录
 
