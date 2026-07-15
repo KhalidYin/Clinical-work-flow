@@ -37,8 +37,7 @@ python -m ruff check service scripts tests
 启动本地浏览器审核层：
 
 ```powershell
-cd review-panel
-python -m review_panel serve --repo-root .. --port 8790
+.\start-review-panel.ps1
 ```
 
 然后打开 `http://127.0.0.1:8790/`。该 Panel 只绑定 loopback，只读取受信 `.review_queue/`，只写 DecisionReceipt，不应用决定或推进 Runtime。

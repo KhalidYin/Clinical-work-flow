@@ -843,3 +843,34 @@ Done — no next steps。若需要跨阶段全量语义图，应另立 typed-rel
 - `clinical-llm-wiki/sources/packages/src-cdisc-sdtmig-3-4/proposal-review-gate-report.json`
 - `clinical-llm-wiki/.review_queue/sdtm_spec_sdtmig34_proposals_v1_001.json`
 - `docs/dep/PLAN.md`、`plans/ongoing/P6-clinical-knowledge-evolution.md`、DEVLOG/INDEX
+
+---
+
+### R034 [17:00] [P6-clinical-knowledge-evolution] QF: 增加根目录 Review Panel 快速启动脚本
+
+#### Done
+- 新增仓库根目录 `start-review-panel.ps1`，默认从 monorepo 根启动本地 Review Panel，绑定 `127.0.0.1:8790`，并自动打开浏览器。
+- 脚本优先使用根目录 `.venv\Scripts\python.exe`，不存在时回退到 `python`；同时临时设置 `PYTHONPATH=review-panel/src`，避免必须先切换到 `review-panel/` 或先安装 editable 包。
+- 启动前执行依赖预检与 `review_panel check`，校验运行依赖、共享 Review Schema 和受信队列；提供 `-CheckOnly`、`-NoBrowser`、`-DryRun` 和 `-Port` 参数。
+- 同步 `README.md` 与 `USAGE.md`，把本地审核入口改为根目录一键脚本。
+
+#### Issues / Blockers
+- 本轮不处理当前 P6 人工审核 Gate；`sdtm_spec_sdtmig34_proposals_v1_001` 仍需人类在 Review Panel 中提交 DecisionReceipt 后才能进入 P3-E。
+
+#### Validation
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\start-review-panel.ps1 -DryRun`（success）
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\start-review-panel.ps1 -CheckOnly`（success；发现 wiki queue）
+- `python -m pytest -q`（`review-panel/`，26 passed，2 skipped，89 warnings）
+- `git diff --check`（success；仅提示 README/USAGE 下次 Git 触碰会从 LF 转 CRLF）
+
+#### Next
+1. 使用 `.\start-review-panel.ps1` 打开浏览器审核层。
+2. 人工审核 `sdtm_spec_sdtmig34_proposals_v1_001` 的 F-001 至 F-028 并提交 DecisionReceipt。
+3. 收到 DecisionReceipt 后再继续 P6 P3-E。
+
+#### Files Changed / Commits
+- `start-review-panel.ps1`
+- `README.md`
+- `USAGE.md`
+- `docs/dep/devlog/INDEX.md`
+- `docs/dep/devlog/active/DEVLOG-R009-R048.md`

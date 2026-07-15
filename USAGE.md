@@ -52,17 +52,23 @@ Obsidian 默认全局图只显示 `Workflow-Relations` 的十个阶段投影和�
 根目录轻量 Review Panel 是当前可直接使用的人工审核入口。它汇总根 `.review_queue/`、`clinical-llm-wiki/.review_queue/` 和 `clinical-studies/*/.review_queue/`，浏览器只提交 `queue_id/review_id`，不能传入磁盘路径。
 
 ```powershell
-Set-Location .\review-panel
-..\.venv\Scripts\python -m review_panel serve --repo-root .. --port 8790
+.\start-review-panel.ps1
 ```
 
 打开 `http://127.0.0.1:8790/`。Panel 只绑定 `127.0.0.1`；提交时校验 packet hash、finding 覆盖、reviewer role 和共享 Review Schema，只原子写入 DecisionReceipt。它不会写 ConfirmationReceipt、不会归档、不会修改 canonical artifact，也不会执行 Git 或 Runtime。后续新生成的 ReviewPacket 默认使用中文呈现 `agent_summary`、标题、现值、建议值和理由；稳定 ID、Schema 枚举、路径、hash 与 evidence refs 保持英文机器标识。
 
+脚本会自动使用根目录 `.venv`，并临时设置 `PYTHONPATH=review-panel/src`，因此不需要先切换到 `review-panel/`。常用参数：
+
+```powershell
+.\start-review-panel.ps1 -NoBrowser
+.\start-review-panel.ps1 -CheckOnly
+.\start-review-panel.ps1 -Port 8791
+```
+
 若只想检查配置、Schema 和受信队列：
 
 ```powershell
-Set-Location .\review-panel
-..\.venv\Scripts\python -m review_panel check --repo-root ..
+.\start-review-panel.ps1 -CheckOnly
 ```
 
 ## 4. 建立 Study
