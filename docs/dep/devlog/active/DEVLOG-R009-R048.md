@@ -917,3 +917,52 @@ Done — no next steps。若需要跨阶段全量语义图，应另立 typed-rel
 - `clinical-llm-wiki/vault/10_MOC/Sources-MOC.md`
 - `clinical-llm-wiki/audit_trail.jsonl`
 - `docs/dep/PLAN.md`、`plans/ongoing/P6-clinical-knowledge-evolution.md`、DEVLOG/INDEX
+
+---
+
+### R036 [17:55] [P6-clinical-knowledge-evolution] P4: 生成 SDTMIG 3.4 复用知识卡与 typed relation 图谱
+
+#### Done
+- 新增 `sdtmig34_relation_graph.py`，从 P3-E `approved-proposal-release.json` 派生 3 张 governed 知识卡、`relation-graph.json`、`query-index.json` 和 `SDTMIG 3.4 AE Knowledge Map`；`--check` 可重建校验，图谱质量为 28 approved statements、3 reusable cards、0 dangling relation、0 duplicate general rule、0 Obsidian locator node。
+- 生成三张可复用知识卡：`SDTMIG 3.4 Core Foundations`、`SDTMIG 3.4 Core Variable Rules`、`SDTMIG 3.4 AE Domain Rules`。卡内 `rule_id` 保持 P3 proposal ID，避免把 P4 卡片 ID 当成新的审批对象。
+- 新增 Knowledge Service `/api/v1/relations/query`，按 `query_id`、`domain`、`variable`、`knowledge_type` 或 `statement_id` 返回 statement、card、locator、source 和 trace edge；查询索引覆盖 AE definition、AETERM、AEENRF、RELTYPE erratum 和 `--DY` study day。
+- `VaultRepository` 增加 proposal approval bridge：卡片内全部 `statements[].rule_id` 必须映射到同一已批准或修改的 DecisionReceipt target，才允许 production eligible；三张新卡已通过 production-only 查询。
+- 重建 Workflow-Relations 投影，SDTM Spec 与 SDTM Programming 视图增加 3 张新知识卡；默认 Obsidian 全局图仍过滤为 Workflow-Relations 与 Stage notes，不引入 locator/变量行/README 星团。
+- 更新 P6 子计划和 PLAN：P4 标记 done，下一阶段为 P5 引用、查询与 Snapshot 发布验收。
+
+#### Issues / Blockers
+- 首轮 ruff 失败：`sdtmig34_relation_graph.py` 存在未使用的 `deepcopy` import。根因是生成器初稿曾计划深拷贝 release，但最终没有使用；已删除该 import，并重跑 ruff 与定向测试通过。
+- 首轮 Wiki 全量 pytest 1 项失败：`test_p5_content_release.py` 仍断言 `standard_rule == 10`。根因是 P4 合法新增 3 张 approved `standard_rule`，代表性库存应更新为 13；复查 13 张卡均为受治理卡，其中新增 3 张 P4 卡 production eligible，非预期文章数量仍在 P5 范围内。
+- P4 不发布 Snapshot，也不进入 P7 AE 执行。P5 仍需补 approved-only Snapshot、查询 benchmark、引用闭包报告和 P7 citation bundle。
+
+#### Validation
+- `python -m scripts.content.sdtmig34_relation_graph`（success；28 statements / 3 cards / 148 edges / 5 queries）
+- `python -m scripts.content.sdtmig34_relation_graph --check`（success）
+- `python -m scripts.content.generate_workflow_map`（success；10 stages + relation projections）
+- `python -m scripts.content.generate_workflow_map --check`（success）
+- `python -m pytest -q tests/test_p6_relation_graph.py tests/test_workflow_map.py tests/test_vault_contracts.py::test_real_vault_seed_is_production_eligible_and_resolves_runtime_context tests/test_service_api.py::test_health_query_and_direct_records`（15 passed，37 warnings）
+- `python -m ruff check --no-cache service scripts/content/sdtmig34_relation_graph.py tests/test_p6_relation_graph.py tests/test_workflow_map.py`（success）
+- `python -m pytest -q --disable-warnings`（`clinical-llm-wiki/`，145 passed，218 warnings）
+- `python -m ruff check --no-cache service scripts tests`（Wiki，success）
+- `git diff --check`（success；仅提示若 Git 触碰部分 LF 文件会转 CRLF）
+
+#### Next
+1. P5：生成 approved-only Snapshot，并确保只包含 P3/P4 已批准深度范围。
+2. 建立查询 benchmark：正向、组合、反向、缺失、错版本和边界查询；失败时必须 fail closed。
+3. 生成 P7 可消费的 AE citation bundle 和未覆盖知识清单，明确哪些 AE 编程知识仍需后续增量摄取。
+
+#### Files Changed / Commits
+- `clinical-llm-wiki/scripts/content/sdtmig34_relation_graph.py`
+- `clinical-llm-wiki/sources/packages/src-cdisc-sdtmig-3-4/relation-graph.json`
+- `clinical-llm-wiki/sources/packages/src-cdisc-sdtmig-3-4/query-index.json`
+- `clinical-llm-wiki/service/app.py`
+- `clinical-llm-wiki/service/repository.py`
+- `clinical-llm-wiki/tests/test_p6_relation_graph.py`
+- `clinical-llm-wiki/tests/test_workflow_map.py`
+- `clinical-llm-wiki/vault/20_Knowledge/Standards/SDTMIG 3.4 *.md`
+- `clinical-llm-wiki/vault/10_MOC/SDTMIG 3.4 AE Knowledge Map.md`
+- `clinical-llm-wiki/vault/10_MOC/Sources-MOC.md`
+- `clinical-llm-wiki/vault/10_MOC/Standards-MOC.md`
+- `clinical-llm-wiki/vault/10_MOC/Workflow-Relations/03 SDTM Spec.md`
+- `clinical-llm-wiki/vault/10_MOC/Workflow-Relations/04 SDTM Programming.md`
+- `docs/dep/PLAN.md`、`plans/ongoing/P6-clinical-knowledge-evolution.md`、DEVLOG/INDEX

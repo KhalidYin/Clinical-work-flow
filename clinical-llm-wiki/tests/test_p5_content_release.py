@@ -94,7 +94,7 @@ def _bind_test_receipt(
 def test_representative_content_inventory_is_within_p5_scope(repository: VaultRepository) -> None:
     assert len(_cards_of_type(repository, "workflow_playbook")) == 10
     assert len(_cards_of_type(repository, "method")) >= 20
-    assert len(_cards_of_type(repository, "standard_rule")) == 10
+    assert len(_cards_of_type(repository, "standard_rule")) == 13
     assert len(_cards_of_type(repository, "programming_pattern")) == 10
     assert len(_cards_of_type(repository, "deliverable_pattern")) == 8
     # P5 established the minimum mature MOC inventory; later approved plans may

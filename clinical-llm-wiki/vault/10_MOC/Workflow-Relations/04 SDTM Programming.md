@@ -21,12 +21,15 @@ contract_sha256: 6c868de9ca43d01d9efc2e82fe905d431ee377cad339329520005bd72eacd6b
 - Stage Playbook：[[30_Workflows/Stages/SDTM Programming|SDTM 编程基线工作手册]]
 - 下一阶段：[[10_MOC/Workflow-Relations/05 ADaM Spec|05 ADaM Spec 关系视图]]
 
-## 领域知识（5）
+## 领域知识（8）
 
 - [[20_Knowledge/Standards/SDTM Domain Representation|SDTM Domain Representation]]
 - [[20_Knowledge/Standards/SDTM Implementation Boundary|SDTM Implementation Boundary]]
 - [[20_Knowledge/Standards/SDTM Terminology Boundary|SDTM Terminology Boundary]]
 - [[20_Knowledge/Programming/SDTM Mapping Transformation Pattern|SDTM 映射转换模式]]
+- [[20_Knowledge/Standards/SDTMIG 3.4 AE Domain Rules|SDTMIG 3.4 AE Domain Rules]]
+- [[20_Knowledge/Standards/SDTMIG 3.4 Core Foundations|SDTMIG 3.4 Core Foundations]]
+- [[20_Knowledge/Standards/SDTMIG 3.4 Core Variable Rules|SDTMIG 3.4 Core Variable Rules]]
 - [[20_Knowledge/Programming/Controlled Terminology Validation Pattern|受控术语验证模式]]
 
 ## 工具与交付物（2）

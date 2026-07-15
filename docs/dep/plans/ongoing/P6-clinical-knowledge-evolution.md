@@ -183,7 +183,7 @@ P1 可根据真实 SDTMIG 结构删减关系类型；不允许为了“图谱丰
 | P1 | 冻结 SDTMIG 3.4 来源、解析合同和人工 Gold Set | 2-3 | 现有 Wiki/PDF 基线 | done |
 | P2 | 建立全文结构地图和分层 locator 覆盖 | 4-6 | P1 | done |
 | P3 | 深度抽取 Core/Events/AE 原子知识并校准质量 | 4-6 | P2 | done |
-| P4 | 整理可复用知识与 typed relation 图谱 | 2-3 | P3 | pending |
+| P4 | 整理可复用知识与 typed relation 图谱 | 2-3 | P3 | done |
 | P5 | 完成引用、图谱、查询和 Snapshot 发布验收 | 2-4 | P4 | pending |
 
 ---
@@ -400,13 +400,22 @@ P3-A 至 P3-E 是质量优先的内部切片；每个切片完成并验证后独
 - SDTMIG 3.4→通用原则→Events→AE→相关知识/来源的 Obsidian 策展视图。
 - 机器关系投影和查询索引；不改变现有十阶段默认主图。
 
+### P4 实施记录
+
+- 新增 `sdtmig34_relation_graph.py`，从 P3-E `approved-proposal-release.json` 派生 3 张复用知识卡、`relation-graph.json`、`query-index.json` 和 `SDTMIG 3.4 AE Knowledge Map`；派生文件支持 `--check` 重建校验。
+- 28 条 approved proposal 被分配到 3 张 governed card：Core Foundations、Core Variable Rules、AE Domain Rules；卡片内 `statements[].rule_id` 保持 proposal ID，用同一 P3-E DecisionReceipt 逐条证明审批证据。
+- 机器图保留 source、statement、locator、domain、variable、external_dependency 等 typed node/edge，用于查询和追溯；Obsidian 只暴露 3 张高价值知识卡和 AE 策展图，不把 locator、变量行或 statement 展开为 Markdown 节点。
+- Knowledge Service 新增 `/api/v1/relations/query`，按 `query_id`、`domain`、`variable`、`knowledge_type` 或 `statement_id` 查询 approved relation projection，并返回 statement、card、locator、source 和 trace edge。
+- `VaultRepository` 增加 proposal approval bridge：只有卡片内所有 `rule_id` 均能映射到同一已批准 ReviewPacket finding 时，才允许该卡进入 production eligible。
+- `generate_workflow_map` 已重建十阶段关系投影；SDTM Spec 与 SDTM Programming 视图出现 3 张新知识卡，但默认全局图仍只过滤 Workflow-Relations 与 Stage notes，不扩散 README/locator/变量行星团。
+
 ### 完成标准
 
-- [ ] 相同通用规则不会在多个知识卡中复制成冲突事实。
-- [ ] approved/proposed statement 的 typed relations 均解析到存在对象或明确 external dependency。
-- [ ] Obsidian 全局图不出现 locator/变量行/README 星团；AE 本地图可查看高价值关系。
-- [ ] 机器查询可以沿 domain→rule→source locator 和 rule→exception/example 反向追踪。
-- [ ] 图谱派生可重建，不成为第二知识权威。
+- [x] 相同通用规则不会在多个知识卡中复制成冲突事实。
+- [x] approved/proposed statement 的 typed relations 均解析到存在对象或明确 external dependency。
+- [x] Obsidian 全局图不出现 locator/变量行/README 星团；AE 本地图可查看高价值关系。
+- [x] 机器查询可以沿 domain→rule→source locator 和 rule→exception/example 反向追踪。
+- [x] 图谱派生可重建，不成为第二知识权威。
 
 ### 边界（本 Phase 明确不做）
 
@@ -485,6 +494,7 @@ P3-A 至 P3-E 是质量优先的内部切片；每个切片完成并验证后独
 | D8 | Review Gate 若只展示生成器日志，人工无法逐项确认覆盖与差异；若直接预览原 PDF/XLSX，又会扩大 Panel 和受限来源暴露面 | P2-D/P2-E | 已解决 | 8 项 compact audit finding 由 `KK` 全部批准；ConfirmationReceipt 为 8 applied/0 failed，三件套已归档。Panel 未接触 local-only PDF/XLSX，P2 只批准结构与 locator 基线 |
 | D9 | P2-D 的审核正文使用英文，不符合用户长期审核习惯 | P2-E | 已解决 | 已审核的历史 packet 保持不变；后续新 ReviewPacket 默认用中文呈现 summary/title/current/proposed/rationale，稳定 ID、枚举、路径和 evidence refs 继续使用英文机器标识 |
 | D10 | Gold 的 statement ID、批准状态和原文措辞都不能作为新候选的自动通过条件 | P3-A | 已解决 | 以 evidence locator 集合作为匹配身份，字段级比较类型、modality、scope、conditions、exceptions 和 evidence；文本差异单列人工复核，所有新候选强制 `proposed` 且 receipt 为空 |
+| D11 | P3-E 批准的是 proposal finding，不是 P4 复用卡 ID；直接按卡 ID 查 receipt 会导致生产资格无法验证 | P4 | 已解决 | Repository 增加 proposal approval bridge：卡片内全部 `rule_id` 必须映射到同一 approved/modified DecisionReceipt target，才放行 production eligible |
 
 ## 关键决策记录
 
@@ -506,6 +516,7 @@ P3-A 至 P3-E 是质量优先的内部切片；每个切片完成并验证后独
 | 2026-07-15 | P2 结构地图人工决定 | 批准 / 修改 / 拒绝 | F-001 至 F-008 全部批准 | 审核人 `KK` 接受全书导航、限定深层 locator、PDF/XLSX 对齐、引用分类、Gold 兼容与 hash/storage 边界；批准不提升知识 statement |
 | 2026-07-15 | 审核内容语言 | 英文 / 中文 / 双语 | 新 packet 默认中文 | 人工阅读字段使用中文降低审核负担；机器合同字段保持稳定英文，历史审核证据不追溯翻译 |
 | 2026-07-15 | P3 候选校准 | statement ID/文本相似度 / evidence 身份+结构字段精确比较 | evidence 身份+结构字段精确比较 | 生成 ID 与措辞不稳定，不能决定临床语义正确性；引用身份和受控字段可确定性复算，文本继续由人审核 |
+| 2026-07-15 | P4 知识图谱投影 | 每条 statement 一个 Markdown / 3 张复用卡+机器 typed graph / 外部图数据库 | 3 张复用卡+机器 typed graph | Obsidian 保持人工可读主题图，机器层保留 locator/statement/变量追溯，暂不引入第二知识权威或图数据库 |
 
 ## 同步记录
 

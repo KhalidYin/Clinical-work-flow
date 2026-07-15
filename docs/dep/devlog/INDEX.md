@@ -29,5 +29,6 @@
 | R033 | 2026-07-15 | 16:42 | P6-clinical-knowledge-evolution | P3 | 打开 SDTMIG 3.4 Core/Events/AE proposed 候选中文 blocking ReviewPacket | `clinical-llm-wiki/scripts/content/`, `clinical-llm-wiki/tests/`, `clinical-llm-wiki/sources/packages/`, `clinical-llm-wiki/.review_queue/`, `docs/dep/` | active/DEVLOG-R009-R048.md |
 | R034 | 2026-07-15 | 17:00 | P6-clinical-knowledge-evolution | QF | 增加根目录 Review Panel 快速启动脚本 | `start-review-panel.ps1`, `README.md`, `USAGE.md`, `docs/dep/` | active/DEVLOG-R009-R048.md |
 | R035 | 2026-07-15 | 17:21 | P6-clinical-knowledge-evolution | P3 | 关闭 SDTMIG 3.4 proposal review gate 并生成 approved release | `clinical-llm-wiki/.review_queue/`, `clinical-llm-wiki/scripts/content/`, `clinical-llm-wiki/sources/packages/`, `clinical-llm-wiki/vault/`, `clinical-llm-wiki/tests/`, `docs/dep/` | active/DEVLOG-R009-R048.md |
+| R036 | 2026-07-15 | 17:55 | P6-clinical-knowledge-evolution | P4 | 生成 SDTMIG 3.4 复用知识卡、typed relation 图谱和关系查询入口 | `clinical-llm-wiki/service/`, `clinical-llm-wiki/scripts/content/`, `clinical-llm-wiki/sources/packages/`, `clinical-llm-wiki/vault/`, `clinical-llm-wiki/tests/`, `docs/dep/` | active/DEVLOG-R009-R048.md |
 
 > Legacy rounds R001-R008 remain immutable in [DEVLOG-legacy.md](archive/DEVLOG-legacy.md). They predate the searchable index and were intentionally not rewritten during adoption.

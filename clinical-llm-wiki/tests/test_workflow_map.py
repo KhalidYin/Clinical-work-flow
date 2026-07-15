@@ -55,7 +55,7 @@ def test_stage_relation_projections_cover_governed_business_records() -> None:
 
     assert len(relation_files) == 10
     assert all(path.name != "README.md" for path in relation_files)
-    assert sum(item.category == "knowledge" for item in items) == 41
+    assert sum(item.category == "knowledge" for item in items) == 44
     assert sum(item.category == "toolkit" for item in items) == 8
     assert sum(item.category == "case" for item in items) == 1
 

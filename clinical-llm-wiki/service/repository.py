@@ -202,6 +202,10 @@ class VaultRepository:
                 for decision in decisions
             ):
                 return True
+            approved_targets = _approved_decision_targets(decisions, packet_targets)
+            statement_rule_ids = _record_statement_rule_ids(record)
+            if statement_rule_ids and statement_rule_ids.issubset(approved_targets):
+                return True
         return False
 
     def _review_packet_targets(self, review_id: str) -> dict[str, str]:
@@ -443,6 +447,44 @@ def _decision_targets_record(finding_id: str, record_id: str) -> bool:
     # '-baseline' suffix. This is still stricter than a generic approval.
     parts = record_id.split("-")
     return len(parts) >= 3 and "-".join(parts[:3]) in finding_id
+
+
+def _approved_decision_targets(
+    decisions: Iterable[Any], packet_targets: dict[str, str]
+) -> set[str]:
+    """Return durable targets approved by a DecisionReceipt.
+
+    P6 proposal review packets approve ``proposal-review#<proposal-id>``
+    locations rather than the later reusable card IDs.  A generated governed
+    card may therefore enter production only when all of its statement rule IDs
+    are individually covered by the same approved or modified decisions.
+    """
+
+    targets: set[str] = set()
+    for decision in decisions:
+        if not isinstance(decision, dict) or decision.get("decision") not in {
+            "approved",
+            "modified",
+        }:
+            continue
+        finding_id = str(decision.get("finding_id", ""))
+        for candidate in (finding_id, packet_targets.get(finding_id, "")):
+            normalized = _normalize_review_target(candidate)
+            if normalized:
+                targets.add(normalized)
+    return targets
+
+
+def _normalize_review_target(value: str) -> str:
+    return value.removeprefix("proposal-review#").strip()
+
+
+def _record_statement_rule_ids(record: dict[str, Any]) -> set[str]:
+    rule_ids: set[str] = set()
+    for statement in record.get("statements", []):
+        if isinstance(statement, dict) and isinstance(statement.get("rule_id"), str):
+            rule_ids.add(statement["rule_id"])
+    return rule_ids
 
 
 def _has_p5_synthetic_scope(record: dict[str, Any]) -> bool:

@@ -20,6 +20,7 @@ title: 来源、页码与视觉证据导航
 ## P6 SDTMIG 3.4 解析 release
 
 - [[60_Sources/Registry/SDTMIG 3.4 Approved Proposal Release|SDTMIG 3.4 Core/Events/AE 已批准 proposal release]]
+- [[10_MOC/SDTMIG 3.4 AE Knowledge Map|SDTMIG 3.4 AE Knowledge Map]]
 - [[98_Inbox/SDTMIG 3.4 Core Proposal Batch|SDTMIG 3.4 Core 小批次候选输入]]
 
 Release 卡是 P6-P3-E 的 Obsidian 审阅入口；逐条 Runtime governed knowledge card 与 typed relation 图谱在 P4 整理。
