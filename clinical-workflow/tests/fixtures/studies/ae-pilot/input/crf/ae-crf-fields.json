@@ -1,0 +1,66 @@
+{
+  "form_id": "CRF-AE-SYNTH-V1",
+  "synthetic_only": true,
+  "fields": [
+    {
+      "field_id": "AE.SUBJECT_ID",
+      "label": "Subject identifier",
+      "raw_column": "subject_id",
+      "data_type": "string",
+      "required": true
+    },
+    {
+      "field_id": "AE.AE_RECORD_ID",
+      "label": "AE record identifier within subject",
+      "raw_column": "ae_record_id",
+      "data_type": "string",
+      "required": true
+    },
+    {
+      "field_id": "AE.VERBATIM_TERM",
+      "label": "Reported adverse event term",
+      "raw_column": "verbatim_term",
+      "data_type": "string",
+      "required": true
+    },
+    {
+      "field_id": "AE.START_DATE",
+      "label": "Adverse event start date",
+      "raw_column": "start_date",
+      "data_type": "date",
+      "required": true
+    },
+    {
+      "field_id": "AE.END_DATE",
+      "label": "Adverse event end date",
+      "raw_column": "end_date",
+      "data_type": "date",
+      "required": false
+    },
+    {
+      "field_id": "AE.SEVERITY",
+      "label": "Investigator severity",
+      "raw_column": "severity",
+      "data_type": "string",
+      "required": false,
+      "p7_p1_status": "ct_gap"
+    },
+    {
+      "field_id": "AE.MEDDRA_PT",
+      "label": "MedDRA preferred term",
+      "raw_column": "meddra_pt",
+      "data_type": "string",
+      "required": false,
+      "p7_p1_status": "coding_gap"
+    },
+    {
+      "field_id": "AE.ONGOING",
+      "label": "AE ongoing indicator",
+      "raw_column": "ongoing",
+      "data_type": "string",
+      "required": false,
+      "p7_p1_status": "relative_timing_gap"
+    }
+  ]
+}
+

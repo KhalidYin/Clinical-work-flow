@@ -1,0 +1,27 @@
+study_id: "SYNTH-AE-001"
+protocol_id: "SYNTH-AE-PROT-001"
+trial_phase: "phase_iii"
+therapeutic_area: "synthetic_safety"
+primary_language: "python"
+qc_language: "r"
+sponsor: "Synthetic Test Sponsor"
+created_at: "2026-07-15T21:00:00+08:00"
+synthetic_only: true
+standards:
+  sdtm_version: "2.0"
+  sdtmig_version: "3.4"
+  ct_version: "not_deep_extracted_in_p7_p1"
+review_timeout:
+  reminder_hours: 24
+  escalation_hours: 72
+  stale_hours: 168
+  stale_action: "continue"
+review_assignments:
+  sdtm_spec: {reviewers: [lead_programmer, data_manager], consensus: all_must_approve}
+  sdtm_programming: {reviewers: [lead_programmer, qc_programmer], consensus: all_must_approve}
+paths:
+  input_dir: "input"
+  output_dir: "output"
+  review_queue_dir: ".review_queue"
+  audit_log: "audit_trail.jsonl"
+

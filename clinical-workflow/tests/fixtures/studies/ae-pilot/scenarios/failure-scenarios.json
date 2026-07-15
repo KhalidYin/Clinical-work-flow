@@ -1,0 +1,90 @@
+[
+  {
+    "scenario_id": "scenario-ae-success",
+    "scenario_type": "success",
+    "synthetic_only": true,
+    "expected_status": "mapping_ready",
+    "expected_findings": []
+  },
+  {
+    "scenario_id": "scenario-ae-aedecod-gap",
+    "scenario_type": "knowledge_gap",
+    "synthetic_only": true,
+    "expected_status": "review_required",
+    "input_mutation": "request AEDECOD mapping without approved MedDRA coding knowledge",
+    "expected_findings": [
+      {
+        "finding_id": "F-001",
+        "category": "knowledge_gap",
+        "target_variable": "AEDECOD",
+        "gap_id": "gap-ae-aedecod-coding-not-approved-in-p6",
+        "blocking": true,
+        "message": "AEDECOD cannot be generated from AETERM because P6 explicitly returned a coding gap."
+      }
+    ]
+  },
+  {
+    "scenario_id": "scenario-ae-missing-start-date",
+    "scenario_type": "missing_study_field",
+    "synthetic_only": true,
+    "expected_status": "blocked_before_mapping",
+    "input_mutation": "remove input/raw/ae.csv start_date",
+    "expected_findings": [
+      {
+        "finding_id": "F-001",
+        "category": "study_field_missing",
+        "target_variable": "AESTDTC",
+        "blocking": true,
+        "message": "AESTDTC mapping references start_date, but the Study raw field is missing."
+      }
+    ]
+  },
+  {
+    "scenario_id": "scenario-ae-rfstdtc-conflict",
+    "scenario_type": "rule_conflict",
+    "synthetic_only": true,
+    "expected_status": "review_required",
+    "input_mutation": "provide two incompatible RFSTDTC source decisions",
+    "expected_findings": [
+      {
+        "finding_id": "F-001",
+        "category": "rule_conflict",
+        "target_variable": "AESTDY",
+        "blocking": true,
+        "message": "Two Study context rules identify different RFSTDTC sources for study day derivation."
+      }
+    ]
+  },
+  {
+    "scenario_id": "scenario-ae-program-failure",
+    "scenario_type": "program_failure",
+    "synthetic_only": true,
+    "expected_status": "execution_failed",
+    "input_mutation": "adapter raises a non-zero exit before writing output",
+    "expected_findings": [
+      {
+        "finding_id": "F-001",
+        "category": "program_error",
+        "blocking": true,
+        "message": "Controlled adapter failure must not produce canonical AE."
+      }
+    ]
+  },
+  {
+    "scenario_id": "scenario-ae-date-order-validation",
+    "scenario_type": "validation_failure",
+    "synthetic_only": true,
+    "expected_status": "validation_failed",
+    "input_mutation": "set AEENDTC before AESTDTC",
+    "expected_findings": [
+      {
+        "finding_id": "F-001",
+        "category": "validation_error",
+        "target_variable": "AEENDTC",
+        "blocking": true,
+        "message": "AE end date before start date must become a blocking validation finding."
+      }
+    ]
+  }
+]
+

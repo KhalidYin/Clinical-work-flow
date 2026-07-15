@@ -1,0 +1,42 @@
+{
+  "fixture_id": "fixture-synth-ae-001-v1",
+  "synthetic_only": true,
+  "study_id": "SYNTH-AE-001",
+  "purpose": "P7-P1 AE MappingSpec and fixture contract baseline; no program generation or execution.",
+  "p6_inputs": {
+    "snapshot_id": "snapshot-sdtmig34-core-events-ae-v1",
+    "snapshot_sha256": "d8aafb73ccca987d597e372435b664ba074c1a45688d5e2eef809c72f475a9ec",
+    "citation_bundle_id": "ae-citation-bundle-sdtmig34-core-events-ae-v1",
+    "query_benchmark_id": "query-benchmark-sdtmig34-core-events-ae-v1"
+  },
+  "source_files": [
+    {"path": "project.yaml", "sha256": "6a99ec6fe141664d50b7604ea9c4a760ba485967e215ed5ccbadfbe6d2b07c89"},
+    {"path": "input/crf/ae-crf-fields.json", "sha256": "9435b7b6448b289e91451408ea8ee2962cadc1a4defa8285f571d141a00735fc"},
+    {"path": "input/edc/data-dictionary.csv", "sha256": "724a21dfcf036d8903ea03faa65965e3ad37441dd4070bf21d7e2c261e745e53"},
+    {"path": "input/raw/ae.csv", "sha256": "72ee192f78b49904fd51a2e8b95d3420c241f49f645d1b17ff2de53cc1ae3f7c"},
+    {"path": "input/raw/subject-reference.csv", "sha256": "9b8c91ed4618cad6922d7834654cb0edcc231ce0c7782233e7741870b04a78b5"},
+    {"path": "input/study-context/approved-context.json", "sha256": "3cc9dbbc7336bcb627a76066adf6e473d05e4e6684a2773b0b44874397a59bc0"},
+    {"path": "expected/sdtm/ae.csv", "sha256": "b24534521a6d37a07ffeef17a7ca207a2a3f2710e96b348e3389ee8c08320d40"},
+    {"path": "mapping-specs/ae-mapping-spec-success.json", "sha256": "d9f989ee5b2d40b94990ad66a675a83f8cdcd4601f5d10d7aa65ad3c4c954800"},
+    {"path": "scenarios/failure-scenarios.json", "sha256": "3ec72c476cc8a128cd104ff3e8b29eb4559cca9d02faf61ad30694bacc496876"}
+  ],
+  "expected_target_variables": [
+    "STUDYID",
+    "DOMAIN",
+    "USUBJID",
+    "AESEQ",
+    "AETERM",
+    "AESTDTC",
+    "AEENDTC",
+    "AESTDY",
+    "AEENDY",
+    "AEDECOD",
+    "AESEV",
+    "AEENRF"
+  ],
+  "phase_boundary": {
+    "does_not_generate_program": true,
+    "does_not_execute_transform": true,
+    "does_not_modify_wiki": true
+  }
+}

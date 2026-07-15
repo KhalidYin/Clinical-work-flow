@@ -1,0 +1,21 @@
+{
+  "context_id": "study-context-synth-ae-001-v1",
+  "synthetic_only": true,
+  "approved_context_refs": [
+    {
+      "ref_id": "study-context-synth-ae-001-rfstdtc-source",
+      "status": "approved_fixture_context",
+      "scope": "P7-P1 synthetic fixture only",
+      "statement": "Use input/raw/subject-reference.csv RFSTDTC as the study day reference date for this fixture.",
+      "source_path": "input/raw/subject-reference.csv"
+    },
+    {
+      "ref_id": "study-context-synth-ae-001-date-policy",
+      "status": "approved_fixture_context",
+      "scope": "P7-P1 synthetic fixture only",
+      "statement": "Do not impute incomplete or missing AE dates in this fixture; missing end date remains null and requires later review if needed.",
+      "source_path": "input/crf/ae-crf-fields.json"
+    }
+  ]
+}
+

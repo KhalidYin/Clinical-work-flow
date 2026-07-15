@@ -1,0 +1,5 @@
+subject_id,ae_record_id,verbatim_term,start_date,end_date,severity,meddra_pt,ongoing
+SUBJ-001,AE-001,Headache,2026-01-11,2026-01-12,MILD,,N
+SUBJ-001,AE-002,Nausea,2026-01-09,2026-01-10,MODERATE,,N
+SUBJ-002,AE-001,Rash,2026-01-15,,SEVERE,,Y
+

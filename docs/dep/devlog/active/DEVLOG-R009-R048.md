@@ -1012,3 +1012,37 @@ Done — no next steps。若需要跨阶段全量语义图，应另立 typed-rel
 - `USAGE.md`、`clinical-llm-wiki/README.md`
 - `docs/main/memory/sdtmig34-knowledge-baseline.md`
 - `docs/dep/PLAN.md`、`plans/complete/P6-clinical-knowledge-evolution.md`、DEVLOG/INDEX
+
+---
+
+### R038 [22:30] [P7-safety-analysis-vertical-workflow] P1: 冻结 synthetic AE fixture 与 MappingSpec 合同
+
+#### Done
+- 将 P7 从 `plans/backlog/` 移入 `plans/ongoing/`，更新 frontmatter、P6 输入产物和 PLAN 当前阶段。
+- 新增 synthetic-only fixture `clinical-workflow/tests/fixtures/studies/ae-pilot/`：包含 `project.yaml`、CRF 字段定义、EDC data dictionary、raw AE、subject reference、fixture approved context 和 expected SDTM AE CSV。
+- 新增 fixture-local draft contracts：`contracts/ae-mapping-spec.schema.json` 与 `contracts/ae-pilot-scenario.schema.json`；P1 未升级 shared Engine contract bundle。
+- 新增 `mapping-specs/ae-mapping-spec-success.json`：冻结 9 个 mapped variables，并把 AEDECOD、AESEV、AEENRF 明确为 P6/P7 gap，不进入 expected AE 输出。
+- 新增 `scenarios/failure-scenarios.json`，覆盖 success、knowledge_gap、missing_study_field、rule_conflict、program_failure、validation_failure 六类后续回归。
+- 新增 `test_p7_ae_mapping_contract.py`，校验 schema、hash lock、synthetic-only 边界、P6 approved rule refs、P6 citation gap refs、source fields 与 expected AE 基线一致性。
+
+#### Issues / Blockers
+- P1 若直接把 AE MappingSpec 加入 `clinical-workflow/schemas/`，会触发 shared `contract-bundle.json` 从 1.1.0 升级，并使 P6 已发布 snapshot 的 schema bundle lock 漂移。处理：P1 先使用 fixture-local draft contracts；P2/P3 Runtime 接入前再决定是否发布为 shared schema，并同步 Wiki mirror/snapshot 迁移。
+- P6 AE citation bundle 不包含全部基础 mapping 会引用的 Core statement，但 P3-E approved release 包含完整 28 条批准 statement。处理：P1 的 `rule_refs` against `approved-proposal-release.json` 闭合，gap refs against `ae-citation-bundle.json` 闭合；P2 的一次查询需要返回规则集合加显式 gap。
+
+#### Validation
+- `python -m pytest tests/test_p7_ae_mapping_contract.py -q`（6 passed）
+- `python -m pytest tests/test_p7_ae_mapping_contract.py tests/test_knowledge_contracts.py tests/test_study_scaffold.py -q`（61 passed）
+- `python -m ruff check tests/test_p7_ae_mapping_contract.py`（success）
+
+#### Next
+1. P7-P2：实现 `task=build_sdtm_dataset, dataset=AE` 的一次知识查询输入包，组合 P6 approved rules 和 citation gaps。
+2. P7-P2：定义 LLM MappingSpec 候选输出边界，确保只能引用本次 Context 中存在的 rule/source/locator/gap ID。
+3. P7-P2：先做 schema/citation/Study field 校验，不执行程序。
+
+#### Files Changed / Commits
+- `clinical-workflow/tests/fixtures/studies/ae-pilot/**`
+- `clinical-workflow/tests/test_p7_ae_mapping_contract.py`
+- `docs/dep/plans/ongoing/P7-safety-analysis-vertical-workflow.md`
+- `docs/dep/PLAN.md`
+- `docs/dep/TASK_STATE.md`
+- `docs/dep/devlog/**`

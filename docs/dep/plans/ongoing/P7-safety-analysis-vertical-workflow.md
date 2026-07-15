@@ -1,12 +1,17 @@
 ---
 phase_index: 7
-status: planning
+status: in-progress
 created: 2026-07-14
-updated: 2026-07-14
+updated: 2026-07-15
 priority: 1
 estimated_rounds: 10-16
 depends_on:
   - P6-clinical-knowledge-evolution.md
+inputs:
+  - clinical-llm-wiki/snapshots/snapshot-sdtmig34-core-events-ae-v1.json
+  - clinical-llm-wiki/sources/packages/src-cdisc-sdtmig-3-4/ae-citation-bundle.json
+  - clinical-llm-wiki/sources/packages/src-cdisc-sdtmig-3-4/query-benchmark.json
+  - clinical-llm-wiki/sources/packages/src-cdisc-sdtmig-3-4/p6-release-quality-report.json
 tags:
   - vertical-slice
   - sdtm
@@ -107,7 +112,7 @@ User: build SDTM AE
 
 | Phase | 目标 | 预估轮次 | 依赖 | 状态 |
 |-------|------|----------|------|------|
-| P1 | 冻结 AE fixture、MappingSpec 和验收结果 | 2-3 | P6 Snapshot | pending |
+| P1 | 冻结 AE fixture、MappingSpec 和验收结果 | 2-3 | P6 Snapshot | done |
 | P2 | 实现一次 Wiki 查询和 LLM MappingSpec 候选 | 3-4 | P1 | pending |
 | P3 | 实现受控程序生成、执行和 SDTM 验证 | 3-5 | P2 | pending |
 | P4 | 完成 Review、引用追溯和端到端验收 | 2-4 | P3 | pending |
@@ -128,13 +133,22 @@ User: build SDTM AE
 - 成功、知识缺口、Study 字段缺失、规则冲突、程序失败和验证失败 fixture。
 - artifact/program/validation/provenance 的最小输出清单。
 
+### P1 实施记录
+
+- 新增 synthetic-only fixture `clinical-workflow/tests/fixtures/studies/ae-pilot/`，包含 `project.yaml`、CRF 字段定义、EDC data dictionary、raw AE、subject reference、approved fixture context 和 expected SDTM AE CSV。
+- 新增 fixture-local draft contracts：`contracts/ae-mapping-spec.schema.json` 与 `contracts/ae-pilot-scenario.schema.json`。P1 刻意不升级 Engine shared `contract-bundle.json`，避免 P6 已发布 snapshot 的 1.1.0 bundle lock 在 P7-P1 被过早失效；P2/P3 Runtime 接入前再决定是否发布为 shared schema。
+- 新增 `mapping-specs/ae-mapping-spec-success.json`，冻结 9 个 mapped variables：STUDYID、DOMAIN、USUBJID、AESEQ、AETERM、AESTDTC、AEENDTC、AESTDY、AEENDY。每个 material mapping 均携带 P6 approved `rule_refs`，涉及 Study context 的日期/Study day 映射携带 `study_decision_refs`。
+- 明确 3 个 P6/P7 gap：AEDECOD 使用 `gap-ae-aedecod-coding-not-approved-in-p6`，AESEV 使用 `gap-controlled-terminology-not-deep-extracted-in-p6`，AEENRF 使用 `gap-executable-implementation-guidance-deferred-to-p7`；这些变量不进入 expected AE 输出。
+- 新增 `scenarios/failure-scenarios.json`，覆盖 success、knowledge_gap、missing_study_field、rule_conflict、program_failure、validation_failure 六类后续回归。
+- 新增 `test_p7_ae_mapping_contract.py`：校验 schema、hash lock、synthetic-only 边界、P6 rule/gap 引用闭合、source fields 与 expected AE 基线一致性。
+
 ### 完成标准
 
-- [ ] fixture 不含真实或可识别数据，并声明 synthetic-only。
-- [ ] 每个目标变量有预期来源/转换或明确的 gap，不以代码默认值补齐。
-- [ ] MappingSpec 要求 material mapping 携带 `rule_refs` 和适用的 `study_decision_refs`。
-- [ ] 预期 AE 数据、错误场景和关键 hash 可用于后续回归。
-- [ ] 本 Phase 不选择最终 LLM prompt 或执行工具实现。
+- [x] fixture 不含真实或可识别数据，并声明 synthetic-only。
+- [x] 每个目标变量有预期来源/转换或明确的 gap，不以代码默认值补齐。
+- [x] MappingSpec 要求 material mapping 携带 `rule_refs` 和适用的 `study_decision_refs`。
+- [x] 预期 AE 数据、错误场景和关键 hash 可用于后续回归。
+- [x] 本 Phase 不选择最终 LLM prompt 或执行工具实现。
 
 ### 边界（本 Phase 明确不做）
 
@@ -146,8 +160,8 @@ User: build SDTM AE
 | 文件 | 操作 |
 |------|------|
 | `clinical-workflow/tests/fixtures/studies/ae-pilot/**` | 新建 |
-| `clinical-workflow/schemas/**` | 仅增加最小 AE MappingSpec/结果合同 |
-| `docs/reviews/**` | 增加 fixture/合同人工验收记录 |
+| `clinical-workflow/tests/fixtures/studies/ae-pilot/contracts/**` | 新增 P1 fixture-local draft 合同；不发布 shared bundle |
+| `clinical-workflow/tests/test_p7_ae_mapping_contract.py` | 新增合同和 fixture gate |
 
 ### 关键决策
 
@@ -283,7 +297,8 @@ User: build SDTM AE
 
 | ID | 描述 | 发现于 | 类型 | 处理 |
 |----|------|--------|------|------|
-| - | 尚未开始执行 | - | - | - |
+| D1 | P1 若把 AE MappingSpec 直接加入 Engine shared `schemas/`，会迫使 contract-bundle 从 1.1.0 升级，并使 P6 已发布 snapshot 的 schema bundle lock 立即漂移 | P1 | 已解决 | P1 使用 fixture-local draft contracts 冻结字段与 gate；P2/P3 Runtime 接入前再决定是否升级 shared bundle，并同步 Wiki mirror/snapshot 迁移 |
+| D2 | P6 citation bundle 未覆盖所有基础映射会用到的 Core statement，但 approved release 已包含 28 条批准 statement | P1 | 已解决 | P1 的 `rule_refs` 验证 against `approved-proposal-release.json`，gap 验证 against `ae-citation-bundle.json`；P2 的一次查询需组合规则与 gap 返回 |
 
 ## 关键决策记录
 

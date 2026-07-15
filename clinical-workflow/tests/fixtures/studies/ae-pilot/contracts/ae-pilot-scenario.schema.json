@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://clinical-workflow.local/p7/ae-pilot-scenario-draft",
+  "title": "P7 P1 AE Pilot Scenario",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "scenario_id",
+    "scenario_type",
+    "synthetic_only",
+    "expected_status",
+    "expected_findings"
+  ],
+  "properties": {
+    "scenario_id": {"type": "string", "pattern": "^scenario-[a-z0-9-]+$"},
+    "scenario_type": {
+      "type": "string",
+      "enum": [
+        "success",
+        "knowledge_gap",
+        "missing_study_field",
+        "rule_conflict",
+        "program_failure",
+        "validation_failure"
+      ]
+    },
+    "synthetic_only": {"type": "boolean", "const": true},
+    "expected_status": {
+      "type": "string",
+      "enum": [
+        "mapping_ready",
+        "review_required",
+        "blocked_before_mapping",
+        "blocked_before_execution",
+        "execution_failed",
+        "validation_failed"
+      ]
+    },
+    "input_mutation": {"type": "string"},
+    "expected_findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["finding_id", "category", "blocking", "message"],
+        "properties": {
+          "finding_id": {"type": "string", "pattern": "^F-[0-9]{3}$"},
+          "category": {
+            "type": "string",
+            "enum": ["knowledge_gap", "study_field_missing", "rule_conflict", "program_error", "validation_error"]
+          },
+          "target_variable": {"type": "string", "pattern": "^[A-Z][A-Z0-9]{1,7}$"},
+          "gap_id": {"type": "string"},
+          "blocking": {"type": "boolean"},
+          "message": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  }
+}
+

@@ -1,0 +1,10 @@
+form,field_id,raw_column,label,type,required,codelist
+AE,AE.SUBJECT_ID,subject_id,Subject identifier,string,Y,
+AE,AE.AE_RECORD_ID,ae_record_id,AE record identifier,string,Y,
+AE,AE.VERBATIM_TERM,verbatim_term,Reported adverse event term,string,Y,
+AE,AE.START_DATE,start_date,Adverse event start date,date,Y,
+AE,AE.END_DATE,end_date,Adverse event end date,date,N,
+AE,AE.SEVERITY,severity,Investigator severity,string,N,SYNTH_SEV
+AE,AE.MEDDRA_PT,meddra_pt,MedDRA preferred term,string,N,
+AE,AE.ONGOING,ongoing,AE ongoing indicator,string,N,NY
+

@@ -6,13 +6,14 @@ updated: 2026-07-15
 
 ## 进行中
 
-> 当前没有进行中的子计划。下一步建议启动 P7：用已发布的 SDTMIG 3.4 知识基线做 AE 数据集知识驱动执行闭环。
+| # | 子计划 | 文件 | 当前阶段 | 已用轮次 | 开始日期 |
+|---|--------|------|----------|----------|----------|
+| P7 | AE 数据集知识驱动执行闭环 | [P7-safety-analysis-vertical-workflow.md](plans/ongoing/P7-safety-analysis-vertical-workflow.md) | P1 已关闭；下一阶段 P2：一次 Wiki 查询和 LLM MappingSpec 候选 | 1 | 2026-07-15 |
 
 ## 待开始
 
 | # | 子计划 | 文件 | 预估轮次 | 依赖 |
 |---|--------|------|----------|------|
-| P7 | AE 数据集知识驱动执行闭环 | [P7-safety-analysis-vertical-workflow.md](plans/backlog/P7-safety-analysis-vertical-workflow.md) | 10-16 | P6 完成 |
 | P8 | Workflow Application API 与本地 Study Console | [P8-workflow-api-study-console.md](plans/backlog/P8-workflow-api-study-console.md) | 25-40（执行前重估） | P7 完成并重新确认范围 |
 | P9 | 多 Study 内网协作与受控部署 | [P9-multi-study-intranet-collaboration.md](plans/backlog/P9-multi-study-intranet-collaboration.md) | 20-32（执行前重估） | P8 完成并重新确认部署授权 |
 

@@ -1,0 +1,198 @@
+{
+  "spec_id": "map-spec-synth-ae-001-v1",
+  "schema_version": "0.1.0-draft",
+  "fixture_id": "fixture-synth-ae-001-v1",
+  "synthetic_only": true,
+  "target_dataset": "AE",
+  "standards": {
+    "sdtm_version": "2.0",
+    "sdtmig_version": "3.4"
+  },
+  "p6_context": {
+    "snapshot_id": "snapshot-sdtmig34-core-events-ae-v1",
+    "citation_bundle_id": "ae-citation-bundle-sdtmig34-core-events-ae-v1",
+    "query_benchmark_id": "query-benchmark-sdtmig34-core-events-ae-v1"
+  },
+  "source_inputs": [
+    {
+      "input_id": "ae-crf-fields",
+      "role": "crf_metadata",
+      "path": "input/crf/ae-crf-fields.json",
+      "sha256": "9435b7b6448b289e91451408ea8ee2962cadc1a4defa8285f571d141a00735fc"
+    },
+    {
+      "input_id": "ae-edc-dictionary",
+      "role": "edc_dictionary",
+      "path": "input/edc/data-dictionary.csv",
+      "sha256": "724a21dfcf036d8903ea03faa65965e3ad37441dd4070bf21d7e2c261e745e53"
+    },
+    {
+      "input_id": "ae-raw",
+      "role": "raw_dataset",
+      "path": "input/raw/ae.csv",
+      "sha256": "72ee192f78b49904fd51a2e8b95d3420c241f49f645d1b17ff2de53cc1ae3f7c"
+    },
+    {
+      "input_id": "subject-reference",
+      "role": "subject_reference",
+      "path": "input/raw/subject-reference.csv",
+      "sha256": "9b8c91ed4618cad6922d7834654cb0edcc231ce0c7782233e7741870b04a78b5"
+    },
+    {
+      "input_id": "approved-study-context",
+      "role": "study_context",
+      "path": "input/study-context/approved-context.json",
+      "sha256": "3cc9dbbc7336bcb627a76066adf6e473d05e4e6684a2773b0b44874397a59bc0"
+    }
+  ],
+  "target_variables": [
+    {"name": "STUDYID", "status": "mapped", "material": true},
+    {"name": "DOMAIN", "status": "mapped", "material": true},
+    {"name": "USUBJID", "status": "mapped", "material": true},
+    {"name": "AESEQ", "status": "mapped", "material": true},
+    {"name": "AETERM", "status": "mapped", "material": true},
+    {"name": "AESTDTC", "status": "mapped", "material": true},
+    {"name": "AEENDTC", "status": "mapped", "material": true},
+    {"name": "AESTDY", "status": "mapped", "material": true},
+    {"name": "AEENDY", "status": "mapped", "material": true},
+    {
+      "name": "AEDECOD",
+      "status": "explicit_gap",
+      "material": true,
+      "gap_id": "gap-ae-aedecod-coding-not-approved-in-p6",
+      "reason": "P6 did not approve MedDRA coding rules."
+    },
+    {
+      "name": "AESEV",
+      "status": "explicit_gap",
+      "material": true,
+      "gap_id": "gap-controlled-terminology-not-deep-extracted-in-p6",
+      "reason": "P6 did not deep extract controlled terminology."
+    },
+    {
+      "name": "AEENRF",
+      "status": "explicit_gap",
+      "material": true,
+      "gap_id": "gap-executable-implementation-guidance-deferred-to-p7",
+      "reason": "P6 only approved a cross-reference, not executable value derivation."
+    }
+  ],
+  "mappings": [
+    {
+      "mapping_id": "map-ae-studyid",
+      "target_variable": "STUDYID",
+      "mapping_type": "constant",
+      "material": true,
+      "source_refs": ["project.yaml#study_id"],
+      "rule_refs": ["proposal-sdtmig34-core-identifier-variable-role-v1", "proposal-sdtmig34-core-domain-code-consistency-v1"],
+      "algorithm": "Copy the locked Study ID from project.yaml."
+    },
+    {
+      "mapping_id": "map-ae-domain",
+      "target_variable": "DOMAIN",
+      "mapping_type": "constant",
+      "material": true,
+      "source_refs": ["target_dataset"],
+      "rule_refs": ["proposal-sdtmig34-core-domain-code-consistency-v1", "proposal-sdtmig34-gold-ae-structure-v1"],
+      "algorithm": "Set DOMAIN to AE."
+    },
+    {
+      "mapping_id": "map-ae-usubjid",
+      "target_variable": "USUBJID",
+      "mapping_type": "direct",
+      "material": true,
+      "source_refs": ["input/raw/ae.csv#subject_id", "input/raw/subject-reference.csv#USUBJID"],
+      "rule_refs": ["proposal-sdtmig34-core-identifier-variable-role-v1"],
+      "algorithm": "Use the subject identifier after confirming it exists in subject-reference."
+    },
+    {
+      "mapping_id": "map-ae-aeseq",
+      "target_variable": "AESEQ",
+      "mapping_type": "sequence",
+      "material": true,
+      "source_refs": ["input/raw/ae.csv#ae_record_id"],
+      "rule_refs": ["proposal-sdtmig34-core-identifier-variable-role-v1", "proposal-sdtmig34-gold-ae-structure-v1"],
+      "algorithm": "Assign sequence by source order within USUBJID."
+    },
+    {
+      "mapping_id": "map-ae-aeterm",
+      "target_variable": "AETERM",
+      "mapping_type": "direct",
+      "material": true,
+      "source_refs": ["input/raw/ae.csv#verbatim_term"],
+      "rule_refs": ["proposal-sdtmig34-gold-aeterm-required-v1"],
+      "algorithm": "Copy the collected verbatim adverse event term."
+    },
+    {
+      "mapping_id": "map-ae-aestdtc",
+      "target_variable": "AESTDTC",
+      "mapping_type": "normalize_date",
+      "material": true,
+      "source_refs": ["input/raw/ae.csv#start_date"],
+      "rule_refs": ["proposal-sdtmig34-core-timing-variable-role-v1"],
+      "study_decision_refs": ["study-context-synth-ae-001-date-policy"],
+      "algorithm": "Copy complete ISO date; incomplete or missing dates require review."
+    },
+    {
+      "mapping_id": "map-ae-aeendtc",
+      "target_variable": "AEENDTC",
+      "mapping_type": "normalize_date",
+      "material": true,
+      "source_refs": ["input/raw/ae.csv#end_date"],
+      "rule_refs": ["proposal-sdtmig34-core-timing-variable-role-v1"],
+      "study_decision_refs": ["study-context-synth-ae-001-date-policy"],
+      "algorithm": "Copy complete ISO end date; keep null when the raw end date is missing."
+    },
+    {
+      "mapping_id": "map-ae-aestdy",
+      "target_variable": "AESTDY",
+      "mapping_type": "derive_study_day",
+      "material": true,
+      "source_refs": ["input/raw/ae.csv#start_date", "input/raw/subject-reference.csv#RFSTDTC"],
+      "rule_refs": ["proposal-sdtmig34-core-study-day-variable-purpose-v1", "proposal-sdtmig34-core-study-day-reference-and-limit-v1", "proposal-sdtmig34-core-study-day-calculation-method-v1"],
+      "study_decision_refs": ["study-context-synth-ae-001-rfstdtc-source"],
+      "algorithm": "Use RFSTDTC as study day 1; add 1 when event date is on or after RFSTDTC, otherwise do not add 1."
+    },
+    {
+      "mapping_id": "map-ae-aeendy",
+      "target_variable": "AEENDY",
+      "mapping_type": "derive_study_day",
+      "material": true,
+      "source_refs": ["input/raw/ae.csv#end_date", "input/raw/subject-reference.csv#RFSTDTC"],
+      "rule_refs": ["proposal-sdtmig34-core-study-day-variable-purpose-v1", "proposal-sdtmig34-core-study-day-reference-and-limit-v1", "proposal-sdtmig34-core-study-day-calculation-method-v1"],
+      "study_decision_refs": ["study-context-synth-ae-001-rfstdtc-source", "study-context-synth-ae-001-date-policy"],
+      "algorithm": "Derive end study day only when AEENDTC is present; otherwise keep null."
+    }
+  ],
+  "gaps": [
+    {
+      "gap_id": "gap-ae-pilot-aedecod",
+      "target_variable": "AEDECOD",
+      "source_gap_id": "gap-ae-aedecod-coding-not-approved-in-p6",
+      "blocking": true,
+      "review_type": "knowledge_gap"
+    },
+    {
+      "gap_id": "gap-ae-pilot-aesev-ct",
+      "target_variable": "AESEV",
+      "source_gap_id": "gap-controlled-terminology-not-deep-extracted-in-p6",
+      "blocking": true,
+      "review_type": "ct_gap"
+    },
+    {
+      "gap_id": "gap-ae-pilot-aeenrf-derivation",
+      "target_variable": "AEENRF",
+      "source_gap_id": "gap-executable-implementation-guidance-deferred-to-p7",
+      "blocking": true,
+      "review_type": "study_context_gap"
+    }
+  ],
+  "expected_outputs": [
+    {
+      "output_id": "expected-sdtm-ae",
+      "path": "expected/sdtm/ae.csv",
+      "sha256": "b24534521a6d37a07ffeef17a7ca207a2a3f2710e96b348e3389ee8c08320d40",
+      "row_count": 3
+    }
+  ]
+}
