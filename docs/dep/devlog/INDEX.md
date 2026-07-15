@@ -18,5 +18,6 @@
 | R022 | 2026-07-15 | 00:20 | P0-local-review-panel | P2 | 实现 Review API 与安全 DecisionReceipt 写入 | `review-panel/src/review_panel/`, `review-panel/tests/`, `docs/dep/` | active/DEVLOG-R009-R048.md |
 | R023 | 2026-07-15 | 09:46 | P0-local-review-panel | P3 | 完成 Web UI 实现检查点并暴露浏览器 Gate 阻断 | `review-panel/src/review_panel/static/`, `review-panel/tests/`, `docs/specs/`, `docs/dep/` | active/DEVLOG-R009-R048.md |
 | R024 | 2026-07-15 | 10:30 | P0-local-review-panel | P3 | 关闭浏览器 Gate 并归档本地 Review Panel | `review-panel/src/review_panel/static/`, `review-panel/tests/`, `docs/dep/` | active/DEVLOG-R009-R048.md |
+| R025 | 2026-07-15 | 11:33 | P6-clinical-knowledge-evolution | P2 | 完成 P2-A 分层结构地图合同 | `clinical-llm-wiki/schemas/extraction/`, `clinical-llm-wiki/scripts/pdf/`, `clinical-llm-wiki/tests/`, `docs/dep/` | active/DEVLOG-R009-R048.md |
 
 > Legacy rounds R001-R008 remain immutable in [DEVLOG-legacy.md](archive/DEVLOG-legacy.md). They predate the searchable index and were intentionally not rewritten during adoption.

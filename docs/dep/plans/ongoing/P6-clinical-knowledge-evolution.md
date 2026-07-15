@@ -252,13 +252,13 @@ P1 可根据真实 SDTMIG 结构删减关系类型；不允许为了“图谱丰
 
 ### 执行切片与提交边界
 
-| 切片 | 内容 | 独立提交 |
-|------|------|----------|
-| P2-A | 定义结构地图 Schema、稳定 ID、page assignment、locator 与处理状态合同；建立合成 PDF/XLSX 正反例 | `feat: define SDTMIG 3.4 structure map contract` |
-| P2-B | 生成 461 页全书导航结构层、PDF outline/domain/table 边界和 XLSX 全量 dataset/variable 行索引 | `feat: build SDTMIG 3.4 full structure map` |
-| P2-C | 补齐 Core/Events/AE 深度 locator、AE 跨页表格和 PDF/XLSX 变量对应 | `feat: add Core Events AE locator coverage` |
-| P2-D | 生成覆盖/重建/差异报告并创建 blocking ReviewPacket | `feat: open SDTMIG 3.4 structure review gate` |
-| P2-E | 应用人工决定、归档审核三件套并关闭 P2 Phase Gate | `feat: close SDTMIG 3.4 structure map gate` |
+| 切片 | 状态 | 内容 | 独立提交 |
+|------|------|------|----------|
+| P2-A | done | 定义结构地图 Schema、稳定 ID、page assignment、locator 与处理状态合同；建立合成 PDF/XLSX 正反例 | `feat: define SDTMIG 3.4 structure map contract` |
+| P2-B | next | 生成 461 页全书导航结构层、PDF outline/domain/table 边界和 XLSX 全量 dataset/variable 行索引 | `feat: build SDTMIG 3.4 full structure map` |
+| P2-C | pending | 补齐 Core/Events/AE 深度 locator、AE 跨页表格和 PDF/XLSX 变量对应 | `feat: add Core Events AE locator coverage` |
+| P2-D | pending | 生成覆盖/重建/差异报告并创建 blocking ReviewPacket | `feat: open SDTMIG 3.4 structure review gate` |
+| P2-E | pending | 应用人工决定、归档审核三件套并关闭 P2 Phase Gate | `feat: close SDTMIG 3.4 structure map gate` |
 
 P2-A 至 P2-E 是一个内部 Phase 的原子执行切片；每个切片完成并验证后独立提交，但只有 P2-E 通过后 P2 才标记为 `done`。
 
@@ -428,6 +428,7 @@ P2-A 至 P2-E 是一个内部 Phase 的原子执行切片；每个切片完成�
 |----|------|--------|------|------|
 | D1 | CDISC 匿名发布页要求登录后才能访问 SDTMIG 3.4 原始文件 | P1 | 已解决 | 用户于 2026-07-14 提供 PDF/XLSX；保留认证阻断记录，不使用非官方镜像 |
 | D2 | XLSX 自述为规范元数据，PDF 内容更完整；两者的 locator 形态不同 | P1 | 增强 | 同一 Source Version 内建立双 artifact，支持 `pdf_region`、`xlsx_row`、`web_section` 三类 locator |
+| D3 | P1 `SourceUnit` 是单 locator 的语义抽取合同，无法无损表达 P2 多 locator、分页归属和跨页表格 | P2-A | 增强 | P2 使用独立结构地图 Schema 和 locator 注册表，并提供投影到 P1 locator 合同的校验边界；不扩大 Runtime 公共合同 |
 
 ## 关键决策记录
 
@@ -443,6 +444,7 @@ P2-A 至 P2-E 是一个内部 Phase 的原子执行切片；每个切片完成�
 | 2026-07-14 | P1 人工 Gold Set | 全部批准 / 修改 / 拒绝 | F-001 至 F-008 全部批准 | 用户明确认可双 artifact、七条 statement 分类和证据预期；批准仅用于解析校准与 source human QA，不发布生产知识 |
 | 2026-07-15 | P2 结构颗粒度 | 全书逐段 / 仅 AE / 全书导航结构+Core/Events/AE 深度 locator | 全书导航结构+Core/Events/AE 深度 locator | 保证 461 页无结构盲区，同时不把 P2 扩张为全书语义抽取 |
 | 2026-07-15 | P2 人工审核入口 | 扩建 Panel PDF 预览 / Panel 记录决定+外部视觉核验 | Panel 记录决定+外部视觉核验 | 复用现有 Review Protocol，并把富媒体预览留在后续真实需求阶段 |
+| 2026-07-15 | P2 结构合同 | 复用 P1 SourceUnit / 独立结构地图+locator 注册表 | 独立结构地图+locator 注册表 | 支持一个结构单元对应多个证据位置、跨页表格和全书 page assignment，同时保留向 P1 locator 的明确投影 |
 
 ## 同步记录
 

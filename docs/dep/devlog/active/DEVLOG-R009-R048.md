@@ -512,3 +512,36 @@ Done — no next steps。若需要跨阶段全量语义图，应另立 typed-rel
 - `review-panel/src/review_panel/static/app.js`、`styles.css`（P3 browser Gate 修复）
 - `review-panel/tests/test_browser_review_flow.py`、`test_static_contract.py`（浏览器 fallback 与 UI 回归）
 - `.gitignore`、`docs/dep/PLAN.md`、`TASK_STATE.md`、`plans/complete/P0-local-review-panel.md`、DEVLOG/INDEX（P0 归档）
+
+---
+
+### R025 [11:33] [P6-clinical-knowledge-evolution] P2: 完成 P2-A 分层结构地图合同
+
+#### Done
+- 建立 Wiki 内部独立结构地图 Schema：全书 page assignment、层级 unit、独立 locator 注册表、跨页 table segment 和 reference closure 均有明确合同。
+- 实现稳定结构/page/unit/locator/reference ID 与 fail-closed 语义校验；生成时间、bbox 和内容 hash 不参与 identity。
+- 保留 P1 Gold Set locator ID，并提供 P2 locator 到 P1 locator 合同的显式投影校验；不修改 Runtime 公共合同。
+- 增加无受限正文的合成 JSON/PDF/XLSX 正反例与 20 个定向测试；视觉抽查跨页表格和 assumption 区段无错位或裁切。
+
+#### Issues / Blockers
+- 首轮负例同时破坏 artifact closure，导致测试先触发 page ownership 错误而非预期的 locator media 错误；根因是负例不够单一，已改为只改变 XLSX locator 形态。
+- 合成 PDF 首版重复持有 `new_page()` 返回的 page proxy，后续新增页面后触发 PyMuPDF orphaned page；改为先建完页面再重新加载 page proxy。
+- openpyxl 在 Python 3.14 下产生 `datetime.utcnow()` 第三方弃用告警；当前不影响产物或测试，保留为依赖升级风险。
+- `pdftoppm` 在当前环境不可用；本阶段使用仓库既有 PyMuPDF 渲染路径完成视觉核验，不新增系统依赖。
+
+#### Validation
+- `python -m pytest tests/test_p6_structure_map_contract.py -q`（20 passed，4 warnings）
+- `python -m pytest -q --disable-warnings`（`clinical-llm-wiki/`，87 passed，163 warnings）
+- `python -m ruff check --no-cache service scripts tests`（`clinical-llm-wiki/`，success）
+- 合成 PDF 第 3、4 页 PyMuPDF 渲染视觉抽查（success）
+- `git diff --check`（success；仅 LF/CRLF 提示）
+
+#### Next
+1. P2-B：从受控 manifest、PDF outline/页面和 XLSX 派生证据生成 461 页全书导航结构地图。
+2. 建立 PDF outline/page/domain/table 与 XLSX dataset/variable 全量结构覆盖报告；不提前进入 P2-C 深度 locator。
+
+#### Files Changed / Commits
+- `clinical-llm-wiki/schemas/extraction/source-structure-map.schema.json`
+- `clinical-llm-wiki/scripts/pdf/structure_map_contract.py`、`create_synthetic_fixtures.py`
+- `clinical-llm-wiki/tests/fixtures/knowledge/source-structure-map-positive.json`、`tests/test_p6_structure_map_contract.py`
+- `docs/dep/PLAN.md`、`plans/ongoing/P6-clinical-knowledge-evolution.md`、DEVLOG/INDEX

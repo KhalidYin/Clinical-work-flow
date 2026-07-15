@@ -1,0 +1,655 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://clinical-llm-wiki/schemas/extraction/source-structure-map",
+  "$defs": {
+    "StableId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)+$"
+    },
+    "IdentityKey": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "SourceId": {
+      "type": "string",
+      "pattern": "^src-[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "Sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "NonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "NullableString": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "ProcessingStatus": {
+      "type": "string",
+      "enum": [
+        "candidate",
+        "context",
+        "example",
+        "navigation",
+        "deferred"
+      ]
+    },
+    "IdentityProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "profile_id": {
+          "const": "source-anchor-v1"
+        },
+        "namespace": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*$"
+        },
+        "normalization_profile": {
+          "const": "text-collapse-v1"
+        }
+      },
+      "required": [
+        "profile_id",
+        "namespace",
+        "normalization_profile"
+      ]
+    },
+    "ArtifactIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "artifact_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "primary_citation",
+            "structured_companion"
+          ]
+        },
+        "media_type": {
+          "type": "string",
+          "enum": [
+            "application/pdf",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          ]
+        },
+        "artifact_sha256": {
+          "$ref": "#/$defs/Sha256"
+        }
+      },
+      "required": [
+        "artifact_id",
+        "role",
+        "media_type",
+        "artifact_sha256"
+      ]
+    },
+    "PageAssignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "processing_status": {
+                "const": "deferred"
+              }
+            },
+            "required": [
+              "processing_status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "processing_note": {
+                "$ref": "#/$defs/NonEmptyString"
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "page_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "artifact_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "physical_page": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "printed_page": {
+          "$ref": "#/$defs/NullableString"
+        },
+        "width_points": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "height_points": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "page_role": {
+          "type": "string",
+          "enum": [
+            "cover",
+            "front_matter",
+            "contents",
+            "body",
+            "appendix",
+            "back_matter",
+            "blank"
+          ]
+        },
+        "primary_unit_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StableId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text_sha256": {
+          "$ref": "#/$defs/Sha256"
+        },
+        "processing_status": {
+          "$ref": "#/$defs/ProcessingStatus"
+        },
+        "processing_note": {
+          "$ref": "#/$defs/NullableString"
+        }
+      },
+      "required": [
+        "page_id",
+        "artifact_id",
+        "physical_page",
+        "printed_page",
+        "width_points",
+        "height_points",
+        "page_role",
+        "primary_unit_id",
+        "text_sha256",
+        "processing_status",
+        "processing_note"
+      ]
+    },
+    "StructureUnit": {
+      "type": "object",
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "processing_status": {
+                "const": "deferred"
+              }
+            },
+            "required": [
+              "processing_status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "processing_note": {
+                "$ref": "#/$defs/NonEmptyString"
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "unit_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "identity_key": {
+          "$ref": "#/$defs/IdentityKey"
+        },
+        "artifact_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "parent_unit_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StableId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unit_type": {
+          "type": "string",
+          "enum": [
+            "front_matter",
+            "chapter",
+            "section",
+            "domain",
+            "table",
+            "dataset",
+            "variable_row",
+            "paragraph",
+            "example",
+            "cross_reference",
+            "appendix",
+            "index"
+          ]
+        },
+        "content_role": {
+          "type": "string",
+          "enum": [
+            "navigation",
+            "context",
+            "assumption",
+            "example",
+            "cross_reference",
+            "specification",
+            "metadata",
+            "other"
+          ]
+        },
+        "title": {
+          "$ref": "#/$defs/NullableString"
+        },
+        "source_kind": {
+          "type": "string",
+          "enum": [
+            "pdf_outline",
+            "pdf_detected",
+            "xlsx_sheet",
+            "xlsx_row"
+          ]
+        },
+        "outline_level": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_order": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "locator_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/StableId"
+          }
+        },
+        "text_sha256": {
+          "$ref": "#/$defs/Sha256"
+        },
+        "processing_status": {
+          "$ref": "#/$defs/ProcessingStatus"
+        },
+        "processing_note": {
+          "$ref": "#/$defs/NullableString"
+        }
+      },
+      "required": [
+        "unit_id",
+        "identity_key",
+        "artifact_id",
+        "parent_unit_id",
+        "unit_type",
+        "content_role",
+        "title",
+        "source_kind",
+        "outline_level",
+        "source_order",
+        "locator_ids",
+        "text_sha256",
+        "processing_status",
+        "processing_note"
+      ]
+    },
+    "Locator": {
+      "type": "object",
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "locator_type": {
+                "const": "pdf_region"
+              }
+            },
+            "required": [
+              "locator_type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "physical_page": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "bbox": {
+                "type": "array",
+                "minItems": 4,
+                "maxItems": 4,
+                "items": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              },
+              "sheet_name": {
+                "type": "null"
+              },
+              "row_number": {
+                "type": "null"
+              },
+              "row_key": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "locator_type": {
+                "const": "xlsx_row"
+              }
+            },
+            "required": [
+              "locator_type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "physical_page": {
+                "type": "null"
+              },
+              "printed_page": {
+                "type": "null"
+              },
+              "bbox": {
+                "type": "null"
+              },
+              "sheet_name": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "row_number": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "row_key": {
+                "$ref": "#/$defs/NonEmptyString"
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "locator_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "identity_key": {
+          "$ref": "#/$defs/IdentityKey"
+        },
+        "artifact_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "locator_type": {
+          "type": "string",
+          "enum": [
+            "pdf_region",
+            "xlsx_row"
+          ]
+        },
+        "physical_page": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "printed_page": {
+          "$ref": "#/$defs/NullableString"
+        },
+        "section_path": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "bbox": {
+          "anyOf": [
+            {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "items": {
+                "type": "number",
+                "minimum": 0
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sheet_name": {
+          "$ref": "#/$defs/NullableString"
+        },
+        "row_number": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "table_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StableId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "row_key": {
+          "$ref": "#/$defs/NullableString"
+        }
+      },
+      "required": [
+        "locator_id",
+        "identity_key",
+        "artifact_id",
+        "locator_type",
+        "physical_page",
+        "printed_page",
+        "section_path",
+        "bbox",
+        "sheet_name",
+        "row_number",
+        "table_id",
+        "row_key"
+      ]
+    },
+    "Reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "resolution_status": {
+                "const": "unresolved"
+              }
+            },
+            "required": [
+              "resolution_status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "processing_note": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "to_unit_id": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "reference_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "identity_key": {
+          "$ref": "#/$defs/IdentityKey"
+        },
+        "from_unit_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "source_locator_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "target_kind": {
+          "type": "string",
+          "enum": [
+            "source_unit",
+            "external_dependency",
+            "unresolved"
+          ]
+        },
+        "to_unit_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StableId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "target_label": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "resolution_status": {
+          "type": "string",
+          "enum": [
+            "resolved",
+            "external",
+            "unresolved"
+          ]
+        },
+        "processing_note": {
+          "$ref": "#/$defs/NullableString"
+        }
+      },
+      "required": [
+        "reference_id",
+        "identity_key",
+        "from_unit_id",
+        "source_locator_id",
+        "target_kind",
+        "to_unit_id",
+        "target_label",
+        "resolution_status",
+        "processing_note"
+      ]
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "structure_map_id": {
+      "$ref": "#/$defs/StableId"
+    },
+    "source_id": {
+      "$ref": "#/$defs/SourceId"
+    },
+    "source_sha256": {
+      "$ref": "#/$defs/Sha256"
+    },
+    "identity_profile": {
+      "$ref": "#/$defs/IdentityProfile"
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/ArtifactIdentity"
+      }
+    },
+    "page_count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "pages": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/PageAssignment"
+      }
+    },
+    "units": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/StructureUnit"
+      }
+    },
+    "locators": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Locator"
+      }
+    },
+    "references": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Reference"
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "structure_map_id",
+    "source_id",
+    "source_sha256",
+    "identity_profile",
+    "artifacts",
+    "page_count",
+    "pages",
+    "units",
+    "locators",
+    "references"
+  ]
+}

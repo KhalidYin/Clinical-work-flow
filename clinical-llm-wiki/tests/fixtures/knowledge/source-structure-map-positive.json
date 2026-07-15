@@ -1,0 +1,362 @@
+{
+  "schema_version": "1.0.0",
+  "structure_map_id": "structure-map-synthetic",
+  "source_id": "src-synthetic-structure",
+  "source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "identity_profile": {
+    "profile_id": "source-anchor-v1",
+    "namespace": "synthetic",
+    "normalization_profile": "text-collapse-v1"
+  },
+  "artifacts": [
+    {
+      "artifact_id": "artifact-synthetic-structure-pdf",
+      "role": "primary_citation",
+      "media_type": "application/pdf",
+      "artifact_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "artifact_id": "artifact-synthetic-structure-xlsx",
+      "role": "structured_companion",
+      "media_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "artifact_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  ],
+  "page_count": 4,
+  "pages": [
+    {
+      "page_id": "page-synthetic-p0001",
+      "artifact_id": "artifact-synthetic-structure-pdf",
+      "physical_page": 1,
+      "printed_page": null,
+      "width_points": 612.0,
+      "height_points": 792.0,
+      "page_role": "cover",
+      "primary_unit_id": "unit-synthetic-front-cover",
+      "text_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "processing_status": "navigation",
+      "processing_note": null
+    },
+    {
+      "page_id": "page-synthetic-p0002",
+      "artifact_id": "artifact-synthetic-structure-pdf",
+      "physical_page": 2,
+      "printed_page": "1",
+      "width_points": 612.0,
+      "height_points": 792.0,
+      "page_role": "body",
+      "primary_unit_id": "unit-synthetic-chapter-1",
+      "text_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "processing_status": "navigation",
+      "processing_note": null
+    },
+    {
+      "page_id": "page-synthetic-p0003",
+      "artifact_id": "artifact-synthetic-structure-pdf",
+      "physical_page": 3,
+      "printed_page": "2",
+      "width_points": 612.0,
+      "height_points": 792.0,
+      "page_role": "body",
+      "primary_unit_id": "unit-synthetic-domain-ae",
+      "text_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "processing_status": "candidate",
+      "processing_note": null
+    },
+    {
+      "page_id": "page-synthetic-p0004",
+      "artifact_id": "artifact-synthetic-structure-pdf",
+      "physical_page": 4,
+      "printed_page": "3",
+      "width_points": 612.0,
+      "height_points": 792.0,
+      "page_role": "body",
+      "primary_unit_id": "unit-synthetic-table-ae-specification",
+      "text_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "processing_status": "candidate",
+      "processing_note": null
+    }
+  ],
+  "units": [
+    {
+      "unit_id": "unit-synthetic-front-cover",
+      "identity_key": "front-cover",
+      "artifact_id": "artifact-synthetic-structure-pdf",
+      "parent_unit_id": null,
+      "unit_type": "front_matter",
+      "content_role": "navigation",
+      "title": "Synthetic cover",
+      "source_kind": "pdf_detected",
+      "outline_level": null,
+      "source_order": 0,
+      "locator_ids": [
+        "loc-synthetic-p001-cover"
+      ],
+      "text_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "processing_status": "navigation",
+      "processing_note": null
+    },
+    {
+      "unit_id": "unit-synthetic-chapter-1",
+      "identity_key": "chapter-1",
+      "artifact_id": "artifact-synthetic-structure-pdf",
+      "parent_unit_id": null,
+      "unit_type": "chapter",
+      "content_role": "navigation",
+      "title": "1 Synthetic fundamentals",
+      "source_kind": "pdf_outline",
+      "outline_level": 1,
+      "source_order": 1,
+      "locator_ids": [
+        "loc-synthetic-p002-chapter-1"
+      ],
+      "text_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "processing_status": "navigation",
+      "processing_note": null
+    },
+    {
+      "unit_id": "unit-synthetic-domain-ae",
+      "identity_key": "domain-ae",
+      "artifact_id": "artifact-synthetic-structure-pdf",
+      "parent_unit_id": "unit-synthetic-chapter-1",
+      "unit_type": "domain",
+      "content_role": "context",
+      "title": "Synthetic Adverse Events",
+      "source_kind": "pdf_outline",
+      "outline_level": 2,
+      "source_order": 2,
+      "locator_ids": [
+        "loc-synthetic-p003-domain-ae"
+      ],
+      "text_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+      "processing_status": "candidate",
+      "processing_note": null
+    },
+    {
+      "unit_id": "unit-synthetic-table-ae-specification",
+      "identity_key": "table-ae-specification",
+      "artifact_id": "artifact-synthetic-structure-pdf",
+      "parent_unit_id": "unit-synthetic-domain-ae",
+      "unit_type": "table",
+      "content_role": "specification",
+      "title": "Synthetic AE specification",
+      "source_kind": "pdf_detected",
+      "outline_level": null,
+      "source_order": 3,
+      "locator_ids": [
+        "loc-synthetic-p003-ae-table",
+        "loc-synthetic-p004-ae-table"
+      ],
+      "text_sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+      "processing_status": "candidate",
+      "processing_note": null
+    },
+    {
+      "unit_id": "unit-synthetic-xlsx-datasets-ae",
+      "identity_key": "xlsx-datasets-ae",
+      "artifact_id": "artifact-synthetic-structure-xlsx",
+      "parent_unit_id": null,
+      "unit_type": "dataset",
+      "content_role": "metadata",
+      "title": "AE dataset row",
+      "source_kind": "xlsx_row",
+      "outline_level": null,
+      "source_order": 0,
+      "locator_ids": [
+        "loc-synthetic-xlsx-datasets-ae"
+      ],
+      "text_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+      "processing_status": "candidate",
+      "processing_note": null
+    },
+    {
+      "unit_id": "unit-synthetic-xlsx-variables-ae-aeterm",
+      "identity_key": "xlsx-variables-ae-aeterm",
+      "artifact_id": "artifact-synthetic-structure-xlsx",
+      "parent_unit_id": "unit-synthetic-xlsx-datasets-ae",
+      "unit_type": "variable_row",
+      "content_role": "metadata",
+      "title": "AE.AETERM variable row",
+      "source_kind": "xlsx_row",
+      "outline_level": null,
+      "source_order": 1,
+      "locator_ids": [
+        "loc-synthetic-xlsx-variables-ae-aeterm"
+      ],
+      "text_sha256": "6666666666666666666666666666666666666666666666666666666666666666",
+      "processing_status": "candidate",
+      "processing_note": null
+    }
+  ],
+  "locators": [
+    {
+      "locator_id": "loc-synthetic-p001-cover",
+      "identity_key": "p001-cover",
+      "artifact_id": "artifact-synthetic-structure-pdf",
+      "locator_type": "pdf_region",
+      "physical_page": 1,
+      "printed_page": null,
+      "section_path": [
+        "Cover"
+      ],
+      "bbox": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+      ],
+      "sheet_name": null,
+      "row_number": null,
+      "table_id": null,
+      "row_key": null
+    },
+    {
+      "locator_id": "loc-synthetic-p002-chapter-1",
+      "identity_key": "p002-chapter-1",
+      "artifact_id": "artifact-synthetic-structure-pdf",
+      "locator_type": "pdf_region",
+      "physical_page": 2,
+      "printed_page": "1",
+      "section_path": [
+        "1 Synthetic fundamentals"
+      ],
+      "bbox": [
+        72.0,
+        60.0,
+        360.0,
+        90.0
+      ],
+      "sheet_name": null,
+      "row_number": null,
+      "table_id": null,
+      "row_key": null
+    },
+    {
+      "locator_id": "loc-synthetic-p003-domain-ae",
+      "identity_key": "p003-domain-ae",
+      "artifact_id": "artifact-synthetic-structure-pdf",
+      "locator_type": "pdf_region",
+      "physical_page": 3,
+      "printed_page": "2",
+      "section_path": [
+        "1 Synthetic fundamentals",
+        "1.1 Synthetic Adverse Events"
+      ],
+      "bbox": [
+        72.0,
+        60.0,
+        360.0,
+        90.0
+      ],
+      "sheet_name": null,
+      "row_number": null,
+      "table_id": null,
+      "row_key": null
+    },
+    {
+      "locator_id": "loc-synthetic-p003-ae-table",
+      "identity_key": "p003-ae-table",
+      "artifact_id": "artifact-synthetic-structure-pdf",
+      "locator_type": "pdf_region",
+      "physical_page": 3,
+      "printed_page": "2",
+      "section_path": [
+        "1 Synthetic fundamentals",
+        "1.1 Synthetic Adverse Events",
+        "AE Specification"
+      ],
+      "bbox": [
+        72.0,
+        120.0,
+        540.0,
+        740.0
+      ],
+      "sheet_name": null,
+      "row_number": null,
+      "table_id": "unit-synthetic-table-ae-specification",
+      "row_key": null
+    },
+    {
+      "locator_id": "loc-synthetic-p004-ae-table",
+      "identity_key": "p004-ae-table",
+      "artifact_id": "artifact-synthetic-structure-pdf",
+      "locator_type": "pdf_region",
+      "physical_page": 4,
+      "printed_page": "3",
+      "section_path": [
+        "1 Synthetic fundamentals",
+        "1.1 Synthetic Adverse Events",
+        "AE Specification"
+      ],
+      "bbox": [
+        72.0,
+        60.0,
+        540.0,
+        500.0
+      ],
+      "sheet_name": null,
+      "row_number": null,
+      "table_id": "unit-synthetic-table-ae-specification",
+      "row_key": null
+    },
+    {
+      "locator_id": "loc-synthetic-xlsx-datasets-ae",
+      "identity_key": "xlsx-datasets-ae",
+      "artifact_id": "artifact-synthetic-structure-xlsx",
+      "locator_type": "xlsx_row",
+      "physical_page": null,
+      "printed_page": null,
+      "section_path": [
+        "Datasets",
+        "AE"
+      ],
+      "bbox": null,
+      "sheet_name": "Datasets",
+      "row_number": 2,
+      "table_id": null,
+      "row_key": "AE"
+    },
+    {
+      "locator_id": "loc-synthetic-xlsx-variables-ae-aeterm",
+      "identity_key": "xlsx-variables-ae-aeterm",
+      "artifact_id": "artifact-synthetic-structure-xlsx",
+      "locator_type": "xlsx_row",
+      "physical_page": null,
+      "printed_page": null,
+      "section_path": [
+        "Variables",
+        "AE",
+        "AETERM"
+      ],
+      "bbox": null,
+      "sheet_name": "Variables",
+      "row_number": 3,
+      "table_id": null,
+      "row_key": "AE.AETERM"
+    }
+  ],
+  "references": [
+    {
+      "reference_id": "ref-synthetic-aeterm-to-ae",
+      "identity_key": "aeterm-to-ae",
+      "from_unit_id": "unit-synthetic-xlsx-variables-ae-aeterm",
+      "source_locator_id": "loc-synthetic-xlsx-variables-ae-aeterm",
+      "target_kind": "source_unit",
+      "to_unit_id": "unit-synthetic-domain-ae",
+      "target_label": "Synthetic AE domain",
+      "resolution_status": "resolved",
+      "processing_note": null
+    },
+    {
+      "reference_id": "ref-synthetic-chapter-to-sdtm",
+      "identity_key": "chapter-to-sdtm",
+      "from_unit_id": "unit-synthetic-chapter-1",
+      "source_locator_id": "loc-synthetic-p002-chapter-1",
+      "target_kind": "external_dependency",
+      "to_unit_id": "dependency-sdtm-2-0",
+      "target_label": "Synthetic SDTM model dependency",
+      "resolution_status": "external",
+      "processing_note": null
+    }
+  ]
+}
