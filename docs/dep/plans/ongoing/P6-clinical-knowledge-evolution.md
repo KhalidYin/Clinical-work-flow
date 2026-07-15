@@ -182,7 +182,7 @@ P1 可根据真实 SDTMIG 结构删减关系类型；不允许为了“图谱丰
 |-------|------|----------|------|------|
 | P1 | 冻结 SDTMIG 3.4 来源、解析合同和人工 Gold Set | 2-3 | 现有 Wiki/PDF 基线 | done |
 | P2 | 建立全文结构地图和分层 locator 覆盖 | 4-6 | P1 | done |
-| P3 | 深度抽取 Core/Events/AE 原子知识并校准质量 | 4-6 | P2 | next |
+| P3 | 深度抽取 Core/Events/AE 原子知识并校准质量 | 4-6 | P2 | in_progress |
 | P4 | 整理可复用知识与 typed relation 图谱 | 2-3 | P3 | pending |
 | P5 | 完成引用、图谱、查询和 Snapshot 发布验收 | 2-4 | P4 | pending |
 
@@ -310,6 +310,25 @@ P2-A 至 P2-E 是一个内部 Phase 的原子执行切片；每个切片完成�
 - LLM 抽取结果与 Gold Set 的逐轮差异、提示/Schema 调整记录和人工复核清单。
 - 解析覆盖、statement 原子性、语义保真和重复规则报告。
 
+### 内部执行切片
+
+| 切片 | 状态 | 范围 | 独立提交口径 |
+|------|------|------|--------------|
+| P3-A | done | 定义 Proposal Batch、逐 source unit 覆盖台账与 Gold Set 确定性评分合同；只使用合成正反例，不生成正式候选 | `feat: define SDTMIG 3.4 proposal batch contract` |
+| P3-B | next | 对人工 Gold Set 执行首轮候选校准，记录字段级差异和提示/Schema 版本；未通过 Gate 不扩大范围 | `feat: calibrate SDTMIG 3.4 gold proposals` |
+| P3-C | pending | 按小批次抽取 Core 范围并形成逐单元覆盖、原子性和语义质量报告 | `feat: extract SDTMIG 3.4 core proposals` |
+| P3-D | pending | 按小批次抽取 Events/AE，执行跨证据、重复和变量规则检查，生成中文 blocking ReviewPacket | `feat: open SDTMIG 3.4 proposal review gate` |
+| P3-E | pending | 应用人工决定、保留未确认项为 proposed/rework、归档审核三件套并关闭 P3 Gate | `feat: close SDTMIG 3.4 proposal review gate` |
+
+P3-A 至 P3-E 是质量优先的内部切片；每个切片完成并验证后独立提交。P3-A/P3-B 不得产生 `approved` statement，P3-D 后必须停在人工 Gate，只有 P3-E 才能把人工确认结果应用到知识候选。
+
+### P3 质量 Gate
+
+- 覆盖台账必须让每个批准范围内的 source unit 恰好出现一次，状态只能是 `candidate`、`non_knowledge` 或 `deferred`；后两者必须说明原因。
+- Gold Set 匹配以 evidence locator 集合为主键，不依赖生成的 statement ID；`knowledge_type`、`modality`、`scope`、`conditions`、`exceptions` 和 evidence 必须字段级比较。
+- Gold 扩围门槛为 7/7 期望 statement 结构字段精确匹配、0 missing、0 unexpected；statement 文本仍进入人工语义复核，不由模糊相似度自动批准。
+- 任一来源 hash、结构地图 hash、locator 或 Proposal 引用漂移都 fail closed；生成器不得把 Gold 的 `approved`/receipt 状态复制到新 Proposal。
+
 ### 完成标准
 
 - [ ] 深度范围内每个 source unit 已生成候选或有明确 non-knowledge/deferred 解释。
@@ -435,6 +454,7 @@ P2-A 至 P2-E 是一个内部 Phase 的原子执行切片；每个切片完成�
 | D7 | `SDTM Section 3.1.x` 与 `ICH E3 Section 10.x` 是外部规范引用，不应按 SDTMIG outline 判定为 unresolved | P2-C | 已解决 | 117 条 SDTMIG 内部引用解析到 source unit，5 条显式标为 external dependency，0 unresolved；Gold locator 7/7 字段级一致 |
 | D8 | Review Gate 若只展示生成器日志，人工无法逐项确认覆盖与差异；若直接预览原 PDF/XLSX，又会扩大 Panel 和受限来源暴露面 | P2-D/P2-E | 已解决 | 8 项 compact audit finding 由 `KK` 全部批准；ConfirmationReceipt 为 8 applied/0 failed，三件套已归档。Panel 未接触 local-only PDF/XLSX，P2 只批准结构与 locator 基线 |
 | D9 | P2-D 的审核正文使用英文，不符合用户长期审核习惯 | P2-E | 已解决 | 已审核的历史 packet 保持不变；后续新 ReviewPacket 默认用中文呈现 summary/title/current/proposed/rationale，稳定 ID、枚举、路径和 evidence refs 继续使用英文机器标识 |
+| D10 | Gold 的 statement ID、批准状态和原文措辞都不能作为新候选的自动通过条件 | P3-A | 已解决 | 以 evidence locator 集合作为匹配身份，字段级比较类型、modality、scope、conditions、exceptions 和 evidence；文本差异单列人工复核，所有新候选强制 `proposed` 且 receipt 为空 |
 
 ## 关键决策记录
 
@@ -455,6 +475,7 @@ P2-A 至 P2-E 是一个内部 Phase 的原子执行切片；每个切片完成�
 | 2026-07-15 | P2-C 派生边界 | 覆盖 P2-B 地图 / 另建 deep 派生地图 | 另建 deep 派生地图 | 保留 P2-B 全书导航哈希作为稳定基线；P2-C 从基线增量生成 local-only deep map，摘要分别记录 base/deep hash，便于定位漂移层级 |
 | 2026-07-15 | P2 结构地图人工决定 | 批准 / 修改 / 拒绝 | F-001 至 F-008 全部批准 | 审核人 `KK` 接受全书导航、限定深层 locator、PDF/XLSX 对齐、引用分类、Gold 兼容与 hash/storage 边界；批准不提升知识 statement |
 | 2026-07-15 | 审核内容语言 | 英文 / 中文 / 双语 | 新 packet 默认中文 | 人工阅读字段使用中文降低审核负担；机器合同字段保持稳定英文，历史审核证据不追溯翻译 |
+| 2026-07-15 | P3 候选校准 | statement ID/文本相似度 / evidence 身份+结构字段精确比较 | evidence 身份+结构字段精确比较 | 生成 ID 与措辞不稳定，不能决定临床语义正确性；引用身份和受控字段可确定性复算，文本继续由人审核 |
 
 ## 同步记录
 

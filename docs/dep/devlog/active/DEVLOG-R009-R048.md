@@ -546,8 +546,6 @@ Done — no next steps。若需要跨阶段全量语义图，应另立 typed-rel
 - `clinical-llm-wiki/tests/fixtures/knowledge/source-structure-map-positive.json`、`tests/test_p6_structure_map_contract.py`
 - `docs/dep/PLAN.md`、`plans/ongoing/P6-clinical-knowledge-evolution.md`、DEVLOG/INDEX
 
----
-
 ### R026 [12:49] [P6-clinical-knowledge-evolution] P2: 完成 P2-B 全书导航结构地图
 
 #### Done
@@ -697,4 +695,37 @@ Done — no next steps。若需要跨阶段全量语义图，应另立 typed-rel
 - `clinical-llm-wiki/service/repository.py`、相关测试与 README
 - `clinical-workflow/src/runtime/agent_loop.py`、`tests/test_adae_knowledge_workflow.py`
 - `docs/specs/15-Review-Protocol.md`、`docs/main/memory/`、`USAGE.md`
+- `docs/dep/PLAN.md`、`plans/ongoing/P6-clinical-knowledge-evolution.md`、DEVLOG/INDEX
+
+---
+
+### R030 [14:07] [P6-clinical-knowledge-evolution] P3: 完成 P3-A Proposal Batch、覆盖台账与 Gold 评分合同
+
+#### Done
+- 新增 Wiki 内部 `proposal-batch.schema.json`，绑定来源 hash、结构地图 hash、抽取范围、生成方式、提示/模型身份、嵌入 extraction package、逐 source unit 覆盖台账、质量汇总和可选 Gold 评分；未扩大 Engine Runtime 公共合同。
+- 新增 fail-closed `proposal_batch_contract.py`：范围、覆盖台账和 extraction units 必须精确相等；每个 source unit 恰好登记一次；candidate、non-knowledge、deferred 与现有 processing status 保持一致；质量计数和 Gate 状态必须可复算。
+- 所有新 Proposal 强制保持 `proposed` 且 `review_receipt_id=null`，防止把人工 Gold Set 的批准状态误继承为新知识批准；来源或结构地图锁定 hash、locator、statement 和覆盖引用漂移均阻断。
+- Gold 评分以 evidence locator 集合作为稳定身份，不依赖生成 statement ID；确定性比较 `knowledge_type`、`modality`、`scope`、`conditions`、`exceptions` 和 evidence。文本精确一致与待人工语义复核单独计数，不使用模糊相似度自动通过。
+- 将 P3 冻结为 P3-A 至 P3-E 五个独立提交切片：P3-B 先校准 Gold，P3-C 扩到 Core，P3-D 扩到 Events/AE 并打开中文人工 Gate，P3-E 应用决定并关闭 Phase。
+
+#### Issues / Blockers
+- 首轮定向测试有 2 个反例构造错误：删除唯一 coverage 项会先触发 Schema `minItems`，直接改 locator 会使其他 evidence 形成悬空引用。根因是反例破坏了更早层合同，未到达预期断言层；已分别改为非空集合漂移和合法的多 locator 证据组合，11 项定向测试全部通过。
+- Wiki 全量测试仍有 191 个既有第三方告警，无新增失败。P3-A 不调用 LLM、不生成 Vault 候选、不创建 ReviewPacket，因此当前无人工 blocker。
+
+#### Validation
+- `python -m pytest tests/test_p6_proposal_batch_contract.py -q --disable-warnings`（11 passed）
+- `python -m pytest -q --disable-warnings`（`clinical-llm-wiki/`，120 passed，191 warnings）
+- `python -m ruff check --no-cache service scripts tests`（Wiki，success）
+- Proposal Batch Schema 由 Draft 2020-12 validator 校验，覆盖/Gold 汇总由 Python 复算（success）
+- `git diff --check`（success；仅 LF/CRLF 提示）
+
+#### Next
+1. P3-B：冻结首版抽取提示与输入投影，依据已批准 Gold 的 7 条期望生成一批全新 `proposed` 候选。
+2. 对 Gold 执行 7/7 结构字段评分并记录所有文本差异；未达到 7/7、0 missing、0 unexpected 时只调整提示/Schema，不进入 Core 扩围。
+3. P3-B 仍不人工批准候选；中文逐条 ReviewPacket 留到 P3-D 汇总知识候选后打开。
+
+#### Files Changed / Commits
+- `clinical-llm-wiki/schemas/extraction/proposal-batch.schema.json`
+- `clinical-llm-wiki/scripts/content/proposal_batch_contract.py`
+- `clinical-llm-wiki/tests/test_p6_proposal_batch_contract.py`
 - `docs/dep/PLAN.md`、`plans/ongoing/P6-clinical-knowledge-evolution.md`、DEVLOG/INDEX

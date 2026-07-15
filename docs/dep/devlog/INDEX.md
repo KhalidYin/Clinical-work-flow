@@ -23,5 +23,6 @@
 | R027 | 2026-07-15 | 13:09 | P6-clinical-knowledge-evolution | P2 | 完成 P2-C Core/Events/AE 深度 locator | `clinical-llm-wiki/scripts/pdf/`, `clinical-llm-wiki/sources/packages/`, `clinical-llm-wiki/tests/`, `docs/dep/` | active/DEVLOG-R009-R048.md |
 | R028 | 2026-07-15 | 13:23 | P6-clinical-knowledge-evolution | P2 | 完成 P2-D 并打开结构地图人工审核门 | `clinical-llm-wiki/scripts/pdf/`, `clinical-llm-wiki/sources/packages/`, `clinical-llm-wiki/.review_queue/`, `clinical-llm-wiki/tests/`, `docs/dep/` | active/DEVLOG-R009-R048.md |
 | R029 | 2026-07-15 | 13:50 | P6-clinical-knowledge-evolution | P2 | 完成 P2-E、归档结构审核并关闭 P2 Gate | `clinical-llm-wiki/`, `clinical-workflow/`, `docs/specs/`, `docs/main/memory/`, `docs/dep/`, `USAGE.md` | active/DEVLOG-R009-R048.md |
+| R030 | 2026-07-15 | 14:07 | P6-clinical-knowledge-evolution | P3 | 完成 P3-A Proposal Batch、覆盖台账与 Gold 确定性评分合同 | `clinical-llm-wiki/schemas/extraction/`, `clinical-llm-wiki/scripts/content/`, `clinical-llm-wiki/tests/`, `docs/dep/` | active/DEVLOG-R009-R048.md |
 
 > Legacy rounds R001-R008 remain immutable in [DEVLOG-legacy.md](archive/DEVLOG-legacy.md). They predate the searchable index and were intentionally not rewritten during adoption.

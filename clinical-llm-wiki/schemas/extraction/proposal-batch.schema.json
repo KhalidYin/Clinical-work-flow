@@ -1,0 +1,489 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://clinical-ai.local/schemas/extraction/proposal-batch.schema.json",
+  "title": "Governed Knowledge Proposal Batch",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "batch_id": {
+      "$ref": "#/$defs/StableId"
+    },
+    "source_id": {
+      "$ref": "#/$defs/StableId"
+    },
+    "source_sha256": {
+      "$ref": "#/$defs/Sha256"
+    },
+    "structure_map_id": {
+      "$ref": "#/$defs/StableId"
+    },
+    "structure_map_sha256": {
+      "$ref": "#/$defs/Sha256"
+    },
+    "scope": {
+      "$ref": "#/$defs/BatchScope"
+    },
+    "generation": {
+      "$ref": "#/$defs/GenerationProvenance"
+    },
+    "extraction_package": {
+      "type": "object"
+    },
+    "coverage": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/CoverageEntry"
+      }
+    },
+    "quality_summary": {
+      "$ref": "#/$defs/QualitySummary"
+    },
+    "gold_evaluation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GoldEvaluation"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "batch_id",
+    "source_id",
+    "source_sha256",
+    "structure_map_id",
+    "structure_map_sha256",
+    "scope",
+    "generation",
+    "extraction_package",
+    "coverage",
+    "quality_summary",
+    "gold_evaluation"
+  ],
+  "$defs": {
+    "StableId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,127}$"
+    },
+    "Sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "NonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "BatchScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "scope_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "description": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "unit_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/StableId"
+          }
+        }
+      },
+      "required": [
+        "scope_id",
+        "description",
+        "unit_ids"
+      ]
+    },
+    "GenerationProvenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "method": {
+          "type": "string",
+          "enum": [
+            "synthetic_fixture",
+            "llm_assisted",
+            "human_authored"
+          ]
+        },
+        "run_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "prompt_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StableId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "prompt_sha256": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Sha256"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "model_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NonEmptyString"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "method",
+        "run_id",
+        "prompt_id",
+        "prompt_sha256",
+        "model_id"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "method": {
+                "const": "llm_assisted"
+              }
+            },
+            "required": [
+              "method"
+            ]
+          },
+          "then": {
+            "properties": {
+              "prompt_id": {
+                "$ref": "#/$defs/StableId"
+              },
+              "prompt_sha256": {
+                "$ref": "#/$defs/Sha256"
+              },
+              "model_id": {
+                "$ref": "#/$defs/NonEmptyString"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "CoverageEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "unit_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "source_order": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "disposition": {
+          "type": "string",
+          "enum": [
+            "candidate",
+            "non_knowledge",
+            "deferred"
+          ]
+        },
+        "rationale": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NonEmptyString"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "proposal_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/StableId"
+          }
+        }
+      },
+      "required": [
+        "unit_id",
+        "source_order",
+        "disposition",
+        "rationale",
+        "proposal_ids"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "disposition": {
+                "const": "candidate"
+              }
+            },
+            "required": [
+              "disposition"
+            ]
+          },
+          "then": {
+            "properties": {
+              "proposal_ids": {
+                "minItems": 1
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "rationale": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "proposal_ids": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ]
+    },
+    "QualitySummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "unit_total": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "candidate_unit_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "non_knowledge_unit_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "deferred_unit_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "proposal_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "blocking_issue_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "gate_status": {
+          "type": "string",
+          "enum": [
+            "draft",
+            "pass",
+            "fail"
+          ]
+        }
+      },
+      "required": [
+        "unit_total",
+        "candidate_unit_count",
+        "non_knowledge_unit_count",
+        "deferred_unit_count",
+        "proposal_total",
+        "blocking_issue_count",
+        "gate_status"
+      ]
+    },
+    "FieldDifference": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "field": {
+          "type": "string",
+          "enum": [
+            "knowledge_type",
+            "modality",
+            "scope",
+            "conditions",
+            "exceptions",
+            "evidence"
+          ]
+        },
+        "expected": {},
+        "actual": {}
+      },
+      "required": [
+        "field",
+        "expected",
+        "actual"
+      ]
+    },
+    "GoldComparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "evidence_key": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "expected_statement_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "candidate_statement_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StableId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "structural_match",
+            "field_mismatch",
+            "missing"
+          ]
+        },
+        "field_differences": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FieldDifference"
+          }
+        },
+        "text_exact": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "evidence_key",
+        "expected_statement_id",
+        "candidate_statement_id",
+        "status",
+        "field_differences",
+        "text_exact"
+      ]
+    },
+    "UnexpectedCandidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "candidate_statement_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "evidence_key": {
+          "$ref": "#/$defs/NonEmptyString"
+        }
+      },
+      "required": [
+        "candidate_statement_id",
+        "evidence_key"
+      ]
+    },
+    "GoldEvaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "gold_package_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "candidate_package_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "expected_total": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "candidate_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "structural_match_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "field_mismatch_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "missing_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unexpected_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "text_exact_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "text_review_required_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "gate_status": {
+          "type": "string",
+          "enum": [
+            "pass",
+            "fail"
+          ]
+        },
+        "comparisons": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/GoldComparison"
+          }
+        },
+        "unexpected_candidates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/UnexpectedCandidate"
+          }
+        }
+      },
+      "required": [
+        "schema_version",
+        "gold_package_id",
+        "candidate_package_id",
+        "expected_total",
+        "candidate_total",
+        "structural_match_count",
+        "field_mismatch_count",
+        "missing_count",
+        "unexpected_count",
+        "text_exact_count",
+        "text_review_required_count",
+        "gate_status",
+        "comparisons",
+        "unexpected_candidates"
+      ]
+    }
+  }
+}
