@@ -506,3 +506,15 @@ Knowledge Service 或 Study 锁定快照与 Engine 交互。
 - `clinical_standards.py` 保留为 `migration_source_only` 外部兼容面且无生产导入，逐项迁移与 SPEC↔Wiki 双向映射见 `docs/migrations/LEGACY-KNOWLEDGE-MAPPING.md`。
 - 安装/使用见根 `USAGE.md`，备份、恢复、重建和回滚见 `docs/deploy/DEPLOY_GUIDE.md`。
 - 自动 Gate 与 agent 视觉检查不能替代人类批准；P6 的 blocking ReviewPacket 位于 `docs/reviews/p6_global_acceptance_v1_001.json`，签字前本节状态是 release candidate。
+
+### 20.1 SDTMIG 3.4 知识解析与引用基线
+
+P6 clinical knowledge evolution 已用 SDTMIG 3.4 真实 PDF 与配套规范 XLSX 打通首个长标准来源包。当前生产可用范围限定为 Core、Events 与 AE：
+
+- 全文结构地图覆盖 461/461 物理页，Core/Events/AE 深度 locator 已完成人工结构审核；
+- 28 条 Core/Events/AE statement 已在中文 ReviewPacket 中逐条批准，并发布为 `approved-proposal-release.json`；
+- P4 将 approved release 整理为 3 张 production eligible 知识卡、typed relation graph 和 query index，Obsidian 只显示高价值主题卡，不展开 statement/locator 星团；
+- P5 发布 `snapshot-sdtmig34-core-events-ae-v1`、`query-benchmark.json`、`ae-citation-bundle.json` 和 `p6-release-quality-report.json`；
+- release gate 证明 100% approved statement 具有 source/version/locator/hash，关系 0 dangling，11/11 查询 benchmark 通过，4 类代表性缺口显式返回。
+
+该基线是 P7 “生成 SDTM AE” 的可引用知识输入，不是执行层本身。P7 仍需结合当前 Study context、CRF/EDC metadata、Study decisions、Review Protocol 和受控程序 adapter 生成 MappingSpec/程序候选。AEDECOD/MedDRA、Controlled Terminology 深度包、CRF/EDC→SDTM 可执行编程过程和当前 Study 特定 AE 规则在 P6 中保持 gap，不允许用 LLM 推断成已批准知识。

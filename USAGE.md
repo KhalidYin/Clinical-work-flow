@@ -47,6 +47,21 @@ Set-Location ..
 
 Obsidian 默认全局图只显示 `Workflow-Relations` 的十个阶段投影和十份 Stage Playbook，README、普通 MOC、知识卡、来源及治理记录不会挤入主干图。蓝色表示阶段关系投影，橙色表示 Playbook，并显示方向箭头。需要查看某阶段关联知识时，打开对应阶段投影，执行 **Open local graph**，把 depth 设为 1；绿色、紫色、红色分别表示知识、工具和案例。需要调查来源/治理关系时使用搜索/MOC，或临时清除过滤器，不要通过删除 Markdown 链接降噪。
 
+### SDTMIG 3.4 知识发布 Gate
+
+当前 SDTMIG 3.4 首期深度范围是 Core、Events 与 AE。已发布的正式内容包括 3 张 approved 知识卡、typed relation/query index、approved-only snapshot、AE citation bundle 和显式 gap 清单；它只提供可引用知识，不执行 AE 程序。
+
+提交前验证：
+
+```powershell
+Set-Location .\clinical-llm-wiki
+..\.venv\Scripts\python -m scripts.content.sdtmig34_relation_graph --check
+..\.venv\Scripts\python -m scripts.content.sdtmig34_release_gate --check
+Set-Location ..
+```
+
+代表性 gap 如 AEDECOD/MedDRA 编码、Controlled Terminology 深度抽取、CRF/EDC→SDTM 可执行编程指导和当前 Study 特定 AE 规则，必须由后续 P7 或 Study 审核补齐，不能由模型自行推断。
+
 ## 3. 启动本地 Review Panel
 
 根目录轻量 Review Panel 是当前可直接使用的人工审核入口。它汇总根 `.review_queue/`、`clinical-llm-wiki/.review_queue/` 和 `clinical-studies/*/.review_queue/`，浏览器只提交 `queue_id/review_id`，不能传入磁盘路径。
@@ -106,6 +121,8 @@ Set-Location ..\clinical-llm-wiki
 ..\.venv\Scripts\python -m pytest -q
 ..\.venv\Scripts\python -m ruff check .
 ..\.venv\Scripts\python -m scripts.content.generate_workflow_map --check
+..\.venv\Scripts\python -m scripts.content.sdtmig34_relation_graph --check
+..\.venv\Scripts\python -m scripts.content.sdtmig34_release_gate --check
 ..\.venv\Scripts\python -m scripts.content.finalize_p5_content --check
 
 Set-Location ..\review-panel

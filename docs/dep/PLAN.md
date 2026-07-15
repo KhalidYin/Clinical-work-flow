@@ -6,9 +6,7 @@ updated: 2026-07-15
 
 ## 进行中
 
-| # | 子计划 | 文件 | 当前阶段 | 已用轮次 | 开始日期 |
-|---|--------|------|----------|----------|----------|
-| P6 | SDTMIG 3.4 知识解析质量与引用基线 | [P6-clinical-knowledge-evolution.md](plans/ongoing/P6-clinical-knowledge-evolution.md) | P4 已关闭；下一阶段 P5：引用、查询与 Snapshot 发布验收 | 12 | 2026-07-14 |
+> 当前没有进行中的子计划。下一步建议启动 P7：用已发布的 SDTMIG 3.4 知识基线做 AE 数据集知识驱动执行闭环。
 
 ## 待开始
 
@@ -26,9 +24,9 @@ updated: 2026-07-15
 
 | 日期 | 子计划 | 文件 | 已同步到 |
 |------|--------|------|----------|
+| 2026-07-15 | SDTMIG 3.4 知识解析质量与引用基线 | [P6-clinical-knowledge-evolution.md](plans/complete/P6-clinical-knowledge-evolution.md) | SPEC-02/07/13/21、USAGE、Wiki README、P6 release artifacts |
 | 2026-07-15 | 根目录轻量本地 Review Panel | [P0-local-review-panel.md](plans/complete/P0-local-review-panel.md) | review-panel 模块、SPEC-13/15/16/21、README、USAGE、DEVLOG |
 | 2026-07-14 | Obsidian 策展式工作流关系图 | [P5-obsidian-curated-relation-graph.md](plans/complete/P5-obsidian-curated-relation-graph.md) | SPEC-21、USAGE、Wiki README、Vault关系投影与客户端配置 |
-| 2026-07-14 | Obsidian 工作流可视化与图谱降噪 | [P4-obsidian-workflow-visualization.md](plans/complete/P4-obsidian-workflow-visualization.md) | SPEC-21、USAGE、Wiki README、Vault导航与客户端配置 |
 
 ## 延后
 

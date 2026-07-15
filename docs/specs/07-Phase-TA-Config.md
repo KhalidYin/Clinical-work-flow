@@ -288,4 +288,6 @@ src/knowledge/clinical_standards.py → deprecated compatibility / migration sou
 
 Phase/TA 一般知识来自 Wiki 的受治理规则；当前 Study 的精确参数来自 `project.yaml`、`runtime-manifest.yaml` 和经三证批准的 `knowledge/decisions/`。旧 Python 常量既不自动加载，也不能在服务不可用时充当 fallback。
 
+SDTMIG 3.4 Core/Events/AE 已作为独立 source package 发布 approved-only 知识基线。它不按 Phase/TA 自动扩大适用范围，而是通过 source version、workflow stage、domain、variable、knowledge type 和 Study manifest snapshot lock 显式加载。P7 或当前 Study 可以引用该 bundle 生成 AE MappingSpec 候选，但 AEDECOD/CT/Study-specific AE 规则必须作为缺口或 Study decision 处理。
+
 首版 68 条内容只对 `SYNTH-ONCO-001` 的 `synthetic-pilot-only` 范围有效，不能据此宣称已发布通用 Phase/TA 生产知识包。旧常量逐项迁移状态见 `docs/migrations/LEGACY-KNOWLEDGE-MAPPING.md`。

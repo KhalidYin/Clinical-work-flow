@@ -587,6 +587,34 @@ python -m review_panel check --repo-root ..
 
 ---
 
+### 4.5 Wiki source package、snapshot 与查询发布物
+
+SDTMIG 3.4 首期 source package 位于：
+
+```text
+clinical-llm-wiki/sources/packages/src-cdisc-sdtmig-3-4/
+├── original/                         # local-only 原件，不作为 Obsidian Vault 内容
+├── derived/                          # local-only 可重建解析派生
+├── source-manifest.json              # source version、artifact hash、locator 注册
+├── approved-proposal-release.json    # P3-E 人工批准后的 28 条 statement release
+├── relation-graph.json               # P4 typed relation graph
+├── query-index.json                  # P4/P5 query projection
+├── snapshot-manifest.json            # P5 locked snapshot manifest
+├── query-benchmark.json              # P5 查询正反例与显式 gap
+├── ae-citation-bundle.json           # P7 可消费的 AE 引用规则与缺口
+└── p6-release-quality-report.json    # P5 发布质量报告
+```
+
+对应 approved-only snapshot 位于：
+
+```text
+clinical-llm-wiki/snapshots/snapshot-sdtmig34-core-events-ae-v1.json
+```
+
+这些 JSON 发布物在 Vault 外维护，不进入 Obsidian 图谱。Study 使用时必须把 snapshot ID、version、SHA-256 和 Engine bundle lock 写入 `runtime-manifest.yaml`；不得从 `derived/`、未批准 proposal 或 source card inbox 状态直接构造 Runtime context。
+
+---
+
 ## 5. XPT v5 递交规范
 
 ### 5.1 关键要求

@@ -24,6 +24,23 @@ python -m service.main
 
 知识获批后，通过 `POST http://127.0.0.1:8787/api/v1/admin/refresh` 重建派生索引。不可变快照位于 `snapshots/`；Study fallback 副本必须与 manifest 的 ID、version 和 hash 精确一致。备份必须同时覆盖 `vault/`、`.review_queue/`、`audit_trail.jsonl`、`sources/` 和 `snapshots/`；`indexes/` 可重建，不是权威源。
 
+SDTMIG 3.4 首期知识发布范围限定为 Core、Events 与 AE。正式交付物包括：
+
+- `vault/20_Knowledge/Standards/SDTMIG 3.4 *.md`：3 张人工批准后可复用知识卡；
+- `sources/packages/src-cdisc-sdtmig-3-4/relation-graph.json` 与 `query-index.json`：机器 typed relation 与查询索引；
+- `snapshots/snapshot-sdtmig34-core-events-ae-v1.json`：approved-only locked snapshot；
+- `sources/packages/src-cdisc-sdtmig-3-4/ae-citation-bundle.json`：P7 可消费的 AE 引用规则和显式缺口；
+- `sources/packages/src-cdisc-sdtmig-3-4/p6-release-quality-report.json`：引用闭包、query benchmark 与 snapshot 发布验收报告。
+
+发布 Gate：
+
+```powershell
+python -m scripts.content.sdtmig34_relation_graph --check
+python -m scripts.content.sdtmig34_release_gate --check
+```
+
+该 bundle 只证明已批准知识可查询、可追溯、可锁定；AEDECOD/MedDRA 编码、Controlled Terminology 深度包、CRF/EDC→SDTM 可执行编程过程和当前 Study 特定规则必须作为显式 gap 或后续 Study/P7 输入处理。
+
 十阶段总览位于 `vault/10_MOC/Clinical-Workflow-Map.md`；同一生成器还会根据受治理卡片的 `workflow_stages` 生成 `vault/10_MOC/Workflow-Relations/` 十个阶段关系投影。二者均不应手工编辑。合同、阶段手册或卡片适用阶段变化后运行 `python -m scripts.content.generate_workflow_map`，提交前运行带 `--check` 的命令。
 
 Obsidian 默认全局图只显示 10 个阶段关系投影和 10 个 Stage Playbook：蓝色节点是关系投影，橙色节点是执行手册，箭头表示下一阶段或 Playbook 引用。README、普通 MOC、知识卡、来源和治理记录不会进入默认主干图。从某个阶段投影打开本地图并使用 depth 1，可按需展开绿色知识、紫色工具和红色案例节点；这只改变可视化，不删除 Markdown 追溯链接，也不影响服务索引。

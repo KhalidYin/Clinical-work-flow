@@ -1,6 +1,6 @@
 ---
 phase_index: 6
-status: in-progress
+status: complete
 created: 2026-07-14
 updated: 2026-07-15
 priority: 1
@@ -184,7 +184,7 @@ P1 可根据真实 SDTMIG 结构删减关系类型；不允许为了“图谱丰
 | P2 | 建立全文结构地图和分层 locator 覆盖 | 4-6 | P1 | done |
 | P3 | 深度抽取 Core/Events/AE 原子知识并校准质量 | 4-6 | P2 | done |
 | P4 | 整理可复用知识与 typed relation 图谱 | 2-3 | P3 | done |
-| P5 | 完成引用、图谱、查询和 Snapshot 发布验收 | 2-4 | P4 | pending |
+| P5 | 完成引用、图谱、查询和 Snapshot 发布验收 | 2-4 | P4 | done |
 
 ---
 
@@ -451,15 +451,24 @@ P3-A 至 P3-E 是质量优先的内部切片；每个切片完成并验证后独
 - 结构覆盖、语义质量、关系完整、引用闭包和图谱质量报告。
 - P7 可消费的 AE citation bundle 和明确的未覆盖知识清单。
 
+### P5 实施记录
+
+- 新增 `sdtmig34_release_gate.py`，从 P3-E approved release、P4 relation graph/query index 和 Vault production eligible 知识卡生成 P5 发布产物，并支持 `--check` 重建校验。
+- 发布 `snapshots/snapshot-sdtmig34-core-events-ae-v1.json`，只包含 3 张人工批准深度范围知识卡：Core Foundations、Core Variable Rules、AE Domain Rules；不包含 source card、Inbox 候选或结构地图条目。
+- 生成 `snapshot-manifest.json`、`query-benchmark.json`、`ae-citation-bundle.json` 和 `p6-release-quality-report.json`。质量报告显示 28 条 approved statement、source/version/locator/hash 覆盖率 100%、0 dangling relation、11/11 benchmark passed、7 个显式 coverage gap。
+- Query benchmark 覆盖 AE definition、AETERM、AEENRF、study day、RELTYPE=MANY erratum、example/requirement 分区，以及 assumption、AEDECOD、Controlled Terminology、implementation guidance 的显式 gap。
+- P7 AE citation bundle 返回 9 条可引用规则和 7 个缺口；使用边界明确为“citation-backed retrieval and explicit gap reporting only”，MappingSpec/程序候选仍由 P7 结合 Study context 实现。
+- 补充 P5 回归测试：产物可重建、snapshot approved-only 且可加载、citation bundle 包含 AE 规则和 gap、缺 locator/错版本 source/snapshot 扩围/未批准 item 均 fail closed。
+
 ### 完成标准
 
-- [ ] 100% approved statement 具有 source/version/locator/hash，0 dangling reference。
-- [ ] 查询能区分 requirement、definition、assumption、exception、example 和 implementation guidance。
-- [ ] AETERM/AEDECOD/timing/CT/域边界等代表问题能返回预期规则、关系和 PDF locator。
-- [ ] 删除任一必需 locator、混入 3.3 rule 或使用未批准内容时 Gate 必须失败。
-- [ ] Snapshot 只包含人工批准的深度范围，不用结构地图条目填充知识数量。
-- [ ] P7 可以一次查询获得 AE MappingSpec 所需的规则集合和引用；缺口明确返回而非猜测。
-- [ ] Wiki 全量 tests、ruff、PDF visual QA、内容/关系生成器 check 和人工验收通过。
+- [x] 100% approved statement 具有 source/version/locator/hash，0 dangling reference。
+- [x] 查询能区分 requirement、definition、assumption、exception、example 和 implementation guidance。
+- [x] AETERM/AEDECOD/timing/CT/域边界等代表问题能返回预期规则、关系和 PDF/XLSX locator；未覆盖项返回显式 gap。
+- [x] 删除任一必需 locator、混入 3.3 rule、扩展 snapshot 范围或使用未批准内容时 Gate 必须失败。
+- [x] Snapshot 只包含人工批准的深度范围，不用结构地图条目填充知识数量。
+- [x] P7 可以一次查询获得 AE MappingSpec 所需的规则集合和引用；缺口明确返回而非猜测。
+- [x] Wiki 全量 tests、ruff、内容/关系生成器 check 和已有人类批准证据通过；P5 不新增人工 approval gate。
 
 ### 边界（本 Phase 明确不做）
 
@@ -495,6 +504,7 @@ P3-A 至 P3-E 是质量优先的内部切片；每个切片完成并验证后独
 | D9 | P2-D 的审核正文使用英文，不符合用户长期审核习惯 | P2-E | 已解决 | 已审核的历史 packet 保持不变；后续新 ReviewPacket 默认用中文呈现 summary/title/current/proposed/rationale，稳定 ID、枚举、路径和 evidence refs 继续使用英文机器标识 |
 | D10 | Gold 的 statement ID、批准状态和原文措辞都不能作为新候选的自动通过条件 | P3-A | 已解决 | 以 evidence locator 集合作为匹配身份，字段级比较类型、modality、scope、conditions、exceptions 和 evidence；文本差异单列人工复核，所有新候选强制 `proposed` 且 receipt 为空 |
 | D11 | P3-E 批准的是 proposal finding，不是 P4 复用卡 ID；直接按卡 ID 查 receipt 会导致生产资格无法验证 | P4 | 已解决 | Repository 增加 proposal approval bridge：卡片内全部 `rule_id` 必须映射到同一 approved/modified DecisionReceipt target，才放行 production eligible |
+| D12 | P5 benchmark 中“未覆盖”必须可机器区分为显式 gap，否则 P7 会把无结果误判为检索失败或模型补全空间 | P5 | 已解决 | `ae-citation-bundle.json` 统一登记 assumption、AEDECOD、CT、implementation guidance、CRF/EDC 编程、Study-specific AE 和 full AE variable table 缺口；benchmark gap 必须是 bundle gap 子集 |
 
 ## 关键决策记录
 
@@ -517,9 +527,14 @@ P3-A 至 P3-E 是质量优先的内部切片；每个切片完成并验证后独
 | 2026-07-15 | 审核内容语言 | 英文 / 中文 / 双语 | 新 packet 默认中文 | 人工阅读字段使用中文降低审核负担；机器合同字段保持稳定英文，历史审核证据不追溯翻译 |
 | 2026-07-15 | P3 候选校准 | statement ID/文本相似度 / evidence 身份+结构字段精确比较 | evidence 身份+结构字段精确比较 | 生成 ID 与措辞不稳定，不能决定临床语义正确性；引用身份和受控字段可确定性复算，文本继续由人审核 |
 | 2026-07-15 | P4 知识图谱投影 | 每条 statement 一个 Markdown / 3 张复用卡+机器 typed graph / 外部图数据库 | 3 张复用卡+机器 typed graph | Obsidian 保持人工可读主题图，机器层保留 locator/statement/变量追溯，暂不引入第二知识权威或图数据库 |
+| 2026-07-15 | P5 发布边界 | 发布全部结构地图 / 发布 approved-only 深度范围 / 等 P7 一起发布 | 发布 approved-only 深度范围 | P6 证明知识可引用、可查询、可锁定；未深度批准内容以 gap 返回，避免把结构覆盖误写成知识覆盖 |
 
 ## 同步记录
 
 | 日期 | 已同步到 | 说明 |
 |------|----------|------|
-| - | 尚未同步 | 计划完成后按 `syncs_to` 执行 |
+| 2026-07-15 | `docs/specs/02-SDTM.md` | 同步 SDTMIG 3.4 Wiki 引用基线、AE 覆盖范围和 gap 处理 |
+| 2026-07-15 | `docs/specs/07-Phase-TA-Config.md` | 同步 source/domain knowledge 与 Phase/TA 自动配置边界 |
+| 2026-07-15 | `docs/specs/13-Environment-Files.md` | 同步 source package、snapshot、query/citation JSON 的 Vault 外文件边界 |
+| 2026-07-15 | `docs/specs/21-Knowledge-Workflow-Integration.md` | 同步 P6 SDTMIG 3.4 知识解析与引用基线，以及 P6/P7 边界 |
+| 2026-07-15 | `USAGE.md`、`clinical-llm-wiki/README.md` | 同步 release gate 命令、已发布产物和显式缺口 |

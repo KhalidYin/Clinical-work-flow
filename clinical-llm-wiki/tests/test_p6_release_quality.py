@@ -6,8 +6,24 @@ import hashlib
 import json
 from pathlib import Path
 
+import pytest
+
 from service.contracts import SchemaBundle
 from service.repository import VaultRepository
+from service.snapshot import load_locked_snapshot
+from scripts.content.sdtmig34_release_gate import (
+    CARD_IDS,
+    CITATION_BUNDLE_PATH,
+    QUALITY_REPORT_PATH,
+    QUERY_BENCHMARK_PATH,
+    SNAPSHOT_MANIFEST_PATH,
+    SNAPSHOT_PATH,
+    ReleaseGateError,
+    build_outputs,
+    check_outputs,
+    tamper_for_negative_gate,
+    validate_release_gate,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -85,3 +101,86 @@ def test_only_referenced_figure_has_complete_human_visual_evidence() -> None:
     )
     assert qa["human_visual_qa"]["scope"] == "local_synthetic_release_baseline"
     assert qa["human_visual_qa"]["reviewer_role"] == "human_platform_owner"
+
+
+def test_sdtmig34_p5_release_artifacts_are_rebuildable() -> None:
+    outputs = build_outputs()
+    check_outputs(outputs)
+
+    for path in (
+        SNAPSHOT_PATH,
+        SNAPSHOT_MANIFEST_PATH,
+        QUERY_BENCHMARK_PATH,
+        CITATION_BUNDLE_PATH,
+        QUALITY_REPORT_PATH,
+    ):
+        assert path.is_file()
+
+    quality_report = outputs["quality_report"]
+    assert quality_report["passed"] is True
+    assert quality_report["approved_statement_count"] == 28
+    evidence_criterion = quality_report["criteria"][0]
+    assert evidence_criterion["criterion"] == (
+        "100% approved statement has source/version/locator/hash"
+    )
+    assert evidence_criterion["evidence"]["coverage"] == 1.0
+
+    benchmark = outputs["query_benchmark"]
+    assert benchmark["passed_count"] == benchmark["case_count"] == 11
+    assert benchmark["gap_case_count"] == 4
+    assert all(case["passed"] for case in benchmark["cases"])
+
+
+def test_sdtmig34_p5_snapshot_is_approved_only_and_loadable() -> None:
+    outputs = build_outputs()
+    snapshot = json.loads(SNAPSHOT_PATH.read_text(encoding="utf-8"))
+
+    assert [item["id"] for item in snapshot["items"]] == sorted(CARD_IDS)
+    assert {item["approval_status"] for item in snapshot["items"]} == {"approved"}
+    assert {item["content_status"] for item in snapshot["items"]} == {"verified"}
+    assert "source_record" not in {item["type"] for item in snapshot["items"]}
+
+    records = load_locked_snapshot(
+        _repository(), outputs["citation_bundle"]["snapshot_lock"]
+    )
+    assert [record["id"] for record in records] == sorted(CARD_IDS)
+
+
+def test_sdtmig34_p5_citation_bundle_declares_rules_and_gaps() -> None:
+    bundle = json.loads(CITATION_BUNDLE_PATH.read_text(encoding="utf-8"))
+    statement_ids = {rule["statement_id"] for rule in bundle["rules"]}
+    assert {
+        "proposal-sdtmig34-gold-aeterm-required-v1",
+        "proposal-sdtmig34-gold-aeenrf-crossref-v1",
+        "proposal-sdtmig34-gold-erratum-lnkgrp-v1",
+    }.issubset(statement_ids)
+
+    gap_ids = {gap["gap_id"] for gap in bundle["coverage_gaps"]}
+    assert {
+        "gap-sdtmig34-assumption-statements-not-approved-in-p6",
+        "gap-ae-aedecod-coding-not-approved-in-p6",
+        "gap-controlled-terminology-not-deep-extracted-in-p6",
+        "gap-executable-implementation-guidance-deferred-to-p7",
+    }.issubset(gap_ids)
+
+    for rule in bundle["rules"]:
+        assert rule["evidence"]
+        for evidence in rule["evidence"]:
+            assert evidence["source_id"] == "src-cdisc-sdtmig-3-4"
+            assert evidence["locator_id"]
+            assert evidence["artifact_sha256"]
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "missing_locator",
+        "wrong_version_source",
+        "snapshot_widened",
+        "unapproved_snapshot_item",
+    ],
+)
+def test_sdtmig34_p5_release_gate_rejects_invalid_artifacts(mutation: str) -> None:
+    outputs = build_outputs()
+    with pytest.raises(ReleaseGateError):
+        validate_release_gate(tamper_for_negative_gate(outputs, mutation))

@@ -354,3 +354,14 @@ Core rules:
 | CDISC CT | Quarterly | https://www.cdisc.org/standards/terminology |
 | FDA TCG | Current | FDA Study Data Technical Conformance Guide |
 | Pinnacle 21 | Community/Enterprise | https://www.pinnacle21.com/ |
+
+### 6.1 当前 SDTMIG 3.4 Wiki 引用基线
+
+SDTMIG 3.4 的生产知识权威不再来自本文中的静态示例表，而来自 `clinical-llm-wiki` 的受治理知识卡、typed relation index 和 locked snapshot。P6 首期只深度发布 Core、Events 与 AE 范围：
+
+- 3 张 approved 知识卡：Core Foundations、Core Variable Rules、AE Domain Rules；
+- 28 条 approved statement，均绑定 SDTMIG 3.4 source/version/artifact hash/locator；
+- AE 已覆盖 domain definition、dataset structure、AETERM、AEENRF、Example 1 和 RELTYPE=MANY erratum；
+- AEDECOD/MedDRA 编码、Controlled Terminology 深度包、CRF/EDC→SDTM 可执行编程指导和当前 Study 特定 AE 规则为显式 gap。
+
+SDTM Spec/Programming 阶段调用知识时应优先使用 Knowledge Service 或 Study-local locked snapshot。若查询返回 gap，Agent 必须生成 ReviewPacket 或等待 P7/Study 规则补齐，不能用模型常识或本文示例补写为已批准规则。

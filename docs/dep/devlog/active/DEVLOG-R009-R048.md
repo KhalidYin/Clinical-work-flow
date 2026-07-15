@@ -966,3 +966,49 @@ Done — no next steps。若需要跨阶段全量语义图，应另立 typed-rel
 - `clinical-llm-wiki/vault/10_MOC/Workflow-Relations/03 SDTM Spec.md`
 - `clinical-llm-wiki/vault/10_MOC/Workflow-Relations/04 SDTM Programming.md`
 - `docs/dep/PLAN.md`、`plans/ongoing/P6-clinical-knowledge-evolution.md`、DEVLOG/INDEX
+
+---
+
+### R037 [20:50] [P6-clinical-knowledge-evolution] P5: 发布 SDTMIG 3.4 引用、查询与 Snapshot 验收基线
+
+#### Done
+- 新增 `sdtmig34_release_gate.py`，从 P3-E approved release、P4 relation graph/query index 和 production eligible 知识卡生成 approved-only snapshot、query benchmark、AE citation bundle 和 P6 release quality report，并支持 `--check` 重建校验。
+- 发布 `snapshot-sdtmig34-core-events-ae-v1`，只包含 3 张人工批准深度范围知识卡：Core Foundations、Core Variable Rules、AE Domain Rules；不把 source card、Inbox 候选或结构地图条目算作生产知识。
+- 生成 `snapshot-manifest.json`、`query-benchmark.json`、`ae-citation-bundle.json` 和 `p6-release-quality-report.json`：28 条 approved statement、100% source/version/locator/hash 覆盖、0 dangling relation、11/11 benchmark passed、7 个显式 coverage gap。
+- Query benchmark 覆盖 AE definition、AETERM、AEENRF、study day、RELTYPE=MANY erratum、example/requirement 分区，以及 assumption、AEDECOD、Controlled Terminology、implementation guidance 的显式 gap。
+- 补充 P5 回归测试：release artifacts 可重建、snapshot approved-only 且可加载、citation bundle 包含 AE 规则与 gap、缺 locator/错版本 source/snapshot 扩围/未批准 item 均 fail closed。
+- 同步 SPEC-02/07/13/21、根 `USAGE.md`、Wiki README 和项目记忆；P6 子计划归档到 `plans/complete/`，PLAN 仪表盘清空进行中项并指向 P7。
+
+#### Issues / Blockers
+- 首轮 P5 release gate 失败：`requirement` 查询 benchmark 预期少列了 2 条 Core requirement。根因是 P4 query index 正确返回全部 requirement，而测试预期仍按较窄人工样例写死；已把 general observation classes 与 missing values requirement 纳入 benchmark 预期。
+- 第二轮 release gate 失败：benchmark 声明的 assumption 和 implementation guidance gap 未进入 citation bundle。根因是覆盖缺口清单和查询缺口清单分离维护；已统一登记 7 个 coverage gap，并加子集校验。
+- 新增测试首轮 3 项失败：质量报告 coverage 字段位于 `criteria[0].evidence.coverage`，且两个负向变异先被 extraction contract 拒绝。已修正测试断言，并把 `ExtractionContractError` 包装为 `ReleaseGateError`，对调用方保持单一 release gate 异常类型。
+- 全量 `pytest -q` 单次运行在 184 秒超时但无失败输出；确认无残留 pytest 进程后分 3 组覆盖全部 19 个测试文件，总计 152 passed。超时原因是结构地图与 release quality 组正常偏慢，不是挂死。
+
+#### Validation
+- `python -m scripts.content.sdtmig34_release_gate --check`（success；28 statements / 11 benchmark cases / 9 citation rules / 7 gaps）
+- `python -m scripts.content.sdtmig34_relation_graph --check`（success；28 statements / 3 cards / 148 edges / 5 queries）
+- `python -m scripts.content.generate_workflow_map --check`（success；10 canonical stages and relation projections）
+- `python -m pytest -q --disable-warnings tests/test_vault_contracts.py tests/test_service_api.py tests/test_workflow_map.py tests/test_p5_content_release.py tests/test_pdf_source_pipeline.py`（50 passed）
+- `python -m pytest -q --disable-warnings tests/test_p6_structure_map_contract.py tests/test_p6_structure_map_builder.py tests/test_p6_structure_map_deep.py tests/test_p6_structure_map_review.py tests/test_p6_structure_review_finalize.py tests/test_p6_proposal_batch_contract.py tests/test_p6_gold_proposal_calibration.py`（58 passed）
+- `python -m pytest -q --disable-warnings tests/test_p6_extraction_contract.py tests/test_p6_core_proposals.py tests/test_p6_proposal_review_gate.py tests/test_p6_proposal_review_finalize.py tests/test_p6_relation_graph.py tests/test_p6_release_quality.py tests/test_p6_navigation_acceptance.py`（44 passed）
+- `python -m ruff check --no-cache service scripts tests`（Wiki，success）
+- `git diff --check`（success；仅提示若 Git 触碰部分 LF 文件会转 CRLF）
+
+#### Next
+1. 启动 P7：用 SDTMIG 3.4 Core/Events/AE 知识基线驱动 AE MappingSpec/程序候选闭环。
+2. P7 必须把 AEDECOD/MedDRA、CT 深度包、CRF/EDC→SDTM 可执行编程指导和 Study-specific AE 规则作为显式 gap 或 Study decision，不允许 LLM 自行补成 approved rule。
+3. 若 P7 发现新知识缺口，按 P6 的 source package→proposal→ReviewPacket→approved release→relation/query/snapshot gate 方式增量治理。
+
+#### Files Changed / Commits
+- `clinical-llm-wiki/scripts/content/sdtmig34_release_gate.py`
+- `clinical-llm-wiki/snapshots/snapshot-sdtmig34-core-events-ae-v1.json`
+- `clinical-llm-wiki/sources/packages/src-cdisc-sdtmig-3-4/snapshot-manifest.json`
+- `clinical-llm-wiki/sources/packages/src-cdisc-sdtmig-3-4/query-benchmark.json`
+- `clinical-llm-wiki/sources/packages/src-cdisc-sdtmig-3-4/ae-citation-bundle.json`
+- `clinical-llm-wiki/sources/packages/src-cdisc-sdtmig-3-4/p6-release-quality-report.json`
+- `clinical-llm-wiki/tests/test_p6_release_quality.py`
+- `docs/specs/02-SDTM.md`、`07-Phase-TA-Config.md`、`13-Environment-Files.md`、`21-Knowledge-Workflow-Integration.md`
+- `USAGE.md`、`clinical-llm-wiki/README.md`
+- `docs/main/memory/sdtmig34-knowledge-baseline.md`
+- `docs/dep/PLAN.md`、`plans/complete/P6-clinical-knowledge-evolution.md`、DEVLOG/INDEX
