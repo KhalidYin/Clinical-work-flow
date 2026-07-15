@@ -388,7 +388,12 @@ def test_snapshot_is_immutable_and_proposal_stays_proposed(client: TestClient) -
     assert response.status_code == 201
     assert response.json()["record"]["approval_status"] == "proposed"
     queue = client.app.state.config.vault_root / ".review_queue"
-    assert list(queue.glob("*.json"))
+    packets = list(queue.glob("*.json"))
+    assert packets
+    packet = json.loads(packets[0].read_text(encoding="utf-8"))
+    assert "需要完成治理审核" in packet["agent_summary"]
+    assert packet["findings"][0]["title"] == "批准受治理的知识候选"
+    assert "人工 DecisionReceipt" in packet["findings"][0]["rationale"]
 
 
 def test_runtime_rejects_control_fields_before_context_resolution(client: TestClient) -> None:

@@ -5,7 +5,7 @@
 ## 边界
 
 - `vault/` 是 Obsidian 直接打开的目录，保存知识正文、人工可读治理摘要、附件、核心 Bases 和最小共享 Obsidian 配置；除隐藏的 `.obsidian/*.json` 客户端配置外，不保存机器 JSON、JSONL 或脚本。
-- `.review_queue/` 保存机器可验证的 ReviewPacket、DecisionReceipt 和 ConfirmationReceipt；`audit_trail.jsonl` 保存 Wiki 机器审计事件，二者都不进入 Obsidian Vault。
+- `.review_queue/` 保存机器可验证的 ReviewPacket、DecisionReceipt 和 ConfirmationReceipt；`audit_trail.jsonl` 保存 Wiki 机器审计事件，二者都不进入 Obsidian Vault。新 ReviewPacket 的人类可读字段默认使用中文，稳定 ID、枚举、路径和证据引用保持英文机器标识；已审核 packet 必须原样归档。
 - `schemas/engine/` 镜像 Engine 合同 bundle，不在 Wiki 侧独立修改。
 - `service/` 构建 approved-only SQLite FTS 索引、解析运行时上下文、创建不可变快照并强制核验 DecisionReceipt。
 - `scripts/` 负责内容质量和来源/PDF 派生；原始来源与可重建派生物位于 `sources/`。

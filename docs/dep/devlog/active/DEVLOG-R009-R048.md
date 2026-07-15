@@ -658,3 +658,43 @@ Done — no next steps。若需要跨阶段全量语义图，应另立 typed-rel
 - `clinical-llm-wiki/.review_queue/sdtm_spec_sdtmig34_structure_v1_001.json`
 - `clinical-llm-wiki/tests/test_p6_structure_map_review.py`
 - `docs/dep/PLAN.md`、`plans/ongoing/P6-clinical-knowledge-evolution.md`、`TASK_STATE.md`、DEVLOG/INDEX
+
+---
+
+### R029 [13:50] [P6-clinical-knowledge-evolution] P2: 完成 P2-E、归档结构审核并关闭 P2 Gate
+
+#### Done
+- 通过根 Review Panel/共享 Schema 验证审核人 `KK` 提交的 DecisionReceipt：F-001 至 F-008 完整覆盖、无重复/未知 finding，8 项全部 `approved`，packet SHA-256 为 `eda2d2b117ca63c6620a94e80ebc2c2028ad2069ee2c7c0f9bb60f6cc14f1a48`。
+- 新增 fail-closed `structure_review_finalize.py`：再次重建并比对历史 P2-D packet、compact report、base/deep map hash，拒绝缺失、重复、modified/rejected、漂移或部分 archive；成功时生成 8 applied/0 failed ConfirmationReceipt。
+- 将 ReviewPacket、DecisionReceipt、ConfirmationReceipt 原样移动到 Wiki `.review_queue/archive/`，活动队列恢复为空；向 `audit_trail.jsonl` 追加唯一 `structure_map_approval_applied` 事件并绑定审核人、review ID 和回执文件。
+- 关闭 P2 全部完成标准并把 P3 标记为 next；批准范围仅为全文导航与 Core/Events/AE locator 基线，不提升任何知识 statement。
+- 根据用户反馈，将未来新 ReviewPacket 的人类可读字段默认改为中文，覆盖 P6 结构审核、Workflow ADaM/TFL 审核和 Wiki 知识候选审核；机器 ID、枚举、路径、hash 和 evidence refs 保持稳定英文。
+- 已审核的 P2-D 英文 packet 保持不可变并原样归档；SPEC-15、USAGE、Wiki README 与项目记忆同步中文默认和历史证据边界。
+
+#### Issues / Blockers
+- 仓库此前没有 `docs/main/memory/MEMORY.md`；现有架构/接口权威仍由 `docs/specs/` 承担，本轮只创建最小 portable memory 索引与审核语言偏好，不复制或改写现有 specs。
+- 历史 P2-D packet 使用英文；追溯翻译会改变已审核对象，因此按用户“以后”要求只调整新 packet，并保留 `packet_language="en"` 兼容路径用于重建审计。
+- 全量测试仍报告既有第三方告警：Wiki 191、Workflow 45、Review Panel 89；Panel 的 2 个 skip 为既有预期环境分支。无新 blocker。
+
+#### Validation
+- P2-E 预应用：历史 packet/report 精确重建、DecisionReceipt 8/8 覆盖、ConfirmationReceipt Schema（success）
+- `python -m scripts.pdf.structure_review_finalize --wiki-root . --check`（success；8 applied、0 adjusted、0 failed）
+- `python -m pytest -q --disable-warnings`（`clinical-llm-wiki/`，109 passed，191 warnings）
+- `python -m pytest -q --disable-warnings`（`clinical-workflow/`，182 passed，45 warnings）
+- `python -m pytest -q --disable-warnings`（`review-panel/`，26 passed，2 skipped，89 warnings）
+- `python -m ruff check --no-cache service scripts tests`（Wiki，success）
+- `python -m ruff check --no-cache src tests`（Workflow，success）
+- 文档一致性：SPEC-15、USAGE、Wiki README、P6 计划和项目记忆对“新审核中文、历史证据不变、机器标识英文”的表述一致（success）
+- `git diff --check`（success；仅 LF/CRLF 提示）
+
+#### Next
+1. P6-P3：基于已批准结构地图，小批次抽取 Core/Events/AE 原子知识 Proposal，并先用 Gold Set 校准语义质量。
+2. P3 不得把结构 locator 直接视为 approved statement；高权威 normative statement 仍需逐条中文 ReviewPacket 人工审核。
+
+#### Files Changed / Commits
+- `clinical-llm-wiki/scripts/pdf/structure_review_finalize.py`、`structure_map_review.py`
+- `clinical-llm-wiki/.review_queue/archive/sdtm_spec_sdtmig34_structure_v1_001*.json`、`audit_trail.jsonl`
+- `clinical-llm-wiki/service/repository.py`、相关测试与 README
+- `clinical-workflow/src/runtime/agent_loop.py`、`tests/test_adae_knowledge_workflow.py`
+- `docs/specs/15-Review-Protocol.md`、`docs/main/memory/`、`USAGE.md`
+- `docs/dep/PLAN.md`、`plans/ongoing/P6-clinical-knowledge-evolution.md`、DEVLOG/INDEX

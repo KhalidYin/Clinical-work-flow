@@ -5,22 +5,26 @@ from __future__ import annotations
 from copy import deepcopy
 import json
 from pathlib import Path
+import re
 
 from jsonschema import Draft202012Validator
 import pytest
 
 from scripts.pdf.structure_map_review import (
+    DEFAULT_REVIEW_LANGUAGE,
     PACKET_NAME,
     REPORT_NAME,
     REVIEW_ID,
     build_structure_review_artifacts,
+    build_structure_review_packet,
 )
 
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = ROOT / "sources" / "packages" / "src-cdisc-sdtmig-3-4"
 REPORT = PACKAGE / REPORT_NAME
-PACKET = ROOT / ".review_queue" / PACKET_NAME
+ACTIVE_PACKET = ROOT / ".review_queue" / PACKET_NAME
+PACKET = ROOT / ".review_queue" / "archive" / PACKET_NAME
 
 
 def _read(path: Path) -> dict[str, object]:
@@ -101,10 +105,13 @@ def test_review_sources_are_repo_metadata_not_restricted_or_derived_files() -> N
         assert path.suffix not in {".pdf", ".xlsx"}
 
 
-def test_gate_has_no_decision_or_confirmation_receipt() -> None:
+def test_gate_triplet_is_archived_after_human_approval() -> None:
     assert PACKET.is_file()
-    assert not PACKET.with_name(f"{REVIEW_ID}_decision.json").exists()
-    assert not PACKET.with_name(f"{REVIEW_ID}_confirmation.json").exists()
+    assert PACKET.with_name(f"{REVIEW_ID}_decision.json").is_file()
+    assert PACKET.with_name(f"{REVIEW_ID}_confirmation.json").is_file()
+    assert not ACTIVE_PACKET.exists()
+    assert not ACTIVE_PACKET.with_name(f"{REVIEW_ID}_decision.json").exists()
+    assert not ACTIVE_PACKET.with_name(f"{REVIEW_ID}_confirmation.json").exists()
 
 
 def test_local_maps_reproduce_committed_review_artifacts_when_available() -> None:
@@ -117,6 +124,33 @@ def test_local_maps_reproduce_committed_review_artifacts_when_available() -> Non
     report, rebuilt_packet = build_structure_review_artifacts(
         ROOT,
         created_at=packet["created_at"],  # type: ignore[arg-type]
+        packet_language="en",
     )
     assert report == _read(REPORT)
     assert rebuilt_packet == packet
+
+
+def test_future_structure_review_packets_default_to_chinese_human_text() -> None:
+    packet = build_structure_review_packet(
+        created_at="2026-07-15T13:40:00+08:00",
+        base_hash="a" * 64,
+        deep_hash="b" * 64,
+    )
+    assert DEFAULT_REVIEW_LANGUAGE == "zh-CN"
+    human_text = [packet["agent_summary"]]
+    for finding in packet["findings"]:
+        human_text.extend(
+            finding[field]
+            for field in (
+                "title",
+                "current_value",
+                "proposed_value",
+                "rationale",
+            )
+        )
+    assert all(re.search(r"[\u4e00-\u9fff]", value) for value in human_text)
+    assert packet["review_id"] == REVIEW_ID
+    assert packet["review_type"] == "sdtm_spec"
+    assert [finding["id"] for finding in packet["findings"]] == [
+        f"F-{index:03d}" for index in range(1, 9)
+    ]

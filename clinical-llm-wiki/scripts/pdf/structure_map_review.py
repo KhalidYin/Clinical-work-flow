@@ -29,6 +29,8 @@ REPORT_NAME = "structure-map-review-report.json"
 PACKET_NAME = f"{REVIEW_ID}.json"
 BASE_MAP_NAME = "structure-map.json"
 DEEP_MAP_NAME = "structure-map-deep.json"
+DEFAULT_REVIEW_LANGUAGE = "zh-CN"
+SUPPORTED_REVIEW_LANGUAGES = {"en", "zh-CN"}
 
 
 class StructureMapReviewError(RuntimeError):
@@ -104,10 +106,260 @@ def _review_schema(wiki_root: Path) -> dict[str, Any]:
     return review_packet
 
 
+def build_structure_review_packet(
+    *,
+    created_at: str,
+    base_hash: str,
+    deep_hash: str,
+    language: str = DEFAULT_REVIEW_LANGUAGE,
+) -> dict[str, Any]:
+    """Build one ReviewPacket with localized human-facing text.
+
+    Stable identifiers, enums, paths, and evidence references remain unchanged.
+    English is retained only so the already-reviewed P2-D packet can be
+    reproduced and audited without mutating historical evidence.
+    """
+
+    _validate_created_at(created_at)
+    _require(
+        language in SUPPORTED_REVIEW_LANGUAGES,
+        f"unsupported review language: {language}",
+    )
+    finding_specs = [
+        {
+            "id": "F-001",
+            "category": "compliance",
+            "severity": "info",
+            "location": "p6-p2-structure-map#CHK-001",
+            "evidence_refs": ["structure-review:CHK-001"],
+            "text": {
+                "en": (
+                    "Accept the full-document navigation coverage baseline",
+                    "461/461 pages and 220/220 outline entries are mapped with zero unexplained pages.",
+                    "Approve the page-to-outline navigation layer as the P2 full-document coverage baseline.",
+                    "Navigation coverage prevents later extraction from silently skipping source regions.",
+                ),
+                "zh-CN": (
+                    "确认全文导航覆盖基线",
+                    "已映射 461/461 个物理页和 220/220 个目录条目，不存在无法解释的页面。",
+                    "批准 Page→Outline 导航层作为 P2 全文结构覆盖基线。",
+                    "完整导航覆盖可以防止后续知识抽取静默遗漏来源区域。",
+                ),
+            },
+        },
+        {
+            "id": "F-002",
+            "category": "mapping",
+            "severity": "info",
+            "location": "p6-p2-structure-map#CHK-002",
+            "evidence_refs": ["structure-review:CHK-002"],
+            "text": {
+                "en": (
+                    "Accept PDF boundary detection and XLSX row indexing",
+                    "63 domains, 704 PDF table boundaries, 63 dataset rows, and 1917 variable rows are indexed with no skipped data rows.",
+                    "Approve the PDF navigation boundaries and structured workbook index as complementary source structure.",
+                    "PDF and XLSX provide different locator granularity and must remain separately traceable.",
+                ),
+                "zh-CN": (
+                    "确认 PDF 边界检测与 XLSX 行索引",
+                    "已索引 63 个 domain、704 个 PDF 表格边界、63 个 dataset 行和 1917 个 variable 行，没有跳过数据行。",
+                    "批准 PDF 导航边界与结构化工作簿索引作为互补的来源结构。",
+                    "PDF 与 XLSX 提供不同粒度的 locator，必须保持独立可追溯。",
+                ),
+            },
+        },
+        {
+            "id": "F-003",
+            "category": "compliance",
+            "severity": "info",
+            "location": "p6-p2-structure-map#CHK-003",
+            "evidence_refs": ["structure-review:CHK-003"],
+            "text": {
+                "en": (
+                    "Accept the bounded Core and Events deep-locator scope",
+                    "The approved 100-page scope contains 844 paragraph units, 177 assumption roles, 289 examples, and 85 cross-reference units.",
+                    "Approve deep segmentation only for Core chapters 1-4, section 6.2 Events, and section 6.2.1 AE.",
+                    "A bounded deep layer preserves retrieval quality without claiming full-book paragraph extraction.",
+                ),
+                "zh-CN": (
+                    "确认 Core 与 Events 的限定深层 locator 范围",
+                    "批准的 100 页范围包含 844 个段落单元、177 个 assumption 角色、289 个示例和 85 个交叉引用单元。",
+                    "批准仅对 Core 第 1-4 章、6.2 Events 和 6.2.1 AE 进行深层分段。",
+                    "限定深层范围既能保证检索质量，也不会把局部抽取误称为全书逐段抽取。",
+                ),
+            },
+        },
+        {
+            "id": "F-004",
+            "category": "mapping",
+            "severity": "warning",
+            "location": "p6-p2-structure-map#CHK-004",
+            "evidence_refs": ["structure-review:CHK-004"],
+            "text": {
+                "en": (
+                    "Accept Events PDF-to-XLSX variable alignment",
+                    "All 204 Events PDF variable rows align to 204 workbook rows across seven domains with no missing, ambiguous, or order-difference result.",
+                    "Approve the 204 typed alignment references as the Events variable trace baseline.",
+                    "Variable-level traceability is required before extracting executable SDTM guidance.",
+                ),
+                "zh-CN": (
+                    "确认 Events PDF→XLSX 变量对齐",
+                    "七个 domain 的 204 个 Events PDF 变量行全部对齐到 204 个工作簿行，没有缺失、歧义或顺序差异。",
+                    "批准 204 条类型化对齐引用作为 Events 变量追溯基线。",
+                    "在抽取可执行的 SDTM 指导前，必须先建立变量级追溯。",
+                ),
+            },
+        },
+        {
+            "id": "F-005",
+            "category": "mapping",
+            "severity": "warning",
+            "location": "p6-p2-structure-map#CHK-005",
+            "evidence_refs": [
+                "structure-review:CHK-005",
+                "visual-qa:pages-134-136-137-140",
+            ],
+            "text": {
+                "en": (
+                    "Accept the AE cross-page table locator",
+                    "The AE specification is one table unit with four page locators on pages 134-137 and 60/60 PDF/XLSX variable rows.",
+                    "Approve the cross-page AE table boundary and the first/middle/last locator visual checks.",
+                    "Treating continuation pages as unrelated tables would break AE variable context and citations.",
+                ),
+                "zh-CN": (
+                    "确认 AE 跨页表格 locator",
+                    "AE specification 已合并为一个表格单元，在物理页 134-137 上包含四个 page locator，PDF/XLSX 变量行为 60/60。",
+                    "批准 AE 跨页表格边界以及首段、中段和末段 locator 的视觉核验结果。",
+                    "若把续页误当成无关表格，会破坏 AE 变量语境与引用链。",
+                ),
+            },
+        },
+        {
+            "id": "F-006",
+            "category": "compliance",
+            "severity": "info",
+            "location": "p6-p2-structure-map#CHK-006",
+            "evidence_refs": ["structure-review:CHK-006"],
+            "text": {
+                "en": (
+                    "Accept internal and external reference classification",
+                    "117 SDTMIG section references resolve internally, five SDTM or ICH E3 references remain typed external dependencies, and none are unresolved.",
+                    "Approve the reference closure and preserve external standards as dependencies rather than guessed SDTMIG targets.",
+                    "Typed reference boundaries prevent missing citations and false internal links.",
+                ),
+                "zh-CN": (
+                    "确认内部与外部引用分类",
+                    "117 条 SDTMIG 章节引用已在内部解析，5 条 SDTM 或 ICH E3 引用保留为类型化外部依赖，不存在未解析引用。",
+                    "批准引用闭包，并将外部标准保留为依赖，而不是猜测为 SDTMIG 内部目标。",
+                    "类型化引用边界可以防止引用缺失和错误的内部链接。",
+                ),
+            },
+        },
+        {
+            "id": "F-007",
+            "category": "compliance",
+            "severity": "warning",
+            "location": "p6-p2-structure-map#CHK-007",
+            "evidence_refs": [
+                "structure-review:CHK-007",
+                "tests/fixtures/knowledge/sdtmig34-gold-set.json",
+            ],
+            "text": {
+                "en": (
+                    "Accept P1 Gold locator compatibility",
+                    "All seven P2-expressible Gold locators match at field level; the web erratum remains explicitly outside the PDF/XLSX map.",
+                    "Approve 7/7 Gold compatibility without converting the release-page erratum into a false source locator.",
+                    "Gold preservation anchors later extraction while keeping source modalities honest.",
+                ),
+                "zh-CN": (
+                    "确认 P1 Gold locator 兼容性",
+                    "七个可由 P2 表达的 Gold locator 均达到字段级一致；网页 erratum 明确保留在 PDF/XLSX 地图之外。",
+                    "批准 7/7 Gold 兼容性，但不得把发布页 erratum 转换成虚假的来源 locator。",
+                    "保留 Gold 期望可以锚定后续抽取，同时维持来源形态的真实性。",
+                ),
+            },
+        },
+        {
+            "id": "F-008",
+            "category": "compliance",
+            "severity": "warning",
+            "location": "p6-p2-structure-map#CHK-008",
+            "evidence_refs": ["structure-review:CHK-008", "source-manifest.json#storage_mode"],
+            "text": {
+                "en": (
+                    "Accept hash-locked rebuild identity and storage boundary",
+                    f"The local maps match the committed base hash {base_hash} and deep hash {deep_hash}; each hash was reproduced in two recorded runs.",
+                    "Approve ignored rebuildable maps plus committed generators, tests, and compact hash/count reports as the P2 storage boundary.",
+                    "This keeps restricted content out of Git and Obsidian while preserving deterministic reconstruction and drift detection.",
+                ),
+                "zh-CN": (
+                    "确认哈希锁定的重建身份与存储边界",
+                    f"本地地图与已提交的 base hash {base_hash} 和 deep hash {deep_hash} 一致；两个哈希都已在两次记录的重建中复现。",
+                    "批准将可重建地图保持为 Git ignored，同时提交生成器、测试及紧凑哈希/计数报告，作为 P2 存储边界。",
+                    "该边界既能避免受限内容进入 Git 和 Obsidian，也保留确定性重建与漂移检测能力。",
+                ),
+            },
+        },
+    ]
+    findings = []
+    for spec in finding_specs:
+        title, current_value, proposed_value, rationale = spec["text"][language]
+        findings.append(
+            {
+                "id": spec["id"],
+                "category": spec["category"],
+                "severity": spec["severity"],
+                "location": spec["location"],
+                "title": title,
+                "current_value": current_value,
+                "proposed_value": proposed_value,
+                "rationale": rationale,
+                "evidence_refs": spec["evidence_refs"],
+                "auto_approved": False,
+            }
+        )
+
+    summaries = {
+        "en": (
+            "P6-P2 human gate for the SDTMIG 3.4 full navigation map and the bounded "
+            "Core/Events/AE deep locator layer. Approval accepts structure and traceability "
+            "only; it does not promote knowledge statements or publish restricted source text."
+        ),
+        "zh-CN": (
+            "P6-P2 人工审核门：审核 SDTMIG 3.4 全书导航地图以及限定的 "
+            "Core/Events/AE 深层 locator。批准仅接受结构与追溯基线，不会提升知识 "
+            "statement，也不会发布受限来源正文。"
+        ),
+    }
+    generated_by = {
+        "en": "P6-P2 SDTMIG 3.4 structure-map review builder",
+        "zh-CN": "P6-P2 SDTMIG 3.4 结构地图审核生成器",
+    }
+    return {
+        "review_id": REVIEW_ID,
+        "review_type": "sdtm_spec",
+        "source_documents": [
+            f"{PACKAGE_RELATIVE_PATH.as_posix()}/{REPORT_NAME}",
+            f"{PACKAGE_RELATIVE_PATH.as_posix()}/structure-map-summary.json",
+            f"{PACKAGE_RELATIVE_PATH.as_posix()}/deep-structure-summary.json",
+            f"{PACKAGE_RELATIVE_PATH.as_posix()}/source-manifest.json",
+            "tests/fixtures/knowledge/sdtmig34-gold-set.json",
+            "schemas/extraction/source-structure-map.schema.json",
+        ],
+        "agent_summary": summaries[language],
+        "findings": findings,
+        "urgency": "blocking",
+        "created_at": created_at,
+        "generated_by": generated_by[language],
+        "auto_approved_count": 0,
+    }
+
+
 def build_structure_review_artifacts(
     wiki_root: str | Path,
     *,
     created_at: str,
+    packet_language: str = DEFAULT_REVIEW_LANGUAGE,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Return a closed audit report and Engine-schema-valid ReviewPacket."""
 
@@ -484,6 +736,17 @@ def build_structure_review_artifacts(
         "generated_by": "P6-P2 SDTMIG 3.4 structure-map review builder",
         "auto_approved_count": 0,
     }
+    _require(
+        packet_language in SUPPORTED_REVIEW_LANGUAGES,
+        f"unsupported review language: {packet_language}",
+    )
+    if packet_language != "en":
+        packet = build_structure_review_packet(
+            created_at=created_at,
+            base_hash=base_hash,
+            deep_hash=deep_hash,
+            language=packet_language,
+        )
     Draft202012Validator(_review_schema(root)).validate(packet)
     return report, packet
 
@@ -513,11 +776,18 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--wiki-root", type=Path, default=Path.cwd())
     parser.add_argument("--created-at", required=True)
+    parser.add_argument(
+        "--packet-language",
+        choices=sorted(SUPPORTED_REVIEW_LANGUAGES),
+        default=DEFAULT_REVIEW_LANGUAGE,
+        help="Human-facing ReviewPacket language; defaults to zh-CN.",
+    )
     args = parser.parse_args()
     root = args.wiki_root.resolve()
     report, packet = build_structure_review_artifacts(
         root,
         created_at=args.created_at,
+        packet_language=args.packet_language,
     )
     package = root / PACKAGE_RELATIVE_PATH
     write_review_artifacts(

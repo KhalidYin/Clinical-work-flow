@@ -804,11 +804,11 @@ class AgentRuntime:
                     category=FindingCategory.DERIVATION,
                     severity=Severity.CRITICAL,
                     location=location,
-                    title="Approve ADAE TRTEMFL derivation",
+                    title="批准 ADAE TRTEMFL 衍生逻辑",
                     current_value=derivation,
                     proposed_value=derivation,
                     rationale=(
-                        "The structured Study TEAE decision changes a required ADAE analysis flag."
+                        "结构化 Study TEAE 决策会改变必需的 ADAE 分析标志。"
                     ),
                     evidence_refs=evidence_refs,
                 ))
@@ -818,18 +818,18 @@ class AgentRuntime:
                     category=FindingCategory.COMPLIANCE,
                     severity=Severity.WARNING,
                     location=f"{relative}#dataset",
-                    title=f"Approve {dataset} specification",
+                    title=f"批准 {dataset} 规范",
                     current_value=str(specification.get("dataset", dataset)),
                     proposed_value=str(specification.get("dataset", dataset)),
-                    rationale="Every generated ADaM specification requires structured review.",
+                    rationale="每份生成的 ADaM 规范都必须经过结构化审核。",
                     evidence_refs=[f"artifact:{relative}"],
                 ))
         packet = new_review_packet(
             review_type=ReviewType.ADAM_SPEC,
             source_documents=artifact_paths,
             agent_summary=(
-                "Generated deterministic ADaM specification drafts from the manifest-locked "
-                "knowledge context; approve before canonical stage completion."
+                "已基于 manifest 锁定的知识上下文生成确定性 ADaM 规范草稿；"
+                "须经批准后才能完成 canonical 阶段。"
             ),
             generated_by="AgentRuntime",
             findings=findings,
@@ -997,10 +997,10 @@ class AgentRuntime:
                 category=FindingCategory.FORMATTING,
                 severity=Severity.WARNING,
                 location=str(shell_path),
-                title=f"TFL Shell: {shell_path.stem}",
-                current_value="Generated shell",
-                proposed_value="Review and approve shell specification",
-                rationale="TFL shells must be reviewed before programming begins",
+                title=f"TFL Shell：{shell_path.stem}",
+                current_value="已生成的 shell",
+                proposed_value="审核并批准 shell 规范",
+                rationale="开始编程前必须审核 TFL shell。",
                 evidence_refs=["SAP Section 14", "ICH E3"],
             ))
 
@@ -1008,9 +1008,8 @@ class AgentRuntime:
             review_type=ReviewType.TFL_SHELL,
             source_documents=[str(p) for p in files["tfl_shells"]],
             agent_summary=(
-                f"Generated {len(files['tfl_shells'])} TFL shells based on "
-                f"Phase {self.trial_phase} {self.therapeutic_area} configuration. "
-                f"Please review all shells before programming begins."
+                f"已根据 Phase {self.trial_phase} {self.therapeutic_area} 配置生成 "
+                f"{len(files['tfl_shells'])} 个 TFL shell。开始编程前请完成全部审核。"
             ),
             generated_by="TFLQCSubmissionAgent (claude-opus-4-7)",
             findings=findings,

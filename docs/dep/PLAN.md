@@ -8,7 +8,7 @@ updated: 2026-07-15
 
 | # | 子计划 | 文件 | 当前阶段 | 已用轮次 | 开始日期 |
 |---|--------|------|----------|----------|----------|
-| P6 | SDTMIG 3.4 知识解析质量与引用基线 | [P6-clinical-knowledge-evolution.md](plans/ongoing/P6-clinical-knowledge-evolution.md) | 内部 P2-D 已完成；P2-E 等待人工处理 8 项 blocking finding | 5 | 2026-07-14 |
+| P6 | SDTMIG 3.4 知识解析质量与引用基线 | [P6-clinical-knowledge-evolution.md](plans/ongoing/P6-clinical-knowledge-evolution.md) | P2 已关闭；P3：Core/Events/AE 原子知识抽取待开始 | 6 | 2026-07-14 |
 
 ## 待开始
 

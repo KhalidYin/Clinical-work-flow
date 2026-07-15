@@ -264,6 +264,9 @@ def test_adae_draft_is_not_pipeline_evidence_until_review_is_applied(
     assert runtime._scan_pipeline_evidence()["adam_specs"] == []
     packet = runtime.review_queue.load_packet(result["review_id"])
     assert packet is not None and packet.urgency.value == "blocking"
+    assert "规范草稿" in packet.agent_summary
+    assert all(any("\u4e00" <= char <= "\u9fff" for char in finding.title) for finding in packet.findings)
+    assert all(any("\u4e00" <= char <= "\u9fff" for char in finding.rationale) for finding in packet.findings)
     receipt = DecisionReceipt(
         review_id=packet.review_id,
         reviewer="Synthetic Lead Statistical Programmer",

@@ -1,7 +1,7 @@
 # Review Protocol 详细规格 — Agent↔Human 结构化交互层
 
 ## 文档编号: SPEC-15
-## 版本: 1.1 (P1 Review Loop Enhancement)
+## 版本: 1.2（中文审核内容默认）
 ## 依赖: SPEC-00 (v3.0 总体架构)
 
 ---
@@ -48,6 +48,14 @@
 4. 文件系统即消息队列 — 无需额外中间件
 5. 每个 packet 和 receipt 都是 Git 版本化的合规记录
 ```
+
+### 1.3 人类可读语言约定
+
+- 本项目后续新生成的 ReviewPacket 默认使用简体中文呈现人工审核内容。
+- `agent_summary` 以及每个 finding 的 `title`、`current_value`、`proposed_value`、`rationale` 应使用中文；专业缩写、数据集名、变量名、标准名和原文证据片段可以保留英文。
+- `review_id`、finding ID、Schema 枚举、文件路径、hash 和 `evidence_refs` 属于机器合同，继续使用稳定英文标识，不能为了界面翻译而改名。
+- 已经提交决定的历史 ReviewPacket 必须原样归档，不追溯翻译；语言调整只作用于此约定生效后的新 packet，避免破坏审核证据和 Git 审计链。
+- Review Panel 只负责按 payload 展示和记录决定；中文默认由 ReviewPacket 生成端保证。
 
 ---
 
