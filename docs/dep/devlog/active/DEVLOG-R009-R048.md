@@ -1046,3 +1046,37 @@ Done — no next steps。若需要跨阶段全量语义图，应另立 typed-rel
 - `docs/dep/PLAN.md`
 - `docs/dep/TASK_STATE.md`
 - `docs/dep/devlog/**`
+
+---
+
+### R039 [00:21] [P7-safety-analysis-vertical-workflow] P2: 建立 AE 一次查询上下文与 MappingSpec 候选闭合门
+
+#### Done
+- 新增 `clinical-workflow/src/agents/ae_mapping.py`，提供 `build_ae_mapping_context()` 与 `validate_ae_mapping_candidate()` 两个确定性 gate；P2 不调用真实 LLM API，不生成程序，不执行数据转换。
+- `build_ae_mapping_context()` 从 P6 `approved-proposal-release.json`、`ae-citation-bundle.json`、`query-benchmark.json` 和 P1 `ae-pilot` fixture 装配一次 `task=build_sdtm_dataset, dataset=AE` 的查询上下文包。
+- 上下文包包含 approved rule、exact evidence locator、coverage gap、Study source refs、Study context refs 和 source hash lock；不包含 Vault Markdown、PDF 原文或可执行命令。
+- `validate_ae_mapping_candidate()` 校验 fixture-local MappingSpec schema，并要求 `p6_context`、`rule_refs`、`source_refs`、`study_decision_refs`、`gaps[].source_gap_id` 全部闭合在本次 context 内。
+- 新增 `test_p7_ae_mapping_context.py`，覆盖上下文结构、引用证据、成功候选、确定性输入、伪造 rule/source/gap/study ref/P6 lock 和 source hash 漂移。
+- 更新 P7 子计划和 PLAN：P2 标记 done，下一阶段为 P3 受控程序生成、执行和 SDTM 验证。
+
+#### Issues / Blockers
+- 首轮负向测试中，错误 P6 lock 先被 JSON Schema `const` 拦截，而不是进入后续 context 闭合分支。根因是 schema gate 正确早于 context gate，但异常类型若外泄会增加调用方处理复杂度；已统一包装为 `AEMappingCandidateError`，并对 P6 lock 保留明确错误信息。
+- P2 仍不升级 shared `contract-bundle.json`；MappingSpec schema 继续保持 fixture-local draft。P3 接入 Runtime 前需要重新决定是否发布为 shared schema，并同步 Wiki mirror/snapshot lock。
+
+#### Validation
+- `python -m pytest tests/test_p7_ae_mapping_context.py tests/test_p7_ae_mapping_contract.py -q`（15 passed）
+- `python -m pytest tests/test_p7_ae_mapping_context.py tests/test_p7_ae_mapping_contract.py tests/test_knowledge_contracts.py tests/test_runtime_knowledge_integration.py -q`（80 passed）
+- `python -m ruff check src/agents/ae_mapping.py tests/test_p7_ae_mapping_context.py tests/test_p7_ae_mapping_contract.py`（success）
+
+#### Next
+1. P7-P3：实现受控 adapter/程序候选生成，不接受任意 command/script path。
+2. P7-P3：执行 synthetic AE 转换并生成 draft SDTM AE、日志和 provenance。
+3. P7-P3：把执行失败、validation finding 和未闭合知识缺口停在结构化失败/Review，不产出 canonical AE。
+
+#### Files Changed / Commits
+- `clinical-workflow/src/agents/ae_mapping.py`
+- `clinical-workflow/tests/test_p7_ae_mapping_context.py`
+- `docs/dep/plans/ongoing/P7-safety-analysis-vertical-workflow.md`
+- `docs/dep/PLAN.md`
+- `docs/dep/TASK_STATE.md`
+- `docs/dep/devlog/**`

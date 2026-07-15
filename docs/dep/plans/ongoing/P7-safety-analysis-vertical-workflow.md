@@ -2,7 +2,7 @@
 phase_index: 7
 status: in-progress
 created: 2026-07-14
-updated: 2026-07-15
+updated: 2026-07-16
 priority: 1
 estimated_rounds: 10-16
 depends_on:
@@ -113,7 +113,7 @@ User: build SDTM AE
 | Phase | 目标 | 预估轮次 | 依赖 | 状态 |
 |-------|------|----------|------|------|
 | P1 | 冻结 AE fixture、MappingSpec 和验收结果 | 2-3 | P6 Snapshot | done |
-| P2 | 实现一次 Wiki 查询和 LLM MappingSpec 候选 | 3-4 | P1 | pending |
+| P2 | 实现一次 Wiki 查询和 LLM MappingSpec 候选 | 3-4 | P1 | done |
 | P3 | 实现受控程序生成、执行和 SDTM 验证 | 3-5 | P2 | pending |
 | P4 | 完成 Review、引用追溯和端到端验收 | 2-4 | P3 | pending |
 
@@ -183,13 +183,21 @@ User: build SDTM AE
 - Schema 约束的 MappingSpec 候选和结构化 knowledge gap/conflict。
 - 确定性 citation-closure 与 Study field reference 校验。
 
+### P2 实施记录
+
+- 新增 `src/agents/ae_mapping.py`，提供 `build_ae_mapping_context()` 与 `validate_ae_mapping_candidate()` 两个确定性 gate。P2 不调用真实 LLM API，而是把 P1 fixture candidate 作为模拟 LLM 输出进行合同校验。
+- `build_ae_mapping_context()` 从 P6 `approved-proposal-release.json`、`ae-citation-bundle.json`、`query-benchmark.json` 和 P1 Study fixture 装配一次 `task=build_sdtm_dataset, dataset=AE` 的查询输入包；包内只包含 approved statement 的 evidence locator、coverage gap、Study fields、source hash 和 fixture context，不包含 Vault Markdown/PDF 原文或可执行命令。
+- `validate_ae_mapping_candidate()` 先执行 fixture-local MappingSpec schema，再校验 candidate 的 `p6_context`、`rule_refs`、`source_refs`、`study_decision_refs` 和 `gaps[].source_gap_id` 均存在于本次 context；schema 错误和闭合错误统一包装为 `AEMappingCandidateError`。
+- 新增 `test_p7_ae_mapping_context.py`：覆盖一次查询包结构、exact citation evidence、candidate 成功闭合、相同锁定输入结构等价，以及伪造 rule/source/gap/study ref/P6 lock 和 source hash 漂移的失败门。
+- P2 使用 P6 approved release 作为 rule 权威，使用 citation bundle 作为 gap 权威；这保持 P1 决策，即不升级 shared contract bundle，也不扩大 P6 知识范围。
+
 ### 完成标准
 
-- [ ] LLM 只能引用本次 Context 中存在的 rule/source/locator ID。
-- [ ] 每个 material mapping 都有闭合规则引用；无依据时生成 gap/review，不生成虚假引用。
-- [ ] 当前 Study 字段选择可回到 CRF/EDC field 或批准 Study decision。
-- [ ] 相同锁定输入产生结构等价的 MappingSpec；非确定文本不影响机器执行字段。
-- [ ] 本 Phase 不执行生成程序。
+- [x] LLM 只能引用本次 Context 中存在的 rule/source/locator ID。
+- [x] 每个 material mapping 都有闭合规则引用；无依据时生成 gap/review，不生成虚假引用。
+- [x] 当前 Study 字段选择可回到 CRF/EDC field 或批准 Study decision。
+- [x] 相同锁定输入产生结构等价的 MappingSpec；非确定文本不影响机器执行字段。
+- [x] 本 Phase 不执行生成程序。
 
 ### 边界（本 Phase 明确不做）
 
@@ -299,6 +307,7 @@ User: build SDTM AE
 |----|------|--------|------|------|
 | D1 | P1 若把 AE MappingSpec 直接加入 Engine shared `schemas/`，会迫使 contract-bundle 从 1.1.0 升级，并使 P6 已发布 snapshot 的 schema bundle lock 立即漂移 | P1 | 已解决 | P1 使用 fixture-local draft contracts 冻结字段与 gate；P2/P3 Runtime 接入前再决定是否升级 shared bundle，并同步 Wiki mirror/snapshot 迁移 |
 | D2 | P6 citation bundle 未覆盖所有基础映射会用到的 Core statement，但 approved release 已包含 28 条批准 statement | P1 | 已解决 | P1 的 `rule_refs` 验证 against `approved-proposal-release.json`，gap 验证 against `ae-citation-bundle.json`；P2 的一次查询需组合规则与 gap 返回 |
+| D3 | schema 的 `const` 会比闭合校验更早拦截错误 P6 lock，若不统一异常类型会让调用方同时处理 schema 和 context 两套失败形态 | P2 | 已解决 | `validate_ae_mapping_candidate()` 将 schema 错误统一包装为 `AEMappingCandidateError`，并对 P6 lock 错误保留明确失败信息 |
 
 ## 关键决策记录
 
