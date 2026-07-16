@@ -142,7 +142,7 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 | P1 | 修订上位合同并纠正 SAS7BDAT Source Intake | 2-3 | P8完成 | done |
 | P2 | 解析 SAS7BDAT 数据及完整可得元数据 | 3-4 | P1 | done |
 | P3 | 实现 Minimum Information Planner 和 raw-only AE preflight | 2-4 | P2 | done |
-| P4 | Wiki 辅助 MappingSpec、三语言程序和 Python reference execution | 4-6 | P3 | pending |
+| P4 | Wiki 辅助 MappingSpec、三语言程序和 Python reference execution | 4-6 | P3 | done |
 | P5 | 通用规则治理、发布和干净再查询复用 | 2-3 | P4 | pending |
 | P6 | 单机快速启动、回归、人工验收与旧 P9 解锁 | 1-2 + 用户确认 | P5 | pending |
 
@@ -306,14 +306,14 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 
 ### 完成标准
 
-- [ ] Mapping context 可在没有 CRF 时构建；raw label/value/format 证据不足的字段不得进入 mapped 状态。
-- [ ] LLM 只产出符合 schema 的 MappingSpec/候选解释，不产出可直接执行的任意命令。
-- [ ] Python、R、SAS 代码均引用相同 MappingSpec ID/hash、source hash、rule refs 和 target standard。
-- [ ] Python reference execution 只读取已批准 MappingSpec 和已登记来源，输出终端可查看 CSV。
-- [ ] R/SAS 作为显式代码产物进入 program manifest；SAS 不执行，R 首版不承担 canonical reference result。
-- [ ] Review rejected、evidence 断链、hash 漂移、unknown operation、blocking validation 或 missing required input 均不产生 canonical AE。
-- [ ] Review Panel/Study Console 能展示中文 runtime findings；DecisionReceipt/ConfirmationReceipt 后才 promotion。
-- [ ] 端到端正向、raw-only、review pause/reject、tamper 和 gap preservation 测试通过，并单独提交。
+- [x] Mapping context 可在没有 CRF 时构建；raw label/value/format 证据不足的字段不得进入 mapped 状态。
+- [x] LLM 只产出符合 schema 的 MappingSpec/候选解释，不产出可直接执行的任意命令。
+- [x] Python、R、SAS 代码均引用相同 MappingSpec ID/hash、source hash、rule refs 和 target standard。
+- [x] Python reference execution 只读取已批准 MappingSpec 和已登记来源，输出终端可查看 CSV。
+- [x] R/SAS 作为显式代码产物进入 program manifest；SAS 不执行，R 首版不承担 canonical reference result。
+- [x] Review rejected、evidence 断链、hash 漂移、unknown operation、blocking validation 或 missing required input 均不产生 canonical AE。
+- [x] Review Panel/Study Console 能展示中文 runtime findings；DecisionReceipt/ConfirmationReceipt 后才 promotion。
+- [x] 端到端正向、raw-only、review pause/reject、tamper 和 gap preservation 测试通过，并单独提交。
 
 ### 边界（本 Phase 明确不做）
 
@@ -325,18 +325,19 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 
 | 文件 | 操作 | 预计行数 |
 |------|------|----------|
-| `clinical-workflow/src/agents/ae_mapping.py` | 重构/扩展 | +150-300 |
-| `clinical-workflow/src/agents/ae_execution.py` | 重构/扩展 | +150-300 |
-| `clinical-workflow/src/agents/ae_workflow.py` | 扩展 | +100-200 |
-| `clinical-workflow/schemas/mapping/ae-mapping-spec.schema.json` | 正式化 | ~200 |
+| `clinical-workflow/src/agents/ae_metadata_poc.py` | 新建；保留 P7 fixture adapter 不变 | implemented |
+| `clinical-workflow/src/agents/ae_metadata_workflow.py` | 新建两段 Review/Promotion 编排 | implemented |
+| `clinical-workflow/src/agents/contracts/ae-metadata-mapping-spec.schema.json` | 新建 prerelease contract | implemented |
 | `clinical-workflow/src/codegen/` | 新建受控三语言 generator | ~300-500 |
-| `clinical-workflow/tests/test_sample_ae_poc.py` | 新建 | ~300-500 |
+| `clinical-workflow/tests/test_p9_sample_ae_poc.py` | 新建 | implemented |
 | `clinical-studies/SAMPLE-AE-001/programs/edc_to_sdtm/` | 生成 Python/R/SAS | data-dependent |
 | `clinical-studies/SAMPLE-AE-001/output/sdtm/` | 生成 draft/canonical/证据 | data-dependent |
 
 ### 关键决策
 
 - 三种语言共享 MappingSpec，不维护三套业务规则；Python 是首个可执行 reference adapter，R/SAS 是可追溯代码产物。
+- P7 保持 synthetic fixture-only 回归；P9 使用独立 metadata-driven 模块，避免在旧 adapter 中加入真实/fixture 条件分支。
+- 当前真实 Study 只执行到 Mapping ReviewPacket，未伪造人工批准；完整后续链路由隔离 synthetic 回归 Study 验证，用户实测留在 P6。
 
 ---
 

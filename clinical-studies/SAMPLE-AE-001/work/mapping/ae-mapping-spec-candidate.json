@@ -1,0 +1,292 @@
+{
+  "arbitrary_commands_allowed": false,
+  "creates_stage_completion_evidence": false,
+  "explicit_gaps": [
+    {
+      "affects_variables": [
+        "AESEV",
+        "AESER",
+        "AEREL",
+        "AEACN",
+        "AEOUT"
+      ],
+      "blocking_for_canonical": false,
+      "category": "source_metadata",
+      "description": "SAS catalog/value-label mapping unavailable; controlled fields are not mapped",
+      "gap_id": "gap-controlled-value-labels"
+    },
+    {
+      "affects_variables": [
+        "AESTDY",
+        "AEENDY"
+      ],
+      "blocking_for_canonical": false,
+      "category": "study_context",
+      "description": "Reference-date source cannot join to Source.Subject; study-day fields are omitted",
+      "gap_id": "gap-reference-date-identity-no-overlap"
+    },
+    {
+      "affects_variables": [
+        "AE"
+      ],
+      "blocking_for_canonical": false,
+      "category": "scope",
+      "description": "This POC validates a bounded AE subset, not complete SDTMIG conformance",
+      "gap_id": "gap-full-sdtmig-conformance-not-claimed"
+    }
+  ],
+  "knowledge": {
+    "rules": [
+      {
+        "locators": [
+          {
+            "artifact_id": "artifact-cdisc-sdtmig-3-4-pdf",
+            "artifact_sha256": "ea4ddbba4a3e10a55bb2f36d5e28d9cfc191090717c2426475279750a7f57021",
+            "locator_id": "loc-sdtmig34-deep-p0011-b018",
+            "text_sha256": "09e89d3ef8336d91b0fd90d21fbe70205bf02abc803a308d86a7a0c69d6e000b"
+          },
+          {
+            "artifact_id": "artifact-cdisc-sdtmig-3-4-pdf",
+            "artifact_sha256": "ea4ddbba4a3e10a55bb2f36d5e28d9cfc191090717c2426475279750a7f57021",
+            "locator_id": "loc-sdtmig34-deep-p0012-b001",
+            "text_sha256": "aa2925ca518bbd2aaa41d9f0d911b3caaa52a974407233334ee60679429eba34"
+          }
+        ],
+        "rule_id": "proposal-sdtmig34-core-domain-code-consistency-v1",
+        "source_id": "src-cdisc-sdtmig-3-4",
+        "source_sha256": "ea4ddbba4a3e10a55bb2f36d5e28d9cfc191090717c2426475279750a7f57021",
+        "source_version": "SDTMIG 3.4",
+        "statement": "Use each domain dataset's unique two-character code consistently as the dataset name, DOMAIN value, most variable-name prefix, and RDOMAIN relationship value."
+      },
+      {
+        "locators": [
+          {
+            "artifact_id": "artifact-cdisc-sdtmig-3-4-pdf",
+            "artifact_sha256": "ea4ddbba4a3e10a55bb2f36d5e28d9cfc191090717c2426475279750a7f57021",
+            "locator_id": "loc-sdtmig34-deep-p0011-b004",
+            "text_sha256": "e7461fba0ddac8f087cb74235d80afdca4529037c19488e4c84fb2af64ed5c2d"
+          }
+        ],
+        "rule_id": "proposal-sdtmig34-core-identifier-variable-role-v1",
+        "source_id": "src-cdisc-sdtmig-3-4",
+        "source_sha256": "ea4ddbba4a3e10a55bb2f36d5e28d9cfc191090717c2426475279750a7f57021",
+        "source_version": "SDTMIG 3.4",
+        "statement": "Identifier variables identify the study, subject, domain, and record sequence for an SDTM record."
+      },
+      {
+        "locators": [
+          {
+            "artifact_id": "artifact-cdisc-sdtmig-3-4-pdf",
+            "artifact_sha256": "ea4ddbba4a3e10a55bb2f36d5e28d9cfc191090717c2426475279750a7f57021",
+            "locator_id": "loc-sdtmig34-deep-p0029-b014",
+            "text_sha256": "7bd1cb4359530e27fca91f155533f5c19b6855125d8eff8e7f0a5d5404b1b099"
+          }
+        ],
+        "rule_id": "proposal-sdtmig34-core-missing-values-as-nulls-v1",
+        "source_id": "src-cdisc-sdtmig-3-4",
+        "source_sha256": "ea4ddbba4a3e10a55bb2f36d5e28d9cfc191090717c2426475279750a7f57021",
+        "source_version": "SDTMIG 3.4",
+        "statement": "Represent missing values for individual SDTM data items as nulls."
+      },
+      {
+        "locators": [
+          {
+            "artifact_id": "artifact-cdisc-sdtmig-3-4-pdf",
+            "artifact_sha256": "ea4ddbba4a3e10a55bb2f36d5e28d9cfc191090717c2426475279750a7f57021",
+            "locator_id": "loc-sdtmig34-p134-ae-spec-table",
+            "text_sha256": "bb05ce1fb77c5a2926e575fae6146e2e611997bf6cf2c11dedfb2677f0828744"
+          }
+        ],
+        "rule_id": "proposal-sdtmig34-gold-ae-structure-v1",
+        "source_id": "src-cdisc-sdtmig-3-4",
+        "source_sha256": "ea4ddbba4a3e10a55bb2f36d5e28d9cfc191090717c2426475279750a7f57021",
+        "source_version": "SDTMIG 3.4",
+        "statement": "AE is organized as one record for each adverse event for each subject."
+      },
+      {
+        "locators": [
+          {
+            "artifact_id": "artifact-cdisc-sdtmig-3-4-pdf",
+            "artifact_sha256": "ea4ddbba4a3e10a55bb2f36d5e28d9cfc191090717c2426475279750a7f57021",
+            "locator_id": "loc-sdtmig34-p137-aeterm-assumption",
+            "text_sha256": "7f1379891b7180ecfac435e6510778f57b1af436b5e5f1760fa4e02f3fe88f0a"
+          },
+          {
+            "artifact_id": "artifact-cdisc-sdtmig-3-4-xlsx",
+            "artifact_sha256": "0176e72eb43764ce01cfd7896dcc9d5b97cc55d0ce766c1ad14034a0b9ccb991",
+            "locator_id": "loc-sdtmig34-xlsx-variables-r293",
+            "text_sha256": "f604533743e7c933635dada46d1ccaecd53775b574a803ca9c1dce2523c76db0"
+          }
+        ],
+        "rule_id": "proposal-sdtmig34-gold-aeterm-required-v1",
+        "source_id": "src-cdisc-sdtmig-3-4",
+        "source_sha256": "ea4ddbba4a3e10a55bb2f36d5e28d9cfc191090717c2426475279750a7f57021",
+        "source_version": "SDTMIG 3.4",
+        "statement": "AE.AETERM is required as the topic variable and records the collected verbatim adverse-event term."
+      }
+    ],
+    "snapshot_id": "snapshot-sdtmig34-core-events-ae-v1",
+    "snapshot_sha256": "d8aafb73ccca987d597e372435b664ba074c1a45688d5e2eef809c72f475a9ec",
+    "snapshot_version": "1.0.0"
+  },
+  "mappings": [
+    {
+      "mapping_id": "map-studyid",
+      "operation": "constant",
+      "parameters": {
+        "value": "SAMPLE-AE-001"
+      },
+      "review_status": "review_required",
+      "rule_refs": [
+        "proposal-sdtmig34-core-identifier-variable-role-v1"
+      ],
+      "source_variables": [],
+      "target_variable": "STUDYID"
+    },
+    {
+      "mapping_id": "map-domain",
+      "operation": "constant",
+      "parameters": {
+        "value": "AE"
+      },
+      "review_status": "review_required",
+      "rule_refs": [
+        "proposal-sdtmig34-core-domain-code-consistency-v1"
+      ],
+      "source_variables": [],
+      "target_variable": "DOMAIN"
+    },
+    {
+      "mapping_id": "map-usubjid",
+      "operation": "concat",
+      "parameters": {
+        "prefix": "SAMPLE-AE-001",
+        "separator": "-"
+      },
+      "review_status": "review_required",
+      "rule_refs": [
+        "proposal-sdtmig34-core-identifier-variable-role-v1"
+      ],
+      "source_variables": [
+        "Subject"
+      ],
+      "target_variable": "USUBJID"
+    },
+    {
+      "mapping_id": "map-aeseq",
+      "operation": "sequence_by_group",
+      "parameters": {
+        "group": "Subject",
+        "order": "RecordPosition"
+      },
+      "review_status": "review_required",
+      "rule_refs": [
+        "proposal-sdtmig34-gold-ae-structure-v1"
+      ],
+      "source_variables": [
+        "Subject",
+        "RecordPosition"
+      ],
+      "target_variable": "AESEQ"
+    },
+    {
+      "mapping_id": "map-aeterm",
+      "operation": "copy_trim",
+      "parameters": {},
+      "review_status": "review_required",
+      "rule_refs": [
+        "proposal-sdtmig34-gold-aeterm-required-v1"
+      ],
+      "source_variables": [
+        "AETERM"
+      ],
+      "target_variable": "AETERM"
+    },
+    {
+      "mapping_id": "map-aestdtc",
+      "operation": "partial_date_iso",
+      "parameters": {},
+      "review_status": "review_required",
+      "rule_refs": [
+        "proposal-sdtmig34-core-missing-values-as-nulls-v1"
+      ],
+      "source_variables": [
+        "AESTDAT"
+      ],
+      "target_variable": "AESTDTC"
+    },
+    {
+      "mapping_id": "map-aeendtc",
+      "operation": "partial_date_iso",
+      "parameters": {},
+      "review_status": "review_required",
+      "rule_refs": [
+        "proposal-sdtmig34-core-missing-values-as-nulls-v1"
+      ],
+      "source_variables": [
+        "AEENDAT"
+      ],
+      "target_variable": "AEENDTC"
+    },
+    {
+      "mapping_id": "map-aedecod",
+      "operation": "copy_trim",
+      "parameters": {},
+      "review_status": "review_required",
+      "rule_refs": [
+        "proposal-sdtmig34-gold-ae-structure-v1"
+      ],
+      "source_variables": [
+        "AETERM_PT"
+      ],
+      "target_variable": "AEDECOD"
+    },
+    {
+      "mapping_id": "map-aebodsys",
+      "operation": "copy_trim",
+      "parameters": {},
+      "review_status": "review_required",
+      "rule_refs": [
+        "proposal-sdtmig34-gold-ae-structure-v1"
+      ],
+      "source_variables": [
+        "AETERM_SOC"
+      ],
+      "target_variable": "AEBODSYS"
+    },
+    {
+      "mapping_id": "map-aesoc",
+      "operation": "copy_trim",
+      "parameters": {},
+      "review_status": "review_required",
+      "rule_refs": [
+        "proposal-sdtmig34-gold-ae-structure-v1"
+      ],
+      "source_variables": [
+        "AETERM_SOC"
+      ],
+      "target_variable": "AESOC"
+    }
+  ],
+  "minimum_information_plan": {
+    "execution_eligibility": "draft_allowed",
+    "plan_id": "minimum-information-sample-ae-001-sdtm-ae-v1",
+    "plan_sha256": "e9064390bc48e6b779770f012ca89e8c24e00fb0f9a632257b20a3ff3f2f4a8b"
+  },
+  "schema_version": "1.0.0",
+  "source": {
+    "format": "sas7bdat",
+    "metadata_artifact_id": "source-metadata-2a6d72e9e5fa",
+    "relative_path": "input/edc/ae09jun2025.sas7bdat",
+    "sha256": "2a6d72e9e5fa4bb8e3cc14b0c412fce3c37e519f3ab9105cdcff33ba031e8749"
+  },
+  "spec_id": "ae-mapping-spec-sample-ae-001-v1",
+  "spec_sha256": "a9382fb69ed073906279ece888318707d286406b54790aef723809a9d76e19d9",
+  "status": "candidate",
+  "study_id": "SAMPLE-AE-001",
+  "target_dataset": "AE",
+  "target_standard": {
+    "name": "SDTMIG",
+    "version": "3.4"
+  }
+}

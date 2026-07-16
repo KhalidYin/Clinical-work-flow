@@ -16,6 +16,8 @@
 - 行级 preview 使用 `source-preview.local.csv`，仅保存在本地且不作为 canonical/版本化证据；Git 保存 preview manifest、来源 hash 和 parser toolchain。Parser Review 是实际 Workflow Human-loop，不是开发阶段批准步骤。
 - Minimum Information Planner 判断一次目标产物是否具有足够信息，不判断十阶段是否完成。`producible_variables` 是可进入 Mapping 候选的证据范围，不等于映射已批准；Plan 固定 `creates_stage_completion_evidence=false`。
 - 对基础 SDTM AE，raw-only 且无 CRF/Protocol/SAP 可以 `draft_allowed`；缺 reference date/coding 只阻断受影响变量，缺 raw、subject identity、target standard 或 locked knowledge 时整体 blocked。
+- Mapping context 在 Plan 后再次验证数据级证据：conditional 文件存在不代表标识可 join，也不代表值标签可解释。`SAMPLE-AE-001` 的 reference fixture 与真实源 Subject 无交集，因此 AESTDY/AEENDY 在 P4 保持 gap。
+- LLM/确定性 generator 的边界是严格 MappingSpec；只有完整 Mapping DecisionReceipt 才创建 approved spec 和三语言程序。Python 由注册 adapter 解释受控 operation，绝不执行生成文本；Program/Promotion DecisionReceipt 与 ConfirmationReceipt 后才允许 canonical。
 
 ## 理由
 

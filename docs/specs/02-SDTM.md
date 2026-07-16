@@ -399,3 +399,21 @@ P9.1-P3 的样例 preflight 已使用 P2 metadata 和校验通过的
 回归会移除 CRF/Protocol/SAP，仍得到 `draft_allowed`；移除 reference date 或 coding
 来源时只阻断 AESTDY/AEENDY 或 AEDECOD/AEBODSYS/AESOC，移除 raw、subject
 identity、target standard 或知识 lock 时整体 fail closed。
+
+### 6.4 P9.1-P4 Metadata-driven AE Mapping 基线
+
+P4 将 P2/P3 证据闭包接入锁定 Wiki，但不复用 P7 的 CRF/fixture-only context。
+`ae_metadata_poc.py` 只读取已登记来源、Source Metadata、Minimum Information Plan、
+Study 配置和 `snapshot-sdtmig34-core-events-ae-v1` 的 approved release；每条所用规则
+必须同时带 source/version/artifact hash/locator/text hash。
+
+当前 `SAMPLE-AE-001` 已生成 10 个候选变量：STUDYID、DOMAIN、USUBJID、AESEQ、
+AETERM、AESTDTC、AEENDTC、AEDECOD、AEBODSYS、AESOC。SAS value-label/catalog
+不可得的 AESEV/AESER/AEREL/AEACN/AEOUT 不进入 mapped；现有参考日期 fixture 与
+真实源 subject identity 无交集，所以 AESTDY/AEENDY 也保持 gap。该结果说明 P3 的
+“文件存在”只允许进入 Mapping 检查，P4 仍须验证实际 join/evidence，不能直接推定可执行。
+
+实际 Study 当前停在中文 Mapping ReviewPacket。只有完整批准后才创建 approved
+MappingSpec、三语言程序和 Python draft；随后第二个 Program/Promotion ReviewPacket
+批准后才写 canonical CSV。测试用 synthetic Study 覆盖批准、拒绝、tamper、missing
+input 和 gap preservation，不替代当前 Study 的人工决定。

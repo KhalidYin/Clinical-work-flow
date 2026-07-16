@@ -250,7 +250,7 @@ def test_sample_sas_parser_artifacts_are_traceable_and_reviewable() -> None:
     assert all(finding["auto_approved"] is False for finding in packet["findings"])
 
 
-def test_sample_study_is_visible_with_source_and_parser_reviews() -> None:
+def test_sample_study_is_visible_with_source_parser_and_mapping_reviews() -> None:
     client = TestClient(create_app(ApplicationApiConfig(container_roots={"clinical-studies": STUDIES_ROOT})))
 
     studies = client.get("/api/v1/studies").json()
@@ -271,6 +271,7 @@ def test_sample_study_is_visible_with_source_and_parser_reviews() -> None:
     assert review_artifact_ids == {
         "review_queue--source_intake_sample_ae_v1_002.json",
         "review_queue--source_intake_parser_ae_v1_001.json",
+        "review_queue--sdtm_spec_sample_ae_001_mapping_v1_001.json",
     }
 
     reviews = client.get("/api/v1/studies/SAMPLE-AE-001/reviews").json()
@@ -278,6 +279,11 @@ def test_sample_study_is_visible_with_source_and_parser_reviews() -> None:
     assert set(reviews_by_id) == {
         "source_intake_sample_ae_v1_002",
         "source_intake_parser_ae_v1_001",
+        "sdtm_spec_sample_ae_001_mapping_v1_001",
     }
-    assert all(review["review_type"] == "source_intake" for review in reviews_by_id.values())
+    assert reviews_by_id["source_intake_sample_ae_v1_002"]["review_type"] == "source_intake"
+    assert reviews_by_id["source_intake_parser_ae_v1_001"]["review_type"] == "source_intake"
+    mapping = reviews_by_id["sdtm_spec_sample_ae_001_mapping_v1_001"]
+    assert mapping["review_type"] == "sdtm_spec"
+    assert "AE Mapping" in mapping["findings"][0]["title"]
     assert all(review["decision_state"] == "pending" for review in reviews_by_id.values())

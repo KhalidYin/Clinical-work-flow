@@ -579,3 +579,9 @@ P7 没有引入自由代码执行，也没有接入真实 SAS/R 运行时。首�
 P9 的 Python、R、SAS 程序必须由同一 approved MappingSpec 驱动，并共同记录 MappingSpec ID/hash、source file hash、rule refs、Study decision refs、target standard 和 generator version。三种语言不得各自维护一套未登记业务规则。
 
 首个单机 POC 使用 Python 作为 reference execution，输出 CSV、log、validation、provenance 和 traceability；R/SAS 必须生成并进入 program manifest，但首版不承担 canonical reference result，SAS 不执行。LLM 边界仍为 MappingSpec/候选解释，不能直接提交任意可执行命令。
+
+P9.1-P4 已实现该合同。`src/codegen/ae_programs.py` 只接受 status=approved 且 hash/schema
+有效的 MappingSpec，并按 operation allowlist 生成三个语言文件；program manifest 为每个
+文件记录 hash 和执行状态。Python reference adapter 直接解释同一 MappingSpec 的受控
+operation，不执行生成文本；R/SAS 标记为 `generated_not_executed`。当前真实 Study 尚未
+批准 Mapping，因此没有提前生成程序；完整三语言链路由隔离回归 Study 验证。

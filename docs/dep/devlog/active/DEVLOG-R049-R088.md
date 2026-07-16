@@ -203,3 +203,41 @@
 - `clinical-studies/SAMPLE-AE-001/work/derived/plans/minimum-information-sdtm-ae.json`, Study README
 - `docs/specs/02-SDTM.md`, `09-MCP-Tools-Design.md`, `21-Knowledge-Workflow-Integration.md`
 - `docs/main/memory/`, `docs/dep/`（本 Phase 提交）
+
+### R054 [18:00] [P9-metadata-driven-sdtm-ae-minimal-poc] P4: 完成 Metadata-driven AE Mapping 与受控三语言执行链
+
+#### Done
+
+- 保留 P7 synthetic fixture adapter 不变，新增独立 `ae_metadata_poc.py`，由真实 Source Metadata、P3 Plan、Study 配置和锁定 SDTMIG 3.4 snapshot/release 构造无 CRF 依赖的 Mapping context。
+- 建立 Runtime-local prerelease MappingSpec Schema；每条 Wiki 规则闭合到 source/version/artifact hash/locator/text hash，operation 使用 allowlist，arbitrary command 固定禁止。
+- 实际 `SAMPLE-AE-001` 生成 10 个变量的 MappingSpec 候选和中文 blocking ReviewPacket；value-label/catalog、reference identity join 和完整 conformity 保持显式 gap。
+- 新增 `src/codegen/`：同一 approved MappingSpec 生成 Python/R/SAS 文件和 manifest；只执行注册的内部 Python reference adapter，R/SAS 标记为 generated-not-executed。
+- 实现两段 Runtime Human-loop：Mapping DecisionReceipt 后才生成程序/draft，Program DecisionReceipt 与 ConfirmationReceipt 后才 promotion canonical。
+- Application API/Study Console 现有 reviews 接口可读取新的中文 Mapping packet；当前真实 Study 未写人工 receipt，因此没有 approved spec、程序、draft 或 canonical。
+
+#### Issues / Blockers
+
+- 首轮测试 fixture 缺 `STUDYID`，P3 按现有合同返回 blocked；补充登记字段后保持 P3/P4 口径不变。
+- 首版 P4 使用了错误的 snapshot envelope 全量 hash；改为既有 `schema_bundle + items` 内容哈希合同后通过，未修改 Wiki snapshot。
+- 实际 reference fixture 只有 2 个 subject，和 SAS 源 180 个 Subject 无交集；P4 将 AESTDY/AEENDY 保持 gap，而不是因 reference 文件存在就猜测可 join。
+- 既有 R050 shared bundle hash 漂移仍未在本 Phase 修改，继续保留为 P9.1 release debt。
+
+#### Validation
+
+- `python -m pytest tests/test_p9_sample_ae_poc.py -q`（5 passed）。
+- `python -m ruff check src/agents/ae_metadata_poc.py src/agents/ae_metadata_workflow.py src/codegen tests/test_p9_sample_ae_poc.py`（success）。
+- 实际 smoke：1066 rows；10 mapped candidates；5 approved rules/7 locators；3 explicit gaps；approved spec/program manifest/canonical 均不存在，正确停在 Mapping Review。
+- P4 full regression 覆盖 raw-only、positive promotion、review rejection、Mapping/program hash drift、unknown operation、missing source、snapshot tamper 和 gap preservation。
+
+#### Next
+
+1. P5 分类 general rule candidate、Study-specific rule 和 unresolved gap，不因 P4 测试成功自动推广。
+2. 对可一般化候选做去标识、适用/不适用范围、证据和冲突检查，生成独立中文 Wiki ReviewPacket。
+3. 人工批准后才发布 governed item/new snapshot，并以不读取原 Study decision 的 clean-room query 证明复用。
+
+#### Files Changed / Commits
+
+- `clinical-workflow/src/agents/ae_metadata_poc.py`, `ae_metadata_workflow.py`, `src/agents/contracts/`
+- `clinical-workflow/src/codegen/`, `tests/test_p9_sample_ae_poc.py`, sample API test
+- `clinical-studies/SAMPLE-AE-001/work/mapping/`, `.review_queue/`, audit and README
+- `docs/specs/02/09/17/21`, `docs/main/memory/`, `docs/dep/`（本 Phase 提交）

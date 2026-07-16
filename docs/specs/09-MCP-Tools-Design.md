@@ -799,3 +799,14 @@ value-label mapping 时，AESEV/AESER 等可保持 producible，但必须同时�
 `src/runtime/contracts/minimum-information-plan.schema.json`。Plan 带内容 hash，
 tamper 时 fail closed；`creates_stage_completion_evidence` 固定为 false。该模块没有
 注册到 MCP Server，也不改变六个 core tool。
+
+## 9. P9 Mapping 与 Reference Adapter 边界
+
+P9.1-P4 没有新增 core MCP tool。Mapping planner 使用 Runtime-local prerelease Schema
+约束 LLM/确定性候选输出，明确禁止 arbitrary command；只有 approved MappingSpec 才能
+进入 `src/codegen/`。Python reference execution 继续通过既有
+`sdtm_program_runner`、`sdtm_programming` capability 和 Action Policy 授权，实际执行
+的是注册内部 adapter，不是生成的 Python 文件或任意脚本路径。
+
+R/SAS 文件是可审查程序产物，不在 P4 执行。source hash、MappingSpec hash、程序文件
+hash 或 Wiki locator evidence 任一漂移均 fail closed，且不会产生 canonical dataset。

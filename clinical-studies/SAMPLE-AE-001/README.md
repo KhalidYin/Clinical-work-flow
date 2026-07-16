@@ -4,7 +4,7 @@
 
 - 当前状态：`scaffold_review`
 - 数据类型：synthetic-only
-- 当前边界：P2 已完成 SAS7BDAT Parser/Derived 候选；尚未执行 Minimum Information、AE Mapping 或生成 canonical artifact。
+- 当前边界：P4 已生成真实 SAS7BDAT 的 AE Mapping 候选并进入 Runtime Mapping Review；批准前不生成程序、draft 或 canonical artifact。
 
 ## 关键口径
 
@@ -45,20 +45,35 @@
 - Plan 固定 `creates_stage_completion_evidence=false`，没有把 Protocol/SAP 或任何
   SDTM Stage 标为完成，也没有执行 LLM、Mapping 或代码。
 
+## P4 Mapping 当前产物
+
+- `work/mapping/ae-mapping-context.json`：由 P2 Source Metadata、P3 Plan、锁定
+  SDTMIG 3.4 snapshot/release 和当前 Study 证据组成；不依赖 CRF。
+- `work/mapping/ae-mapping-spec-candidate.json`：10 个候选映射，覆盖核心标识、
+  AETERM、开始/结束日期及当前来源中已有的 PT/SOC 字段。
+- `.review_queue/sdtm_spec_sample_ae_001_mapping_v1_001.json`：中文 blocking
+  Mapping ReviewPacket；实际 Study 当前停在此处。
+- 受控值字段因没有可解析的 SAS value-label/catalog 继续保持 gap；现有
+  `subject-reference.csv` 与 `Source.Subject` 无标识交集，所以 AESTDY/AEENDY 也保持 gap。
+- P4 代码已支持批准后由同一 MappingSpec 生成 Python/R/SAS，随后仅通过注册的
+  Python reference adapter 生成 draft；完整闭环已在隔离 synthetic 回归 Study 中验证，
+  未在当前 Study 伪造人工 DecisionReceipt。
+
 ## 预期后续审核顺序
 
 1. Source Intake Review：确认 synthetic source 文件形态、字段、无真实数据。
-2. Parser/Derived Review：确认 LLM/脚本从原始输入生成的 JSON/MappingSpec 是否可信。
-3. Program Chain Review：确认 R/Python 代码链路、输入 hash、输出 hash 和 validation。
-4. Canonical Promotion Review：确认 draft AE 是否可提升为 canonical。
+2. Parser/Derived Review：确认脚本从原始输入生成的 Source Metadata 是否可信。
+3. Mapping Review：确认 MappingSpec 的来源变量、Wiki 规则引用和显式 gap。
+4. Program/Promotion Review：确认 Python/R/SAS 共享同一 MappingSpec，且 Python draft、
+   validation、provenance 和 traceability 可接受后再提升 canonical。
 
 ## 当前目录职责
 
 ```text
 input/              原始/半原始材料；禁止 JSON
 work/derived/       后续解析产物，例如 CRF/EDC/study rule JSON
-work/mapping/       后续 MappingSpec 候选与审核前中间件
-programs/           EDC→SDTM 程序链路，预留 R/Python/SAS
-output/             后续 draft/canonical/provenance/traceability
+work/mapping/       Mapping context、候选及批准后的 MappingSpec
+programs/           审核通过后生成的 EDC→SDTM Python/R/SAS 程序链
+output/             审核通过后生成的 draft/canonical/provenance/traceability
 .review_queue/      ReviewPacket/DecisionReceipt/ConfirmationReceipt
 ```

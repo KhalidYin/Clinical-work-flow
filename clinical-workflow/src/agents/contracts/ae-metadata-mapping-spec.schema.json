@@ -1,0 +1,179 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://clinical-workflow.local/prerelease/ae-metadata-mapping-spec.schema.json",
+  "title": "P9 AE Metadata MappingSpec",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "spec_id",
+    "study_id",
+    "target_dataset",
+    "target_standard",
+    "status",
+    "source",
+    "minimum_information_plan",
+    "knowledge",
+    "mappings",
+    "explicit_gaps",
+    "arbitrary_commands_allowed",
+    "creates_stage_completion_evidence",
+    "spec_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "spec_id": {"type": "string", "minLength": 1},
+    "study_id": {"type": "string", "minLength": 1},
+    "target_dataset": {"const": "AE"},
+    "target_standard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": {"const": "SDTMIG"},
+        "version": {"const": "3.4"}
+      }
+    },
+    "status": {"enum": ["candidate", "approved"]},
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metadata_artifact_id", "relative_path", "format", "sha256"],
+      "properties": {
+        "metadata_artifact_id": {"type": "string"},
+        "relative_path": {"type": "string"},
+        "format": {"enum": ["csv", "sas7bdat", "xpt"]},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "minimum_information_plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["plan_id", "plan_sha256", "execution_eligibility"],
+      "properties": {
+        "plan_id": {"type": "string"},
+        "plan_sha256": {"$ref": "#/$defs/sha256"},
+        "execution_eligibility": {"enum": ["draft_allowed", "canonical_candidate"]}
+      }
+    },
+    "knowledge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["snapshot_id", "snapshot_version", "snapshot_sha256", "rules"],
+      "properties": {
+        "snapshot_id": {"type": "string"},
+        "snapshot_version": {"type": "string"},
+        "snapshot_sha256": {"$ref": "#/$defs/sha256"},
+        "rules": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/rule_evidence"}
+        }
+      }
+    },
+    "mappings": {
+      "type": "array",
+      "minItems": 5,
+      "items": {"$ref": "#/$defs/mapping"}
+    },
+    "explicit_gaps": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/gap"}
+    },
+    "arbitrary_commands_allowed": {"const": false},
+    "creates_stage_completion_evidence": {"const": false},
+    "approval": {"$ref": "#/$defs/approval"},
+    "spec_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "approved"}}},
+      "then": {"required": ["approval"]},
+      "else": {"not": {"required": ["approval"]}}
+    }
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "locator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["locator_id", "artifact_id", "artifact_sha256", "text_sha256"],
+      "properties": {
+        "locator_id": {"type": "string"},
+        "artifact_id": {"type": "string"},
+        "artifact_sha256": {"$ref": "#/$defs/sha256"},
+        "text_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "rule_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_id",
+        "statement",
+        "source_id",
+        "source_version",
+        "source_sha256",
+        "locators"
+      ],
+      "properties": {
+        "rule_id": {"type": "string"},
+        "statement": {"type": "string"},
+        "source_id": {"type": "string"},
+        "source_version": {"const": "SDTMIG 3.4"},
+        "source_sha256": {"$ref": "#/$defs/sha256"},
+        "locators": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/locator"}
+        }
+      }
+    },
+    "mapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mapping_id",
+        "target_variable",
+        "operation",
+        "source_variables",
+        "parameters",
+        "rule_refs",
+        "review_status"
+      ],
+      "properties": {
+        "mapping_id": {"type": "string"},
+        "target_variable": {"type": "string", "pattern": "^AE[A-Z0-9]*$|^(STUDYID|DOMAIN|USUBJID)$"},
+        "operation": {
+          "enum": ["constant", "concat", "sequence_by_group", "copy_trim", "partial_date_iso"]
+        },
+        "source_variables": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "parameters": {"type": "object"},
+        "rule_refs": {"type": "array", "minItems": 1, "items": {"type": "string"}, "uniqueItems": true},
+        "review_status": {"enum": ["review_required", "approved"]}
+      }
+    },
+    "gap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gap_id", "category", "description", "affects_variables", "blocking_for_canonical"],
+      "properties": {
+        "gap_id": {"type": "string"},
+        "category": {"type": "string"},
+        "description": {"type": "string"},
+        "affects_variables": {"type": "array", "minItems": 1, "items": {"type": "string"}, "uniqueItems": true},
+        "blocking_for_canonical": {"type": "boolean"}
+      }
+    },
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["review_id", "decision_receipt_sha256", "approved_at"],
+      "properties": {
+        "review_id": {"type": "string"},
+        "decision_receipt_sha256": {"$ref": "#/$defs/sha256"},
+        "approved_at": {"type": "string", "format": "date-time"}
+      }
+    }
+  }
+}

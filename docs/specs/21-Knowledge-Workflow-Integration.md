@@ -693,3 +693,16 @@ conditional、optional、producible/blocked variables、显式 gap、后续 Wiki
 Review Gate。样例输出为 `draft_allowed`，但
 `creates_stage_completion_evidence=false`；因此它不能把 Protocol/SAP/SDTM Stage
 标记为完成。raw-only 无 CRF 场景由独立回归锁定，知识查询和 Mapping 仍留在 P4。
+
+P9.1-P4 已实现 Metadata-driven AE Mapping/Execution 边界。Mapping context 不读取 CRF，
+而是引用 P2 Source Metadata、P3 Plan、Study 配置及 P6 locked snapshot/release；Wiki
+规则必须闭合到 source/version/locator/artifact hash/text hash。MappingSpec 使用
+Runtime-local prerelease Schema，LLM 只能提供结构化候选，不能提供任意命令。
+
+实际 `SAMPLE-AE-001` 已进入
+`sdtm_spec_sample_ae_001_mapping_v1_001` 中文 Runtime Review，候选映射 10 个变量并保留
+controlled value labels、reference identity join 和“非完整 SDTMIG conformity”三个 gap。
+该 packet 可由既有 Application API/Study Console 读取；当前没有人工 DecisionReceipt，
+所以没有 approved MappingSpec、程序、draft 或 canonical。隔离回归 Study 已验证后续
+approved MappingSpec → Python/R/SAS manifest → Python draft → Program Review →
+Confirmation/canonical，以及拒绝、hash 漂移、unknown operation、缺来源 fail closed。
