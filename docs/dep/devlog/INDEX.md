@@ -36,5 +36,6 @@
 | R040 | 2026-07-16 | 00:38 | P7-safety-analysis-vertical-workflow | P3 | 实现受控 AE adapter、draft artifact、SDTM 验证和失败门 | `clinical-workflow/src/agents/ae_execution.py`, `clinical-workflow/tests/test_p7_ae_execution.py`, `docs/dep/` | active/DEVLOG-R009-R048.md |
 | R041 | 2026-07-16 | 00:47 | P7-safety-analysis-vertical-workflow | P4 | 完成 AE 端到端 Review、canonical promotion 与追溯验收 | `clinical-workflow/src/agents/ae_workflow.py`, `clinical-workflow/tests/test_p7_ae_workflow_e2e.py`, `docs/reviews/`, `docs/dep/` | active/DEVLOG-R009-R048.md |
 | R042 | 2026-07-16 | 09:39 | P7-safety-analysis-vertical-workflow | Sync | 完成 P7 主文档同步、计划归档与 synthetic AE 基线发布 | `docs/specs/`, `USAGE.md`, `docs/main/memory/`, `docs/dep/` | active/DEVLOG-R009-R048.md |
+| R043 | 2026-07-16 | 10:09 | P8-workflow-api-study-console | P1 | 冻结 Application API draft 合同、事件/安全边界和 UI payload 映射 | `clinical-workflow/schemas/application/`, `clinical-workflow/tests/test_p8_application_api_contract.py`, `docs/specs/`, `docs/dep/` | active/DEVLOG-R009-R048.md |
 
 > Legacy rounds R001-R008 remain immutable in [DEVLOG-legacy.md](archive/DEVLOG-legacy.md). They predate the searchable index and were intentionally not rewritten during adoption.

@@ -1110,3 +1110,15 @@ P7 使用同一 Review Protocol 文件合同完成 synthetic AE canonical promot
 - ConfirmationReceipt、canonical provenance 和 traceability report 共同证明决策已应用，并保留 synthetic-only scope。
 
 P7 的 Review 结论只适用于合成基线工程验收，不是实际 Study 或 GxP 审批。
+
+## 13. P8-P1 Application API Review 边界
+
+P8-P1 在 `clinical-workflow/schemas/application/openapi.yaml` 中定义 Study Console 使用的 Review API façade。该 façade 不改变 Review Protocol 的文件权威：
+
+- `GET /api/v1/studies/{study_id}/reviews` 只派生 ReviewPacket/DecisionReceipt/ConfirmationReceipt 状态；
+- `POST /api/v1/studies/{study_id}/reviews/{review_id}/decisions` 只写 DecisionReceipt-compatible payload；
+- 请求必须携带 `Idempotency-Key` 和 `packet_sha256`，用于防止重复提交和过期 packet 决策；
+- Web/API 不写 ConfirmationReceipt、不归档 packet、不提升 canonical artifact；
+- rejected、stale、schema mismatch 或 packet hash 不一致必须 fail closed，并返回结构化错误。
+
+因此 P8 Study Console 可以替代或复用当前 Review Panel 的交互层，但不能替代 Runtime 对 DecisionReceipt 的应用和 ConfirmationReceipt 生成。

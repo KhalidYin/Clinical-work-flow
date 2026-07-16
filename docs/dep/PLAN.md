@@ -8,13 +8,12 @@ updated: 2026-07-16
 
 | # | 子计划 | 文件 | 当前阶段 | 已用轮次 | 开始日期 |
 |---|--------|------|----------|----------|----------|
-| - | - | - | - | - | - |
+| P8 | Workflow Application API 与本地 Study Console | [P8-workflow-api-study-console.md](plans/ongoing/P8-workflow-api-study-console.md) | P1 done；下一阶段 P2：只读 API | 1 | 2026-07-16 |
 
 ## 待开始
 
 | # | 子计划 | 文件 | 预估轮次 | 依赖 |
 |---|--------|------|----------|------|
-| P8 | Workflow Application API 与本地 Study Console | [P8-workflow-api-study-console.md](plans/backlog/P8-workflow-api-study-console.md) | 25-40（执行前重估） | P7 完成并重新确认范围 |
 | P9 | 多 Study 内网协作与受控部署 | [P9-multi-study-intranet-collaboration.md](plans/backlog/P9-multi-study-intranet-collaboration.md) | 20-32（执行前重估） | P8 完成并重新确认部署授权 |
 
 > 当前执行视野只展开 P6 → P7：P6 先建立覆盖 461 页的全书导航结构层，并只对 Core/Events/AE 建立深度 locator、逐条知识解析、关系和引用质量验收；P7 再用“生成 SDTM AE”证明 Wiki + LLM + Workflow 的实际执行价值。P8/P9 保留长期方向，但必须基于 P7 的真实证据重新确认范围，不允许提前扩展。后续知识按同一质量 Gate 随实际 Workflow 缺口增量摄取。

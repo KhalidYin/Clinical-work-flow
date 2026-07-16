@@ -1288,3 +1288,14 @@ Review Type 枚举                    templates/*.ts 模板映射
 Git 审计                            gitIntegration.ts
 Error 处理矩阵                      第8节 异常处理表
 ```
+
+## 11. P8 Study Console 兼容定位
+
+P8-P1 将 Review 交互抽象为 Application API draft contract：`clinical-workflow/schemas/application/openapi.yaml`。
+
+当前根目录 `review-panel/` 仍是可用的本地审核入口；未来 Study Console 可以通过同一 Review Protocol 语义替换它的后端 adapter，但不得改变以下边界：
+
+- Panel/Console 只展示 ReviewPacket，并把用户选择序列化为 DecisionReceipt-compatible payload；
+- ConfirmationReceipt、artifact promotion、Git 阶段推进仍由 Runtime/Agent 完成；
+- 已有 VSCode Extension 源码继续作为兼容/历史入口，不成为 P8 的实现前置；
+- P8 不同时维护独立 Web Relay 后端和 Study Console 后端。旧 SPEC-20 中仍有效的审核 API 需求由 Application API 吸收。

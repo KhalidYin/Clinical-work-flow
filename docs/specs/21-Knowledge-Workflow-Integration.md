@@ -533,3 +533,28 @@ P7 已在 synthetic `ae-pilot` fixture 上证明首条“Wiki + Study + Workflow
 - 在线原 package 与复制的 locked package 使用相同锁定输入时产生等价 context、applied refs 和 canonical AE hash。
 
 该闭环仍是本地 synthetic baseline。它不扩大 P6 知识范围，不替代真实 Study 审核，不引入新前端，也不覆盖完整十阶段临床递交流程。后续 P8 若建设 Study Console，应复用该文件协议和 traceability 结果，而不是改变 Review/Knowledge/Workflow 的权威边界。
+
+---
+
+## 22. P8-P1 Application API 合同基线
+
+P8-P1 已新增 `clinical-workflow/schemas/application/openapi.yaml`，作为本地 Study Console、Codex 和 CLI 的应用层 draft contract。
+
+当前合同覆盖：
+
+- Study create/list/status；
+- run/resume/events；
+- artifact list/detail；
+- review list/decision；
+- context/provenance；
+- audit timeline。
+
+边界保持不变：
+
+- Application API 是 Runtime/Review/Filesystem/Knowledge 的门面，不拥有 Pipeline 顺序、知识状态、Study 事实或 canonical artifact 推进权；
+- 所有 POST 操作要求 `Idempotency-Key`，并通过 `x-authority`、`x-writes` 和 `x-forbidden-actions` 声明写入边界；
+- review decision 只产生 DecisionReceipt-compatible payload；ConfirmationReceipt 与 promotion 仍由 Runtime/Agent 完成；
+- 公开路径使用 `container_id + relative_path + sha256`，禁止绝对路径、`..`、盘符和反斜杠；
+- UI-01 至 UI-07 的 payload 映射写入 OpenAPI 根级 `x-ui-contracts`，前端不得从缺失 payload 自行推断状态。
+
+P8-P1 未升级 released `contract-bundle.json`。原因是 P6/P7 locked snapshot 仍固定 Engine bundle `1.1.0`，而 Application API draft 尚未被 Runtime/Wiki 双端锁定消费。后续 P2/P3 实现 API 后，如需把 Application API schema 纳入 released bundle，必须同步 Wiki mirror、locked snapshot 兼容策略和相关测试。

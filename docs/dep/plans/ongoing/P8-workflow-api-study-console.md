@@ -1,10 +1,10 @@
 ---
 phase_index: 8
-status: planning
+status: in-progress
 created: 2026-07-14
-updated: 2026-07-14
+updated: 2026-07-16
 priority: 1
-estimated_rounds: 25-40
+estimated_rounds: 18-30
 depends_on:
   - P7-safety-analysis-vertical-workflow.md
 tags:
@@ -34,6 +34,7 @@ syncs_to:
 - Review Panel 当前只读取第一个 VSCode workspace 根目录下的 `.review_queue/`，多 Study 选择和 monorepo 嵌套使用受限。
 - P7 将提供 AE 最小纵向执行链和实际事件/状态需求；P8 开始前必须据此重新确认 API/UI 范围，避免为尚未验证的十阶段行为提前设计重型前端。
 - 方案来源：用户于 2026-07-14 批准“Web Study Console 主入口 + Codex/VSCode 高级入口 + Obsidian 知识入口”。
+- P7 已实际证明的是 synthetic AE 单链，而不是完整十阶段生产系统。因此 P8 重估后只围绕“本地单用户 Study Console + Application API 门面”推进，不在 P8 中扩展多用户、云端、真实 Study GxP 或完整递交生产能力。
 
 ## 涉及范围
 
@@ -153,7 +154,7 @@ GET  /api/v1/studies/{study_id}/audit
 
 | Phase | 目标 | 预估轮次 | 依赖 | 状态 |
 |-------|------|----------|------|------|
-| P1 | 冻结 Application API、事件和安全合同 | 4-6 | P7完成 | pending |
+| P1 | 冻结 Application API、事件和安全合同 | 1-2 | P7完成 | done |
 | P2 | 实现 Study/status/artifact/context/audit 只读 API | 4-7 | P1 | pending |
 | P3 | 实现 run/resume/review 写 API 与事件流 | 5-8 | P2 | pending |
 | P4 | 实现本地 Study Console 核心界面 | 8-12 | P3 | pending |
@@ -173,14 +174,24 @@ GET  /api/v1/studies/{study_id}/audit
 - OpenAPI/JSON Schema、错误码、幂等键、事件游标和路径授权合同。
 - API → Runtime/Review/Filesystem 的职责映射。
 - SPEC-20 旧 Web Relay 功能吸收/废弃清单。
+- P8-P1 阶段先发布 draft OpenAPI 合同，不升级 Engine released `contract-bundle.json`，避免 P6/P7 locked snapshot 从 1.1.0 发生无业务必要漂移。
+
+### P1 实施记录
+
+- 新增 `clinical-workflow/schemas/application/openapi.yaml`，以 OpenAPI 3.1 draft 形式冻结 P8 Application API：Study create/list/status、run/resume/events、artifact、review decision、context/provenance 和 audit。
+- API 合同明确 `x-authority`、`x-writes`、`x-forbidden-actions` 和 `x-ui-contracts`：Web/Codex/CLI 客户端只通过 Application API 请求 Runtime/Review/Filesystem 派生视图，不直接调用 core MCP tools，不直接提升 canonical artifact。
+- POST 写操作全部要求 `Idempotency-Key`，review decision 写操作只允许产生 DecisionReceipt-compatible payload；ConfirmationReceipt、archive、artifact promotion 继续由 Runtime/Agent 完成。
+- 路径模型只公开 `container_id + relative_path + sha256`，不返回绝对路径；relative path 明确拒绝 `..`、盘符、根路径和反斜杠。
+- 新增 `clinical-workflow/tests/test_p8_application_api_contract.py`，锁定 endpoint 清单、POST 幂等、禁止直接工具/提升 artifact、十阶段顺序、UI-01 至 UI-07 payload 映射、JSON Schema 合法性和 bundle 不升级。
+- P8-P1 不修改 `contract-bundle.json`。Application API 合同仍是 draft；后续 P2/P3 真正实现 API 后，再决定是否发布为 shared released schema。
 
 ### 完成标准
 
-- [ ] 每个 endpoint 都有请求/响应 Schema、权限边界、错误语义和权威来源。
-- [ ] API 不维护独立 pipeline state，不直接调用核心 tools 或提升 artifact。
-- [ ] run/review 写操作具备幂等、并发冲突和重放策略。
-- [ ] Study 路径限制在配置的 container roots，符号链接/穿越 fail closed。
-- [ ] UI-01 至 UI-07 的字段均能映射到 API payload 或明确不可用状态。
+- [x] 每个 endpoint 都有请求/响应 Schema、权限边界、错误语义和权威来源。
+- [x] API 不维护独立 pipeline state，不直接调用核心 tools 或提升 artifact。
+- [x] run/review 写操作具备幂等、并发冲突和重放策略。
+- [x] Study 路径限制在配置的 container roots，符号链接/穿越 fail closed。
+- [x] UI-01 至 UI-07 的字段均能映射到 API payload 或明确不可用状态。
 
 ### 边界
 
@@ -358,7 +369,7 @@ GET  /api/v1/studies/{study_id}/audit
 
 | ID | 描述 | 发现于 | 类型 | 处理 |
 |----|------|--------|------|------|
-| - | 尚未开始执行 | - | - | - |
+| D1 | 若 P8-P1 将 Application API schema 直接加入 released `contract-bundle.json`，会迫使 P6/P7 locked snapshot 从 1.1.0 漂移，但 P8-P1 尚未实现跨模块运行时消费 | P1 | 已解决 | P1 以 `schemas/application/openapi.yaml` 发布 draft contract，并用测试确认 `x-released-contract-bundle=false` 与 bundle 1.1.0 不变；P2/P3 实现后再评估是否升级 released bundle |
 
 ## 关键决策记录
 

@@ -652,3 +652,25 @@ server.py 启动:
 | SPEC-15 Schema | JSON Schema 验证 | Web 读写文件时复用同一套 Schema |
 | SPEC-19 P1 增强 | 数据库字段扩展 | 结构化拒绝、澄清通道的字段在数据库中预留 |
 | project.yaml | 配置读取 | 超时配置、审核人配置从 project.yaml 读取 |
+
+---
+
+## 15. P8-P1 后的定位：Web Relay 被 Application API 吸收
+
+P8-P1 已冻结本地 Study Console 的 Application API draft contract：`clinical-workflow/schemas/application/openapi.yaml`。因此本 SPEC 中“独立 Web Relay + 数据库 + WebSocket + 多人审核”的方案不再作为当前本地单机主线实现。
+
+保留的有效需求：
+
+- 浏览器展示 ReviewPacket、提交 DecisionReceipt；
+- 结构化错误、并发/过期决策、packet hash 校验；
+- 审核事件可进入 audit timeline；
+- 未来如进入 P9 多用户/内网共享，可重新评估多人审核、冲突合并、通知和数据库持久化。
+
+被 P8-P1 明确替代或延后：
+
+- 不建设第二套 Web Relay 后端；
+- 不在 P8 引入多人认证、角色权限、租户隔离或共享数据库；
+- 不让 Web 服务直接归档 packet、写 ConfirmationReceipt 或提升 canonical artifact；
+- 不把 Review 数据库作为文件系统 `.review_queue/` 之外的新业务权威。
+
+P8 当前主线是：Study Console → Application API → Runtime/Review Protocol/Study files。若后续需要内网协作，应在 P9 以 Application API 为基础新增权限和协作层，而不是恢复独立 Relay 状态机。

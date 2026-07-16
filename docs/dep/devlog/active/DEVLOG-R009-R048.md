@@ -1187,3 +1187,46 @@ Done — no next steps。若需要跨阶段全量语义图，应另立 typed-rel
 - `docs/dep/plans/ongoing/P7-safety-analysis-vertical-workflow.md`（moved）
 - `docs/dep/devlog/INDEX.md`
 - `docs/dep/devlog/active/DEVLOG-R009-R048.md`
+
+---
+
+### R043 [10:09] [P8-workflow-api-study-console] P1: 冻结 Application API draft 合同、事件/安全边界和 UI payload 映射
+
+#### Done
+- 将 P8 从 backlog 激活到 ongoing，并基于 P7 证据将 P8 估算从 25-40 轮收敛为 18-30 轮；P8 不预先覆盖真实 Study、GxP、云端或完整十阶段生产 UI。
+- 新增 `clinical-workflow/schemas/application/openapi.yaml`，以 OpenAPI 3.1 draft 形式冻结 Application API：Study、run/resume/events、artifact、review decision、context/provenance 和 audit。
+- 合同根级声明 `x-authority-boundaries` 与 `x-ui-contracts`，明确 Application API 是 Runtime/Review/Filesystem/Knowledge 的门面，不是第二 Runtime。
+- POST 写操作全部要求 `Idempotency-Key`；review decision 只允许 DecisionReceipt-compatible payload，不写 ConfirmationReceipt、不归档、不提升 canonical artifact。
+- 路径合同只暴露 `container_id + relative_path + sha256`，拒绝绝对路径、`..`、盘符和反斜杠。
+- 新增 `test_p8_application_api_contract.py`，锁定 endpoint 表面、十阶段顺序、UI-01 至 UI-07 payload、JSON Schema 合法性和 released bundle 不升级。
+- 同步 SPEC-06/15/16/20/21，明确旧 Web Relay 方案被 P8 Application API 吸收，当前不建设第二套 Web 后端。
+
+#### Issues / Blockers
+- 若 P8-P1 直接把 Application API schema 加入 released `contract-bundle.json`，会导致 P6/P7 locked snapshot 从 1.1.0 漂移。处理：P8-P1 使用 draft OpenAPI，不升级 bundle；后续 P2/P3 API 实现稳定后再评估是否发布为 shared released schema。
+
+#### Validation
+- `python -m pytest tests/test_p8_application_api_contract.py -q`（7 passed）
+- `python -m pytest tests/test_p8_application_api_contract.py tests/test_knowledge_contracts.py tests/test_runtime_knowledge_integration.py -q`（72 passed）
+- `python -m ruff check tests/test_p8_application_api_contract.py`（success）
+- `git diff --check`（success；仅 LF/CRLF warning）
+
+#### Next
+1. P8-P2：实现 Study/status/artifact/context/provenance/audit 只读 API。
+2. P8-P2：保持文件系统为权威，缓存只能可删除重建，不改变 Study 文件和 Git。
+3. P8-P2：先覆盖路径安全、缺失/损坏 manifest、partial error 和 P7 synthetic AE artifact/provenance 读取。
+
+#### Files Changed / Commits
+- `clinical-workflow/schemas/application/README.md`
+- `clinical-workflow/schemas/application/openapi.yaml`
+- `clinical-workflow/tests/test_p8_application_api_contract.py`
+- `docs/specs/06-AI-Architecture.md`
+- `docs/specs/15-Review-Protocol.md`
+- `docs/specs/16-Review-Panel.md`
+- `docs/specs/20-Web-Relay.md`
+- `docs/specs/21-Knowledge-Workflow-Integration.md`
+- `docs/dep/plans/ongoing/P8-workflow-api-study-console.md`
+- `docs/dep/plans/backlog/P8-workflow-api-study-console.md`（moved）
+- `docs/dep/PLAN.md`
+- `docs/dep/TASK_STATE.md`
+- `docs/dep/devlog/INDEX.md`
+- `docs/dep/devlog/active/DEVLOG-R009-R048.md`

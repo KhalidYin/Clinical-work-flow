@@ -392,3 +392,17 @@ Obsidian 不参与执行控制。它只编辑 Markdown/YAML 知识源；approved
 - Runtime Git 自动提交使用当前 Study pathspec；Engine、Wiki、另一 Study 的脏改动和暂存状态不会进入提交，把 monorepo 根当 Study 会拒绝。
 - `clinical_standards.py` 仅为 deprecated migration source；生产路径有自动测试禁止导入。
 - 本地安装、启动、备份、恢复和回滚以仓库根 `USAGE.md` 与 `docs/deploy/DEPLOY_GUIDE.md` 为准。
+
+## 10. P8-P1 Application API 门面基线
+
+P8-P1 新增 draft Application API 合同：`clinical-workflow/schemas/application/openapi.yaml`。
+
+该 API 是 Runtime、Review Protocol、Study 文件和审计日志的应用门面，不是第二个 Runtime：
+
+- API 响应从 Study 文件、manifest、review queue、artifact/provenance 和 audit 派生；
+- API 不维护独立 pipeline state，不重排十阶段顺序，不在前端复制 Pipeline 判断；
+- run/resume 只创建 Runtime 请求和事件，不直接调用 core MCP tools、受控 executable 或任意系统命令；
+- review decision 只写 DecisionReceipt-compatible payload，不写 ConfirmationReceipt、不归档、不提升 canonical artifact；
+- artifact/context/provenance/audit 默认只读，路径以注册 container 和 relative path 暴露，不向客户端返回绝对路径。
+
+P8-P1 合同仍是 draft，未进入 released `contract-bundle.json`，避免 P6/P7 locked snapshot 从 `1.1.0` 发生无业务必要漂移。后续 P2/P3 实现 API 后，再决定是否升级 shared released schema。

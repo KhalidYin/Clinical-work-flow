@@ -1,0 +1,974 @@
+openapi: 3.1.0
+info:
+  title: Clinical Workflow Application API
+  version: 0.1.0-draft
+  summary: Local-first facade for Study Console, Codex and CLI clients.
+  description: >
+    P8-P1 draft contract. The API exposes study, status, run, review, artifact,
+    context, provenance and audit views derived from Runtime-owned files. It does
+    not own pipeline state, does not call core tools directly, and does not
+    promote canonical artifacts.
+servers:
+  - url: http://127.0.0.1:8788
+    description: Loopback-only local Study Console service.
+x-contract-status: draft
+x-contract-owner: workflow_engine
+x-released-contract-bundle: false
+x-authority-boundaries:
+  pipeline_state: study_files_and_runtime_contract
+  write_operations: runtime_or_review_protocol_only
+  knowledge_state: knowledge_service_or_locked_snapshot
+  canonical_promotion: runtime_confirmation_only
+  filesystem_paths: container_root_policy
+x-ui-contracts:
+  UI-01:
+    endpoints: ["GET /api/v1/studies", "POST /api/v1/studies"]
+    required_payload: [study_id, current_stage, run_state, pending_review_count, last_activity_at]
+  UI-02:
+    endpoints: ["GET /api/v1/studies/{study_id}/status"]
+    required_payload: [stage_order, stages, knowledge_lock, pending_review_count]
+  UI-03:
+    endpoints:
+      - "POST /api/v1/studies/{study_id}/runs"
+      - "GET /api/v1/studies/{study_id}/runs/{run_id}"
+      - "POST /api/v1/studies/{study_id}/runs/{run_id}/resume"
+      - "GET /api/v1/studies/{study_id}/events"
+    required_payload: [run_id, run_state, blocking_reason, event_cursor]
+  UI-04:
+    endpoints:
+      - "GET /api/v1/studies/{study_id}/reviews"
+      - "POST /api/v1/studies/{study_id}/reviews/{review_id}/decisions"
+    required_payload: [review_id, finding_count, decision_state, packet_sha256]
+  UI-05:
+    endpoints:
+      - "GET /api/v1/studies/{study_id}/artifacts"
+      - "GET /api/v1/studies/{study_id}/artifacts/{artifact_id}"
+    required_payload: [artifact_id, artifact_state, sha256, provenance_id]
+  UI-06:
+    endpoints:
+      - "GET /api/v1/studies/{study_id}/context"
+      - "GET /api/v1/studies/{study_id}/provenance"
+    required_payload: [bundle_lock, source_refs, rule_refs, traceability_refs]
+  UI-07:
+    endpoints: ["GET /api/v1/studies/{study_id}/audit"]
+    required_payload: [event_id, event_type, occurred_at, related_refs]
+tags:
+  - name: Studies
+  - name: Runs
+  - name: Reviews
+  - name: Artifacts
+  - name: Context
+  - name: Audit
+paths:
+  /api/v1/studies:
+    post:
+      tags: [Studies]
+      operationId: createStudy
+      summary: Create a study scaffold inside an authorized local container root.
+      x-authority: filesystem_scaffold
+      x-writes: study_scaffold_only
+      x-forbidden-actions: [call_core_tool, promote_artifact, mutate_knowledge]
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudyCreateRequest"
+      responses:
+        "201":
+          description: Study scaffold created or idempotently returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudyCreateResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+    get:
+      tags: [Studies]
+      operationId: listStudies
+      summary: List registered studies derived from configured local roots.
+      x-authority: filesystem_readonly
+      x-writes: none
+      responses:
+        "200":
+          description: Study list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudyListResponse"
+
+  /api/v1/studies/{study_id}/status:
+    get:
+      tags: [Studies]
+      operationId: getStudyStatus
+      summary: Return pipeline, knowledge lock and review status for one study.
+      x-authority: runtime_files_readonly
+      x-writes: none
+      parameters:
+        - $ref: "#/components/parameters/StudyId"
+      responses:
+        "200":
+          description: Study status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudyStatusResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/studies/{study_id}/runs:
+    post:
+      tags: [Runs]
+      operationId: startRun
+      summary: Request Runtime to start a controlled workflow run.
+      x-authority: runtime_request
+      x-writes: run_request_and_events
+      x-forbidden-actions: [direct_core_tool_call, direct_command_execution, promote_artifact]
+      parameters:
+        - $ref: "#/components/parameters/StudyId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunIntentRequest"
+      responses:
+        "202":
+          description: Run accepted, queued or idempotently returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunAcceptedResponse"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /api/v1/studies/{study_id}/runs/{run_id}:
+    get:
+      tags: [Runs]
+      operationId: getRun
+      summary: Return durable run metadata and the latest known state.
+      x-authority: runtime_files_readonly
+      x-writes: none
+      parameters:
+        - $ref: "#/components/parameters/StudyId"
+        - $ref: "#/components/parameters/RunId"
+      responses:
+        "200":
+          description: Run status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunStatusResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/studies/{study_id}/runs/{run_id}/resume:
+    post:
+      tags: [Runs]
+      operationId: resumeRun
+      summary: Request Runtime to resume after review, repair or interruption.
+      x-authority: runtime_request
+      x-writes: resume_request_and_events
+      x-forbidden-actions: [direct_core_tool_call, direct_command_execution, promote_artifact]
+      parameters:
+        - $ref: "#/components/parameters/StudyId"
+        - $ref: "#/components/parameters/RunId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunResumeRequest"
+      responses:
+        "202":
+          description: Resume request accepted or idempotently returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunAcceptedResponse"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /api/v1/studies/{study_id}/events:
+    get:
+      tags: [Runs]
+      operationId: listEvents
+      summary: Return append-only run and review events after an optional cursor.
+      x-authority: audit_readonly
+      x-writes: none
+      parameters:
+        - $ref: "#/components/parameters/StudyId"
+        - $ref: "#/components/parameters/EventCursor"
+      responses:
+        "200":
+          description: Event page.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventListResponse"
+
+  /api/v1/studies/{study_id}/artifacts:
+    get:
+      tags: [Artifacts]
+      operationId: listArtifacts
+      summary: List registered draft and canonical artifacts for a study.
+      x-authority: artifact_registry_readonly
+      x-writes: none
+      parameters:
+        - $ref: "#/components/parameters/StudyId"
+      responses:
+        "200":
+          description: Artifact list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArtifactListResponse"
+
+  /api/v1/studies/{study_id}/artifacts/{artifact_id}:
+    get:
+      tags: [Artifacts]
+      operationId: getArtifact
+      summary: Return metadata and preview-safe content for a registered artifact.
+      x-authority: artifact_registry_readonly
+      x-writes: none
+      parameters:
+        - $ref: "#/components/parameters/StudyId"
+        - $ref: "#/components/parameters/ArtifactId"
+      responses:
+        "200":
+          description: Artifact detail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArtifactDetailResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/studies/{study_id}/reviews:
+    get:
+      tags: [Reviews]
+      operationId: listStudyReviews
+      summary: List active and decided ReviewPacket files for one study.
+      x-authority: review_queue_readonly
+      x-writes: none
+      parameters:
+        - $ref: "#/components/parameters/StudyId"
+      responses:
+        "200":
+          description: Review list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewListResponse"
+
+  /api/v1/studies/{study_id}/reviews/{review_id}/decisions:
+    post:
+      tags: [Reviews]
+      operationId: submitReviewDecision
+      summary: Atomically write a DecisionReceipt-compatible decision payload.
+      x-authority: review_protocol
+      x-writes: decision_receipt_only
+      x-forbidden-actions: [write_confirmation, promote_artifact, mutate_review_packet]
+      parameters:
+        - $ref: "#/components/parameters/StudyId"
+        - $ref: "#/components/parameters/ReviewId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewDecisionRequest"
+      responses:
+        "201":
+          description: DecisionReceipt written or idempotently returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DecisionReceiptAccepted"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "412":
+          $ref: "#/components/responses/PreconditionFailed"
+
+  /api/v1/studies/{study_id}/context:
+    get:
+      tags: [Context]
+      operationId: getStudyContext
+      summary: Return current locked Runtime/Wiki context summary.
+      x-authority: context_readonly
+      x-writes: none
+      parameters:
+        - $ref: "#/components/parameters/StudyId"
+      responses:
+        "200":
+          description: Context summary.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContextResponse"
+
+  /api/v1/studies/{study_id}/provenance:
+    get:
+      tags: [Context]
+      operationId: getStudyProvenance
+      summary: Return traceability references for generated work products.
+      x-authority: provenance_readonly
+      x-writes: none
+      parameters:
+        - $ref: "#/components/parameters/StudyId"
+      responses:
+        "200":
+          description: Provenance summary.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProvenanceResponse"
+
+  /api/v1/studies/{study_id}/audit:
+    get:
+      tags: [Audit]
+      operationId: getStudyAudit
+      summary: Return read-only audit timeline.
+      x-authority: audit_readonly
+      x-writes: none
+      parameters:
+        - $ref: "#/components/parameters/StudyId"
+      responses:
+        "200":
+          description: Audit events.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditResponse"
+
+components:
+  parameters:
+    StudyId:
+      name: study_id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[A-Za-z0-9][A-Za-z0-9_-]{1,63}$"
+    RunId:
+      name: run_id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^run-[A-Za-z0-9_-]{8,64}$"
+    ReviewId:
+      name: review_id
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 3
+        maxLength: 128
+    ArtifactId:
+      name: artifact_id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[A-Za-z0-9][A-Za-z0-9_.-]{1,127}$"
+    EventCursor:
+      name: cursor
+      in: query
+      required: false
+      schema:
+        $ref: "#/components/schemas/EventCursor"
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 16
+        maxLength: 128
+        pattern: "^[A-Za-z0-9_.:-]+$"
+
+  responses:
+    BadRequest:
+      description: Invalid request.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Study, run, review or artifact not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: Concurrent operation, duplicate ID or runtime conflict.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    PreconditionFailed:
+      description: Packet hash, decision state or artifact precondition failed.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    StudyCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [study_id, template_id]
+      properties:
+        study_id:
+          type: string
+          pattern: "^[A-Za-z0-9][A-Za-z0-9_-]{1,63}$"
+        template_id:
+          type: string
+          enum: [synthetic-ae-pilot, empty-local-study]
+        title:
+          type: string
+          minLength: 1
+          maxLength: 160
+        therapeutic_area:
+          type: string
+          maxLength: 80
+        source_study_id:
+          type: string
+          pattern: "^[A-Za-z0-9][A-Za-z0-9_-]{1,63}$"
+          description: Optional registered study ID to copy from; never a filesystem path.
+
+    StudyCreateResponse:
+      type: object
+      additionalProperties: false
+      required: [study, created, idempotency_key]
+      properties:
+        study:
+          $ref: "#/components/schemas/StudySummary"
+        created:
+          type: boolean
+        idempotency_key:
+          type: string
+
+    StudyListResponse:
+      type: object
+      additionalProperties: false
+      required: [studies, partial_errors]
+      properties:
+        studies:
+          type: array
+          items:
+            $ref: "#/components/schemas/StudySummary"
+        partial_errors:
+          type: array
+          items:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    StudySummary:
+      type: object
+      additionalProperties: false
+      required:
+        - study_id
+        - current_stage
+        - run_state
+        - pending_review_count
+        - knowledge_lock
+        - last_activity_at
+      properties:
+        study_id:
+          type: string
+        title:
+          type: ["string", "null"]
+        therapeutic_area:
+          type: ["string", "null"]
+        current_stage:
+          $ref: "#/components/schemas/PipelineStageId"
+        run_state:
+          $ref: "#/components/schemas/RunState"
+        pending_review_count:
+          type: integer
+          minimum: 0
+        knowledge_lock:
+          $ref: "#/components/schemas/KnowledgeLock"
+        last_activity_at:
+          $ref: "#/components/schemas/DateTime"
+
+    StudyStatusResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - study_id
+        - stage_order
+        - stages
+        - run_state
+        - pending_review_count
+        - knowledge_lock
+        - incomplete_reasons
+      properties:
+        study_id:
+          type: string
+        stage_order:
+          type: array
+          minItems: 10
+          maxItems: 10
+          prefixItems:
+            - const: protocol_analysis
+            - const: sap_generation
+            - const: sdtm_spec
+            - const: sdtm_programming
+            - const: adam_spec
+            - const: adam_programming
+            - const: tfl_shell_design
+            - const: tfl_programming
+            - const: qc_validation
+            - const: submission_packaging
+          items: false
+        stages:
+          type: array
+          minItems: 10
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/StageStatus"
+        run_state:
+          $ref: "#/components/schemas/RunState"
+        pending_review_count:
+          type: integer
+          minimum: 0
+        knowledge_lock:
+          $ref: "#/components/schemas/KnowledgeLock"
+        incomplete_reasons:
+          type: array
+          items:
+            type: string
+
+    StageStatus:
+      type: object
+      additionalProperties: false
+      required: [stage_id, ordinal, status, canonical_artifact_count, draft_artifact_count, blocking_review_count]
+      properties:
+        stage_id:
+          $ref: "#/components/schemas/PipelineStageId"
+        ordinal:
+          type: integer
+          minimum: 1
+          maximum: 10
+        status:
+          enum: [not_started, ready, running, blocked_review, blocked_error, completed, failed]
+        canonical_artifact_count:
+          type: integer
+          minimum: 0
+        draft_artifact_count:
+          type: integer
+          minimum: 0
+        blocking_review_count:
+          type: integer
+          minimum: 0
+        last_event_id:
+          type: ["string", "null"]
+
+    RunIntentRequest:
+      type: object
+      additionalProperties: false
+      required: [intent]
+      properties:
+        intent:
+          type: string
+          minLength: 3
+          maxLength: 500
+          examples: ["生成 AE 数据集"]
+        target_stage:
+          $ref: "#/components/schemas/PipelineStageId"
+        dataset:
+          type: ["string", "null"]
+          pattern: "^[A-Z][A-Z0-9]{0,7}$"
+        dry_run:
+          type: boolean
+          default: false
+
+    RunResumeRequest:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason:
+          enum: [review_decision_available, retry_after_failure, operator_resume]
+        last_seen_event_cursor:
+          $ref: "#/components/schemas/EventCursor"
+
+    RunAcceptedResponse:
+      type: object
+      additionalProperties: false
+      required: [run_id, run_state, accepted, idempotency_key]
+      properties:
+        run_id:
+          type: string
+        run_state:
+          $ref: "#/components/schemas/RunState"
+        accepted:
+          type: boolean
+        idempotency_key:
+          type: string
+
+    RunStatusResponse:
+      type: object
+      additionalProperties: false
+      required: [run_id, study_id, run_state, current_stage, blocking_reason, event_cursor]
+      properties:
+        run_id:
+          type: string
+        study_id:
+          type: string
+        run_state:
+          $ref: "#/components/schemas/RunState"
+        current_stage:
+          $ref: "#/components/schemas/PipelineStageId"
+        blocking_reason:
+          type: ["string", "null"]
+        event_cursor:
+          $ref: "#/components/schemas/EventCursor"
+
+    EventListResponse:
+      type: object
+      additionalProperties: false
+      required: [events, next_cursor]
+      properties:
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkflowEvent"
+        next_cursor:
+          $ref: "#/components/schemas/EventCursor"
+
+    WorkflowEvent:
+      type: object
+      additionalProperties: false
+      required: [event_id, event_type, occurred_at, study_id, related_refs]
+      properties:
+        event_id:
+          type: string
+        event_type:
+          enum:
+            - run_requested
+            - run_started
+            - stage_started
+            - artifact_written
+            - review_packet_written
+            - decision_receipt_written
+            - confirmation_receipt_written
+            - run_blocked
+            - run_failed
+            - run_completed
+        occurred_at:
+          $ref: "#/components/schemas/DateTime"
+        study_id:
+          type: string
+        stage_id:
+          $ref: "#/components/schemas/PipelineStageId"
+        related_refs:
+          type: array
+          items:
+            $ref: "#/components/schemas/RelatedRef"
+
+    ArtifactListResponse:
+      type: object
+      additionalProperties: false
+      required: [artifacts, partial_errors]
+      properties:
+        artifacts:
+          type: array
+          items:
+            $ref: "#/components/schemas/ArtifactSummary"
+        partial_errors:
+          type: array
+          items:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    ArtifactSummary:
+      type: object
+      additionalProperties: false
+      required: [artifact_id, stage_id, artifact_state, artifact_type, sha256, provenance_id]
+      properties:
+        artifact_id:
+          type: string
+        stage_id:
+          $ref: "#/components/schemas/PipelineStageId"
+        artifact_state:
+          enum: [draft, canonical, superseded, invalid]
+        artifact_type:
+          enum: [dataset, spec, program_manifest, validation_report, provenance, review_receipt, traceability_report, other]
+        display_name:
+          type: string
+        sha256:
+          $ref: "#/components/schemas/Sha256"
+        provenance_id:
+          type: ["string", "null"]
+        preview_available:
+          type: boolean
+
+    ArtifactDetailResponse:
+      type: object
+      additionalProperties: false
+      required: [artifact, registered_ref, preview]
+      properties:
+        artifact:
+          $ref: "#/components/schemas/ArtifactSummary"
+        registered_ref:
+          $ref: "#/components/schemas/RegisteredFileRef"
+        preview:
+          type: ["object", "null"]
+          additionalProperties: true
+
+    ReviewListResponse:
+      type: object
+      additionalProperties: false
+      required: [reviews, partial_errors]
+      properties:
+        reviews:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReviewSummary"
+        partial_errors:
+          type: array
+          items:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    ReviewSummary:
+      type: object
+      additionalProperties: false
+      required: [review_id, review_type, urgency, decision_state, finding_count, packet_sha256]
+      properties:
+        review_id:
+          type: string
+        review_type:
+          type: string
+        urgency:
+          enum: [normal, blocking]
+        decision_state:
+          enum: [pending, decided, confirmed, rejected, stale, invalid]
+        finding_count:
+          type: integer
+          minimum: 0
+        packet_sha256:
+          $ref: "#/components/schemas/Sha256"
+        confirmation_sha256:
+          type: ["string", "null"]
+
+    ReviewDecisionRequest:
+      type: object
+      additionalProperties: false
+      required: [review_id, packet_sha256, reviewer, decisions]
+      properties:
+        review_id:
+          type: string
+        packet_sha256:
+          $ref: "#/components/schemas/Sha256"
+          description: Prevents stale decisions after packet replacement.
+        reviewer:
+          type: string
+          minLength: 1
+          maxLength: 120
+        decisions:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/FindingDecision"
+
+    FindingDecision:
+      type: object
+      additionalProperties: false
+      required: [finding_id, decision]
+      properties:
+        finding_id:
+          type: string
+        decision:
+          enum: [approved, rejected, modified]
+        comment:
+          type: ["string", "null"]
+          maxLength: 2000
+        proposed_value:
+          description: Required by implementation only when decision is modified.
+
+    DecisionReceiptAccepted:
+      type: object
+      additionalProperties: false
+      required: [review_id, decision_receipt_id, written, idempotency_key]
+      properties:
+        review_id:
+          type: string
+        decision_receipt_id:
+          type: string
+        written:
+          type: boolean
+        idempotency_key:
+          type: string
+
+    ContextResponse:
+      type: object
+      additionalProperties: false
+      required: [study_id, bundle_lock, source_refs, rule_refs, study_decision_refs, gaps]
+      properties:
+        study_id:
+          type: string
+        bundle_lock:
+          $ref: "#/components/schemas/BundleLock"
+        source_refs:
+          type: array
+          items:
+            $ref: "#/components/schemas/RelatedRef"
+        rule_refs:
+          type: array
+          items:
+            $ref: "#/components/schemas/RelatedRef"
+        study_decision_refs:
+          type: array
+          items:
+            $ref: "#/components/schemas/RelatedRef"
+        gaps:
+          type: array
+          items:
+            type: string
+
+    ProvenanceResponse:
+      type: object
+      additionalProperties: false
+      required: [study_id, traceability_refs, artifacts]
+      properties:
+        study_id:
+          type: string
+        traceability_refs:
+          type: array
+          items:
+            $ref: "#/components/schemas/RelatedRef"
+        artifacts:
+          type: array
+          items:
+            $ref: "#/components/schemas/ArtifactSummary"
+
+    AuditResponse:
+      type: object
+      additionalProperties: false
+      required: [events, next_cursor]
+      properties:
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkflowEvent"
+        next_cursor:
+          $ref: "#/components/schemas/EventCursor"
+
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [code, message, retryable]
+      properties:
+        code:
+          enum:
+            - invalid_request
+            - study_not_found
+            - run_not_found
+            - review_not_found
+            - artifact_not_found
+            - path_not_authorized
+            - schema_validation_failed
+            - idempotency_conflict
+            - runtime_busy
+            - review_not_pending
+            - stale_decision
+            - artifact_not_registered
+            - provenance_unavailable
+            - snapshot_lock_mismatch
+            - internal_error
+        message:
+          type: string
+        retryable:
+          type: boolean
+        details:
+          type: object
+          additionalProperties: true
+
+    RegisteredFileRef:
+      type: object
+      additionalProperties: false
+      required: [container_id, relative_path, sha256]
+      properties:
+        container_id:
+          type: string
+          enum: [clinical-studies]
+        relative_path:
+          type: string
+          pattern: "^[A-Za-z0-9_.-][A-Za-z0-9_./-]*$"
+          not:
+            anyOf:
+              - pattern: "(^|/)\\.\\.(/|$)"
+              - pattern: "^[A-Za-z]:"
+              - pattern: "^/"
+              - pattern: "\\\\"
+        sha256:
+          $ref: "#/components/schemas/Sha256"
+
+    RelatedRef:
+      type: object
+      additionalProperties: false
+      required: [ref_type, ref_id]
+      properties:
+        ref_type:
+          enum: [artifact, review, decision, confirmation, source, rule, study_decision, event, run]
+        ref_id:
+          type: string
+        sha256:
+          type: ["string", "null"]
+
+    KnowledgeLock:
+      type: object
+      additionalProperties: false
+      required: [status, bundle_lock]
+      properties:
+        status:
+          enum: [locked, missing, mismatch, unavailable]
+        bundle_lock:
+          $ref: "#/components/schemas/BundleLock"
+
+    BundleLock:
+      type: object
+      additionalProperties: false
+      required: [version, sha256]
+      properties:
+        version:
+          type: string
+        sha256:
+          $ref: "#/components/schemas/Sha256"
+
+    EventCursor:
+      type: string
+      pattern: "^evt-[0-9]{14}-[A-Za-z0-9_-]{6,64}$"
+
+    PipelineStageId:
+      enum:
+        - protocol_analysis
+        - sap_generation
+        - sdtm_spec
+        - sdtm_programming
+        - adam_spec
+        - adam_programming
+        - tfl_shell_design
+        - tfl_programming
+        - qc_validation
+        - submission_packaging
+
+    RunState:
+      enum: [idle, queued, running, blocked_review, blocked_error, failed, completed]
+
+    DateTime:
+      type: string
+      format: date-time
+
+    Sha256:
+      type: string
+      pattern: "^[0-9a-f]{64}$"
