@@ -19,9 +19,18 @@ from typing import Any, Iterable, Mapping
 import yaml
 
 from src.runtime.pipeline_contract import PipelineStage
+from src.runtime.review_protocol import (
+    Decision,
+    DecisionReceipt,
+    FindingDecision,
+    RejectionReason,
+    ReviewQueue,
+)
 
 
 STUDY_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{1,63}$")
+REVIEW_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{2,127}$")
+IDEMPOTENCY_KEY_PATTERN = re.compile(r"^[A-Za-z0-9_.:-]{16,128}$")
 SUPPORTED_CONTAINER_ID = "clinical-studies"
 
 
@@ -91,7 +100,11 @@ class StudyRecord:
 
 
 class ApplicationApiService:
-    """Read-only local-first facade over Study files."""
+    """Local-first facade over Study files.
+
+    P8-P3 write operations are limited to Application API run request files,
+    event records, and Review Protocol DecisionReceipt files.
+    """
 
     def __init__(self, config: ApplicationApiConfig) -> None:
         self._roots = config.normalized_roots()
@@ -108,6 +121,7 @@ class ApplicationApiService:
         artifacts, partial_errors = self._list_artifact_summaries(record)
         pending_review_count = self._pending_review_count(record)
         stages = self._stage_statuses(artifacts, pending_review_count)
+        active_run = self._active_run(record)
         incomplete_reasons = []
         if partial_errors:
             incomplete_reasons.append("artifact scan returned partial errors")
@@ -117,7 +131,12 @@ class ApplicationApiService:
             "study_id": record.study_id,
             "stage_order": [stage.value for stage in PipelineStage],
             "stages": stages,
-            "run_state": self._run_state(stages, pending_review_count, partial_errors),
+            "run_state": self._run_state(
+                stages,
+                pending_review_count,
+                partial_errors,
+                active_run,
+            ),
             "pending_review_count": pending_review_count,
             "knowledge_lock": self._manifest_lock(record),
             "incomplete_reasons": incomplete_reasons,
@@ -214,6 +233,550 @@ class ApplicationApiService:
             events = [event for event in events if event["event_id"] > cursor]
         return {"events": events, "next_cursor": events[-1]["event_id"] if events else _empty_cursor()}
 
+    def start_run(
+        self,
+        study_id: str,
+        request: Mapping[str, Any],
+        *,
+        idempotency_key: str,
+    ) -> dict[str, Any]:
+        """Persist a Runtime run request without executing Runtime tools."""
+
+        record = self._get_record(study_id)
+        request_hash = _canonical_sha256(request)
+        existing = self._read_idempotency(record, "start_run", idempotency_key, request_hash)
+        if existing is not None:
+            return existing
+        active = self._active_run(record)
+        if active is not None:
+            raise ApplicationApiError(
+                "runtime_busy",
+                f"study already has an active run: {active['run_id']}",
+                status_code=409,
+                retryable=True,
+            )
+        intent = str(request.get("intent", "")).strip()
+        if len(intent) < 3:
+            raise ApplicationApiError(
+                "invalid_request",
+                "run intent must contain at least 3 characters",
+                status_code=400,
+            )
+        target_stage = self._validate_target_stage(request.get("target_stage"))
+        pending_reviews = self._pending_review_ids(record)
+        run_state = "blocked_review" if pending_reviews else "queued"
+        blocking_reason = (
+            f"pending review: {pending_reviews[0]}" if pending_reviews else None
+        )
+        now = _utc_now()
+        run_id = _new_run_id(record.study_id, idempotency_key, now)
+        event_type = "run_blocked" if pending_reviews else "run_requested"
+        event = self._append_app_event(
+            record,
+            event_type=event_type,
+            stage_id=target_stage,
+            related_refs=[{"ref_type": "run", "ref_id": run_id, "sha256": None}],
+        )
+        run_record = {
+            "run_id": run_id,
+            "study_id": record.study_id,
+            "run_state": run_state,
+            "current_stage": target_stage,
+            "blocking_reason": blocking_reason,
+            "event_cursor": event["event_id"],
+            "intent": intent,
+            "dataset": request.get("dataset"),
+            "dry_run": bool(request.get("dry_run", False)),
+            "idempotency_key": idempotency_key,
+            "created_at": now,
+            "updated_at": now,
+            "resume_count": 0,
+            "runtime_execution_started": False,
+        }
+        self._write_run(record, run_record)
+        response = {
+            "run_id": run_id,
+            "run_state": run_state,
+            "accepted": True,
+            "idempotency_key": idempotency_key,
+        }
+        self._write_idempotency(record, "start_run", idempotency_key, request_hash, response)
+        return response
+
+    def get_run(self, study_id: str, run_id: str) -> dict[str, Any]:
+        record = self._get_record(study_id)
+        run = self._load_run(record, run_id)
+        if run is None:
+            raise ApplicationApiError("run_not_found", f"run not found: {run_id}", status_code=404)
+        return self._run_status_response(run)
+
+    def resume_run(
+        self,
+        study_id: str,
+        run_id: str,
+        request: Mapping[str, Any],
+        *,
+        idempotency_key: str,
+    ) -> dict[str, Any]:
+        record = self._get_record(study_id)
+        request_hash = _canonical_sha256(request)
+        existing = self._read_idempotency(record, "resume_run", idempotency_key, request_hash)
+        if existing is not None:
+            return existing
+        run = self._load_run(record, run_id)
+        if run is None:
+            raise ApplicationApiError("run_not_found", f"run not found: {run_id}", status_code=404)
+        if run["run_state"] in {"completed", "failed"}:
+            raise ApplicationApiError(
+                "runtime_busy",
+                f"run is terminal and cannot be resumed: {run_id}",
+                status_code=409,
+            )
+        reason = request.get("reason")
+        if reason not in {"review_decision_available", "retry_after_failure", "operator_resume"}:
+            raise ApplicationApiError("invalid_request", "invalid resume reason", status_code=400)
+        pending_reviews = self._pending_review_ids(record)
+        run_state = "blocked_review" if pending_reviews else "queued"
+        event_type = "run_blocked" if pending_reviews else "run_requested"
+        event = self._append_app_event(
+            record,
+            event_type=event_type,
+            stage_id=str(run["current_stage"]),
+            related_refs=[{"ref_type": "run", "ref_id": run_id, "sha256": None}],
+        )
+        now = _utc_now()
+        run.update(
+            {
+                "run_state": run_state,
+                "blocking_reason": (
+                    f"pending review: {pending_reviews[0]}" if pending_reviews else None
+                ),
+                "event_cursor": event["event_id"],
+                "updated_at": now,
+                "resume_count": int(run.get("resume_count", 0)) + 1,
+                "last_resume_reason": reason,
+            }
+        )
+        self._write_run(record, run)
+        response = {
+            "run_id": run_id,
+            "run_state": run_state,
+            "accepted": True,
+            "idempotency_key": idempotency_key,
+        }
+        self._write_idempotency(record, "resume_run", idempotency_key, request_hash, response)
+        return response
+
+    def list_events(self, study_id: str, cursor: str | None = None) -> dict[str, Any]:
+        return self.get_audit(study_id, cursor=cursor)
+
+    def list_reviews(self, study_id: str) -> dict[str, Any]:
+        record = self._get_record(study_id)
+        queue = record.study_dir / ".review_queue"
+        reviews: list[dict[str, Any]] = []
+        partial_errors: list[dict[str, Any]] = []
+        if not queue.exists():
+            return {"reviews": [], "partial_errors": []}
+        for path in sorted(queue.glob("*.json")):
+            name = path.name
+            if name.startswith(".") or any(
+                suffix in name for suffix in ("_decision", "_confirmation", "_rework")
+            ):
+                continue
+            try:
+                packet = json.loads(path.read_text(encoding="utf-8"))
+                reviews.append(self._review_summary(record, path, packet))
+            except Exception as exc:
+                partial_errors.append(_error("schema_validation_failed", f"{name}: {exc}"))
+        return {"reviews": reviews, "partial_errors": partial_errors}
+
+    def submit_review_decision(
+        self,
+        study_id: str,
+        review_id: str,
+        request: Mapping[str, Any],
+        *,
+        idempotency_key: str,
+    ) -> dict[str, Any]:
+        record = self._get_record(study_id)
+        request_hash = _canonical_sha256(request)
+        review_id = _safe_review_id(review_id)
+        existing = self._read_idempotency(
+            record,
+            "submit_review_decision",
+            idempotency_key,
+            request_hash,
+        )
+        if existing is not None:
+            return existing
+        queue = ReviewQueue(record.study_dir)
+        packet = queue.load_packet(review_id)
+        if packet is None:
+            raise ApplicationApiError(
+                "review_not_found",
+                f"review not found: {review_id}",
+                status_code=404,
+            )
+        packet_path = record.study_dir / ".review_queue" / f"{review_id}.json"
+        packet_sha256 = _sha256_file(packet_path)
+        if request.get("packet_sha256") != packet_sha256:
+            raise ApplicationApiError(
+                "stale_decision",
+                "packet_sha256 does not match current ReviewPacket",
+                status_code=412,
+            )
+        if request.get("review_id") != review_id:
+            raise ApplicationApiError(
+                "invalid_request",
+                "request review_id must match path review_id",
+                status_code=400,
+            )
+        existing_decision = record.study_dir / ".review_queue" / f"{review_id}_decision.json"
+        if existing_decision.exists():
+            raise ApplicationApiError(
+                "review_not_pending",
+                f"review already has a DecisionReceipt: {review_id}",
+                status_code=409,
+            )
+        decisions = self._decision_objects(packet.findings_needing_decision(), request)
+        receipt = DecisionReceipt(
+            review_id=review_id,
+            reviewer=str(request.get("reviewer", "")),
+            decisions=decisions,
+            general_notes=str(request.get("general_notes", "")),
+        )
+        try:
+            decision_path = queue.submit_decision(receipt)
+        except ValueError as exc:
+            raise ApplicationApiError(
+                "schema_validation_failed",
+                f"DecisionReceipt rejected by Review Protocol: {exc}",
+                status_code=400,
+            ) from exc
+        decision_sha256 = _sha256_file(decision_path)
+        self._append_app_event(
+            record,
+            event_type="decision_receipt_written",
+            stage_id=PipelineStage.SDTM_SPEC.value,
+            related_refs=[
+                {"ref_type": "review", "ref_id": review_id, "sha256": packet_sha256},
+                {
+                    "ref_type": "decision",
+                    "ref_id": decision_path.stem,
+                    "sha256": decision_sha256,
+                },
+            ],
+        )
+        response = {
+            "review_id": review_id,
+            "decision_receipt_id": decision_path.stem,
+            "written": True,
+            "idempotency_key": idempotency_key,
+        }
+        self._write_idempotency(
+            record,
+            "submit_review_decision",
+            idempotency_key,
+            request_hash,
+            response,
+        )
+        return response
+
+    def _validate_target_stage(self, value: object) -> str:
+        if value is None:
+            return PipelineStage.SDTM_PROGRAMMING.value
+        try:
+            return PipelineStage(str(value)).value
+        except ValueError as exc:
+            raise ApplicationApiError(
+                "invalid_request",
+                f"unknown target_stage: {value}",
+                status_code=400,
+            ) from exc
+
+    def _app_dir(self, record: StudyRecord) -> Path:
+        path = record.study_dir / ".application_api"
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
+    def _runs_dir(self, record: StudyRecord) -> Path:
+        path = self._app_dir(record) / "runs"
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
+    def _idempotency_dir(self, record: StudyRecord) -> Path:
+        path = self._app_dir(record) / "idempotency"
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
+    def _events_path(self, record: StudyRecord) -> Path:
+        return self._app_dir(record) / "events.jsonl"
+
+    def _load_run(self, record: StudyRecord, run_id: str) -> dict[str, Any] | None:
+        if not re.fullmatch(r"run-[A-Za-z0-9_-]{8,64}", run_id):
+            raise ApplicationApiError("invalid_request", f"invalid run_id: {run_id}", status_code=400)
+        path = self._runs_dir(record) / f"{run_id}.json"
+        if not path.exists():
+            return None
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            raise ApplicationApiError("schema_validation_failed", "run record must be an object")
+        return data
+
+    def _write_run(self, record: StudyRecord, run: Mapping[str, Any]) -> None:
+        path = self._runs_dir(record) / f"{run['run_id']}.json"
+        _write_json(path, dict(run))
+
+    def _active_run(self, record: StudyRecord) -> dict[str, Any] | None:
+        active_states = {"queued", "running", "blocked_review", "blocked_error"}
+        runs: list[dict[str, Any]] = []
+        runs_dir = record.study_dir / ".application_api" / "runs"
+        if not runs_dir.exists():
+            return None
+        for path in runs_dir.glob("run-*.json"):
+            try:
+                run = json.loads(path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                continue
+            if isinstance(run, dict) and run.get("run_state") in active_states:
+                runs.append(run)
+        runs.sort(key=lambda item: str(item.get("updated_at", "")), reverse=True)
+        return runs[0] if runs else None
+
+    def _run_status_response(self, run: Mapping[str, Any]) -> dict[str, Any]:
+        return {
+            "run_id": run["run_id"],
+            "study_id": run["study_id"],
+            "run_state": run["run_state"],
+            "current_stage": run["current_stage"],
+            "blocking_reason": run.get("blocking_reason"),
+            "event_cursor": run["event_cursor"],
+        }
+
+    def _idempotency_path(self, record: StudyRecord, operation: str, key: str) -> Path:
+        safe_digest = hashlib.sha256(f"{operation}:{key}".encode("utf-8")).hexdigest()
+        return self._idempotency_dir(record) / f"{safe_digest}.json"
+
+    def _read_idempotency(
+        self,
+        record: StudyRecord,
+        operation: str,
+        key: str,
+        request_hash: str,
+    ) -> dict[str, Any] | None:
+        if not IDEMPOTENCY_KEY_PATTERN.fullmatch(key):
+            raise ApplicationApiError(
+                "invalid_request",
+                "Idempotency-Key must match ^[A-Za-z0-9_.:-]{16,128}$",
+                status_code=400,
+            )
+        path = self._idempotency_path(record, operation, key)
+        if not path.exists():
+            return None
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if data.get("request_hash") != request_hash:
+            raise ApplicationApiError(
+                "idempotency_conflict",
+                "same Idempotency-Key used with different request body",
+                status_code=409,
+            )
+        response = data.get("response")
+        if not isinstance(response, dict):
+            raise ApplicationApiError("schema_validation_failed", "invalid idempotency record")
+        return response
+
+    def _write_idempotency(
+        self,
+        record: StudyRecord,
+        operation: str,
+        key: str,
+        request_hash: str,
+        response: Mapping[str, Any],
+    ) -> None:
+        _write_json(
+            self._idempotency_path(record, operation, key),
+            {
+                "operation": operation,
+                "idempotency_key_sha256": hashlib.sha256(key.encode("utf-8")).hexdigest(),
+                "request_hash": request_hash,
+                "response": dict(response),
+                "created_at": _utc_now(),
+            },
+        )
+
+    def _append_app_event(
+        self,
+        record: StudyRecord,
+        *,
+        event_type: str,
+        stage_id: str,
+        related_refs: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        now = _utc_now()
+        events_path = self._events_path(record)
+        event = {
+            "event_id": _new_event_id(
+                record.study_id,
+                event_type,
+                now,
+                related_refs,
+                _next_event_sequence(events_path, now),
+            ),
+            "event_type": event_type,
+            "occurred_at": now,
+            "study_id": record.study_id,
+            "stage_id": stage_id,
+            "related_refs": related_refs,
+        }
+        with events_path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(event, ensure_ascii=False, sort_keys=True) + "\n")
+        return event
+
+    def _application_events(self, record: StudyRecord) -> list[dict[str, Any]]:
+        path = record.study_dir / ".application_api" / "events.jsonl"
+        if not path.exists():
+            return []
+        events: list[dict[str, Any]] = []
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            try:
+                raw = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(raw, dict):
+                events.append(
+                    {
+                        "event_id": str(raw["event_id"]),
+                        "event_type": str(raw["event_type"]),
+                        "occurred_at": str(raw["occurred_at"]),
+                        "study_id": record.study_id,
+                        "stage_id": raw.get("stage_id"),
+                        "related_refs": list(raw.get("related_refs") or []),
+                    }
+                )
+        return events
+
+    def _pending_review_ids(self, record: StudyRecord) -> list[str]:
+        queue = record.study_dir / ".review_queue"
+        if not queue.exists():
+            return []
+        pending: list[str] = []
+        for packet in sorted(queue.glob("*.json")):
+            name = packet.name
+            if name.startswith("."):
+                continue
+            if any(suffix in name for suffix in ("_decision", "_confirmation", "_rework")):
+                continue
+            decision = packet.with_name(packet.stem + "_decision.json")
+            confirmation = packet.with_name(packet.stem + "_confirmation.json")
+            if not decision.exists() and not confirmation.exists():
+                pending.append(packet.stem)
+        return pending
+
+    def _review_summary(
+        self,
+        record: StudyRecord,
+        path: Path,
+        packet: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        review_id = str(packet["review_id"])
+        queue = record.study_dir / ".review_queue"
+        decisions = sorted(queue.glob(f"{review_id}_decision*.json"))
+        confirmation = queue / f"{review_id}_confirmation.json"
+        rework = queue / f"{review_id}_rework.json"
+        decision_state = "pending"
+        if rework.exists():
+            decision_state = "rejected"
+        elif confirmation.exists():
+            decision_state = "confirmed"
+        elif decisions:
+            decision_state = "decided"
+            for decision_path in decisions:
+                try:
+                    receipt = DecisionReceipt.from_dict(
+                        json.loads(decision_path.read_text(encoding="utf-8"))
+                    )
+                    if receipt.rejected_count():
+                        decision_state = "rejected"
+                        break
+                except (json.JSONDecodeError, KeyError, ValueError):
+                    decision_state = "invalid"
+                    break
+        return {
+            "review_id": review_id,
+            "review_type": packet.get("review_type", ""),
+            "urgency": packet.get("urgency", "normal"),
+            "decision_state": decision_state,
+            "finding_count": len(packet.get("findings", [])),
+            "packet_sha256": _sha256_file(path),
+            "confirmation_sha256": _sha256_file(confirmation) if confirmation.exists() else None,
+        }
+
+    def _decision_objects(
+        self,
+        expected_findings: Iterable[Any],
+        request: Mapping[str, Any],
+    ) -> list[FindingDecision]:
+        reviewer = str(request.get("reviewer", "")).strip()
+        if len(reviewer) < 2:
+            raise ApplicationApiError("invalid_request", "reviewer is required", status_code=400)
+        expected_ids = {finding.id for finding in expected_findings}
+        raw_decisions = request.get("decisions")
+        if not isinstance(raw_decisions, list) or not raw_decisions:
+            raise ApplicationApiError("invalid_request", "decisions must be a non-empty list")
+        seen: set[str] = set()
+        decisions: list[FindingDecision] = []
+        for item in raw_decisions:
+            if not isinstance(item, Mapping):
+                raise ApplicationApiError("invalid_request", "each decision must be an object")
+            finding_id = str(item.get("finding_id", ""))
+            if finding_id in seen:
+                raise ApplicationApiError(
+                    "schema_validation_failed",
+                    f"duplicate finding decision: {finding_id}",
+                    status_code=400,
+                )
+            if finding_id not in expected_ids:
+                raise ApplicationApiError(
+                    "schema_validation_failed",
+                    f"unknown or auto-approved finding: {finding_id}",
+                    status_code=400,
+                )
+            seen.add(finding_id)
+            try:
+                decision = Decision(str(item.get("decision")))
+                rejection_reason = (
+                    RejectionReason(str(item["rejection_reason"]))
+                    if item.get("rejection_reason") is not None
+                    else None
+                )
+            except ValueError as exc:
+                raise ApplicationApiError(
+                    "schema_validation_failed",
+                    f"invalid finding decision: {finding_id}",
+                    status_code=400,
+                ) from exc
+            decisions.append(
+                FindingDecision(
+                    finding_id=finding_id,
+                    decision=decision,
+                    modified_value=item.get("modified_value"),
+                    rejection_reason=rejection_reason,
+                    human_correction=item.get("human_correction"),
+                    reference=item.get("reference"),
+                    comment=item.get("comment"),
+                )
+            )
+        if seen != expected_ids:
+            missing = sorted(expected_ids - seen)
+            raise ApplicationApiError(
+                "schema_validation_failed",
+                f"decisions do not cover all required findings: {missing}",
+                status_code=400,
+            )
+        return decisions
+
     def _discover_studies(self) -> tuple[list[StudyRecord], list[dict[str, Any]]]:
         records: list[StudyRecord] = []
         partial_errors: list[dict[str, Any]] = []
@@ -277,12 +840,13 @@ class ApplicationApiService:
         artifacts, _ = self._list_artifact_summaries(record)
         pending = self._pending_review_count(record)
         stages = self._stage_statuses(artifacts, pending)
+        active_run = self._active_run(record)
         return {
             "study_id": record.study_id,
             "title": record.project.get("protocol_id"),
             "therapeutic_area": record.project.get("therapeutic_area"),
             "current_stage": _current_stage(stages),
-            "run_state": self._run_state(stages, pending, []),
+            "run_state": self._run_state(stages, pending, [], active_run),
             "pending_review_count": pending,
             "knowledge_lock": self._manifest_lock(record),
             "last_activity_at": _iso_mtime(self._last_activity_path(record)),
@@ -376,7 +940,10 @@ class ApplicationApiService:
         stages: Iterable[dict[str, Any]],
         pending_review_count: int,
         partial_errors: Iterable[dict[str, Any]],
+        active_run: Mapping[str, Any] | None = None,
     ) -> str:
+        if active_run is not None:
+            return str(active_run["run_state"])
         if list(partial_errors):
             return "blocked_error"
         if pending_review_count:
@@ -487,7 +1054,7 @@ class ApplicationApiService:
         return _artifact_id(candidate)
 
     def _audit_events(self, record: StudyRecord) -> list[dict[str, Any]]:
-        events = []
+        events = self._application_events(record)
         audit_path = record.study_dir / str(record.project.get("paths", {}).get("audit_log", "audit_trail.jsonl"))
         if audit_path.exists():
             for line in audit_path.read_text(encoding="utf-8").splitlines():
@@ -552,6 +1119,60 @@ class ApplicationApiService:
         return max(paths, key=lambda path: path.stat().st_mtime)
 
 
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _canonical_sha256(value: Mapping[str, Any]) -> str:
+    payload = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _write_json(path: Path, data: Mapping[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _new_run_id(study_id: str, idempotency_key: str, now: str) -> str:
+    digest = hashlib.sha256(f"{study_id}:{idempotency_key}:{now}".encode("utf-8")).hexdigest()
+    return f"run-{digest[:20]}"
+
+
+def _new_event_id(
+    study_id: str,
+    event_type: str,
+    now: str,
+    related_refs: Iterable[Mapping[str, Any]],
+    sequence: int,
+) -> str:
+    timestamp = datetime.fromisoformat(now).strftime("%Y%m%d%H%M%S")
+    refs_payload = json.dumps(list(related_refs), ensure_ascii=False, sort_keys=True)
+    digest = hashlib.sha1(
+        f"{study_id}:{event_type}:{now}:{refs_payload}".encode("utf-8")
+    ).hexdigest()[:12]
+    return f"evt-{timestamp}-{sequence:06d}-{digest}"
+
+
+def _next_event_sequence(events_path: Path, now: str) -> int:
+    if not events_path.exists():
+        return 1
+    timestamp = datetime.fromisoformat(now).strftime("%Y%m%d%H%M%S")
+    prefix = f"evt-{timestamp}-"
+    count = 0
+    for line in events_path.read_text(encoding="utf-8").splitlines():
+        if line.startswith('{"event_id":'):
+            try:
+                raw = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if str(raw.get("event_id", "")).startswith(prefix):
+                count += 1
+    return count + 1
+
+
 def _read_yaml(path: Path) -> dict[str, Any]:
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
     if not isinstance(data, dict):
@@ -564,6 +1185,21 @@ def _required_study_id(project: Mapping[str, Any]) -> str:
     if not STUDY_ID_PATTERN.fullmatch(study_id):
         raise ValueError("study_id missing or invalid")
     return study_id
+
+
+def _safe_review_id(review_id: str) -> str:
+    if (
+        not REVIEW_ID_PATTERN.fullmatch(review_id)
+        or "/" in review_id
+        or "\\" in review_id
+        or ":" in review_id
+    ):
+        raise ApplicationApiError(
+            "invalid_request",
+            f"invalid review_id: {review_id}",
+            status_code=400,
+        )
+    return review_id
 
 
 def _is_registered_artifact(relative_path: str) -> bool:

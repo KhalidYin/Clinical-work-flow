@@ -1,10 +1,10 @@
-"""FastAPI adapter for the read-only P8 Application API."""
+"""FastAPI adapter for the P8 local Application API."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import FastAPI, Query, Request
+from fastapi import Body, FastAPI, Header, Query, Request, status
 from fastapi.responses import JSONResponse
 
 from .service import ApplicationApiConfig, ApplicationApiError, ApplicationApiService
@@ -13,8 +13,9 @@ from .service import ApplicationApiConfig, ApplicationApiError, ApplicationApiSe
 def create_app(config: ApplicationApiConfig | None = None) -> FastAPI:
     """Create the loopback Application API app.
 
-    P8-P2 only exposes read-only routes.  Write routes from the P8-P1 OpenAPI
-    draft intentionally remain unimplemented until P8-P3.
+    P8-P3 exposes read-only study/artifact/context views plus write-limited
+    run-request and Review Protocol decision routes.  Write routes only persist
+    Runtime request files, events, or DecisionReceipt files.
     """
 
     app = FastAPI(
@@ -41,6 +42,34 @@ def create_app(config: ApplicationApiConfig | None = None) -> FastAPI:
     def get_study_status(study_id: str) -> dict:
         return service.get_status(study_id)
 
+    @app.post("/api/v1/studies/{study_id}/runs", status_code=status.HTTP_202_ACCEPTED)
+    def start_run(
+        study_id: str,
+        request: dict = Body(...),
+        idempotency_key: str = Header(..., alias="Idempotency-Key"),
+    ) -> dict:
+        return service.start_run(study_id, request, idempotency_key=idempotency_key)
+
+    @app.get("/api/v1/studies/{study_id}/runs/{run_id}")
+    def get_run(study_id: str, run_id: str) -> dict:
+        return service.get_run(study_id, run_id)
+
+    @app.post(
+        "/api/v1/studies/{study_id}/runs/{run_id}/resume",
+        status_code=status.HTTP_202_ACCEPTED,
+    )
+    def resume_run(
+        study_id: str,
+        run_id: str,
+        request: dict = Body(...),
+        idempotency_key: str = Header(..., alias="Idempotency-Key"),
+    ) -> dict:
+        return service.resume_run(study_id, run_id, request, idempotency_key=idempotency_key)
+
+    @app.get("/api/v1/studies/{study_id}/events")
+    def list_events(study_id: str, cursor: str | None = Query(default=None)) -> dict:
+        return service.list_events(study_id, cursor=cursor)
+
     @app.get("/api/v1/studies/{study_id}/artifacts")
     def list_artifacts(study_id: str) -> dict:
         return service.list_artifacts(study_id)
@@ -48,6 +77,27 @@ def create_app(config: ApplicationApiConfig | None = None) -> FastAPI:
     @app.get("/api/v1/studies/{study_id}/artifacts/{artifact_id}")
     def get_artifact(study_id: str, artifact_id: str) -> dict:
         return service.get_artifact(study_id, artifact_id)
+
+    @app.get("/api/v1/studies/{study_id}/reviews")
+    def list_reviews(study_id: str) -> dict:
+        return service.list_reviews(study_id)
+
+    @app.post(
+        "/api/v1/studies/{study_id}/reviews/{review_id}/decisions",
+        status_code=status.HTTP_201_CREATED,
+    )
+    def submit_review_decision(
+        study_id: str,
+        review_id: str,
+        request: dict = Body(...),
+        idempotency_key: str = Header(..., alias="Idempotency-Key"),
+    ) -> dict:
+        return service.submit_review_decision(
+            study_id,
+            review_id,
+            request,
+            idempotency_key=idempotency_key,
+        )
 
     @app.get("/api/v1/studies/{study_id}/context")
     def get_context(study_id: str) -> dict:

@@ -419,3 +419,17 @@ P8-P2 已实现 `clinical-workflow/src/application_api/`：
 - 损坏 traceability/provenance JSON 返回结构化 `provenance_unavailable`，不会静默展示空 context。
 
 因此 P8-P2 可以作为 Study Console 的只读数据源，但还不是完整 Console 后端。运行、恢复和审核写入仍等待 P8-P3。
+
+## 12. P8-P3 运行请求、审核决策与事件 API 实现态
+
+P8-P3 扩充 `clinical-workflow/src/application_api/`，提供 UI-03/UI-04 的本地文件协议适配：
+
+- `POST /api/v1/studies/{study_id}/runs` 写入 `.application_api/runs/{run_id}.json`、幂等记录和 `run_requested/run_blocked` 事件；
+- `POST /api/v1/studies/{study_id}/runs/{run_id}/resume` 只写 resume 请求对应的 durable event，不启动 Runtime executor；
+- `GET /api/v1/studies/{study_id}/runs/{run_id}` 与 `GET /events` 从上述文件和 Study audit 派生状态；
+- `GET /api/v1/studies/{study_id}/reviews` 派生 ReviewPacket、DecisionReceipt、ConfirmationReceipt 和 rework 状态；
+- `POST /api/v1/studies/{study_id}/reviews/{review_id}/decisions` 通过 `ReviewQueue.submit_decision()` 写正式 DecisionReceipt，并校验 `packet_sha256`、finding 覆盖和幂等键。
+
+同一 Study 中已有 `queued/running/blocked_review/blocked_error` run 时，新的 run request 返回 `runtime_busy`；不同 Study 的 `.application_api/` 与 `.review_queue/` 物理隔离。Application API 自己写的事件 ID 使用同秒递增后缀，保证 cursor 重连不会因同秒事件排序而漏事件。
+
+该实现仍不是第二 Runtime：它不会执行 core MCP tools、不会执行任意系统命令、不会写 ConfirmationReceipt，也不会提升 canonical artifact。真正的 artifact promotion 仍由 Runtime/Agent 读取 DecisionReceipt 后完成。

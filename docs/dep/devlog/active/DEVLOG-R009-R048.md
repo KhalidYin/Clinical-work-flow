@@ -877,6 +877,52 @@ Done — no next steps。若需要跨阶段全量语义图，应另立 typed-rel
 
 ---
 
+### R045 [11:35] [P8-workflow-api-study-console] P3: 实现 run/resume/review decision 写 API 与事件流
+
+#### Done
+- 扩充 `clinical-workflow/src/application_api/`，实现 `POST /runs`、`GET /runs/{run_id}`、`POST /resume`、`GET /events`、`GET /reviews` 和 `POST /reviews/{review_id}/decisions`。
+- run/resume 写操作限定在 Study 内 `.application_api/`：写 durable run request、event 和 idempotency record；不启动 Runtime executor、不调用 core MCP tools、不执行任意系统命令、不提升 canonical artifact。
+- 同一 Study active run 互斥，不同 Study 各自隔离；active 状态会反映到 `GET /status` 的 `run_state`。
+- Application API 自写事件使用同秒递增 event ID，`GET /events?cursor=...` 可恢复增量事件，避免同秒事件排序漏读。
+- `GET /reviews` 从 ReviewPacket、DecisionReceipt、ConfirmationReceipt 和 rework 文件派生 pending/decided/confirmed/rejected/invalid 状态。
+- `POST /reviews/{review_id}/decisions` 校验 `Idempotency-Key`、路径/body `review_id` 一致、`packet_sha256`、finding 覆盖和未知/重复 finding，并通过 `ReviewQueue.submit_decision()` 写正式 `{review_id}_decision.json`。
+- `Idempotency-Key` 和 `review_id` 按 OpenAPI pattern fail closed，避免异常 key 或 Windows 路径分隔符进入持久化文件名。
+- 同步 OpenAPI `ReviewDecisionRequest/FindingDecision`，补齐 rejected/modified 决策所需字段。
+- 新增 `tests/application_api/test_write_api.py`，覆盖 UI-03/UI-04 的幂等、运行冲突、跨 Study 隔离、事件 cursor、stale packet、重复提交、approved promotion 兼容和 rejected rework path。
+- 更新 P8 子计划、PLAN、USAGE、SPEC-06、SPEC-15 和 SPEC-21。
+
+#### Issues / Blockers
+- 设计执行中确认：现有 AE workflow 只消费 `{review_id}_decision.json`，不消费带 role 后缀的 decision 文件。处理：P8-P3 默认不写 `reviewer_role` 后缀，多审核人 role suffix 和 consensus 策略留给后续阶段。
+- P8-P3 的 run/resume 是 durable request/event adapter，不是 Runtime executor bridge。该边界已写入 SPEC 和 P8 计划，避免后续把 Application API 误认为第二 Runtime。
+
+#### Validation
+- `python -m py_compile src/application_api/service.py src/application_api/app.py`（success）
+- `python -m pytest tests/application_api/test_write_api.py tests/application_api/test_readonly_api.py tests/test_p8_application_api_contract.py -q`（19 passed）
+- `python -m pytest tests/application_api/test_write_api.py tests/application_api/test_readonly_api.py tests/test_p8_application_api_contract.py tests/test_p7_ae_workflow_e2e.py tests/test_review_protocol.py tests/test_knowledge_contracts.py tests/test_runtime_knowledge_integration.py -q`（94 passed）
+- `ruff check src/application_api tests/application_api tests/test_p8_application_api_contract.py`（success）
+- `git diff --check`（success；仅 LF/CRLF warning）
+
+#### Next
+1. P8-P4：实现本地 Study Console 核心界面（Study list、Dashboard、Run panel、Review inbox）。
+2. P8-P4：前端按钮可用性和状态展示必须来自 Application API payload，不在浏览器复制 Pipeline/Review 判断。
+3. P8-P4：覆盖默认、加载、空态、错误、部分数据和窄屏行为。
+
+#### Files Changed / Commits
+- `clinical-workflow/src/application_api/app.py`
+- `clinical-workflow/src/application_api/service.py`
+- `clinical-workflow/schemas/application/openapi.yaml`
+- `clinical-workflow/tests/application_api/test_write_api.py`
+- `USAGE.md`
+- `docs/specs/06-AI-Architecture.md`
+- `docs/specs/15-Review-Protocol.md`
+- `docs/specs/21-Knowledge-Workflow-Integration.md`
+- `docs/dep/plans/ongoing/P8-workflow-api-study-console.md`
+- `docs/dep/PLAN.md`
+- `docs/dep/devlog/INDEX.md`
+- `docs/dep/devlog/active/DEVLOG-R009-R048.md`
+
+---
+
 ### R035 [17:21] [P6-clinical-knowledge-evolution] P3: 关闭 SDTMIG 3.4 proposal review gate
 
 #### Done

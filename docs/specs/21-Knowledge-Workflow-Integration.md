@@ -579,3 +579,24 @@ P8-P2 已提供本地只读 Application API，实现范围限定为 UI-01、UI-0
 - 没有引入 PostgreSQL 或其他业务状态缓存；文件扫描视图可随时重建。
 
 P8-P2 的测试使用 P7 synthetic AE full chain 作为读模型证据：同一临时 Study 中 canonical AE、draft/review 状态、traceability、context 和 audit 均可由只读 API 读取。P8-P3 才会实现 run/resume/review decision 写入。
+
+---
+
+## 24. P8-P3 运行请求、审核决策与事件 API 基线
+
+P8-P3 已把 Application API 从只读门面扩展为受控写入门面，但仍不改变 Workflow/Wiki/Review 的权威边界：
+
+- run/resume 写入 Study 内 `.application_api/runs/*.json`、`.application_api/events.jsonl` 和 `.application_api/idempotency/*.json`；
+- review decision 写入仍只通过 Study `.review_queue/` 的 `ReviewQueue.submit_decision()`，不会由 API 直接写 confirmation、archive 或 canonical artifact；
+- `GET /events` 与 `GET /audit` 合并 Application API run/review events、Study `audit_trail.jsonl` 和已登记 artifact/review 派生事件；
+- `GET /reviews` 为后续 Study Console Review Inbox 提供 packet hash、finding count、decision state 和 confirmation hash。
+
+该阶段证明的是“前端/AI 操作面可以安全接入现有文件协议”：
+
+1. 同一 Study 的 active run request 互斥，不同 Study 各自隔离；
+2. run/resume 的幂等键可重放，body 变更会触发 `idempotency_conflict`；
+3. review decision 使用 `packet_sha256` 防止过期 packet 决策；
+4. rejected DecisionReceipt 可被现有 AE workflow 消费并进入 rework path；
+5. approved DecisionReceipt 可被现有 AE workflow 消费并在 Runtime/Agent 步骤中提升 canonical AE。
+
+P8-P3 仍不启动 Runtime executor；`.application_api/` 中的 run 文件是下一阶段 Study Console/Runtime bridge 的 durable request layer，不是第二状态机。Knowledge/Wiki 的作用保持不变：提供规范、引用和执行约束；当前 Study 的执行事实仍由 Study 文件、Review Protocol、traceability 和 Git/audit 共同证明。

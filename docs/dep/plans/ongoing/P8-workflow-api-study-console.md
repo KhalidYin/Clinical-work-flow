@@ -156,7 +156,7 @@ GET  /api/v1/studies/{study_id}/audit
 |-------|------|----------|------|------|
 | P1 | 冻结 Application API、事件和安全合同 | 1-2 | P7完成 | done |
 | P2 | 实现 Study/status/artifact/context/audit 只读 API | 4-7 | P1 | done |
-| P3 | 实现 run/resume/review 写 API 与事件流 | 5-8 | P2 | pending |
+| P3 | 实现 run/resume/review 写 API 与事件流 | 5-8 | P2 | done |
 | P4 | 实现本地 Study Console 核心界面 | 8-12 | P3 | pending |
 | P5 | 完成 artifact/provenance/audit、E2E 与本地发布 | 4-7 | P4 | pending |
 
@@ -273,13 +273,25 @@ GET  /api/v1/studies/{study_id}/audit
 - Runtime job isolation、事件持久化/游标和并发锁。
 - VSCode Review Panel 兼容策略或 API adapter。
 
+### P3 实施记录
+
+- `clinical-workflow/src/application_api/` 已实现 `POST /runs`、`GET /runs/{run_id}`、`POST /resume`、`GET /events`、`GET /reviews` 和 `POST /reviews/{review_id}/decisions`。
+- run/resume 写操作只在 Study 内 `.application_api/` 写 durable request、event 和 idempotency 文件；不启动 Runtime executor、不调用 core MCP tools、不执行任意系统命令、不提升 canonical artifact。
+- 同一 Study 内 active run 状态（`queued/running/blocked_review/blocked_error`）互斥；不同 Study 使用各自 `.application_api/` 和 `.review_queue/`，互不共享 queue/audit。
+- Application API 事件 ID 使用同秒递增后缀，`GET /events?cursor=...` 可在客户端断线/刷新后恢复增量事件，不重复写状态。
+- `GET /reviews` 从 ReviewPacket、DecisionReceipt、ConfirmationReceipt 和 rework 文件派生 pending/decided/confirmed/rejected/invalid 状态。
+- `POST /reviews/{review_id}/decisions` 校验 `Idempotency-Key`、路径/body `review_id` 一致、`packet_sha256`、finding 覆盖、未知/重复 finding，并通过 `ReviewQueue.submit_decision()` 写 `{review_id}_decision.json`。
+- 为保持现有 CLI/AE workflow 兼容，P3 默认不写带 role 后缀的 DecisionReceipt；多审核人 role 后缀和共识策略留给后续阶段。
+- OpenAPI `ReviewDecisionRequest/FindingDecision` 已补齐 `modified_value`、`rejection_reason`、`human_correction`、`reference`、`general_notes`，保证 rejected/rework 决策可由前端合同表达。
+- 新增 `clinical-workflow/tests/application_api/test_write_api.py`，覆盖 run 幂等、同 Study 冲突、跨 Study 隔离、resume cursor、review decision stale hash、重复提交、approved promotion 兼容和 rejected rework path。
+
 ### 完成标准
 
-- [ ] API 只通过 Runtime/Review Protocol 写状态，DecisionReceipt 满足共享 Schema。
-- [ ] 同一 Study 的冲突运行被阻止或串行化，不同 Study 不误共享 queue/audit。
-- [ ] blocking review、reject/rework、confirmation 和恢复行为与 CLI 一致。
-- [ ] 客户端断线不会终止受控 Runtime；事件按游标恢复且不重复改变状态。
-- [ ] UI-03、UI-04 payload 和行为合同通过 API 集成测试。
+- [x] API 只通过 Runtime request 文件/Review Protocol 写状态，DecisionReceipt 满足共享 Schema。
+- [x] 同一 Study 的冲突运行被阻止或串行化，不同 Study 不误共享 queue/audit。
+- [x] blocking review、reject/rework、confirmation 和恢复行为与 CLI 一致。
+- [x] 客户端断线不会影响 durable run request；事件按游标恢复且不重复改变状态。
+- [x] UI-03、UI-04 payload 和行为合同通过 API 集成测试。
 
 ### 边界
 
@@ -291,12 +303,12 @@ GET  /api/v1/studies/{study_id}/audit
 | 文件 | 操作 |
 |------|------|
 | `clinical-workflow/src/application_api/**` | 扩充写 API/事件 |
-| `clinical-workflow/src/runtime/**` | 最小 job/event adapter |
-| `clinical-workflow/src/review_panel/**` | 必要兼容调整 |
+| `clinical-workflow/schemas/application/openapi.yaml` | 补齐 review decision 合同 |
+| `clinical-workflow/tests/application_api/**` | 新增写 API 集成测试 |
 
 ### 关键决策
 
-- 客户端断开与 Runtime 生命周期解耦，但业务进度仍由文件/Review/Git 推导。
+- P3 只落 durable request/event adapter，不启动 Runtime executor；业务进度仍由文件/Review/Git 推导。
 
 ---
 

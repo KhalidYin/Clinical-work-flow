@@ -1122,3 +1122,15 @@ P8-P1 在 `clinical-workflow/schemas/application/openapi.yaml` 中定义 Study C
 - rejected、stale、schema mismatch 或 packet hash 不一致必须 fail closed，并返回结构化错误。
 
 因此 P8 Study Console 可以替代或复用当前 Review Panel 的交互层，但不能替代 Runtime 对 DecisionReceipt 的应用和 ConfirmationReceipt 生成。
+
+### 13.1 P8-P3 API 实现约束
+
+P8-P3 已在 Application API 中实现 Study 级 Review façade：
+
+- `GET /api/v1/studies/{study_id}/reviews` 读取 Study `.review_queue/`，过滤 `.queue_scope.json`、decision、confirmation 和 rework 派生文件，并返回 packet hash 与当前 decision state。
+- `POST /api/v1/studies/{study_id}/reviews/{review_id}/decisions` 必须携带 `Idempotency-Key`、路径中的 `review_id`、body 中相同的 `review_id` 和当前 `packet_sha256`。
+- API 决策必须覆盖 `ReviewPacket.findings_needing_decision()` 的全部 finding，不能包含 auto-approved、未知或重复 finding。
+- 写入只调用 `ReviewQueue.submit_decision(DecisionReceipt)`，因此产物仍是 Review Protocol schema 约束下的 `{review_id}_decision.json`。
+- 为保持现有 Runtime/AE workflow 兼容，P8-P3 默认不写带 role 后缀的 decision 文件；多审核人 role 后缀留给后续共识策略阶段。
+
+P8-P3 的 rejected 决策只会生成 DecisionReceipt。后续 rework、ConfirmationReceipt 和 canonical promotion 仍由 Runtime/Agent 消费 DecisionReceipt 后完成；Application API 不代替该步骤。
