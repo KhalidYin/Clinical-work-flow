@@ -8,7 +8,9 @@
 
 ## 关键口径
 
-1. `input/` 只保存临床实践中可能收到的原始或半原始材料，例如 protocol/SAP 文本摘录、CRF 字段表、EDC data dictionary、EDC/raw export CSV。
+1. `input/` 只保存临床实践中可能收到的原始或半原始材料，例如 protocol/SAP 文本摘录、CRF 字段表、EDC data dictionary、EDC/raw export CSV 或 SAS7BDAT。
+2. 当前 P9 POC 的正式 AE raw source 是本地 `input/edc/ae09jun2025.sas7bdat`；Git 只保存其路径、大小和 SHA-256 登记，不保存二进制本体。
+3. 来源是否必需由目标产物 profile 判断。基础 SDTM AE 不把 CRF、Protocol 或 SAP 设为统一硬前置；缺失条件只阻断受影响变量并形成显式 gap。
 2. `input/` 下禁止放 JSON。JSON 只能是 LLM 或脚本解析后的机器产物，后续放在 `work/derived/`、`work/mapping/`、`.review_queue/` 或 `output/`。
 3. EDC → SDTM 编程链必须可追溯。本脚手架已预留 `programs/edc_to_sdtm/{r,python,sas}/`：
    - 当前 POC 用 Python 执行测试输出，数据集输出优先采用 CSV，便于终端直接检查；

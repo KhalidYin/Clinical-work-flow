@@ -44,5 +44,6 @@
 | R048 | 2026-07-16 | 15:26 | - | POC | 创建 SAMPLE-AE-001 脚手架并冻结输入/derived/程序链边界 | `clinical-studies/SAMPLE-AE-001/`, `clinical-workflow/tests/application_api/test_sample_study_scaffold.py`, `docs/dep/` | active/DEVLOG-R009-R048.md |
 | R049 | 2026-07-16 | 16:05 | - | POC | 固化真实 Study source/derived/program 链路合同 | `docs/specs/21-Knowledge-Workflow-Integration.md`, `clinical-studies/`, `clinical-workflow/study_template/`, `clinical-workflow/tests/application_api/test_sample_study_scaffold.py` | active/DEVLOG-R049-R088.md |
 | R050 | 2026-07-16 | 16:32 | - | POC | 打开 SAMPLE-AE-001 Source Intake 审核门 | `clinical-studies/SAMPLE-AE-001/.review_queue/`, `clinical-studies/SAMPLE-AE-001/work/derived/source-intake/`, `clinical-workflow/schemas/review/`, `clinical-workflow/tests/application_api/test_sample_study_scaffold.py` | active/DEVLOG-R049-R088.md |
+| R051 | 2026-07-16 | 15:41 | P9-metadata-driven-sdtm-ae-minimal-poc | P1 | 修订最小信息合同并登记 SAS7BDAT 来源 | `docs/specs/`, `clinical-studies/SAMPLE-AE-001/`, `clinical-workflow/study_template/`, `clinical-workflow/tests/application_api/test_sample_study_scaffold.py`, `docs/main/memory/`, `docs/dep/` | active/DEVLOG-R049-R088.md |
 
 > Legacy rounds R001-R008 remain immutable in [DEVLOG-legacy.md](archive/DEVLOG-legacy.md). They predate the searchable index and were intentionally not rewritten during adoption.

@@ -780,3 +780,9 @@ P7 未新增 core MCP tool，也未改变六个 core tool 名称。AE 执行通�
 - validation blocking finding、review rejected、断链 evidence 或损坏 knowledge package 均不会产生 canonical AE。
 
 该 adapter 证明了“结构化 MappingSpec + 确定性执行门”的最小模式。真实 SAS/R 后端、sdtm.oak、CDISC CORE 或其他开源实现仍需基于实际 Study 需求另行评估，不在 P7 中成为知识权威或平台前置依赖。
+
+## 8. P9 Minimum Information Planner 边界
+
+Minimum Information Planner 是 Runtime/Agent 的确定性 preflight，不新增第 7 个 core MCP tool。输入只包含目标产物、Source Inventory、reviewed Source Metadata、capability profile、locked Wiki availability 和 approved Study decisions；输出包含 required/conditional/optional、producible/blocked variables、explicit gaps、required Wiki queries、required reviews 和 execution eligibility。
+
+Planner 不调用 LLM 判断文件是否存在，不推断未知 source semantics，不生成 MappingSpec，也不写 Stage completion evidence。后续 LLM 只能在该 Plan 限定的 source/rule/gap 闭包内提交 schema-valid MappingSpec 候选。

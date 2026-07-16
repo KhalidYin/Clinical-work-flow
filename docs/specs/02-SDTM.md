@@ -143,7 +143,9 @@ aCRF (Annotated CRF) + EDC Data Dictionary
    ║  · Data Manager              ║
    ║                              ║
    ║  Checklist (5 items):        ║
-   ║  1. All CRF pages annotated  ║
+   ║  1. Available source fields   ║
+   ║     assessed; CRF annotated   ║
+   ║     when provided             ║
    ║  2. Domain assignments       ║
    ║     correct per SDTM IG      ║
    ║  3. Controlled terminology   ║
@@ -328,7 +330,7 @@ For SDTM domains, check:
 Core rules:
 - No custom domains without strong justification
 - No custom variables that replicate standard SDTM variables
-- Every variable's source traceable to a CRF field
+- Every variable's source traceable to registered source evidence; use CRF when available, otherwise preserve raw/EDC metadata and explicit gaps
 ```
 
 ### 5.2 输出格式
@@ -375,3 +377,17 @@ P7 已实现一条 synthetic AE 纵向闭环，用于证明 SDTM AE 可以由 Wi
 - AEDECOD/MedDRA、AESEV/Controlled Terminology 和 AEENRF 可执行规则仍是显式 gap，不由 LLM 或 adapter 补默认值；
 - canonical AE 只在 Review approved 且 rule evidence/source locator/hash 闭合后写入 `output/sdtm/datasets/ae.csv`；
 - 该基线仅适用于 `ae-pilot` synthetic fixture，不代表真实 Study 或 GxP 生产批准。
+
+### 6.3 P9 SDTM AE 最小信息合同
+
+首个 SAS7BDAT POC 按目标产物判断前置条件，不把 CRF、Protocol 或 SAP 设为基础 SDTM AE 的统一硬前置：
+
+| 来源/条件 | 级别 | 作用 |
+|-----------|------|------|
+| 可读 AE raw dataset、Source Metadata、SDTMIG 3.4 lock、受试者标识来源 | required | 缺失时不能生成对应 AE draft |
+| reference treatment date | conditional | 仅生成 AESTDY/AEENDY 时需要 |
+| MedDRA/coding source | conditional | 仅生成 AEDECOD/AESOC 等编码变量时需要 |
+| CRF/EDC dictionary | conditional | raw labels/formats/value labels 无法消除来源语义歧义时需要 |
+| Protocol/SAP | optional | 仅在 Study 设计影响映射时升级为 conditional |
+
+Planner 输出必须列出 producible variables、blocked variables 和 explicit gaps。基础输入足以支持的字段可以进入 draft MappingSpec；缺失 conditional 证据的字段保持 gap，不补默认值。SAS7BDAT 的 column labels、formats 和实际可解析的 value labels 是来源证据，但不是自动批准的 SDTM 映射。

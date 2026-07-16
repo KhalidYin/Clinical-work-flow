@@ -41,7 +41,7 @@ Runtime 通过显式配置接收 Knowledge Service endpoint，不得从 Study �
 └── audit_trail.jsonl
 ```
 
-`input/` 只保存真实项目中可收到的来源形态。允许存放 TXT/MD/PDF/DOCX、CSV/TSV/XLSX、XPT/SAS7BDAT 等来源文件；禁止把 LLM/parser 生成的 JSON 放入 `input/`。当前 POC 自动解析/执行只承诺 TXT/CSV，其他格式必须先经过 parser adapter 与 Review gate。
+`input/` 只保存真实项目中可收到的来源形态。允许存放 TXT/MD/PDF/DOCX、CSV/TSV/XLSX、XPT/SAS7BDAT 等来源文件；禁止把 LLM/parser 生成的 JSON 放入 `input/`。已实现格式与计划接入格式必须分别声明；来源是否必需由目标产物 profile 判断，不能把 Protocol、SAP、CRF 等角色统一设为所有产物的硬前置。
 
 线性链路的含义是 Gate 线性：Source Intake → Parser/Derived → Mapping → Program Chain → Draft Output → Review/Confirmation → Canonical Output。缺失必需来源、前一 Gate 未完成、格式未声明、hash 不匹配或程序链缺 required artifact 时必须 fail closed，不允许静默跳过或由 LLM 猜测补齐。
 

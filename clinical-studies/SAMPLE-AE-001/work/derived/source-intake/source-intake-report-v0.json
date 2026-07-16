@@ -1,7 +1,8 @@
 {
   "report_id": "source-intake-sample-ae-001-v0",
   "study_id": "SAMPLE-AE-001",
-  "status": "pending_human_review",
+  "status": "superseded",
+  "superseded_by": "source-intake-sample-ae-001-v1",
   "generated_at": "2026-07-16T16:25:00+08:00",
   "generated_by": "codex",
   "scope": {

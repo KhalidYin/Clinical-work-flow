@@ -792,3 +792,9 @@ python -m src.runtime.agent_loop `
 ```
 
 没有 `state.yaml`，也没有 `/workflow-start` Skill。状态来自文件系统、Review receipts 和 Git。manifest 的 placeholder hash 必须在首次运行前替换；snapshot fallback 必须位于当前 Study 内并通过精确 hash/bundle 校验。
+
+## 9. P9 本地 SAS7BDAT 来源登记
+
+SAS7BDAT 可以作为正式 `input/edc/` 或 `input/raw/` 来源。生产/POC 原始二进制可以采用本地保留、Git 仅登记相对路径、大小、SHA-256、来源角色和 storage policy 的方式；未提交 Git 不等于未登记来源。
+
+Parser 必须分别记录数据值和可得 metadata：变量名、类型、长度、column label、format/informat、value-label mapping。若 value labels 依赖缺失的外部 format catalog，必须标记 unavailable/gap，不能从观测值猜测。Source Intake 只批准读取资格；parser validation/review 通过后，derived metadata 才能进入 Mapping context。

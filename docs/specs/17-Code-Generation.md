@@ -573,3 +573,9 @@ P7 没有引入自由代码执行，也没有接入真实 SAS/R 运行时。首�
 - P7 只生成 synthetic AE CSV，不生成 SAS/R 程序文件、不做 cross-language QC、不生成 XPT、Define-XML 或递交包。
 
 后续若接入 SAS/R/open-source adapter，必须继续遵循 P7 已验证的模式：结构化 MappingSpec 先闭合，Action Policy 再授权执行，validation/review 通过后才提升 canonical artifact。
+
+## 11. P9 三语言程序产物合同
+
+P9 的 Python、R、SAS 程序必须由同一 approved MappingSpec 驱动，并共同记录 MappingSpec ID/hash、source file hash、rule refs、Study decision refs、target standard 和 generator version。三种语言不得各自维护一套未登记业务规则。
+
+首个单机 POC 使用 Python 作为 reference execution，输出 CSV、log、validation、provenance 和 traceability；R/SAS 必须生成并进入 program manifest，但首版不承担 canonical reference result，SAS 不执行。LLM 边界仍为 MappingSpec/候选解释，不能直接提交任意可执行命令。

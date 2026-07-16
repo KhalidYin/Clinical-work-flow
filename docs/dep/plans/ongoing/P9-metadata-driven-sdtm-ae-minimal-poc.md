@@ -1,6 +1,6 @@
 ---
 phase_index: 9
-status: planning
+status: in-progress
 created: 2026-07-16
 updated: 2026-07-16
 priority: 1
@@ -139,7 +139,7 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 
 | Phase | 目标 | 预估轮次 | 依赖 | 状态 |
 |-------|------|----------|------|------|
-| P1 | 修订上位合同并纠正 SAS7BDAT Source Intake | 2-3 | P8完成 | pending |
+| P1 | 修订上位合同并纠正 SAS7BDAT Source Intake | 2-3 | P8完成 | done |
 | P2 | 解析 SAS7BDAT 数据及完整可得元数据 | 3-4 | P1 | pending |
 | P3 | 实现 Minimum Information Planner 和 raw-only AE preflight | 2-4 | P2 | pending |
 | P4 | Wiki 辅助 MappingSpec、三语言程序和 Python reference execution | 4-6 | P3 | pending |
@@ -165,11 +165,11 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 
 ### 完成标准
 
-- [ ] `18-P0-Alignment.md` 与 `21-Knowledge-Workflow-Integration.md` 均明确“固定 Stage 顺序 != 每个局部产物要求全部上游文档”。
-- [ ] `SAMPLE-AE-001` 将 `input/edc/ae09jun2025.sas7bdat` 注册为 local raw source，记录 hash/size/format，且不提交二进制。
-- [ ] Source Intake 不再把 SAS7BDAT 描述为不可使用；新版 packet 用中文并说明解析能力仍需 P2 Gate。
-- [ ] 没有 CRF 时不会被 source-level 全局 required list 直接阻断；具体影响交给 Planner 判定。
-- [ ] 相关 schema/contract/docs 测试通过并单独提交。
+- [x] `18-P0-Alignment.md` 与 `21-Knowledge-Workflow-Integration.md` 均明确“固定 Stage 顺序 != 每个局部产物要求全部上游文档”。
+- [x] `SAMPLE-AE-001` 将 `input/edc/ae09jun2025.sas7bdat` 注册为 local raw source，记录 hash/size/format，且不提交二进制。
+- [x] Source Intake 不再把 SAS7BDAT 描述为不可使用；新版 packet 用中文并说明解析能力仍需 P2 Gate。
+- [x] 没有 CRF 时不会被 source-level 全局 required list 直接阻断；具体影响交给 Planner 判定。
+- [x] 相关 schema/contract/docs 测试通过并单独提交。
 
 ### 边界（本 Phase 明确不做）
 
@@ -445,6 +445,7 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 | D2 | 当前 Source Inventory 的全局 required roles 与 minimum-information 目标冲突 | 规划 | 阻断 | P1 改为 target profile 驱动 |
 | D3 | P7 Mapping context 硬读取 CRF JSON/CSV fixture，不能支持 raw-only | 规划 | 阻断 | P3/P4 改由 Planner + Source Metadata 构建 |
 | D4 | 现有 promotion 只写 Study-local candidate，尚无端到端 governed import + reuse proof | 规划 | 阻断 | P5 建立最小发布和干净再查询 Gate |
+| D5 | PowerShell 环境没有 `ConvertFrom-Yaml` | P1 | 延后 | 验证改用项目 Python/PyYAML；不新增 PowerShell 依赖 |
 
 ## 关键决策记录
 

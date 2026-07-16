@@ -1159,3 +1159,12 @@ P8-P5 的 Study Console 增加 Artifact、Context/Provenance 和 Audit 视图，
 - VSCode Review Panel、根目录 Web Review Panel 与 Study Console 继续共享同一 Review Schema 和文件权威。
 
 因此，若 Console 已提交 DecisionReceipt 但 canonical artifact 尚未出现，这是预期状态：必须由 Runtime/Agent 消费 decision 并写 ConfirmationReceipt 后，产物才可被提升。
+
+## 14. P9 来源、最小信息与知识回流审核边界
+
+- `source_intake`：确认登记来源、hash、storage policy、synthetic/deidentified 范围和 parser 准入；不批准解析结果或执行。
+- parser output review：确认 SAS7BDAT metadata/data 解析、缺 catalog/value labels 等 gap 和 source hash；批准后才能进入 Planner/Mapping context。
+- mapping/program review：确认 Minimum Information Plan 限定的 MappingSpec、显式 gap、三语言程序 manifest 和 reference execution；批准后才能提升目标产物。
+- reusable-rule promotion review：确认去标识、一般化条件、非适用范围和 evidence；批准前 candidate 只留在当前 Study。
+
+开发阶段的 Phase 确认和用户单机 UAT 不写 ReviewPacket；Review Panel 只处理实际 Workflow Human-loop。

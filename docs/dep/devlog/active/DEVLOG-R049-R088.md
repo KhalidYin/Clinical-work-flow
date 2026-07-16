@@ -44,8 +44,6 @@
 - `docs/dep/devlog/INDEX.md`
 - `docs/dep/devlog/active/DEVLOG-R049-R088.md`
 
----
-
 ### R050 [16:32] POC: 打开 SAMPLE-AE-001 Source Intake 审核门
 
 #### Done
@@ -90,3 +88,43 @@
 - `docs/main/memory/study-source-boundary.md`
 - `docs/dep/devlog/INDEX.md`
 - `docs/dep/devlog/active/DEVLOG-R049-R088.md`
+
+---
+
+### R051 [15:41] [P9-metadata-driven-sdtm-ae-minimal-poc] P1: 修订最小信息合同并登记 SAS7BDAT 来源
+
+#### Done
+
+- 在 P0/SPEC-02/09/13/15/17/21 固化目标产物 Minimum Information 口径：固定十阶段仍是生命周期权威，但局部 SDTM AE draft 不要求全部上游文档，也不伪造前序 Stage completion evidence。
+- 将 `SAMPLE-AE-001/input/edc/ae09jun2025.sas7bdat` 登记为正式 local raw source；Git 记录路径、大小、SHA-256、storage policy 和 parser status，二进制由 study-local `.gitignore` 保持未跟踪。
+- 用 `target_artifact_profiles.sdtm_ae_dataset` 取代全局 `required_source_roles`；CRF/EDC dictionary/reference date 改为 conditional，Protocol/SAP 为 optional。
+- 用中文 `source_intake_sample_ae_v1_002` 取代活跃的 v1_001，明确来源已登记但必须等待 P2 parser adapter；v0 report 标记为 superseded。
+- 同步 Study/template README、项目记忆和 scaffold/API 测试。
+
+#### Issues / Blockers
+
+- 首轮测试失败 1 项，根因为测试仍断言旧摘要文本 `parser JSON`；v1_002 合同使用 `Parser/Derived Gate`，更新该过期断言后通过。
+- PowerShell 环境没有 `ConvertFrom-Yaml`；改用项目 Python/PyYAML 完成 YAML 解析验证，不新增依赖。
+- None blocking P2。
+
+#### Validation
+
+- 本地 SAS7BDAT：`19667968` bytes，SHA-256 `2a6d72e9e5fa4bb8e3cc14b0c412fce3c37e519f3ab9105cdcff33ba031e8749`，与登记一致。
+- `python -m pytest tests/test_review_schema_contract.py tests/test_project_config.py tests/application_api/test_sample_study_scaffold.py tests/application_api/test_readonly_api.py -q`（24 passed；仅第三方 deprecation warnings）
+- `python -m ruff check tests/application_api/test_sample_study_scaffold.py`（success）
+- Python/PyYAML 与 `ConvertFrom-Json` 验证本轮 YAML/JSON 均可解析。
+- `git diff --check`（success；仅 LF/CRLF warning）
+
+#### Next
+
+1. P2 扩展 `edc_importer.py`，保留 SAS7BDAT 数据和 `pyreadstat` metadata。
+2. 建立 Source Metadata Artifact schema、parser validation 和中文 parser ReviewPacket。
+3. 覆盖缺 catalog/value labels、hash 漂移、损坏文件和路径越界测试。
+
+#### Files Changed / Commits
+
+- `docs/specs/02-SDTM.md`, `09-MCP-Tools-Design.md`, `13-Environment-Files.md`, `15-Review-Protocol.md`, `17-Code-Generation.md`, `18-P0-Alignment.md`, `21-Knowledge-Workflow-Integration.md`
+- `clinical-studies/SAMPLE-AE-001/` source inventory、README、Source Intake evidence/packet、`.gitignore`
+- `clinical-workflow/study_template/` source/profile contract
+- `clinical-workflow/tests/application_api/test_sample_study_scaffold.py`
+- `docs/main/memory/`, `docs/dep/`（本 Phase 提交）

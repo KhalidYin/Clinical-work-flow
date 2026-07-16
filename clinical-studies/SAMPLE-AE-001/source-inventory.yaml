@@ -4,7 +4,7 @@ synthetic_only: true
 input_json_allowed: false
 review_required_before_execution: true
 gate_policy:
-  chain: "linear_fail_closed"
+  chain: "artifact_gates_fail_closed"
   source_intake_required_before_parser: true
   parser_review_required_before_mapping: true
   mapping_review_required_before_programming: true
@@ -12,14 +12,16 @@ gate_policy:
 supported_input_formats:
   accepted_source_storage: ["txt", "md", "pdf", "docx", "csv", "tsv", "xlsx", "xpt", "sas7bdat"]
   current_poc_auto_parse: ["txt", "csv"]
+  p9_planned_auto_parse: ["sas7bdat"]
   forbidden_in_input: ["json"]
-required_source_roles:
-  - "study_design_context"
-  - "analysis_context"
-  - "crf_metadata"
-  - "edc_metadata"
-  - "ae_source_data"
-  - "reference_date_source"
+target_artifact_profiles:
+  sdtm_ae_dataset:
+    required_source_roles: ["ae_source_data"]
+    conditional_source_roles:
+      reference_date_source: "required only when deriving AESTDY or AEENDY"
+      crf_metadata: "required only when raw metadata cannot resolve source semantics"
+      edc_metadata: "supporting evidence when SAS metadata is incomplete"
+    optional_source_roles: ["study_design_context", "analysis_context"]
 sources:
   - path: "input/protocol/protocol-synopsis.txt"
     source_type: "protocol_excerpt"
@@ -37,10 +39,19 @@ sources:
     source_type: "edc_data_dictionary"
     format: "csv"
     role: "edc_metadata"
-  - path: "input/raw/ae.csv"
-    source_type: "edc_raw_export"
-    format: "csv"
+  - path: "input/edc/ae09jun2025.sas7bdat"
+    source_type: "edc_sas_dataset"
+    format: "sas7bdat"
     role: "ae_source_data"
+    storage_policy: "local_untracked_raw"
+    required_in_repository: false
+    parser_status: "planned_p9_p2"
+    size_bytes: 19667968
+    sha256: "2a6d72e9e5fa4bb8e3cc14b0c412fce3c37e519f3ab9105cdcff33ba031e8749"
+  - path: "input/raw/ae.csv"
+    source_type: "synthetic_reference_export"
+    format: "csv"
+    role: "ae_source_reference_fixture"
   - path: "input/raw/subject-reference.csv"
     source_type: "subject_reference_export"
     format: "csv"
@@ -52,5 +63,7 @@ derived_targets:
     expected_content: "EDC data dictionary parser JSON outputs after review"
   - path: "work/derived/study-context/"
     expected_content: "Study rule JSON candidates after review"
+  - path: "work/derived/plans/"
+    expected_content: "Minimum Information Plan candidates after review"
   - path: "work/mapping/"
     expected_content: "MappingSpec candidates and validation reports"

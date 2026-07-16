@@ -93,7 +93,7 @@ Study 不定义共享 Schema，不修改一般规则正文，不把未批准的�
 
 #### 2.3.1 Study source / derived / program 边界
 
-Study 的执行链路按阶段线性推进，但每个阶段内部允许 LLM、脚本和人工审核共同完成。线性只表示 Gate 依赖，不表示所有操作都必须由固定脚本一次跑完。
+完整 Study 的 canonical Stage 按固定十阶段推进，但目标产物可以先执行 Minimum Information preflight，并在不伪造前序 Stage completion evidence 的条件下生成受控 draft。固定顺序表示生命周期与阶段完成 Gate，不表示生成每个局部 draft 都必须拥有 Protocol、SAP、CRF 等全部上游文件；每个产物的 required/conditional/optional 输入由目标 profile 判定。
 
 当前 POC 与后续真实 Study 必须区分四类文件：
 
@@ -105,7 +105,7 @@ Study 的执行链路按阶段线性推进，但每个阶段内部允许 LLM、�
 | `programs/` | EDC→SDTM、SDTM→ADaM、TFL 等程序链源码；POC 可同时保存 Python/R/SAS 版本 | 程序直接读取未审核 derived JSON；无输入 hash 的临时脚本 | Program Chain Review 通过前不得提升输出 |
 | `output/` | draft/canonical 数据集、规格、日志、validation、provenance 和 traceability | 原始来源的唯一副本、未标记状态的中间文件 | Review/Confirmation 后才形成 canonical completion evidence |
 
-`input/` 的存储格式可以比当前自动解析能力更宽：TXT/MD/PDF/DOCX 可作为 protocol/SAP 来源，CSV/TSV/XLSX 可作为 CRF/EDC metadata 来源，CSV/TSV/XPT/SAS7BDAT 可作为原始数据来源。当前 POC 自动执行只承诺 TXT/CSV；其他格式必须先通过 parser adapter 和 Review gate，不能被 Runtime 静默猜测。
+`input/` 的存储格式可以比当前自动解析能力更宽：TXT/MD/PDF/DOCX 可作为 protocol/SAP 来源，CSV/TSV/XLSX 可作为 CRF/EDC metadata 来源，CSV/TSV/XPT/SAS7BDAT 可作为原始数据来源。当前已实现自动解析只承诺 TXT/CSV；P9 已把 SAS7BDAT 登记为首个待实现 parser 格式。来源正式登记不等于 parser 已实现，必须通过 adapter、hash/metadata validation 和 Review gate，不能被 Runtime 静默猜测。
 
 `input/` 下禁止 JSON。JSON 是机器派生产物，只能进入 `work/derived/`、`work/mapping/`、`.review_queue/` 或 `output/` 等有明确状态的区域。
 
@@ -663,3 +663,19 @@ P8-P5 已将本地 `/console/` 补齐到 UI-01 至 UI-07 的单机完成态：
 P8-P5 同步新增 `start-study-console.ps1`，用于从仓库根目录启动 loopback-only Study Console。P8 不授权内网共享、云端、多用户、认证或 GxP 生产上线。
 
 P8 留下的明确后续项是 Runtime bridge：当前 `POST /runs` 只写 durable request/event，不自动启动 Runtime executor。若后续要从浏览器“发起并驱动完整执行”，必须单独设计进程模型、锁、日志、失败恢复、review blocking/resume 和权限边界。
+
+---
+
+## 27. P9 Metadata-driven SDTM AE 前置合同
+
+原 P9 内网协作计划之前必须先完成单机 Metadata-driven SDTM AE POC。该 POC 使用目标产物 profile，而不是全局 required source list：
+
+1. SAS7BDAT 作为登记的本地 AE raw source，Git 保存 hash/metadata，不默认保存二进制；
+2. Source parser 输出数据与 metadata evidence，缺失 format catalog/value labels 时形成 gap；
+3. Minimum Information Planner 区分 required、conditional、optional，并输出 producible/blocked variables；
+4. Wiki approved rules、Study decisions 和显式 gaps 共同约束 MappingSpec，LLM 不直接生成可执行自由文本；
+5. 同一 MappingSpec 生成 Python/R/SAS 程序，Python 首版执行并输出 CSV；
+6. general rule candidate 经去标识、审核、Wiki governed publish 和新 snapshot 的干净再查询后，才算已沉淀复用；
+7. 自动测试通过不能解锁内网 P9，必须由用户在单机实际跑通并明确确认。
+
+该 POC 不修改六个 core MCP tools，也不跳过、重排或伪造十阶段。局部 SDTM AE draft 可以在没有 CRF 时生成，但只有证据充分的变量可映射；其余变量保持 gap/review。

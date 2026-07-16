@@ -3,7 +3,7 @@ status: "draft"
 input_json_allowed: false
 review_required_before_execution: true
 gate_policy:
-  chain: "linear_fail_closed"
+  chain: "artifact_gates_fail_closed"
   source_intake_required_before_parser: true
   parser_review_required_before_mapping: true
   mapping_review_required_before_programming: true
@@ -11,13 +11,9 @@ gate_policy:
 supported_input_formats:
   accepted_source_storage: ["txt", "md", "pdf", "docx", "csv", "tsv", "xlsx", "xpt", "sas7bdat"]
   current_poc_auto_parse: ["txt", "csv"]
+  planned_auto_parse: []
   forbidden_in_input: ["json"]
-required_source_roles:
-  - "study_design_context"
-  - "analysis_context"
-  - "crf_metadata"
-  - "edc_metadata"
-  - "source_data"
+target_artifact_profiles: {}
 sources: []
 derived_targets:
   - path: "work/derived/"

@@ -343,3 +343,11 @@ protocol_analysis → sap_generation → sdtm_spec → sdtm_programming
 P6 未改变 P0：仍只有十个固定 Stage、六个 deterministic core tools、文件系统状态和结构化 Review。知识层只提供 manifest-locked Context；CLI 现在实际接入 loopback Knowledge Service，并在离线时验证 locked snapshot。Runtime 的 Git commit 限定当前 Study，不把 monorepo 其他模块当工作流状态。
 
 本地发布不授权内网/云端、Web Relay、远程身份或真实 Study 数据。七场景自动证据与 agent 走查见 `docs/reviews/P6-GLOBAL-ACCEPTANCE.md`；显式人类 Gate 未签字前不得表达为完成或 GxP 批准。
+
+## 11. 决策 6：固定 Stage 顺序与目标产物最小信息（2026-07-16）
+
+固定十阶段仍是完整 Study 生命周期、状态推导和 Stage completion evidence 的唯一顺序。它不等于每次生成局部 draft 都必须同时具备 Protocol、SAP、CRF 等全部上游文件。
+
+对 `sdtm_ae_dataset` 等目标产物，Runtime/Agent 必须先按目标 profile 生成 Minimum Information Plan，将来源分为 required、conditional 和 optional，并逐变量记录 producible、blocked 与 explicit gap。缺少 optional 来源不得阻断；缺少 conditional 来源只阻断受影响变量。没有 CRF 时，如果登记的 raw data metadata 与 approved Wiki evidence 足以证明映射，可以生成受控 draft；证据不足的字段必须进入 Review/gap，不能猜测。
+
+局部 draft 执行不得写入缺失前序 Stage 的 completion evidence，也不得改变、跳过或重排十阶段。目标产物的 canonical promotion 仍须闭合其 MappingSpec、程序、validation、Review、Confirmation 与 provenance。

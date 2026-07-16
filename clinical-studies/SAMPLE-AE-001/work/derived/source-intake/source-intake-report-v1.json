@@ -1,0 +1,54 @@
+{
+  "report_id": "source-intake-sample-ae-001-v1",
+  "study_id": "SAMPLE-AE-001",
+  "status": "pending_human_review",
+  "supersedes": "source-intake-sample-ae-001-v0",
+  "generated_at": "2026-07-16T15:33:00+08:00",
+  "generated_by": "codex",
+  "scope": {
+    "purpose": "登记 P9 单机 POC 的本地 SAS7BDAT AE raw source，并区分来源准入与 parser 能力。",
+    "does_not_include": [
+      "SAS7BDAT 数据或 metadata 解析结果",
+      "MappingSpec",
+      "程序执行结果",
+      "canonical artifact"
+    ]
+  },
+  "policy_checks": {
+    "input_json_files": [],
+    "input_json_allowed": false,
+    "implemented_auto_parse_formats": ["txt", "csv"],
+    "p9_planned_auto_parse_formats": ["sas7bdat"],
+    "source_requirements": "target_artifact_profile"
+  },
+  "registered_sources": [
+    {
+      "path": "input/edc/ae09jun2025.sas7bdat",
+      "source_type": "edc_sas_dataset",
+      "role": "ae_source_data",
+      "format": "sas7bdat",
+      "size_bytes": 19667968,
+      "sha256": "2a6d72e9e5fa4bb8e3cc14b0c412fce3c37e519f3ab9105cdcff33ba031e8749",
+      "listed_in_source_inventory": true,
+      "storage_policy": "local_untracked_raw",
+      "git_tracked": false,
+      "exists_at_registration": true,
+      "parser_status": "planned_p9_p2",
+      "required_in_repository": false
+    }
+  ],
+  "target_artifact_profile": {
+    "target_artifact": "sdtm_ae_dataset",
+    "required_source_roles": ["ae_source_data"],
+    "conditional_source_roles": ["reference_date_source", "crf_metadata", "edc_metadata"],
+    "optional_source_roles": ["study_design_context", "analysis_context"],
+    "planner_status": "planned_p9_p3"
+  },
+  "gate_recommendation": {
+    "source_intake_decision": "blocking_review_required",
+    "allow_registered_sas7bdat_parser_after_source_approval_and_p2_adapter": true,
+    "allow_registered_sas7bdat_use_before_p2_adapter": false,
+    "allow_mapping_or_programming": false,
+    "allow_canonical_artifact": false
+  }
+}

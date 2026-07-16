@@ -38,6 +38,8 @@ def _load_json(path: Path) -> dict:
 def _missing_inventory_sources(study_dir: Path, inventory: dict) -> list[str]:
     missing: list[str] = []
     for source in inventory["sources"]:
+        if source.get("required_in_repository") is False:
+            continue
         source_path = study_dir / source["path"]
         if not source_path.is_file():
             missing.append(source["path"])
@@ -76,8 +78,9 @@ def test_study_template_contains_real_study_source_and_program_boundaries() -> N
     assert project["source_policy"]["missing_required_source"] == "fail_closed"
     assert project["programming_chain"]["dataset_output_format_current_poc"] == "csv"
     assert project["programming_chain"]["sas_execution"] == "generate_only_until_runtime_configured"
-    assert inventory["gate_policy"]["chain"] == "linear_fail_closed"
+    assert inventory["gate_policy"]["chain"] == "artifact_gates_fail_closed"
     assert inventory["supported_input_formats"]["current_poc_auto_parse"] == ["txt", "csv"]
+    assert inventory["target_artifact_profiles"] == {}
     assert "json" in inventory["supported_input_formats"]["forbidden_in_input"]
 
 
@@ -88,7 +91,7 @@ def test_sample_source_inventory_declares_required_sources_and_gate_policy() -> 
     assert inventory["input_json_allowed"] is False
     assert inventory["review_required_before_execution"] is True
     assert inventory["gate_policy"] == {
-        "chain": "linear_fail_closed",
+        "chain": "artifact_gates_fail_closed",
         "source_intake_required_before_parser": True,
         "parser_review_required_before_mapping": True,
         "mapping_review_required_before_programming": True,
@@ -97,6 +100,8 @@ def test_sample_source_inventory_declares_required_sources_and_gate_policy() -> 
     assert project["source_policy"]["input_json_allowed"] is False
     assert project["source_policy"]["missing_required_source"] == "fail_closed"
     assert project["source_policy"]["current_poc_auto_parse_formats"] == ["txt", "csv"]
+    assert project["source_policy"]["p9_planned_auto_parse_formats"] == ["sas7bdat"]
+    assert project["source_policy"]["source_requirements"] == "target_artifact_profile"
     assert project["programming_chain"]["test_phase_executor"] == "python"
     assert project["programming_chain"]["required_code_artifacts_current_poc"] == ["python", "r", "sas"]
     assert project["programming_chain"]["dataset_output_format_current_poc"] == "csv"
@@ -108,9 +113,18 @@ def test_sample_source_inventory_declares_required_sources_and_gate_policy() -> 
         "sdtm_spec",
     }
 
-    required_roles = set(inventory["required_source_roles"])
+    profile = inventory["target_artifact_profiles"]["sdtm_ae_dataset"]
+    required_roles = set(profile["required_source_roles"])
     actual_roles = {source["role"] for source in inventory["sources"]}
     assert required_roles <= actual_roles
+    assert profile["optional_source_roles"] == ["study_design_context", "analysis_context"]
+
+    sas_source = next(source for source in inventory["sources"] if source["format"] == "sas7bdat")
+    assert sas_source["role"] == "ae_source_data"
+    assert sas_source["storage_policy"] == "local_untracked_raw"
+    assert sas_source["required_in_repository"] is False
+    assert sas_source["parser_status"] == "planned_p9_p2"
+    assert sas_source["sha256"] == "2a6d72e9e5fa4bb8e3cc14b0c412fce3c37e519f3ab9105cdcff33ba031e8749"
 
 
 def test_sample_project_yaml_can_be_loaded_as_scaffold_config() -> None:
@@ -135,6 +149,7 @@ def test_sample_source_inventory_files_exist_and_use_supported_input_formats() -
     inventory = _load_yaml(SAMPLE_STUDY / "source-inventory.yaml")
     supported = set(inventory["supported_input_formats"]["accepted_source_storage"])
     current_poc_formats = set(inventory["supported_input_formats"]["current_poc_auto_parse"])
+    planned_poc_formats = set(inventory["supported_input_formats"]["p9_planned_auto_parse"])
 
     assert _missing_inventory_sources(SAMPLE_STUDY, inventory) == []
 
@@ -143,7 +158,10 @@ def test_sample_source_inventory_files_exist_and_use_supported_input_formats() -
         assert source_path.is_relative_to(SAMPLE_STUDY / "input")
         assert source["format"] in supported
         assert source_path.suffix.lstrip(".").lower() == source["format"]
-        assert source["format"] in current_poc_formats
+        if source.get("parser_status", "implemented") == "implemented":
+            assert source["format"] in current_poc_formats
+        else:
+            assert source["format"] in planned_poc_formats
 
 
 def test_missing_required_source_is_detected_before_execution(tmp_path: Path) -> None:
@@ -158,33 +176,42 @@ def test_missing_required_source_is_detected_before_execution(tmp_path: Path) ->
 
 
 def test_source_intake_review_packet_is_valid_chinese_and_blocks_parser() -> None:
-    packet_path = SAMPLE_STUDY / ".review_queue" / "source_intake_sample_ae_v1_001.json"
-    report_path = SAMPLE_STUDY / "work" / "derived" / "source-intake" / "source-intake-report-v0.json"
+    packet_path = SAMPLE_STUDY / ".review_queue" / "source_intake_sample_ae_v1_002.json"
+    report_path = SAMPLE_STUDY / "work" / "derived" / "source-intake" / "source-intake-report-v1.json"
+    superseded_report_path = (
+        SAMPLE_STUDY / "work" / "derived" / "source-intake" / "source-intake-report-v0.json"
+    )
 
     packet = _load_json(packet_path)
     report = _load_json(report_path)
+    superseded_report = _load_json(superseded_report_path)
 
     assert validate_review_packet_schema(packet) == []
     assert packet["review_type"] == "source_intake"
     assert packet["urgency"] == "blocking"
     assert "审核" in packet["agent_summary"]
-    assert "parser JSON" in packet["agent_summary"]
+    assert "Parser/Derived Gate" in packet["agent_summary"]
     assert packet["required_reviewers"][0]["role"] == "clinical_programmer"
     assert report["status"] == "pending_human_review"
     assert report["policy_checks"]["input_json_files"] == []
-    assert report["gate_recommendation"]["allow_unregistered_sas7bdat_use_before_approval"] is False
+    assert report["supersedes"] == "source-intake-sample-ae-001-v0"
+    assert superseded_report["status"] == "superseded"
+    assert superseded_report["superseded_by"] == report["report_id"]
+    assert report["registered_sources"][0]["format"] == "sas7bdat"
+    assert report["registered_sources"][0]["parser_status"] == "planned_p9_p2"
+    assert report["gate_recommendation"]["allow_registered_sas7bdat_use_before_p2_adapter"] is False
 
     source_documents = set(packet["source_documents"])
-    assert "work/derived/source-intake/source-intake-report-v0.json" in source_documents
+    assert "work/derived/source-intake/source-intake-report-v1.json" in source_documents
     assert "input/edc/ae09jun2025.sas7bdat" not in source_documents
 
     finding_text = "\n".join(
         f"{finding['title']}\n{finding['current_value']}\n{finding['proposed_value']}\n{finding['rationale']}"
         for finding in packet["findings"]
     )
-    assert "未登记" in finding_text
+    assert "正式登记" in finding_text
     assert "不提交到 Git" in finding_text
-    assert "批准前" in finding_text
+    assert "P2" in finding_text
 
 
 def test_sample_study_is_visible_to_application_api_with_pending_source_intake_review() -> None:
@@ -201,10 +228,10 @@ def test_sample_study_is_visible_to_application_api_with_pending_source_intake_r
 
     artifacts = client.get("/api/v1/studies/SAMPLE-AE-001/artifacts").json()
     assert [artifact["artifact_id"] for artifact in artifacts["artifacts"]] == [
-        "review_queue--source_intake_sample_ae_v1_001.json"
+        "review_queue--source_intake_sample_ae_v1_002.json"
     ]
 
     reviews = client.get("/api/v1/studies/SAMPLE-AE-001/reviews").json()
-    assert reviews["reviews"][0]["review_id"] == "source_intake_sample_ae_v1_001"
+    assert reviews["reviews"][0]["review_id"] == "source_intake_sample_ae_v1_002"
     assert reviews["reviews"][0]["review_type"] == "source_intake"
     assert reviews["reviews"][0]["decision_state"] == "pending"
