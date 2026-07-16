@@ -58,6 +58,7 @@ def _schema_definition(schema_bundle: dict[str, Any], name: str) -> dict[str, An
 
 class ReviewType(StrEnum):
     """Fixed set of review types — each has its own rendering template in Review Panel."""
+    SOURCE_INTAKE = "source_intake"
     SDTM_SPEC = "sdtm_spec"
     ADAM_SPEC = "adam_spec"
     TFL_SHELL = "tfl_shell"

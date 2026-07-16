@@ -2,6 +2,7 @@
 // Keep this thin TypeScript layer in sync through schema drift tests.
 
 export type ReviewType =
+  | "source_intake"
   | "sdtm_spec"
   | "adam_spec"
   | "tfl_shell"

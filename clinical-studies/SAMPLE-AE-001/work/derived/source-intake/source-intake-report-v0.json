@@ -1,0 +1,121 @@
+{
+  "report_id": "source-intake-sample-ae-001-v0",
+  "study_id": "SAMPLE-AE-001",
+  "status": "pending_human_review",
+  "generated_at": "2026-07-16T16:25:00+08:00",
+  "generated_by": "codex",
+  "scope": {
+    "purpose": "记录 Source Intake 审核前的来源清单、文件存在性、格式、大小和 SHA-256。",
+    "does_not_include": [
+      "parser JSON",
+      "MappingSpec",
+      "程序执行结果",
+      "canonical artifact"
+    ]
+  },
+  "policy_checks": {
+    "input_json_files": [],
+    "input_json_allowed": false,
+    "current_poc_auto_parse_formats": ["txt", "csv"],
+    "accepted_source_storage_formats": [
+      "txt",
+      "md",
+      "pdf",
+      "docx",
+      "csv",
+      "tsv",
+      "xlsx",
+      "xpt",
+      "sas7bdat"
+    ]
+  },
+  "registered_sources": [
+    {
+      "path": "input/protocol/protocol-synopsis.txt",
+      "source_type": "protocol_excerpt",
+      "role": "study_design_context",
+      "format": "txt",
+      "size_bytes": 611,
+      "sha256": "14e60a5b38343ebeb9a93b4c3ce9e017a491753b0291ba05209230252e42c206",
+      "listed_in_source_inventory": true,
+      "git_tracked": true,
+      "exists": true
+    },
+    {
+      "path": "input/sap/sap-ae-excerpt.txt",
+      "source_type": "sap_excerpt",
+      "role": "analysis_context",
+      "format": "txt",
+      "size_bytes": 539,
+      "sha256": "b2f6d4f71e6c6dcfa08dbc27f136c3a586486ff8dbf14430ee9a6f4ae699d507",
+      "listed_in_source_inventory": true,
+      "git_tracked": true,
+      "exists": true
+    },
+    {
+      "path": "input/crf/ae-crf-fields.csv",
+      "source_type": "crf_field_export",
+      "role": "crf_metadata",
+      "format": "csv",
+      "size_bytes": 661,
+      "sha256": "86edc28f96dcfaa4b30d292026664b40a70dd8efb886036d733108eeba33ef15",
+      "listed_in_source_inventory": true,
+      "git_tracked": true,
+      "exists": true
+    },
+    {
+      "path": "input/edc/data-dictionary.csv",
+      "source_type": "edc_data_dictionary",
+      "role": "edc_metadata",
+      "format": "csv",
+      "size_bytes": 833,
+      "sha256": "3f9068dc4bc778a3fd25a3450d13cd26ff36bd8fdeea3061d021bb88d48fe0b7",
+      "listed_in_source_inventory": true,
+      "git_tracked": true,
+      "exists": true
+    },
+    {
+      "path": "input/raw/ae.csv",
+      "source_type": "edc_raw_export",
+      "role": "ae_source_data",
+      "format": "csv",
+      "size_bytes": 292,
+      "sha256": "ed338a3cadc788576e2ed496f2ecca35e151c033fdc5ce5a5e596749f75ffb71",
+      "listed_in_source_inventory": true,
+      "git_tracked": true,
+      "exists": true
+    },
+    {
+      "path": "input/raw/subject-reference.csv",
+      "source_type": "subject_reference_export",
+      "role": "reference_date_source",
+      "format": "csv",
+      "size_bytes": 97,
+      "sha256": "ec6fa2750222b719ad9ad2154ed5ce4414606461df6f2d3319864e203ea210e6",
+      "listed_in_source_inventory": true,
+      "git_tracked": true,
+      "exists": true
+    }
+  ],
+  "unregistered_source_candidates": [
+    {
+      "path": "input/edc/ae09jun2025.sas7bdat",
+      "source_type": "edc_dataset_candidate",
+      "role": "unconfirmed_edc_source_data",
+      "format": "sas7bdat",
+      "size_bytes": 19667968,
+      "sha256": "2a6d72e9e5fa4bb8e3cc14b0c412fce3c37e519f3ab9105cdcff33ba031e8749",
+      "listed_in_source_inventory": false,
+      "git_tracked": false,
+      "exists": true,
+      "current_poc_auto_parse_supported": false,
+      "required_human_decision": "确认是否为 synthetic/去标识来源，以及是否登记进入 source-inventory。确认前不得被 parser 或 program chain 使用。"
+    }
+  ],
+  "gate_recommendation": {
+    "source_intake_decision": "blocking_review_required",
+    "allow_parser_for_registered_txt_csv_sources_after_approval": true,
+    "allow_unregistered_sas7bdat_use_before_approval": false,
+    "allow_canonical_artifact": false
+  }
+}

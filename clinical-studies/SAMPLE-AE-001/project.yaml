@@ -12,6 +12,8 @@ scaffold_status: "scaffold_review"
 standards:
   sdtm_version: "2.0"
   sdtmig_version: "3.4"
+  adam_version: "not_in_current_poc"
+  adamig_version: "not_in_current_poc"
   ct_version: "not_deep_extracted_in_current_poc"
 
 programming_chain:
@@ -49,10 +51,15 @@ review_timeout:
   stale_action: "continue"
 
 review_assignments:
+  sap_review: {reviewers: [clinical_programmer], consensus: all_must_approve}
   source_intake: {reviewers: [clinical_programmer], consensus: all_must_approve}
   parser_output: {reviewers: [clinical_programmer, data_manager], consensus: all_must_approve}
   sdtm_programming: {reviewers: [lead_programmer, qc_programmer], consensus: all_must_approve}
   sdtm_spec: {reviewers: [lead_programmer, data_manager], consensus: all_must_approve}
+  adam_spec: {reviewers: [lead_programmer], consensus: all_must_approve}
+  tfl_shell: {reviewers: [lead_programmer], consensus: all_must_approve}
+  tfl_qc: {reviewers: [qc_programmer], consensus: all_must_approve}
+  submission: {reviewers: [lead_programmer], consensus: all_must_approve}
 
 paths:
   input_dir: "input"

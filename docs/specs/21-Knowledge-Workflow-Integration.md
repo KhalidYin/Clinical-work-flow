@@ -113,6 +113,8 @@ Study 的执行链路按阶段线性推进，但每个阶段内部允许 LLM、�
 
 POC 阶段的数据集输出优先使用 CSV 等可在终端直接查看的文本格式；机器 provenance、ReviewPacket、DecisionReceipt 和 manifest 可以继续使用 JSON/YAML，但必须明确状态、来源 hash 和可追溯路径。当前环境可用 Python 执行 reference/test chain；R 与 SAS 代码仍应作为显式程序产物纳入追溯，其中 SAS 在未配置执行环境前只生成、不执行。
 
+首个真实 Study POC 使用 `source_intake` ReviewPacket 审核来源准入。该 packet 可以引用 `work/derived/source-intake/` 下的 source scan report，但不得把 source scan report 误认为 parser 输出；批准结果只允许后续生成 Parser/Derived 候选，不允许直接产生 MappingSpec、程序执行或 canonical dataset。
+
 ---
 
 ## 3. 职责矩阵

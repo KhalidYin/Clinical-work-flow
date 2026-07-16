@@ -57,6 +57,8 @@
 - 已经提交决定的历史 ReviewPacket 必须原样归档，不追溯翻译；语言调整只作用于此约定生效后的新 packet，避免破坏审核证据和 Git 审计链。
 - Review Panel 只负责按 payload 展示和记录决定；中文默认由 ReviewPacket 生成端保证。
 
+`source_intake` 是 Study POC 后新增的正式 ReviewPacket 类型，用于审核 `input/` 来源清单、格式、hash、去标识/合成状态和可进入 parser 的范围。它只打开 Parser/Derived Gate，不提升 canonical artifact，也不授权未登记来源进入程序链。
+
 ---
 
 ## 2. 协议架构
@@ -179,9 +181,9 @@ API 基线：
 │    格式: {review_type}_{domain/dataset}_v{version}_{seq:03d}  │
 │    示例: "sdtm_spec_ae_v2_001"                               │
 │                                                               │
-│  review_type:         enum     sdtm_spec|adam_spec|           │
-│                                tfl_shell|tfl_qc|sap_review|   │
-│                                submission                     │
+│  review_type:         enum     source_intake|sdtm_spec|       │
+│                                adam_spec|tfl_shell|tfl_qc|    │
+│                                sap_review|submission          │
 │                                                               │
 │  source_documents:    []string 依赖文件列表 (相对路径)          │
 │    示例: ["protocol.pdf", "crf/ae_form.xlsx"]                │
@@ -368,8 +370,8 @@ P1-C 初始只支持 `sdtm_spec`、`adam_spec`、`tfl_shell` 三类 YAML/spec
       "pattern": "^[a-z]+_[a-z0-9_]+_v[0-9]+_[0-9]{3}$"
     },
     "review_type": {
-      "enum": ["sdtm_spec", "adam_spec", "tfl_shell",
-               "tfl_qc", "sap_review", "submission"]
+      "enum": ["source_intake", "sdtm_spec", "adam_spec",
+               "tfl_shell", "tfl_qc", "sap_review", "submission"]
     },
     "source_documents": {
       "type": "array",

@@ -6,4 +6,4 @@
 
 - `source_intake_sample_ae_v1_001.json`
 
-本脚手架阶段暂不生成该 JSON，等待用户确认 source intake checklist 后再创建。
+该审核包已生成，用于确认 `input/` 来源边界、已登记 TXT/CSV 来源和未登记 SAS7BDAT 候选文件。批准前不得生成 parser JSON、MappingSpec 或程序执行产物。

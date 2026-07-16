@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import shutil
 from pathlib import Path
 
@@ -9,6 +10,8 @@ import yaml
 from fastapi.testclient import TestClient
 
 from src.application_api import ApplicationApiConfig, create_app
+from src.config.project import load_project_config
+from src.runtime.review_protocol import validate_review_packet_schema
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -21,6 +24,13 @@ STUDY_TEMPLATE = ROOT / "study_template"
 def _load_yaml(path: Path) -> dict:
     with path.open(encoding="utf-8") as handle:
         loaded = yaml.safe_load(handle)
+    assert isinstance(loaded, dict)
+    return loaded
+
+
+def _load_json(path: Path) -> dict:
+    with path.open(encoding="utf-8") as handle:
+        loaded = json.load(handle)
     assert isinstance(loaded, dict)
     return loaded
 
@@ -91,10 +101,34 @@ def test_sample_source_inventory_declares_required_sources_and_gate_policy() -> 
     assert project["programming_chain"]["required_code_artifacts_current_poc"] == ["python", "r", "sas"]
     assert project["programming_chain"]["dataset_output_format_current_poc"] == "csv"
     assert project["programming_chain"]["sas_execution"] == "generate_only_until_runtime_configured"
+    assert set(project["review_assignments"]) >= {
+        "source_intake",
+        "parser_output",
+        "sdtm_programming",
+        "sdtm_spec",
+    }
 
     required_roles = set(inventory["required_source_roles"])
     actual_roles = {source["role"] for source in inventory["sources"]}
     assert required_roles <= actual_roles
+
+
+def test_sample_project_yaml_can_be_loaded_as_scaffold_config() -> None:
+    config = load_project_config(SAMPLE_STUDY, required=True)
+
+    assert config is not None
+    assert config.study_id == "SAMPLE-AE-001"
+    assert config.therapeutic_area == "synthetic_safety"
+    assert config.synthetic_only is True
+    assert config.scaffold_status == "scaffold_review"
+    assert config.source_policy is not None
+    assert config.source_policy["input_json_allowed"] is False
+    assert config.programming_chain is not None
+    assert config.programming_chain["test_phase_executor"] == "python"
+    assert config.review_assignments.source_intake is not None
+    assert config.review_assignments.source_intake.reviewers == ["clinical_programmer"]
+    assert config.paths.work_dir == "work"
+    assert config.paths.program_dir == "programs"
 
 
 def test_sample_source_inventory_files_exist_and_use_supported_input_formats() -> None:
@@ -123,7 +157,37 @@ def test_missing_required_source_is_detected_before_execution(tmp_path: Path) ->
     assert _missing_inventory_sources(study_copy, inventory) == [removed_source]
 
 
-def test_sample_study_is_visible_to_application_api_without_artifacts() -> None:
+def test_source_intake_review_packet_is_valid_chinese_and_blocks_parser() -> None:
+    packet_path = SAMPLE_STUDY / ".review_queue" / "source_intake_sample_ae_v1_001.json"
+    report_path = SAMPLE_STUDY / "work" / "derived" / "source-intake" / "source-intake-report-v0.json"
+
+    packet = _load_json(packet_path)
+    report = _load_json(report_path)
+
+    assert validate_review_packet_schema(packet) == []
+    assert packet["review_type"] == "source_intake"
+    assert packet["urgency"] == "blocking"
+    assert "审核" in packet["agent_summary"]
+    assert "parser JSON" in packet["agent_summary"]
+    assert packet["required_reviewers"][0]["role"] == "clinical_programmer"
+    assert report["status"] == "pending_human_review"
+    assert report["policy_checks"]["input_json_files"] == []
+    assert report["gate_recommendation"]["allow_unregistered_sas7bdat_use_before_approval"] is False
+
+    source_documents = set(packet["source_documents"])
+    assert "work/derived/source-intake/source-intake-report-v0.json" in source_documents
+    assert "input/edc/ae09jun2025.sas7bdat" not in source_documents
+
+    finding_text = "\n".join(
+        f"{finding['title']}\n{finding['current_value']}\n{finding['proposed_value']}\n{finding['rationale']}"
+        for finding in packet["findings"]
+    )
+    assert "未登记" in finding_text
+    assert "不提交到 Git" in finding_text
+    assert "批准前" in finding_text
+
+
+def test_sample_study_is_visible_to_application_api_with_pending_source_intake_review() -> None:
     client = TestClient(create_app(ApplicationApiConfig(container_roots={"clinical-studies": STUDIES_ROOT})))
 
     studies = client.get("/api/v1/studies").json()
@@ -132,8 +196,15 @@ def test_sample_study_is_visible_to_application_api_without_artifacts() -> None:
 
     status = client.get("/api/v1/studies/SAMPLE-AE-001/status").json()
     assert status["study_id"] == "SAMPLE-AE-001"
-    assert status["run_state"] == "idle"
+    assert status["run_state"] == "blocked_review"
     assert status["knowledge_lock"]["status"] == "missing"
 
     artifacts = client.get("/api/v1/studies/SAMPLE-AE-001/artifacts").json()
-    assert artifacts["artifacts"] == []
+    assert [artifact["artifact_id"] for artifact in artifacts["artifacts"]] == [
+        "review_queue--source_intake_sample_ae_v1_001.json"
+    ]
+
+    reviews = client.get("/api/v1/studies/SAMPLE-AE-001/reviews").json()
+    assert reviews["reviews"][0]["review_id"] == "source_intake_sample_ae_v1_001"
+    assert reviews["reviews"][0]["review_type"] == "source_intake"
+    assert reviews["reviews"][0]["decision_state"] == "pending"

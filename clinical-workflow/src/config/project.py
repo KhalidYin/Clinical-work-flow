@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
@@ -19,6 +19,7 @@ TherapeuticArea = Literal[
     "diabetes",
     "respiratory",
     "non_oncology",
+    "synthetic_safety",
     "other",
 ]
 ProgrammingLanguage = Literal["sas", "r", "python"]
@@ -39,8 +40,8 @@ class StrictModel(BaseModel):
 class StandardsConfig(StrictModel):
     sdtm_version: str = Field(min_length=1)
     sdtmig_version: str = Field(min_length=1)
-    adam_version: str = Field(min_length=1)
-    adamig_version: str = Field(min_length=1)
+    adam_version: str | None = Field(default=None, min_length=1)
+    adamig_version: str | None = Field(default=None, min_length=1)
     ct_version: str = Field(min_length=1)
 
 
@@ -71,10 +72,15 @@ class ReviewAssignments(StrictModel):
     tfl_shell: ReviewAssignment
     tfl_qc: ReviewAssignment
     submission: ReviewAssignment
+    source_intake: ReviewAssignment | None = None
+    parser_output: ReviewAssignment | None = None
+    sdtm_programming: ReviewAssignment | None = None
 
 
 class ProjectPaths(StrictModel):
     input_dir: str = Field(min_length=1)
+    work_dir: str | None = Field(default=None, min_length=1)
+    program_dir: str | None = Field(default=None, min_length=1)
     output_dir: str = Field(min_length=1)
     review_queue_dir: str = Field(min_length=1)
     audit_log: str = Field(min_length=1)
@@ -90,6 +96,10 @@ class ProjectConfig(StrictModel):
     sponsor: str = Field(min_length=1)
     created_at: datetime
     standards: StandardsConfig
+    synthetic_only: bool | None = None
+    scaffold_status: str | None = None
+    source_policy: dict[str, Any] | None = None
+    programming_chain: dict[str, Any] | None = None
     review_timeout: ReviewTimeoutConfig
     review_assignments: ReviewAssignments
     paths: ProjectPaths
@@ -105,6 +115,10 @@ class ProjectConfig(StrictModel):
             "sponsor": self.sponsor,
             "created_at": self.created_at.isoformat(),
             "standards": self.standards.model_dump(),
+            "synthetic_only": self.synthetic_only,
+            "scaffold_status": self.scaffold_status,
+            "source_policy": self.source_policy,
+            "programming_chain": self.programming_chain,
             "review_timeout": self.review_timeout.model_dump(),
             "review_assignments": self.review_assignments.model_dump(),
             "paths": self.paths.model_dump(),

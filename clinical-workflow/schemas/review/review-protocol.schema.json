@@ -97,6 +97,7 @@
         "review_type": {
           "type": "string",
           "enum": [
+            "source_intake",
             "sdtm_spec",
             "adam_spec",
             "tfl_shell",

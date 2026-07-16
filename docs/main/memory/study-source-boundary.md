@@ -10,6 +10,8 @@ Decision:
 - The POC execution chain is linear by Gate, not by hardcoded script: Source Intake → Parser/Derived → Mapping → Program Chain → Draft Output → Review/Confirmation → Canonical Output.
 - Missing required source files, unreviewed prior Gates, undeclared formats, hash mismatches, or missing required code artifacts must fail closed.
 - Current POC may execute Python to produce terminal-readable CSV datasets, while R/SAS code remains required traceable artifact output. SAS is generate-only until a SAS runtime is explicitly configured.
+- `source_intake` is now a formal ReviewPacket type. It only approves source admission into the Parser/Derived gate; it does not authorize MappingSpec generation, program execution, or canonical artifact promotion.
+- Local untracked binary source candidates may be recorded by hash in a source scan report, but must not be committed or consumed before human confirmation of synthetic/deidentified status and source-inventory registration.
 
 Rationale:
 

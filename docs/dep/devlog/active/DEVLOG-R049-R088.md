@@ -44,3 +44,49 @@
 - `docs/dep/devlog/INDEX.md`
 - `docs/dep/devlog/active/DEVLOG-R049-R088.md`
 
+---
+
+### R050 [16:32] POC: 打开 SAMPLE-AE-001 Source Intake 审核门
+
+#### Done
+
+- 将 `source_intake` 加入 Review Protocol 正式 `review_type`，同步 JSON Schema、Python enum 和 TypeScript Review Panel 类型。
+- 生成 `SAMPLE-AE-001` source scan evidence：`work/derived/source-intake/source-intake-report-v0.json`，只记录路径、格式、大小、hash 和 gate 建议，不生成 parser JSON。
+- 生成中文 blocking ReviewPacket：`.review_queue/source_intake_sample_ae_v1_001.json`，要求人工确认已登记 TXT/CSV 来源、未登记 SAS7BDAT 候选和当前 POC 可解析格式边界。
+- 扩展 project config schema/model，使 scaffold study 能承载 `source_intake`、`parser_output`、`sdtm_programming` review assignments，以及 `source_policy`、`programming_chain`、`work_dir`、`program_dir`。
+- 更新 SPEC-15/SPEC-21，明确 `source_intake` 只打开 Parser/Derived Gate，不提升 canonical artifact，不授权未登记来源进入程序链。
+- 扩展 sample tests：验证 ReviewPacket schema、中文人工字段、source scan report、pending review API 状态和严格 project config 加载。
+
+#### Issues / Blockers
+
+- 检测到用户新增的本地未跟踪文件 `clinical-studies/SAMPLE-AE-001/input/edc/ae09jun2025.sas7bdat`，大小 19,667,968 bytes，hash 已记录在 source scan report 中。
+- 该 SAS7BDAT 文件未加入本次提交；审核包要求人工确认其 synthetic/去标识状态和是否登记。确认前不得被 parser 或 program chain 使用。
+
+#### Validation
+
+- `python -m pytest tests/test_review_schema_contract.py tests/test_project_config.py tests/application_api/test_sample_study_scaffold.py tests/application_api/test_readonly_api.py -q`（24 passed；仅第三方 deprecation warnings）
+- `python -m ruff check src/runtime/review_protocol.py src/config/project.py tests/test_review_schema_contract.py tests/test_project_config.py tests/application_api/test_sample_study_scaffold.py`（success）
+
+#### Next
+
+1. 用户通过 Review Panel 或直接查看 packet 审核 `source_intake_sample_ae_v1_001`。
+2. 若批准 F-001 且维持 F-002 的“不纳入执行”，下一步生成 Parser/Derived 候选，只使用已登记 TXT/CSV。
+3. 若用户要求纳入 SAS7BDAT，需先更新 source-inventory、决定是否提交/外部存储该二进制文件，并补 SAS7BDAT parser adapter 计划。
+
+#### Files Changed / Commits
+
+- `clinical-studies/SAMPLE-AE-001/.review_queue/source_intake_sample_ae_v1_001.json`
+- `clinical-studies/SAMPLE-AE-001/work/derived/source-intake/source-intake-report-v0.json`
+- `clinical-studies/SAMPLE-AE-001/project.yaml`
+- `clinical-workflow/schemas/review/review-protocol.schema.json`
+- `clinical-workflow/src/runtime/review_protocol.py`
+- `clinical-workflow/src/review_panel/src/schema.ts`
+- `clinical-workflow/schemas/project.schema.json`
+- `clinical-workflow/src/config/project.py`
+- `clinical-workflow/tests/application_api/test_sample_study_scaffold.py`
+- `clinical-workflow/tests/test_project_config.py`
+- `docs/specs/15-Review-Protocol.md`
+- `docs/specs/21-Knowledge-Workflow-Integration.md`
+- `docs/main/memory/study-source-boundary.md`
+- `docs/dep/devlog/INDEX.md`
+- `docs/dep/devlog/active/DEVLOG-R049-R088.md`

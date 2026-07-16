@@ -29,7 +29,10 @@ def test_project_schema_declares_required_runtime_contract():
         "paths",
     }
     assert "phase_iv" in schema["properties"]["trial_phase"]["enum"]
+    assert "synthetic_safety" in schema["properties"]["therapeutic_area"]["enum"]
     assert "sdtm_spec" in schema["properties"]["review_assignments"]["required"]
+    assert "source_intake" in schema["properties"]["review_assignments"]["properties"]
+    assert "work_dir" in schema["properties"]["paths"]["properties"]
 
 
 def test_load_project_config_from_fixture():

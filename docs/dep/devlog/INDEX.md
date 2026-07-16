@@ -43,5 +43,6 @@
 | R047 | 2026-07-16 | 14:47 | P8-workflow-api-study-console | P5 | 完成产物追溯视图、本地发布说明与 P8 归档 | `clinical-workflow/src/study_console/`, `clinical-workflow/tests/study_console/`, `start-study-console.ps1`, `USAGE.md`, `docs/specs/`, `docs/deploy/`, `docs/dep/` | active/DEVLOG-R009-R048.md |
 | R048 | 2026-07-16 | 15:26 | - | POC | 创建 SAMPLE-AE-001 脚手架并冻结输入/derived/程序链边界 | `clinical-studies/SAMPLE-AE-001/`, `clinical-workflow/tests/application_api/test_sample_study_scaffold.py`, `docs/dep/` | active/DEVLOG-R009-R048.md |
 | R049 | 2026-07-16 | 16:05 | - | POC | 固化真实 Study source/derived/program 链路合同 | `docs/specs/21-Knowledge-Workflow-Integration.md`, `clinical-studies/`, `clinical-workflow/study_template/`, `clinical-workflow/tests/application_api/test_sample_study_scaffold.py` | active/DEVLOG-R049-R088.md |
+| R050 | 2026-07-16 | 16:32 | - | POC | 打开 SAMPLE-AE-001 Source Intake 审核门 | `clinical-studies/SAMPLE-AE-001/.review_queue/`, `clinical-studies/SAMPLE-AE-001/work/derived/source-intake/`, `clinical-workflow/schemas/review/`, `clinical-workflow/tests/application_api/test_sample_study_scaffold.py` | active/DEVLOG-R049-R088.md |
 
 > Legacy rounds R001-R008 remain immutable in [DEVLOG-legacy.md](archive/DEVLOG-legacy.md). They predate the searchable index and were intentionally not rewritten during adoption.
