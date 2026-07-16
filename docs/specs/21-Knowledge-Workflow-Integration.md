@@ -706,3 +706,25 @@ controlled value labels、reference identity join 和“非完整 SDTMIG conform
 所以没有 approved MappingSpec、程序、draft 或 canonical。隔离回归 Study 已验证后续
 approved MappingSpec → Python/R/SAS manifest → Python draft → Program Review →
 Confirmation/canonical，以及拒绝、hash 漂移、unknown operation、缺来源 fail closed。
+
+P9.1-P5 已建立 Study → Wiki 的规则治理边界，但真实 Study 仍停在 Review Gate。
+Engine 从 P4 的 `work/mapping/ae-mapping-context.json` 与
+`work/mapping/ae-mapping-spec-candidate.json` 生成
+`knowledge/promotion_candidates/ae-rule-governance-report.json`，只分类三类内容：
+`general_rule_candidate`、`study_specific_rule` 和 `unresolved_gap`。general candidate
+只能包含去标识的治理模式、适用/不适用范围、source version、operation allowlist、
+approved rule refs、gap ids 和来源 artifact/hash；当前 Study 的常量、标识前缀、源变量名、
+受试者或取值不得进入公开候选。真实 `SAMPLE-AE-001` 的
+`.review_queue/sap_review_p9_ae_rule_governance_v1_001.json` 是 blocking
+reusable-rule ReviewPacket；在 DecisionReceipt 全部 approved 前，不得生成
+`ae-rule-governance-approved.json`，也不得写入 Wiki governed card、release 或 snapshot。
+
+Wiki 侧只接受 approved candidate 作为输入。发布脚本
+`clinical-llm-wiki/scripts/content/p9_ae_rule_governance_release.py` 负责校验 candidate hash、
+DecisionReceipt hash、去标识、approved rule evidence 和 rule-id 冲突；通过后才写入
+`vault/20_Knowledge/Programming/P9 SDTM AE Metadata Mapping Evidence Gate.md`、
+`sources/packages/p9-ae-rule-governance/release.json` 和
+`snapshots/snapshot-p9-ae-rule-governance-v1.json`。clean-room reuse 必须只读取新
+locked snapshot，返回 knowledge ID/version/rule refs，再构造新的 Mapping context rule ref；
+不得读取原 Study 的 promotion candidate 或 DecisionReceipt。该发布与 clean-room 路径已由隔离测试覆盖，
+真实 `SAMPLE-AE-001` 尚未触发发布。

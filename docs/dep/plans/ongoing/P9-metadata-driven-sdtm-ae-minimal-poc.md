@@ -143,7 +143,7 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 | P2 | 解析 SAS7BDAT 数据及完整可得元数据 | 3-4 | P1 | done |
 | P3 | 实现 Minimum Information Planner 和 raw-only AE preflight | 2-4 | P2 | done |
 | P4 | Wiki 辅助 MappingSpec、三语言程序和 Python reference execution | 4-6 | P3 | done |
-| P5 | 通用规则治理、发布和干净再查询复用 | 2-3 | P4 | pending |
+| P5 | 通用规则治理、发布和干净再查询复用 | 2-3 | P4 | in-progress（Study Review 待批） |
 | P6 | 单机快速启动、回归、人工验收与旧 P9 解锁 | 1-2 + 用户确认 | P5 | pending |
 
 ---
@@ -358,6 +358,8 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 
 ### 完成标准
 
+当前执行状态（2026-07-17）：代码路径已实现并用隔离回归覆盖；真实 `SAMPLE-AE-001` 只生成了分类报告和 reusable-rule ReviewPacket，尚无人工 DecisionReceipt，因此没有 approved candidate、Wiki 卡片、Wiki release 或新 snapshot。P5 真实 Gate 不因测试通过而关闭。
+
 - [ ] Study-specific 内容不会因一次成功运行被自动标记为 general。
 - [ ] general candidate 包含 applicability、non-applicability、evidence、source version、review status 和来源 decision hash。
 - [ ] Review approved 之前不修改 governed Wiki；rejected 候选保持 Study-local 并不进入 approved index。
@@ -461,6 +463,7 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 | 2026-07-16 | 旧 P9 解锁 | 自动测试 / AI 判断 / 用户单机确认 | 用户单机确认 | 满足用户明确的部署前置边界 |
 | 2026-07-16 | P2 Source Metadata schema 发布范围 | 直接升级 shared bundle / importer-local prerelease | importer-local prerelease | 避免解析阶段静默使 P6/P7 locked Wiki snapshots 失效；跨模块发布留给协调迁移 |
 | 2026-07-16 | producible variable 语义 | 已映射 / 可进入 Mapping 候选 | 可进入 Mapping 候选 | Planner 只分类证据；未解析 value labels 等风险必须同时保留 gap/review |
+| 2026-07-17 | P5 reusable-rule review 类型 | 新增枚举 / 复用现有 `sap_review` / 跳过 Review | 暂复用 `sap_review` | 新增枚举会触发 shared bundle 与 Wiki snapshot 迁移；当前 packet 通过标题、finding 和 evidence 表达规则治理语义，不代表 SAP 内容 |
 
 ## 同步记录
 
@@ -468,3 +471,4 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 |------|----------|------|
 | 2026-07-16 | SPEC-13/15/21、Study README、memory | P2 parser、local preview、显式 metadata gap 与 Review 边界 |
 | 2026-07-16 | SPEC-02/09/21、Study README、memory | P3 Minimum Information、raw-only、局部阻断和 Stage 非完成语义 |
+| 2026-07-17 | SPEC-15/21、TASK_STATE、memory | P5 规则治理候选、Study Review 待批、Wiki 发布前置和 clean-room reuse 测试边界 |

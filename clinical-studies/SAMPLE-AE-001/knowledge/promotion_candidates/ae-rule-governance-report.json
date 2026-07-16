@@ -1,0 +1,144 @@
+{
+  "classification_counts": {
+    "general_rule_candidate": 1,
+    "study_specific_rule": 3,
+    "unresolved_gap": 3
+  },
+  "general_rule_candidates": [
+    {
+      "applicability": {
+        "conditions": [
+          "source metadata is hash-locked",
+          "MappingSpec uses only allowlisted operations",
+          "each mapping cites approved Wiki rules",
+          "insufficient source evidence remains an explicit gap"
+        ],
+        "domains": [
+          "sdtm",
+          "ae"
+        ],
+        "workflow_stages": [
+          "sdtm_spec",
+          "sdtm_programming"
+        ]
+      },
+      "candidate_id": "candidate-p9-ae-mapping-evidence-gate-v1",
+      "classification": "general_rule_candidate",
+      "deidentified": true,
+      "evidence": {
+        "approved_rule_refs": [
+          "proposal-sdtmig34-core-domain-code-consistency-v1",
+          "proposal-sdtmig34-core-identifier-variable-role-v1",
+          "proposal-sdtmig34-core-missing-values-as-nulls-v1",
+          "proposal-sdtmig34-gold-ae-structure-v1",
+          "proposal-sdtmig34-gold-aeterm-required-v1"
+        ],
+        "gap_ids": [
+          "gap-controlled-value-labels",
+          "gap-full-sdtmig-conformance-not-claimed",
+          "gap-reference-date-identity-no-overlap"
+        ],
+        "operation_allowlist": [
+          "constant",
+          "concat",
+          "sequence_by_group",
+          "copy_trim",
+          "partial_date_iso"
+        ],
+        "operations_used": [
+          "concat",
+          "constant",
+          "copy_trim",
+          "partial_date_iso",
+          "sequence_by_group"
+        ],
+        "source_rows": 1066
+      },
+      "non_applicability": [
+        "does not approve Study-specific constants or identifier prefixes",
+        "does not approve controlled terminology value mapping without catalog evidence",
+        "does not approve study-day derivation without a joinable reference date",
+        "does not claim full SDTMIG conformance"
+      ],
+      "review_status": "pending",
+      "source_context_sha256": "5b57e5777449b106baf487867cb270629ea5bd7ac6b188deed63d77448cb1497",
+      "source_decision_sha256": null,
+      "source_mapping_spec_sha256": "a9382fb69ed073906279ece888318707d286406b54790aef723809a9d76e19d9",
+      "source_study_sha256": "603e9826e0011cbbacd481fe4a80feeac8dd08a7734bf1cbc9870891d6bafdbf",
+      "source_version": {
+        "snapshot_id": "snapshot-sdtmig34-core-events-ae-v1",
+        "snapshot_sha256": "d8aafb73ccca987d597e372435b664ba074c1a45688d5e2eef809c72f475a9ec",
+        "standard": "SDTMIG",
+        "version": "3.4"
+      },
+      "target_knowledge_id": "pattern-p9-sdtm-ae-metadata-mapping-evidence-gate",
+      "target_rule_id": "rule-p9-sdtm-ae-metadata-mapping-evidence-gate",
+      "title": "P9 SDTM AE metadata mapping evidence gate"
+    }
+  ],
+  "generated_at": "2026-07-17T09:00:00+08:00",
+  "report_id": "ae-rule-governance-report-sample-ae-001-v1",
+  "report_sha256": "027f55f19e5c55a23cf92d10be6fb7fea19559b268421ec8e618460a28e99122",
+  "schema_version": "1.0.0",
+  "source_artifacts": {
+    "mapping_context_path": "work/mapping/ae-mapping-context.json",
+    "mapping_context_sha256": "a0c011d50cccfecfb8143c3a8a7263665caec7674f6f5ca171e0e2b0f91d2c13",
+    "mapping_spec_content_sha256": "a9382fb69ed073906279ece888318707d286406b54790aef723809a9d76e19d9",
+    "mapping_spec_file_sha256": "6f0bbf41f22ada52861994ed06425a48fbc755fe99f9046776eae321270cd515",
+    "mapping_spec_path": "work/mapping/ae-mapping-spec-candidate.json"
+  },
+  "study_specific_rules": [
+    {
+      "classification": "study_specific_rule",
+      "mapping_id": "map-studyid",
+      "reason": "该映射是当前 POC/目标数据集上下文中的具体填充值或标识逻辑，只能保留在 Study-local MappingSpec，不得自动写入 Wiki。",
+      "target_variable": "STUDYID"
+    },
+    {
+      "classification": "study_specific_rule",
+      "mapping_id": "map-domain",
+      "reason": "该映射是当前 POC/目标数据集上下文中的具体填充值或标识逻辑，只能保留在 Study-local MappingSpec，不得自动写入 Wiki。",
+      "target_variable": "DOMAIN"
+    },
+    {
+      "classification": "study_specific_rule",
+      "mapping_id": "map-usubjid",
+      "reason": "该映射是当前 POC/目标数据集上下文中的具体填充值或标识逻辑，只能保留在 Study-local MappingSpec，不得自动写入 Wiki。",
+      "target_variable": "USUBJID"
+    }
+  ],
+  "unresolved_gaps": [
+    {
+      "affects_variables": [
+        "AESEV",
+        "AESER",
+        "AEREL",
+        "AEACN",
+        "AEOUT"
+      ],
+      "category": "source_metadata",
+      "classification": "unresolved_gap",
+      "gap_id": "gap-controlled-value-labels",
+      "reason": "SAS catalog/value-label mapping unavailable; controlled fields are not mapped"
+    },
+    {
+      "affects_variables": [
+        "AESTDY",
+        "AEENDY"
+      ],
+      "category": "study_context",
+      "classification": "unresolved_gap",
+      "gap_id": "gap-reference-date-identity-no-overlap",
+      "reason": "Reference-date source cannot join to Source.Subject; study-day fields are omitted"
+    },
+    {
+      "affects_variables": [
+        "AE"
+      ],
+      "category": "scope",
+      "classification": "unresolved_gap",
+      "gap_id": "gap-full-sdtmig-conformance-not-claimed",
+      "reason": "This POC validates a bounded AE subset, not complete SDTMIG conformance"
+    }
+  ]
+}

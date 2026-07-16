@@ -1,0 +1,59 @@
+{
+  "review_id": "sap_review_p9_ae_rule_governance_v1_001",
+  "review_type": "sap_review",
+  "source_documents": [
+    "knowledge/promotion_candidates/ae-rule-governance-report.json",
+    "work/mapping/ae-mapping-context.json",
+    "work/mapping/ae-mapping-spec-candidate.json"
+  ],
+  "agent_summary": "请审核 P9 AE Mapping 中可复用的治理规则候选。批准后仅允许写入去标识、一般化的 evidence gate，不批准当前 Study 的具体映射值。",
+  "findings": [
+    {
+      "id": "F-001",
+      "category": "compliance",
+      "severity": "warning",
+      "location": "pattern-p9-sdtm-ae-metadata-mapping-evidence-gate",
+      "title": "批准去标识的一般化 Mapping evidence gate 候选",
+      "current_value": "候选仍为 Study-local pending，不进入 Wiki approved index",
+      "proposed_value": "批准通用规则：MappingSpec 必须使用 allowlist operation、引用 approved Wiki rule，且证据不足字段必须保留 explicit gap。",
+      "rationale": "该候选不含 Study ID、受试者数据、源数据样例或 Sponsor 特定规则；它只沉淀治理边界，不沉淀本 Study 的变量值。",
+      "evidence_refs": [
+        "knowledge/promotion_candidates/ae-rule-governance-report.json",
+        "candidate-p9-ae-mapping-evidence-gate-v1"
+      ],
+      "auto_approved": false
+    },
+    {
+      "id": "F-002",
+      "category": "mapping",
+      "severity": "info",
+      "location": "study_specific_rules",
+      "title": "确认 Study-specific 映射不进入通用知识",
+      "current_value": "[{\"classification\": \"study_specific_rule\", \"mapping_id\": \"map-studyid\", \"reason\": \"该映射是当前 POC/目标数据集上下文中的具体填充值或标识逻辑，只能保留在 Study-local MappingSpec，不得自动写入 Wiki。\", \"target_variable\": \"STUDYID\"}, {\"classification\": \"study_specific_rule\", \"mapping_id\": \"map-domain\", \"reason\": \"该映射是当前 POC/目标数据集上下文中的具体填充值或标识逻辑，只能保留在 Study-local MappingSpec，不得自动写入 Wiki。\", \"target_variable\": \"DOMAIN\"}, {\"classification\": \"study_specific_rule\", \"mapping_id\": \"map-usubjid\", \"reason\": \"该映射是当前 POC/目标数据集上下文中的具体填充值或标识逻辑，只能保留在 Study-local MappingSpec，不得自动写入 Wiki。\", \"target_variable\": \"USUBJID\"}]",
+      "proposed_value": "这些内容继续留在当前 Study-local MappingSpec",
+      "rationale": "常量、标识前缀和当前源系统身份不能因一次运行成功变成通用规则。",
+      "evidence_refs": [
+        "knowledge/promotion_candidates/ae-rule-governance-report.json"
+      ],
+      "auto_approved": false
+    },
+    {
+      "id": "F-003",
+      "category": "compliance",
+      "severity": "info",
+      "location": "unresolved_gaps",
+      "title": "确认未解决缺口继续保持显式 gap",
+      "current_value": "[{\"affects_variables\": [\"AESEV\", \"AESER\", \"AEREL\", \"AEACN\", \"AEOUT\"], \"category\": \"source_metadata\", \"classification\": \"unresolved_gap\", \"gap_id\": \"gap-controlled-value-labels\", \"reason\": \"SAS catalog/value-label mapping unavailable; controlled fields are not mapped\"}, {\"affects_variables\": [\"AESTDY\", \"AEENDY\"], \"category\": \"study_context\", \"classification\": \"unresolved_gap\", \"gap_id\": \"gap-reference-date-identity-no-overlap\", \"reason\": \"Reference-date source cannot join to Source.Subject; study-day fields are omitted\"}, {\"affects_variables\": [\"AE\"], \"category\": \"scope\", \"classification\": \"unresolved_gap\", \"gap_id\": \"gap-full-sdtmig-conformance-not-claimed\", \"reason\": \"This POC validates a bounded AE subset, not complete SDTMIG conformance\"}]",
+      "proposed_value": "不将 gap 补写为已批准规则",
+      "rationale": "P5 只沉淀 evidence gate，不补齐 CT、reference-date 或完整 conformity 缺口。",
+      "evidence_refs": [
+        "knowledge/promotion_candidates/ae-rule-governance-report.json"
+      ],
+      "auto_approved": false
+    }
+  ],
+  "urgency": "blocking",
+  "created_at": "2026-07-17T09:00:00+08:00",
+  "generated_by": "P9 AE Rule Governance Classifier",
+  "auto_approved_count": 0
+}

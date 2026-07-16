@@ -241,3 +241,41 @@
 - `clinical-workflow/src/codegen/`, `tests/test_p9_sample_ae_poc.py`, sample API test
 - `clinical-studies/SAMPLE-AE-001/work/mapping/`, `.review_queue/`, audit and README
 - `docs/specs/02/09/17/21`, `docs/main/memory/`, `docs/dep/`（本 Phase 提交）
+
+### R055 [00:25] [P9-metadata-driven-sdtm-ae-minimal-poc] P5: 建立 AE 规则治理候选与 clean-room 发布链路
+
+#### Done
+
+- 新增 `src/knowledge/ae_rule_governance.py`，从 P4 Mapping context/spec 分类 `general_rule_candidate`、`study_specific_rule` 和 `unresolved_gap`，并生成中文 reusable-rule ReviewPacket。
+- 实际 `SAMPLE-AE-001` 写入 `knowledge/promotion_candidates/ae-rule-governance-report.json` 和 `.review_queue/sap_review_p9_ae_rule_governance_v1_001.json`；真实 Study 仍等待 human-loop，不生成 approved candidate。
+- 新增 Wiki release 脚本 `p9_ae_rule_governance_release.py`：只接受已批准、去标识且 hash/decision/evidence 闭合的 candidate，写入 governed card、release、snapshot 和 Wiki governance evidence。
+- 新增 clean-room reuse proof：只读取新 snapshot，不读取原 Study candidate/DecisionReceipt，再构造 Mapping context rule ref。
+- Application API sample test 已纳入第四个 pending review，确认 Study Console/Review façade 可看到 P5 reusable-rule ReviewPacket。
+- 同步 SPEC-15/21、P9.1 计划、TASK_STATE 和项目记忆，明确 P5 当前是 Review gate pending，不解锁 P6 或旧 P9。
+
+#### Issues / Blockers
+
+- 真实 `SAMPLE-AE-001` 尚无人工 DecisionReceipt，因此没有 `ae-rule-governance-approved.json`、Wiki card、release 或 P9 snapshot；隔离测试不能代替真实 Study 审核。
+- `reusable-rule promotion` 暂复用既有 `sap_review` ReviewType 枚举，避免未协调升级 shared bundle/Wiki snapshot；语义由 review_id、标题、finding 和 evidence refs 固定。
+- 既有 R050 shared bundle hash 漂移仍按原记录保留；本轮未修改 released bundle。
+
+#### Validation
+
+- `python -m pytest tests/test_p9_rule_governance.py tests/application_api/test_sample_study_scaffold.py tests/test_p9_sample_ae_poc.py -q`（19 passed, 17 warnings）。
+- `python -m pytest tests/test_p9_ae_rule_governance_release.py tests/test_p6_release_quality.py -q`（16 passed, 1 warning）。
+- `python -m pytest -q -k "not test_shared_contract_bundle_is_complete_and_hash_locked"`（265 passed, 1 deselected；排除项为既有 bundle 漂移）。
+- `python -m ruff check src tests`（success）。
+- `python -m ruff check scripts tests`（success）。
+
+#### Next
+
+1. 用户在真实 workflow human-loop 中审核 `sap_review_p9_ae_rule_governance_v1_001`。
+2. 若全部 approved，运行 Study-local approved candidate 生成，再执行 Wiki release 脚本和 clean-room reuse 验证。
+3. 若 rejected/modified，候选保持 Study-local 并进入 rework；不得写入 governed Wiki。
+
+#### Files Changed / Commits
+
+- `clinical-workflow/src/knowledge/ae_rule_governance.py`, `clinical-workflow/tests/test_p9_rule_governance.py`
+- `clinical-llm-wiki/scripts/content/p9_ae_rule_governance_release.py`, `clinical-llm-wiki/tests/test_p9_ae_rule_governance_release.py`
+- `clinical-studies/SAMPLE-AE-001/knowledge/promotion_candidates/`, `.review_queue/`, `audit_trail.jsonl`
+- `docs/specs/15-Review-Protocol.md`, `docs/specs/21-Knowledge-Workflow-Integration.md`, `docs/main/memory/`, `docs/dep/`（本轮提交）

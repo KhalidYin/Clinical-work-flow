@@ -1174,4 +1174,10 @@ P8-P5 的 Study Console 增加 Artifact、Context/Provenance 和 Audit 视图，
 - mapping/program review：确认 Minimum Information Plan 限定的 MappingSpec、显式 gap、三语言程序 manifest 和 reference execution；批准后才能提升目标产物。
 - reusable-rule promotion review：确认去标识、一般化条件、非适用范围和 evidence；批准前 candidate 只留在当前 Study。
 
+P9.1-P5 的 reusable-rule promotion 暂复用已发布枚举 `sap_review`，对应
+`sap_review_p9_ae_rule_governance_v1_001`。这是 shared Review Protocol / Wiki locked
+snapshot 尚未进行跨模块 bundle 迁移前的兼容措施，不表示该包审核 SAP 内容；实际语义由
+`review_id`、标题、finding、evidence refs 和 source documents 固定为规则治理候选审核。若后续新增
+`reusable_rule_promotion` 枚举，必须同步 Engine schema、Wiki mirror、snapshot 兼容策略和 Application API。
+
 开发阶段的 Phase 确认和用户单机 UAT 不写 ReviewPacket；Review Panel 只处理实际 Workflow Human-loop。
