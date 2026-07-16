@@ -559,3 +559,17 @@ Phase 4: Review Panel 集成 (1 周)
 | ADaM 规范 | [SPEC-03](03-ADaM.md) |
 | TFL | [SPEC-04](04-TFL.md) |
 | QC + Submission | [SPEC-05](05-QC-Submission.md) |
+
+---
+
+## 10. P7 AE 代码生成与执行基线
+
+P7 没有引入自由代码执行，也没有接入真实 SAS/R 运行时。首版采用 deterministic Python adapter 证明以下边界：
+
+- LLM 产物边界是结构化 MappingSpec 候选，而不是可直接运行的自由文本脚本；
+- adapter 只读取已闭合的 MappingSpec、Study fixture、P6 approved rules 和 explicit gaps；
+- 程序说明以 `ae_program_manifest.json` 保存，逐项记录 mapping ID、source refs、rule refs、study decision refs 和 adapter operation；
+- `ae_execution_log.json`、`ae_validation_report.json`、draft/canonical provenance 和 traceability report 构成执行证据链；
+- P7 只生成 synthetic AE CSV，不生成 SAS/R 程序文件、不做 cross-language QC、不生成 XPT、Define-XML 或递交包。
+
+后续若接入 SAS/R/open-source adapter，必须继续遵循 P7 已验证的模式：结构化 MappingSpec 先闭合，Action Policy 再授权执行，validation/review 通过后才提升 canonical artifact。

@@ -365,3 +365,13 @@ SDTMIG 3.4 的生产知识权威不再来自本文中的静态示例表，而来
 - AEDECOD/MedDRA 编码、Controlled Terminology 深度包、CRF/EDC→SDTM 可执行编程指导和当前 Study 特定 AE 规则为显式 gap。
 
 SDTM Spec/Programming 阶段调用知识时应优先使用 Knowledge Service 或 Study-local locked snapshot。若查询返回 gap，Agent 必须生成 ReviewPacket 或等待 P7/Study 规则补齐，不能用模型常识或本文示例补写为已批准规则。
+
+### 6.2 P7 AE 合成执行基线
+
+P7 已实现一条 synthetic AE 纵向闭环，用于证明 SDTM AE 可以由 Wiki 知识、当前 Study context 和 Workflow 受控执行共同驱动：
+
+- `build_sdtm_ae_dataset()` 接收用户请求“生成 AE 数据集”，自动执行一次 AE context 查询、MappingSpec 引用闭合、受控 adapter 执行、validation、ReviewPacket、DecisionReceipt、ConfirmationReceipt 和 canonical promotion；
+- 首版只覆盖 synthetic fixture 中 9 个 mapped 变量：STUDYID、DOMAIN、USUBJID、AESEQ、AETERM、AESTDTC、AEENDTC、AESTDY、AEENDY；
+- AEDECOD/MedDRA、AESEV/Controlled Terminology 和 AEENRF 可执行规则仍是显式 gap，不由 LLM 或 adapter 补默认值；
+- canonical AE 只在 Review approved 且 rule evidence/source locator/hash 闭合后写入 `output/sdtm/datasets/ae.csv`；
+- 该基线仅适用于 `ae-pilot` synthetic fixture，不代表真实 Study 或 GxP 生产批准。

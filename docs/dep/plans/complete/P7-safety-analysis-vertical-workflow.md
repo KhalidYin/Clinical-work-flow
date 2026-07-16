@@ -1,6 +1,6 @@
 ---
 phase_index: 7
-status: in-progress
+status: done
 created: 2026-07-14
 updated: 2026-07-16
 priority: 1
@@ -343,4 +343,4 @@ User: build SDTM AE
 
 | 日期 | 已同步到 | 说明 |
 |------|----------|------|
-| - | 尚未同步 | 计划完成后按 `syncs_to` 执行 |
+| 2026-07-16 | SPEC-02/09/15/17/21、USAGE、项目记忆、P7 Review 记录 | P7 synthetic AE baseline、受控 adapter、Review promotion、traceability 和边界已同步 |

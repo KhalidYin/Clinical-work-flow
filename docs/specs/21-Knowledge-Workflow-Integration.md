@@ -518,3 +518,18 @@ P6 clinical knowledge evolution 已用 SDTMIG 3.4 真实 PDF 与配套规范 XLS
 - release gate 证明 100% approved statement 具有 source/version/locator/hash，关系 0 dangling，11/11 查询 benchmark 通过，4 类代表性缺口显式返回。
 
 该基线是 P7 “生成 SDTM AE” 的可引用知识输入，不是执行层本身。P7 仍需结合当前 Study context、CRF/EDC metadata、Study decisions、Review Protocol 和受控程序 adapter 生成 MappingSpec/程序候选。AEDECOD/MedDRA、Controlled Terminology 深度包、CRF/EDC→SDTM 可执行编程过程和当前 Study 特定 AE 规则在 P6 中保持 gap，不允许用 LLM 推断成已批准知识。
+
+---
+
+## 21. P7 已实现的 AE 知识驱动执行闭环
+
+P7 已在 synthetic `ae-pilot` fixture 上证明首条“Wiki + Study + Workflow”实际执行链：
+
+- 一次 AE context package 同时装配 P6 approved release、AE citation bundle、query benchmark、Study CRF/EDC/raw/source hash 和 approved Study context；
+- MappingSpec 候选必须通过 schema、P6 lock、rule/source/study decision/gap 引用闭合，才能进入执行；
+- 受控 `p7_synthetic_ae_python_adapter_v1` 通过 Engine Action Policy 授权 `sdtm_program_runner` 执行，不接受任意命令或脚本路径；
+- draft AE 先落 `output/sdtm/drafts/`，ReviewPacket/DecisionReceipt/ConfirmationReceipt 成功后才提升到 `output/sdtm/datasets/ae.csv`；
+- traceability report 将 canonical AE 追溯到 mapping、rule refs、Study decisions、source version、artifact、locator 和 artifact hash；
+- 在线原 package 与复制的 locked package 使用相同锁定输入时产生等价 context、applied refs 和 canonical AE hash。
+
+该闭环仍是本地 synthetic baseline。它不扩大 P6 知识范围，不替代真实 Study 审核，不引入新前端，也不覆盖完整十阶段临床递交流程。后续 P8 若建设 Study Console，应复用该文件协议和 traceability 结果，而不是改变 Review/Knowledge/Workflow 的权威边界。

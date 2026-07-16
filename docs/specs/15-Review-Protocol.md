@@ -1098,3 +1098,15 @@ Phase 3 (部分实现/后续增强): Agent SDK Schema Integration
 - Study rule 只有在 finding、decision、confirmation 与 decision ID/hash 一致时可进入 Context。
 - Promotion candidate 默认 proposed 且只写当前 Study；去标识化与独立审核之前不得写入 Wiki 或 Prior Studies。
 - P6 平台验收本身使用 `docs/reviews/p6_global_acceptance_v1_001.json`，其人工决定在签字前保持 pending。
+
+## 12. P7 AE Review 实现态
+
+P7 使用同一 Review Protocol 文件合同完成 synthetic AE canonical promotion：
+
+- Agent 写入 Study `.review_queue/sdtm_spec_ae_v1_001.json`，`review_type=sdtm_spec`，`urgency=blocking`；
+- 新生成 ReviewPacket 的人工可读字段使用中文，稳定机器字段、Schema 枚举、路径、hash 和 evidence refs 保持英文；
+- DecisionReceipt 全部 approved 后，Runtime 写入 `_confirmation.json`，再将 draft AE 提升为 canonical AE；
+- rejected receipt 只写 `_rework.json` 和 failed confirmation，不提升 canonical artifact；
+- ConfirmationReceipt、canonical provenance 和 traceability report 共同证明决策已应用，并保留 synthetic-only scope。
+
+P7 的 Review 结论只适用于合成基线工程验收，不是实际 Study 或 GxP 审批。

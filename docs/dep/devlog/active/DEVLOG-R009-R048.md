@@ -1150,3 +1150,40 @@ Done — no next steps。若需要跨阶段全量语义图，应另立 typed-rel
 - `docs/dep/PLAN.md`
 - `docs/dep/TASK_STATE.md`
 - `docs/dep/devlog/**`
+
+---
+
+### R042 [09:39] [P7-safety-analysis-vertical-workflow] Sync: 完成 P7 主文档同步、计划归档与 synthetic AE 基线发布
+
+#### Done
+- 将 P7 已实现能力同步到 SPEC-02/09/15/17/21、`USAGE.md` 和项目记忆，口径限定为 synthetic AE baseline。
+- 将 P7 子计划从 `plans/ongoing/` 移动到 `plans/complete/`，frontmatter 保持 `status: done`，并在 `PLAN.md` 中从“进行中”移到“最近完成”。
+- 新增项目记忆 `docs/main/memory/p7-ae-vertical-baseline.md`，记录 P7 已具备的最小链路、边界和后续演化入口。
+- 归档口径明确：P7 证明的是 Wiki 规则引用 + MappingSpec gate + 受控 adapter + Review promotion + traceability 的工程闭环，不代表真实 Study、GxP 或监管递交批准。
+
+#### Issues / Blockers
+- None
+
+#### Validation
+- `python -m pytest tests/test_p7_ae_workflow_e2e.py tests/test_p7_ae_execution.py tests/test_p7_ae_mapping_context.py tests/test_p7_ae_mapping_contract.py tests/test_review_protocol.py tests/test_knowledge_contracts.py tests/test_runtime_knowledge_integration.py -q`（94 passed）
+- `python -m ruff check src/agents/ae_workflow.py src/agents/ae_execution.py src/agents/ae_mapping.py tests/test_p7_ae_workflow_e2e.py tests/test_p7_ae_execution.py tests/test_p7_ae_mapping_context.py tests/test_p7_ae_mapping_contract.py`（success）
+- `git diff --check`（success；仅 LF/CRLF warning）
+
+#### Next
+1. Done — P7 已完成并归档。
+2. 后续若继续，应从 P8：Workflow Application API 与本地 Study Console 开始，且需基于 P7 证据重新确认范围。
+
+#### Files Changed / Commits
+- `docs/specs/02-SDTM.md`
+- `docs/specs/09-MCP-Tools-Design.md`
+- `docs/specs/15-Review-Protocol.md`
+- `docs/specs/17-Code-Generation.md`
+- `docs/specs/21-Knowledge-Workflow-Integration.md`
+- `USAGE.md`
+- `docs/main/memory/MEMORY.md`
+- `docs/main/memory/p7-ae-vertical-baseline.md`
+- `docs/dep/PLAN.md`
+- `docs/dep/plans/complete/P7-safety-analysis-vertical-workflow.md`
+- `docs/dep/plans/ongoing/P7-safety-analysis-vertical-workflow.md`（moved）
+- `docs/dep/devlog/INDEX.md`
+- `docs/dep/devlog/active/DEVLOG-R009-R048.md`

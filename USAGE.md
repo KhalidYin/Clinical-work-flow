@@ -110,12 +110,32 @@ Set-Location .\clinical-workflow
 
 Runtime 生成 `ReviewPacket` 后会暂停。使用 Review Panel 批量提交决定；只有成功应用的 ConfirmationReceipt 才能推进需要审核的 canonical artifact。ADaM Spec 先进入 `output/adam/drafts/`，审核成功后才提升到 `output/adam/specs/`。
 
+### P7 synthetic AE 端到端基线
+
+P7 提供一个本地 synthetic fixture，证明“生成 AE 数据集”可以走完整知识驱动执行链。该入口只用于工程回归，不用于真实 Study：
+
+```powershell
+Set-Location .\clinical-workflow
+python -m pytest tests/test_p7_ae_workflow_e2e.py -q
+```
+
+核心入口位于 `src/agents/ae_workflow.py`：
+
+- `build_sdtm_ae_dataset(..., auto_approve=False)`：生成 draft AE 和 blocking ReviewPacket，停在人工审核前；
+- `submit_fixture_ae_acceptance()`：仅在 synthetic fixture 测试中写批准 DecisionReceipt；
+- `apply_ae_review_decision()`：应用 DecisionReceipt，写 ConfirmationReceipt，并在证据闭合时提升 canonical AE。
+
+运行产物落在测试 Study 副本的 `output/sdtm/`：draft、canonical dataset、program manifest、validation report、execution log、provenance 和 traceability report。AEDECOD、AESEV、AEENRF 仍是显式 gap。
+
 ## 6. 验证
 
 ```powershell
 Set-Location .\clinical-workflow
 ..\.venv\Scripts\python -m pytest -q
 ..\.venv\Scripts\python -m ruff check .
+
+# P7 synthetic AE 纵向链路
+..\.venv\Scripts\python -m pytest tests/test_p7_ae_workflow_e2e.py tests/test_p7_ae_execution.py tests/test_p7_ae_mapping_context.py tests/test_p7_ae_mapping_contract.py -q
 
 Set-Location ..\clinical-llm-wiki
 ..\.venv\Scripts\python -m pytest -q

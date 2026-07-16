@@ -8,7 +8,7 @@ updated: 2026-07-16
 
 | # | 子计划 | 文件 | 当前阶段 | 已用轮次 | 开始日期 |
 |---|--------|------|----------|----------|----------|
-| P7 | AE 数据集知识驱动执行闭环 | [P7-safety-analysis-vertical-workflow.md](plans/ongoing/P7-safety-analysis-vertical-workflow.md) | P4 已关闭；进入完成同步与归档 | 4 | 2026-07-15 |
+| - | - | - | - | - | - |
 
 ## 待开始
 
@@ -25,9 +25,9 @@ updated: 2026-07-16
 
 | 日期 | 子计划 | 文件 | 已同步到 |
 |------|--------|------|----------|
+| 2026-07-16 | AE 数据集知识驱动执行闭环 | [P7-safety-analysis-vertical-workflow.md](plans/complete/P7-safety-analysis-vertical-workflow.md) | SPEC-02/09/15/17/21、USAGE、项目记忆、P7 Review 记录 |
 | 2026-07-15 | SDTMIG 3.4 知识解析质量与引用基线 | [P6-clinical-knowledge-evolution.md](plans/complete/P6-clinical-knowledge-evolution.md) | SPEC-02/07/13/21、USAGE、Wiki README、P6 release artifacts |
 | 2026-07-15 | 根目录轻量本地 Review Panel | [P0-local-review-panel.md](plans/complete/P0-local-review-panel.md) | review-panel 模块、SPEC-13/15/16/21、README、USAGE、DEVLOG |
-| 2026-07-14 | Obsidian 策展式工作流关系图 | [P5-obsidian-curated-relation-graph.md](plans/complete/P5-obsidian-curated-relation-graph.md) | SPEC-21、USAGE、Wiki README、Vault关系投影与客户端配置 |
 
 ## 延后
 

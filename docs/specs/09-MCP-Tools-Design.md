@@ -768,3 +768,15 @@ def test_cross_tool_consistency():
 六个 core tool 名称和无状态边界不变。`adam_spec_build` 的 ADAE 分支不再提供硬编码 TEAE 默认值：Runtime 必须从当前 ExecutionContext 选择恰好一条已批准的结构化 Study `TEAEWindowRule`，按 dataset binding 传入 `teae_rule` 与 `applied_rule_refs`。自然语言 statement 不参与参数解析。
 
 工具仍只返回确定性对象；Runtime 负责把结果写入 `output/adam/drafts/`、生成 provenance 和 blocking ADAM_SPEC ReviewPacket。确认成功后才提升到 `output/adam/specs/`。ADSL 等非 ADAE 数据集不得接受 TEAE 参数，缺规则、重复规则或引用无法映射到 provenance 时在产物前阻断。
+
+## 7. P7 AE 受控 adapter 基线
+
+P7 未新增 core MCP tool，也未改变六个 core tool 名称。AE 执行通过 Engine 既有受控 executable `sdtm_program_runner` 完成：
+
+- `p7_synthetic_ae_python_adapter_v1` 是 fixture-scoped adapter，只允许在 `sdtm_programming` stage 由 `ActionPolicy` 授权调用；
+- adapter 请求中的 `command`、`script_path`、`executable_path`、`next_stage`、`skip_stage` 等字段继续 fail closed；
+- adapter 不访问网络，不接受任意脚本路径，不把 Wiki Markdown/PDF 文本当成执行指令；
+- 程序 manifest 记录每个 `mapping_id` 对应的 source refs、rule refs、study decision refs 和固定 adapter operation；
+- validation blocking finding、review rejected、断链 evidence 或损坏 knowledge package 均不会产生 canonical AE。
+
+该 adapter 证明了“结构化 MappingSpec + 确定性执行门”的最小模式。真实 SAS/R 后端、sdtm.oak、CDISC CORE 或其他开源实现仍需基于实际 Study 需求另行评估，不在 P7 中成为知识权威或平台前置依赖。
