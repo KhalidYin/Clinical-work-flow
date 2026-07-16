@@ -115,7 +115,7 @@ User: build SDTM AE
 | P1 | 冻结 AE fixture、MappingSpec 和验收结果 | 2-3 | P6 Snapshot | done |
 | P2 | 实现一次 Wiki 查询和 LLM MappingSpec 候选 | 3-4 | P1 | done |
 | P3 | 实现受控程序生成、执行和 SDTM 验证 | 3-5 | P2 | done |
-| P4 | 完成 Review、引用追溯和端到端验收 | 2-4 | P3 | pending |
+| P4 | 完成 Review、引用追溯和端到端验收 | 2-4 | P3 | done |
 
 ---
 
@@ -285,14 +285,24 @@ User: build SDTM AE
 - artifact→mapping→rule/study decision→source locator→hash 的追溯报告。
 - 中断恢复、reject/rework、断链引用和损坏 Snapshot 回归。
 
+### P4 实施记录
+
+- 新增 `src/agents/ae_workflow.py`，提供单入口 `build_sdtm_ae_dataset()`。用户请求“生成 AE 数据集”后，函数自动串联 P2 context/candidate gate、P3 controlled adapter、validation、blocking ReviewPacket、可选 fixture DecisionReceipt、ConfirmationReceipt、canonical promotion 和 traceability report。
+- ReviewPacket 使用中文 `agent_summary`、title、current/proposed value 和 rationale，稳定机器字段保持英文；Review 内容确认 synthetic AE draft 可提升为 canonical，并确认 AEDECOD、AESEV、AEENRF 仍是显式 gap。
+- `apply_ae_review_decision()` 只有在所有非 auto-approved finding 均 approved、draft artifact/provenance 存在且 applied rule evidence 闭合时，才把 `output/sdtm/drafts/ae.csv` 提升为 `output/sdtm/datasets/ae.csv`。
+- canonical provenance 和 `output/sdtm/traceability/ae_traceability_report.json` 记录 context hash、MappingSpec hash、DecisionReceipt hash、program/validation path、applied mappings、study decisions、explicit gaps，以及每条 applied rule 的 source version、artifact、locator 和 hash。
+- reject/rework、断链 rule evidence、损坏 knowledge package 和 validation mismatch 均 fail closed，不产生 canonical AE。
+- 新增 `test_p7_ae_workflow_e2e.py`，覆盖完整链、review-required resume、rejected review、断链追溯、locked package 等价和损坏知识包。
+- 新增 `docs/reviews/P7-AE-E2E-ACCEPTANCE.md`，记录 P7 合成基线工程验收结论和限制；明确不代表真实 Study、GxP 或监管递交批准。
+
 ### 完成标准
 
-- [ ] 用户输入“生成 AE 数据集”能够走完整主链，不需要人工拼接 Wiki 结果。
-- [ ] canonical AE、程序和验证结果均记录 loaded context 与实际 applied evidence。
-- [ ] 任一 applied rule 可回到批准 statement、source locator、版本和原件 hash。
-- [ ] 知识/Study 信息不足时停在结构化 review，不由 LLM 猜测后继续。
-- [ ] 在线/离线使用相同锁定输入时产生等价 MappingSpec、applied refs 和关键数据结果。
-- [ ] 全链测试和人工 AE 结果核验通过；结论只适用于本地合成基线。
+- [x] 用户输入“生成 AE 数据集”能够走完整主链，不需要人工拼接 Wiki 结果。
+- [x] canonical AE、程序和验证结果均记录 loaded context 与实际 applied evidence。
+- [x] 任一 applied rule 可回到批准 statement、source locator、版本和原件 hash。
+- [x] 知识/Study 信息不足时停在结构化 review，不由 LLM 猜测后继续。
+- [x] 在线/离线使用相同锁定输入时产生等价 MappingSpec、applied refs 和关键数据结果。
+- [x] 全链测试和人工 AE 结果核验通过；结论只适用于本地合成基线。
 
 ### 边界（本 Phase 明确不做）
 
@@ -319,6 +329,7 @@ User: build SDTM AE
 | D2 | P6 citation bundle 未覆盖所有基础映射会用到的 Core statement，但 approved release 已包含 28 条批准 statement | P1 | 已解决 | P1 的 `rule_refs` 验证 against `approved-proposal-release.json`，gap 验证 against `ae-citation-bundle.json`；P2 的一次查询需组合规则与 gap 返回 |
 | D3 | schema 的 `const` 会比闭合校验更早拦截错误 P6 lock，若不统一异常类型会让调用方同时处理 schema 和 context 两套失败形态 | P2 | 已解决 | `validate_ae_mapping_candidate()` 将 schema 错误统一包装为 `AEMappingCandidateError`，并对 P6 lock 错误保留明确失败信息 |
 | D4 | P3 可以用 deterministic Python adapter 证明受控执行闭环，不需要引入真实 SAS/R 运行时或开源 SDTM 平台 | P3 | 已解决 | P3 将 adapter 限定为 synthetic fixture scope，只产生 draft artifact；真实语言后端和开源 adapter 评估保留给后续实际需求 |
+| D5 | P4 的 approval 是 synthetic fixture 工程验收，不应被误读为真实 Study 临床/合规签字 | P4 | 已解决 | ReviewPacket/acceptance 文档和 traceability scope 均声明 P7 synthetic baseline only；真实 Study 仍需独立 Review 和 GxP 流程 |
 
 ## 关键决策记录
 

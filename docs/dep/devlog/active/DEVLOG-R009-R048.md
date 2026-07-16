@@ -1114,3 +1114,39 @@ Done — no next steps。若需要跨阶段全量语义图，应另立 typed-rel
 - `docs/dep/PLAN.md`
 - `docs/dep/TASK_STATE.md`
 - `docs/dep/devlog/**`
+
+---
+
+### R041 [00:47] [P7-safety-analysis-vertical-workflow] P4: 完成 AE 端到端 Review、canonical promotion 与追溯验收
+
+#### Done
+- 新增 `clinical-workflow/src/agents/ae_workflow.py`，提供 `build_sdtm_ae_dataset()` 单入口：用户请求“生成 AE 数据集”后自动串联 context、MappingSpec gate、controlled adapter、validation、ReviewPacket、DecisionReceipt、ConfirmationReceipt、canonical promotion 和 traceability report。
+- ReviewPacket 人工可读字段使用中文，机器 ID/Schema/path/hash 保持英文稳定；packet 要求人确认 synthetic AE draft promotion，并确认 AEDECOD、AESEV、AEENRF 继续作为 explicit gap。
+- `apply_ae_review_decision()` 只在所有 finding approved 且 applied rule evidence 闭合时，将 draft AE 提升为 `output/sdtm/datasets/ae.csv`；rejected review 写 rework，不产生 canonical。
+- traceability report 记录 context hash、MappingSpec hash、DecisionReceipt hash、program/validation path、applied mappings、Study decisions、explicit gaps，并把每条 applied rule 追溯到 source version、artifact、locator 和 hash。
+- 新增 `test_p7_ae_workflow_e2e.py`，覆盖完整链、review-required resume、rejected review、断链 evidence、locked package 等价和损坏知识包 fail-closed。
+- 新增 `docs/reviews/P7-AE-E2E-ACCEPTANCE.md`，记录 P7 合成基线工程验收和限制。
+- 更新 P7 子计划和 PLAN：P4 标记 done，进入完成同步与归档。
+
+#### Issues / Blockers
+- P4 的 fixture approval 只代表 synthetic engineering acceptance。已在 ReviewPacket、traceability scope 和 `docs/reviews/P7-AE-E2E-ACCEPTANCE.md` 中明确：不代表真实 Study、GxP 或监管递交批准。
+- 首轮 ruff 发现 `ae_workflow.py` 中 `validation` 与 `provenance` 两个未使用变量。根因是早期草稿保留的死代码；删除后 ruff 通过，行为测试无需变更。
+
+#### Validation
+- `python -m pytest tests/test_p7_ae_workflow_e2e.py tests/test_p7_ae_execution.py tests/test_p7_ae_mapping_context.py tests/test_p7_ae_mapping_contract.py -q`（25 passed）
+- `python -m pytest tests/test_p7_ae_workflow_e2e.py tests/test_p7_ae_execution.py tests/test_p7_ae_mapping_context.py tests/test_p7_ae_mapping_contract.py tests/test_review_protocol.py tests/test_knowledge_contracts.py tests/test_runtime_knowledge_integration.py -q`（94 passed）
+- `python -m ruff check src/agents/ae_workflow.py src/agents/ae_execution.py src/agents/ae_mapping.py tests/test_p7_ae_workflow_e2e.py tests/test_p7_ae_execution.py tests/test_p7_ae_mapping_context.py tests/test_p7_ae_mapping_contract.py`（success）
+
+#### Next
+1. 完成 P7 收尾同步：更新 SPEC-02/09/15/17/21、USAGE 和项目记忆。
+2. 将 P7 子计划移入 `plans/complete/`，PLAN 从进行中移到最近完成。
+3. 跑最终 P7 回归和 diff check 后提交完成归档。
+
+#### Files Changed / Commits
+- `clinical-workflow/src/agents/ae_workflow.py`
+- `clinical-workflow/tests/test_p7_ae_workflow_e2e.py`
+- `docs/reviews/P7-AE-E2E-ACCEPTANCE.md`
+- `docs/dep/plans/ongoing/P7-safety-analysis-vertical-workflow.md`
+- `docs/dep/PLAN.md`
+- `docs/dep/TASK_STATE.md`
+- `docs/dep/devlog/**`

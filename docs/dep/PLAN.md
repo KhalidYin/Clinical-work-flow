@@ -8,7 +8,7 @@ updated: 2026-07-16
 
 | # | 子计划 | 文件 | 当前阶段 | 已用轮次 | 开始日期 |
 |---|--------|------|----------|----------|----------|
-| P7 | AE 数据集知识驱动执行闭环 | [P7-safety-analysis-vertical-workflow.md](plans/ongoing/P7-safety-analysis-vertical-workflow.md) | P3 已关闭；下一阶段 P4：Review、追溯与端到端验收 | 3 | 2026-07-15 |
+| P7 | AE 数据集知识驱动执行闭环 | [P7-safety-analysis-vertical-workflow.md](plans/ongoing/P7-safety-analysis-vertical-workflow.md) | P4 已关闭；进入完成同步与归档 | 4 | 2026-07-15 |
 
 ## 待开始
 
