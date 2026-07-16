@@ -12,11 +12,12 @@ updated: 2026-07-16
 
 | # | 子计划 | 文件 | 预估轮次 | 依赖 |
 |---|--------|------|----------|------|
-| P9 | 多 Study 内网协作与受控部署 | [P9-multi-study-intranet-collaboration.md](plans/backlog/P9-multi-study-intranet-collaboration.md) | 20-32（执行前重估） | P8 完成并重新确认部署授权 |
+| P9.1 | Metadata-driven SDTM AE 最小信息单机 POC | [P9-metadata-driven-sdtm-ae-minimal-poc.md](plans/backlog/P9-metadata-driven-sdtm-ae-minimal-poc.md) | 14-22 | P8 完成；最终 Gate 必须由用户单机确认跑通 |
+| P9.2 | 多 Study 内网协作与受控部署 | [P9-multi-study-intranet-collaboration.md](plans/backlog/P9-multi-study-intranet-collaboration.md) | 20-32（执行前重估） | P9.1 完成并由用户确认；随后重新确认部署授权 |
 
 > 当前执行视野只展开 P6 → P8：P6 先建立 SDTMIG 3.4 Core/Events/AE 知识解析质量基线；P7 再用“生成 SDTM AE”证明 Wiki + LLM + Workflow 的实际执行价值；P8 在此基础上完成本地 Application API + Study Console。后续知识按同一质量 Gate 随实际 Workflow 缺口增量摄取。
 
-P8 已完成本地单机 Application API + Study Console 基线。下一步若继续推进前端/部署，应先从 P9 重新确认“内网协作/多用户/Runtime bridge”范围，不应把 P8 的 durable request adapter 误解为自动执行 Runtime。
+P8 已完成本地单机 Application API + Study Console 基线。当前先执行 P9.1，以本地 SAS7BDAT、Minimum Information Planner、Wiki 辅助 MappingSpec、三语言程序产物和知识复用完成真实单机 POC。自动测试通过不能解锁 P9.2；只有用户明确确认本机跑通后，才可重新确认“内网协作/多用户/Runtime bridge”范围。
 
 ## 最近完成
 

@@ -2,11 +2,11 @@
 phase_index: 9
 status: planning
 created: 2026-07-14
-updated: 2026-07-14
-priority: 1
+updated: 2026-07-16
+priority: 2
 estimated_rounds: 20-32
 depends_on:
-  - P8-workflow-api-study-console.md
+  - P9-metadata-driven-sdtm-ae-minimal-poc.md
 tags:
   - multi-study
   - intranet
@@ -30,9 +30,9 @@ syncs_to:
 
 ## 背景
 
-- P6–P8 依次证明知识资产、纵向执行链和单机产品入口；P9 才具备设计共享部署的真实行为证据。
+- P6–P8 依次证明知识资产、synthetic 纵向执行链和单机产品入口；新增的 Metadata-driven SDTM AE 最小信息 P9 必须再以本地 SAS7BDAT、最小信息 Planner、规则复用和用户单机确认建立真实 POC 证据，本计划才能开始。
 - 现有 SPEC-20 Web Relay 只覆盖审核中转，且与未来 Study Console 存在重叠；P8 将其吸收，P9 不重建独立 Relay。
-- 当前发布只授权 loopback、本地合成数据；真实 Study、内网身份、远程访问和多用户均需要独立安全与治理 Gate。
+- 当前发布只授权 loopback、本地合成/去标识 POC；真实 Study、内网身份、远程访问和多用户均需要独立安全与治理 Gate。
 - 方案来源：用户于 2026-07-14 批准的长期演化主线。
 
 ## 涉及范围
@@ -119,6 +119,7 @@ Internal Users
 
 ### 输入条件
 
+- `P9-metadata-driven-sdtm-ae-minimal-poc.md` 已完成，且用户已明确确认单机实际跑通。
 - P8 本地 API/Console 和纵向 E2E 已稳定。
 - 目标组织网络、身份提供方、数据分类和运维责任有可核对输入。
 
@@ -327,6 +328,7 @@ Internal Users
 |------|------|------|------|------|
 | 2026-07-14 | 首个共享拓扑 | 公开多租户 / 内网单租户多 Study / 桌面同步 | 内网单租户多 Study | 与临床数据隔离、现有文件权威和渐进验证匹配 |
 | 2026-07-14 | 扩容策略 | 预先微服务化 / 证据驱动扩容 | 证据驱动扩容 | 保持可审计和运维简单，避免架构先于需求 |
+| 2026-07-16 | 开始前置 Gate | P8 后直接开始 / 先完成 Metadata-driven SDTM AE 单机 POC | 先完成单机 POC | 内网协作不应早于实际原始数据、最小信息和知识复用闭环 |
 
 ## 同步记录
 
