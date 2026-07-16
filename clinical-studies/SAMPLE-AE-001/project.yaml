@@ -2,8 +2,8 @@ study_id: "SAMPLE-AE-001"
 protocol_id: "SAMPLE-AE-PROT-001"
 trial_phase: "phase_iii"
 therapeutic_area: "synthetic_safety"
-primary_language: "r"
-qc_language: "python"
+primary_language: "python"
+qc_language: "r"
 sponsor: "Synthetic Sample Sponsor"
 created_at: "2026-07-16T15:10:00+08:00"
 synthetic_only: true
@@ -16,18 +16,25 @@ standards:
 
 programming_chain:
   source_to_target: "edc_to_sdtm"
-  test_phase_primary: "r"
-  test_phase_qc: "python"
+  test_phase_executor: "python"
+  test_phase_qc_artifact: "r"
   production_target_primary: "sas"
   production_target_qc: "r"
+  required_code_artifacts_current_poc: ["python", "r", "sas"]
+  dataset_output_format_current_poc: "csv"
   requires_program_manifest: true
   requires_execution_log: true
   requires_provenance: true
+  r_execution: "optional_when_runtime_configured"
+  sas_execution: "generate_only_until_runtime_configured"
 
 source_policy:
   input_json_allowed: false
+  accepted_source_storage_formats: ["txt", "md", "pdf", "docx", "csv", "tsv", "xlsx", "xpt", "sas7bdat"]
+  current_poc_auto_parse_formats: ["txt", "csv"]
   derived_json_root: "work/derived"
   mapping_candidate_root: "work/mapping"
+  missing_required_source: "fail_closed"
   raw_input_roots:
     - "input/protocol"
     - "input/sap"

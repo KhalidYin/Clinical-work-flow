@@ -19,6 +19,7 @@ Runtime 通过显式配置接收 Knowledge Service endpoint，不得从 Study �
 {STUDY-ID}/
 ├── project.yaml
 ├── runtime-manifest.yaml
+├── source-inventory.yaml
 ├── workflow/
 │   ├── overrides/             # proposed/current 流程专项调整
 │   ├── decisions/             # DecisionReceipt 支持的已批准流程规则
@@ -30,10 +31,21 @@ Runtime 通过显式配置接收 Knowledge Service endpoint，不得从 Study �
 │   ├── snapshots/             # manifest 锁定的领域上下文快照
 │   └── promotion_candidates/  # 去标识、审核后的 Wiki 提案候选；不得自动提升
 ├── input/{protocol,sap,edc,external}/
+├── work/
+│   ├── derived/               # LLM/parser 结构化产物；禁止作为原始输入
+│   └── mapping/               # MappingSpec 候选和 mapping validation
+├── programs/
+│   └── edc_to_sdtm/{python,r,sas}/
 ├── output/{protocol,sap,sdtm,adam,tfl,qc,submission}/
 ├── .review_queue/
 └── audit_trail.jsonl
 ```
+
+`input/` 只保存真实项目中可收到的来源形态。允许存放 TXT/MD/PDF/DOCX、CSV/TSV/XLSX、XPT/SAS7BDAT 等来源文件；禁止把 LLM/parser 生成的 JSON 放入 `input/`。当前 POC 自动解析/执行只承诺 TXT/CSV，其他格式必须先经过 parser adapter 与 Review gate。
+
+线性链路的含义是 Gate 线性：Source Intake → Parser/Derived → Mapping → Program Chain → Draft Output → Review/Confirmation → Canonical Output。缺失必需来源、前一 Gate 未完成、格式未声明、hash 不匹配或程序链缺 required artifact 时必须 fail closed，不允许静默跳过或由 LLM 猜测补齐。
+
+POC 阶段可用 Python 执行 reference/test chain 并输出 CSV；R/SAS 程序仍应作为可追溯代码产物纳入 `programs/`，其中 SAS 在未配置执行环境前只生成、不执行。
 
 `workflow/decisions/` 与 `knowledge/decisions/` 只能保存具备审核证据的当前 Study 规则。
 override 或 Prior Study 引用在 Runtime 将其解析进 P2 `ExecutionContext` 并通过 Engine Action Policy 前，不具备可执行性。

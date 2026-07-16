@@ -3,6 +3,23 @@ status: "scaffold_review"
 synthetic_only: true
 input_json_allowed: false
 review_required_before_execution: true
+gate_policy:
+  chain: "linear_fail_closed"
+  source_intake_required_before_parser: true
+  parser_review_required_before_mapping: true
+  mapping_review_required_before_programming: true
+  program_review_required_before_canonical_output: true
+supported_input_formats:
+  accepted_source_storage: ["txt", "md", "pdf", "docx", "csv", "tsv", "xlsx", "xpt", "sas7bdat"]
+  current_poc_auto_parse: ["txt", "csv"]
+  forbidden_in_input: ["json"]
+required_source_roles:
+  - "study_design_context"
+  - "analysis_context"
+  - "crf_metadata"
+  - "edc_metadata"
+  - "ae_source_data"
+  - "reference_date_source"
 sources:
   - path: "input/protocol/protocol-synopsis.txt"
     source_type: "protocol_excerpt"

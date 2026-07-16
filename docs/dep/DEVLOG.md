@@ -2,7 +2,7 @@
 
 ## Active
 
-- Current batch: [DEVLOG-R009-R048.md](devlog/active/DEVLOG-R009-R048.md)
+- Current batch: [DEVLOG-R049-R088.md](devlog/active/DEVLOG-R049-R088.md)
 - Index: [devlog/INDEX.md](devlog/INDEX.md)
 
 ## Recent summaries

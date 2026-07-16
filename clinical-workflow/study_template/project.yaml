@@ -6,6 +6,7 @@ primary_language: "sas"
 qc_language: "r"
 sponsor: "Replace before use"
 created_at: "2026-07-13T00:00:00Z"
+synthetic_only: false
 
 standards:
   sdtm_version: "2.0"
@@ -13,6 +14,31 @@ standards:
   adam_version: "2.1"
   adamig_version: "1.3"
   ct_version: "2024-03"
+
+source_policy:
+  input_json_allowed: false
+  accepted_source_storage_formats: ["txt", "md", "pdf", "docx", "csv", "tsv", "xlsx", "xpt", "sas7bdat"]
+  current_poc_auto_parse_formats: ["txt", "csv"]
+  derived_json_root: "work/derived"
+  mapping_candidate_root: "work/mapping"
+  missing_required_source: "fail_closed"
+  raw_input_roots:
+    - "input/protocol"
+    - "input/sap"
+    - "input/edc"
+    - "input/external"
+
+programming_chain:
+  source_to_target: "edc_to_sdtm"
+  test_phase_primary: "python"
+  test_phase_qc: "r"
+  production_target_primary: "sas"
+  production_target_qc: "r"
+  dataset_output_format_current_poc: "csv"
+  requires_program_manifest: true
+  requires_execution_log: true
+  requires_provenance: true
+  sas_execution: "generate_only_until_runtime_configured"
 
 review_timeout:
   reminder_hours: 24
@@ -30,6 +56,8 @@ review_assignments:
 
 paths:
   input_dir: "input"
+  work_dir: "work"
+  program_dir: "programs"
   output_dir: "output"
   review_queue_dir: ".review_queue"
   audit_log: "audit_trail.jsonl"

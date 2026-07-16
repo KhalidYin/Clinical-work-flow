@@ -91,6 +91,28 @@ Obsidian 默认全局图只包含十个 Stage Relation Projection 和十个 Stag
 
 Study 不定义共享 Schema，不修改一般规则正文，不把未批准的当前决策自动推广为一般规则。
 
+#### 2.3.1 Study source / derived / program 边界
+
+Study 的执行链路按阶段线性推进，但每个阶段内部允许 LLM、脚本和人工审核共同完成。线性只表示 Gate 依赖，不表示所有操作都必须由固定脚本一次跑完。
+
+当前 POC 与后续真实 Study 必须区分四类文件：
+
+| 区域 | 允许内容 | 禁止内容 | Gate 语义 |
+|------|----------|----------|-----------|
+| `input/` | 临床实践收到的原始/半原始来源，例如 protocol/SAP 文本或 PDF、CRF/EDC 导出表、EDC/raw export CSV/XPT | LLM/parser 生成的 JSON、MappingSpec、程序、运行日志 | Source Intake 之前只做存在性、hash、来源类型和无真实数据检查 |
+| `work/derived/` | LLM 或脚本从来源解析出的结构化 JSON、source hash manifest、parser validation report | 未声明来源 hash 的解析产物、canonical dataset | Parser/Derived Review 通过前不得进入程序链 |
+| `work/mapping/` | MappingSpec 候选、字段映射证据、mapping validation report | 未审核即作为 canonical spec 的文件 | Mapping Review 通过前不得驱动 SDTM/ADaM 编程 |
+| `programs/` | EDC→SDTM、SDTM→ADaM、TFL 等程序链源码；POC 可同时保存 Python/R/SAS 版本 | 程序直接读取未审核 derived JSON；无输入 hash 的临时脚本 | Program Chain Review 通过前不得提升输出 |
+| `output/` | draft/canonical 数据集、规格、日志、validation、provenance 和 traceability | 原始来源的唯一副本、未标记状态的中间文件 | Review/Confirmation 后才形成 canonical completion evidence |
+
+`input/` 的存储格式可以比当前自动解析能力更宽：TXT/MD/PDF/DOCX 可作为 protocol/SAP 来源，CSV/TSV/XLSX 可作为 CRF/EDC metadata 来源，CSV/TSV/XPT/SAS7BDAT 可作为原始数据来源。当前 POC 自动执行只承诺 TXT/CSV；其他格式必须先通过 parser adapter 和 Review gate，不能被 Runtime 静默猜测。
+
+`input/` 下禁止 JSON。JSON 是机器派生产物，只能进入 `work/derived/`、`work/mapping/`、`.review_queue/` 或 `output/` 等有明确状态的区域。
+
+缺失必需来源、hash 不匹配、格式未声明、前一 Gate 未确认、或程序链缺少 required code artifact 时，后续阶段必须 fail closed，并产生可诊断的 review/runtime error。不得用空文件、默认映射、LLM 猜测或跳过阶段来继续生成 canonical artifact。
+
+POC 阶段的数据集输出优先使用 CSV 等可在终端直接查看的文本格式；机器 provenance、ReviewPacket、DecisionReceipt 和 manifest 可以继续使用 JSON/YAML，但必须明确状态、来源 hash 和可追溯路径。当前环境可用 Python 执行 reference/test chain；R 与 SAS 代码仍应作为显式程序产物纳入追溯，其中 SAS 在未配置执行环境前只生成、不执行。
+
 ---
 
 ## 3. 职责矩阵

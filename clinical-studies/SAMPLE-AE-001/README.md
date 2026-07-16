@@ -11,10 +11,13 @@
 1. `input/` 只保存临床实践中可能收到的原始或半原始材料，例如 protocol/SAP 文本摘录、CRF 字段表、EDC data dictionary、EDC/raw export CSV。
 2. `input/` 下禁止放 JSON。JSON 只能是 LLM 或脚本解析后的机器产物，后续放在 `work/derived/`、`work/mapping/`、`.review_queue/` 或 `output/`。
 3. EDC → SDTM 编程链必须可追溯。本脚手架已预留 `programs/edc_to_sdtm/{r,python,sas}/`：
-   - 测试阶段优先使用 R + Python 双链路；
+   - 当前 POC 用 Python 执行测试输出，数据集输出优先采用 CSV，便于终端直接检查；
+   - R/SAS 仍必须作为代码产物轨道带出并纳入 provenance；
+   - SAS 在未配置执行环境前只生成、不执行；
    - 生产要求可扩展到 SAS + R 双链路；
    - 每条链路后续都必须产生日志、manifest、validation report 和 provenance。
 4. `runtime-manifest.draft.yaml` 只是待审核草案，未命名为正式 `runtime-manifest.yaml`，因此当前 Study 不应被 Runtime 当作已锁定可执行实例。
+5. 当前 POC 链路是线性 Gate：Source Intake → Parser/Derived → Mapping → Program Chain → Draft Output → Review/Confirmation → Canonical Output。任一必需来源或前置 Gate 缺失时 fail closed，不静默跳过。
 
 ## 预期后续审核顺序
 
