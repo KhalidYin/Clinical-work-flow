@@ -1,0 +1,4 @@
+subject_id,ae_record_id,aeterm,ae_start_date,ae_end_date,severity_text,relationship_text,outcome_text
+S001,AE001,Headache,2026-01-11,2026-01-12,Mild,Not Related,Recovered
+S001,AE002,Nausea,2026-01-09,2026-01-10,Moderate,Related,Recovered
+S002,AE001,Rash,2026-01-15,,Severe,Unknown,Recovering

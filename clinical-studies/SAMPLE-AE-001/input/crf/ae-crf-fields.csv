@@ -1,0 +1,9 @@
+form_name,field_order,field_label,field_prompt,source_field,data_type,controlled_terms,required
+AE,1,Subject Identifier,Subject ID,subject_id,text,,yes
+AE,2,AE Record Identifier,AE record ID,ae_record_id,text,,yes
+AE,3,Verbatim Term,Adverse event term as reported,aeterm,text,,yes
+AE,4,Start Date,AE start date,ae_start_date,date,,yes
+AE,5,End Date,AE end date,ae_end_date,date,,no
+AE,6,Severity,Investigator-entered severity,severity_text,text,Mild;Moderate;Severe,no
+AE,7,Relationship,Relationship to study treatment,relationship_text,text,Related;Not Related;Unknown,no
+AE,8,Outcome,AE outcome,outcome_text,text,Recovered;Recovering;Not Recovered;Unknown,no

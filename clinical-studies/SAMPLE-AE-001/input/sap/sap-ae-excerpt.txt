@@ -1,0 +1,13 @@
+SAP excerpt: AE domain programming POC
+
+Scope:
+- Generate an SDTM AE candidate dataset from EDC/raw AE exports.
+- Preserve collected verbatim term as AETERM.
+- Derive AESTDY and AEENDY from AESTDTC/AEENDTC and RFSTDTC.
+- Do not infer AEDECOD, AESEV controlled terminology, or AEENRF without
+  approved knowledge and study-specific review.
+
+Review expectation:
+- Draft AE requires human review before canonical promotion.
+- Program-chain outputs must include source hash, program hash, execution log,
+  validation report, and traceability.

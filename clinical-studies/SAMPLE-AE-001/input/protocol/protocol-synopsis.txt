@@ -1,0 +1,15 @@
+Protocol: SAMPLE-AE-PROT-001
+Study: SAMPLE-AE-001
+Data classification: synthetic-only
+
+This sample study collects adverse event information for a small synthetic
+safety pilot. The protocol surrogate is intentionally plain text for scaffold
+review. A real project would provide an approved protocol PDF/DOCX.
+
+Key safety collection requirement:
+- Collect adverse event verbatim term.
+- Collect AE start and end dates.
+- Collect severity as investigator-entered text.
+- Collect relationship and outcome as source fields.
+- Reference date for study day calculation comes from the subject-level
+  reference export.

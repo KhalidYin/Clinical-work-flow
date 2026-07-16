@@ -1,0 +1,12 @@
+dataset,field_name,label,type,format,codelist,source_form,required
+AE_RAW,subject_id,Subject ID,string,,,"AE",yes
+AE_RAW,ae_record_id,AE Record ID,string,,,"AE",yes
+AE_RAW,aeterm,Adverse Event Verbatim Term,string,,,"AE",yes
+AE_RAW,ae_start_date,AE Start Date,date,YYYY-MM-DD,,"AE",yes
+AE_RAW,ae_end_date,AE End Date,date,YYYY-MM-DD,,"AE",no
+AE_RAW,severity_text,Severity,string,,Mild|Moderate|Severe,"AE",no
+AE_RAW,relationship_text,Relationship to Study Treatment,string,,Related|Not Related|Unknown,"AE",no
+AE_RAW,outcome_text,Outcome,string,,Recovered|Recovering|Not Recovered|Unknown,"AE",no
+SUBJECT_REF,subject_id,Subject ID,string,,,"Subject Reference",yes
+SUBJECT_REF,usubjid,Unique Subject Identifier,string,,,"Subject Reference",yes
+SUBJECT_REF,rfstdtc,Subject Reference Start Date,date,YYYY-MM-DD,,"Subject Reference",yes

@@ -1382,6 +1382,40 @@ Done — no next steps。若需要跨阶段全量语义图，应另立 typed-rel
 
 ---
 
+### R048 [15:26] POC: 创建 SAMPLE-AE-001 脚手架并冻结输入/derived/程序链边界
+
+#### Done
+- 新建 `clinical-studies/SAMPLE-AE-001/` sample study scaffold，状态为 `scaffold_review`，仅用于用户逐步审核。
+- 明确 `input/` 只保存临床实践形态的原始/半原始材料：protocol/SAP 文本摘录、CRF 字段表、EDC data dictionary、EDC/raw export CSV。
+- 明确 `input/` 下禁止 JSON；后续 LLM/脚本解析 JSON 只能进入 `work/derived/`，MappingSpec 候选进入 `work/mapping/`。
+- 预留 EDC→SDTM 程序链 `programs/edc_to_sdtm/{r,python,sas}/`：测试阶段 R/Python，生产演化目标 SAS/R。
+- `runtime-manifest` 先保存为 `runtime-manifest.draft.yaml`，不创建正式 `runtime-manifest.yaml`，避免 Console/Runtime 误判为已锁定可执行 Study。
+- 新增 `tests/application_api/test_sample_study_scaffold.py`，锁定 sample study 可被 Application API 发现、无 artifact、`input/` 无 JSON、程序链目录存在。
+
+#### Issues / Blockers
+- 用户指出前一版 POC 口径错误：输入物不应是 JSON；JSON 应是解析产物。已通过物理目录边界和测试固定。
+- 用户指出 EDC→SDTM 代码产物未进入链路，导致不可追溯。已预留 R/Python/SAS 程序链目录，但本阶段不生成可执行代码。
+
+#### Validation
+- `python -m pytest tests/application_api/test_sample_study_scaffold.py tests/application_api/test_readonly_api.py -q`（8 passed）
+- `ruff check tests/application_api/test_sample_study_scaffold.py`（success）
+- `yaml.safe_load` 检查 `project.yaml`、`source-inventory.yaml`、`runtime-manifest.draft.yaml`（success）
+- `input/` JSON 扫描结果为空。
+
+#### Next
+1. 等待用户审核 `SAMPLE-AE-001` scaffold、source inventory 和输入文件形态。
+2. 用户确认后，再生成 Source Intake ReviewPacket；不要直接生成 parser JSON。
+3. 后续阶段再设计 CRF/EDC parser output、MappingSpec、R/Python 程序链和 Review gate。
+
+#### Files Changed / Commits
+- `clinical-studies/SAMPLE-AE-001/**`
+- `clinical-workflow/tests/application_api/test_sample_study_scaffold.py`
+- `docs/dep/TASK_STATE.md`
+- `docs/dep/devlog/INDEX.md`
+- `docs/dep/devlog/active/DEVLOG-R009-R048.md`
+
+---
+
 ### R044 [10:54] [P8-workflow-api-study-console] P2: 实现 Study/status/artifact/context/provenance/audit 只读 API
 
 #### Done

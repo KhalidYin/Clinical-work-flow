@@ -1,0 +1,32 @@
+# Draft only. Do not rename to runtime-manifest.yaml until source intake and
+# knowledge lock review are approved.
+manifest_id: "manifest-sample-ae-001-draft"
+manifest_status: "draft_scaffold_only"
+schema_version: "1.1.0"
+revision: 0
+study_id: "SAMPLE-AE-001"
+created_at: "2026-07-16T15:10:00+08:00"
+pipeline_contract:
+  artifact_id: "contract-bundle"
+  version: "1.1.0"
+  sha256: "72e5fed6cd37fdb82888e3a7b2310fe44fa0953a30eb579688a7c580f2b33e14"
+domain_knowledge:
+  provider: "local-wiki"
+  snapshot_id: "snapshot-sdtmig34-core-events-ae-v1"
+  version: "1.0.0"
+  sha256: "d8aafb73ccca987d597e372435b664ba074c1a45688d5e2eef809c72f475a9ec"
+  fallback_path: "knowledge/snapshots/snapshot-sdtmig34-core-events-ae-v1.json"
+  contract_compatibility: {minimum: "1.0.0", maximum_exclusive: "2.0.0"}
+toolchain:
+  registry_version: "draft"
+  capabilities:
+    - "edc_to_sdtm_programming"
+    - "sdtm_validation"
+policies:
+  live_upgrade: "forbidden"
+  conflict: "fail_closed"
+  version: "exact_manifest_after_approval"
+  fallback: "locked_snapshot_only_after_approval"
+execution_boundary:
+  executable: false
+  reason: "Scaffold is awaiting source intake review and program-chain design."
