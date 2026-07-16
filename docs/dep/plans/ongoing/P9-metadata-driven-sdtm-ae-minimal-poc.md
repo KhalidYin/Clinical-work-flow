@@ -140,7 +140,7 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 | Phase | 目标 | 预估轮次 | 依赖 | 状态 |
 |-------|------|----------|------|------|
 | P1 | 修订上位合同并纠正 SAS7BDAT Source Intake | 2-3 | P8完成 | done |
-| P2 | 解析 SAS7BDAT 数据及完整可得元数据 | 3-4 | P1 | pending |
+| P2 | 解析 SAS7BDAT 数据及完整可得元数据 | 3-4 | P1 | done |
 | P3 | 实现 Minimum Information Planner 和 raw-only AE preflight | 2-4 | P2 | pending |
 | P4 | Wiki 辅助 MappingSpec、三语言程序和 Python reference execution | 4-6 | P3 | pending |
 | P5 | 通用规则治理、发布和干净再查询复用 | 2-3 | P4 | pending |
@@ -215,12 +215,12 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 
 ### 完成标准
 
-- [ ] Parser 同时读取数据行和 metadata，不再只返回 `list[dict]` 丢弃 `pyreadstat` metadata。
-- [ ] 变量名、类型、长度、column label、format/informat、value-label mapping（可得时）均有结构化字段和来源状态。
-- [ ] 外部 format catalog 缺失或 SAS7BDAT 不包含可解析 value labels 时，产物明确为 `unavailable`/gap，禁止从数据值猜标签。
-- [ ] 所有 derived artifact 记录原文件相对路径、sha256、parser/toolchain version 和生成时间；原文件不被修改。
-- [ ] 中文 parser review packet 能展示关键信息、缺失元数据和风险。
-- [ ] CSV/SAS7BDAT parser 正向、缺 catalog、损坏文件、hash 不符和路径越界测试通过，并单独提交。
+- [x] Parser 同时读取数据行和 metadata，不再只返回 `list[dict]` 丢弃 `pyreadstat` metadata。
+- [x] 变量名、类型、长度、column label、format/informat、value-label mapping（可得时）均有结构化字段和来源状态。
+- [x] 外部 format catalog 缺失或 SAS7BDAT 不包含可解析 value labels 时，产物明确为 `unavailable`/gap，禁止从数据值猜标签。
+- [x] 所有 derived artifact 记录原文件相对路径、sha256、parser/toolchain version 和生成时间；原文件不被修改。
+- [x] 中文 parser review packet 能展示关键信息、缺失元数据和风险。
+- [x] CSV/SAS7BDAT parser 正向、缺 catalog、损坏文件、hash 不符和路径越界测试通过，并单独提交。
 
 ### 边界（本 Phase 明确不做）
 
@@ -233,7 +233,7 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 | 文件 | 操作 | 预计行数 |
 |------|------|----------|
 | `clinical-workflow/src/mcp_tools/edc_importer.py` | 重构/扩展 | +150-250 |
-| `clinical-workflow/schemas/source/source-metadata.schema.json` | 新建 | ~150 |
+| `clinical-workflow/src/mcp_tools/contracts/source-metadata.schema.json` | 新建 prerelease contract | ~150 |
 | `clinical-workflow/tests/test_edc_importer.py` | 新建/扩展 | +150-250 |
 | `clinical-studies/SAMPLE-AE-001/work/derived/edc/` | 生成 POC 产物 | data-dependent |
 
@@ -446,6 +446,7 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 | D3 | P7 Mapping context 硬读取 CRF JSON/CSV fixture，不能支持 raw-only | 规划 | 阻断 | P3/P4 改由 Planner + Source Metadata 构建 |
 | D4 | 现有 promotion 只写 Study-local candidate，尚无端到端 governed import + reuse proof | 规划 | 阻断 | P5 建立最小发布和干净再查询 Gate |
 | D5 | PowerShell 环境没有 `ConvertFrom-Yaml` | P1 | 延后 | 验证改用项目 Python/PyYAML；不新增 PowerShell 依赖 |
+| D6 | R050 将 `source_intake` 加入 released Review Schema，但未同步 1.1.0 bundle hash；clean HEAD 可复现实际 hash `40d30d...` 与登记 `72e5fe...` 不一致 | P2 | 既有风险 | P2 不改旧 hash、不触发 Wiki snapshot 迁移；Source Metadata 保持 importer-local prerelease contract。P6 全量发布前必须建立协调迁移或恢复一致性 |
 
 ## 关键决策记录
 
@@ -457,9 +458,10 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 | 2026-07-16 | SAS7BDAT 存储 | 提交 Git / 本地 + hash / 转 CSV 后删除 | 本地 + hash | 保留生产常见来源和可追溯性，避免大二进制进入仓库 |
 | 2026-07-16 | 规则复用验收 | candidate 即完成 / governed publish + clean query | governed publish + clean query | 防止把待审候选误报为已沉淀知识 |
 | 2026-07-16 | 旧 P9 解锁 | 自动测试 / AI 判断 / 用户单机确认 | 用户单机确认 | 满足用户明确的部署前置边界 |
+| 2026-07-16 | P2 Source Metadata schema 发布范围 | 直接升级 shared bundle / importer-local prerelease | importer-local prerelease | 避免解析阶段静默使 P6/P7 locked Wiki snapshots 失效；跨模块发布留给协调迁移 |
 
 ## 同步记录
 
 | 日期 | 已同步到 | 说明 |
 |------|----------|------|
-| - | 尚未同步 | 各 Phase 完成后按 `syncs_to` 和主文档影响逐项同步 |
+| 2026-07-16 | SPEC-13/15/21、Study README、memory | P2 parser、local preview、显式 metadata gap 与 Review 边界 |

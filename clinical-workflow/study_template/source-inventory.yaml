@@ -10,7 +10,7 @@ gate_policy:
   program_review_required_before_canonical_output: true
 supported_input_formats:
   accepted_source_storage: ["txt", "md", "pdf", "docx", "csv", "tsv", "xlsx", "xpt", "sas7bdat"]
-  current_poc_auto_parse: ["txt", "csv"]
+  current_poc_auto_parse: ["txt", "csv", "sas7bdat"]
   planned_auto_parse: []
   forbidden_in_input: ["json"]
 target_artifact_profiles: {}

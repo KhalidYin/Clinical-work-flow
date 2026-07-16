@@ -679,3 +679,10 @@ P8 留下的明确后续项是 Runtime bridge：当前 `POST /runs` 只写 durab
 7. 自动测试通过不能解锁内网 P9，必须由用户在单机实际跑通并明确确认。
 
 该 POC 不修改六个 core MCP tools，也不跳过、重排或伪造十阶段。局部 SDTM AE draft 可以在没有 CRF 时生成，但只有证据充分的变量可映射；其余变量保持 gap/review。
+
+P9.1-P2 已实现本地来源 Parser Gate：`SAMPLE-AE-001` 的已登记 SAS7BDAT 在
+路径/hash 校验后生成 Source Metadata、缺失概况、local-only preview manifest、
+parser validation 和中文 ReviewPacket。该样例实际解析为 1066 行、73 列，全部
+73 个 column label 和 source format 可取得；informat、value-label mapping 和外部
+format catalog 保持显式 gap。P2 不调用 Wiki、不生成 MappingSpec，也不把 parser
+审核当作开发阶段确认。

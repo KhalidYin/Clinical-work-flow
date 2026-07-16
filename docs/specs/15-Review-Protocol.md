@@ -59,6 +59,13 @@
 
 `source_intake` 是 Study POC 后新增的正式 ReviewPacket 类型，用于审核 `input/` 来源清单、格式、hash、去标识/合成状态和可进入 parser 的范围。它只打开 Parser/Derived Gate，不提升 canonical artifact，也不授权未登记来源进入程序链。
 
+P9.1-P2 的 Parser/Derived 结果暂时继续使用已发布的 `source_intake` review type，
+但 `review_id`、标题和证据必须明确标记为 parser result。原因是新增独立
+`parser_output` 枚举会改变已发布 Review Protocol 及 Engine/Wiki 1.1.0 bundle；
+在 P3 尚未批准跨模块 bundle/snapshot 迁移前，不能为界面分类提前破坏既有 lock。
+该复用不合并两个 Gate：来源准入包和解析结果包仍是两个独立 ReviewPacket，分别
+记录来源许可与解析证据。
+
 ---
 
 ## 2. 协议架构

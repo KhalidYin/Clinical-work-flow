@@ -79,7 +79,11 @@ def test_study_template_contains_real_study_source_and_program_boundaries() -> N
     assert project["programming_chain"]["dataset_output_format_current_poc"] == "csv"
     assert project["programming_chain"]["sas_execution"] == "generate_only_until_runtime_configured"
     assert inventory["gate_policy"]["chain"] == "artifact_gates_fail_closed"
-    assert inventory["supported_input_formats"]["current_poc_auto_parse"] == ["txt", "csv"]
+    assert inventory["supported_input_formats"]["current_poc_auto_parse"] == [
+        "txt",
+        "csv",
+        "sas7bdat",
+    ]
     assert inventory["target_artifact_profiles"] == {}
     assert "json" in inventory["supported_input_formats"]["forbidden_in_input"]
 
@@ -99,8 +103,12 @@ def test_sample_source_inventory_declares_required_sources_and_gate_policy() -> 
     }
     assert project["source_policy"]["input_json_allowed"] is False
     assert project["source_policy"]["missing_required_source"] == "fail_closed"
-    assert project["source_policy"]["current_poc_auto_parse_formats"] == ["txt", "csv"]
-    assert project["source_policy"]["p9_planned_auto_parse_formats"] == ["sas7bdat"]
+    assert project["source_policy"]["current_poc_auto_parse_formats"] == [
+        "txt",
+        "csv",
+        "sas7bdat",
+    ]
+    assert project["source_policy"]["p9_planned_auto_parse_formats"] == []
     assert project["source_policy"]["source_requirements"] == "target_artifact_profile"
     assert project["programming_chain"]["test_phase_executor"] == "python"
     assert project["programming_chain"]["required_code_artifacts_current_poc"] == ["python", "r", "sas"]
@@ -123,7 +131,7 @@ def test_sample_source_inventory_declares_required_sources_and_gate_policy() -> 
     assert sas_source["role"] == "ae_source_data"
     assert sas_source["storage_policy"] == "local_untracked_raw"
     assert sas_source["required_in_repository"] is False
-    assert sas_source["parser_status"] == "planned_p9_p2"
+    assert sas_source["parser_status"] == "implemented"
     assert sas_source["sha256"] == "2a6d72e9e5fa4bb8e3cc14b0c412fce3c37e519f3ab9105cdcff33ba031e8749"
 
 
@@ -214,7 +222,35 @@ def test_source_intake_review_packet_is_valid_chinese_and_blocks_parser() -> Non
     assert "P2" in finding_text
 
 
-def test_sample_study_is_visible_to_application_api_with_pending_source_intake_review() -> None:
+def test_sample_sas_parser_artifacts_are_traceable_and_reviewable() -> None:
+    artifact_root = SAMPLE_STUDY / "work" / "derived" / "edc"
+    metadata = _load_json(artifact_root / "source-metadata.json")
+    profile = _load_json(artifact_root / "source-data-profile.json")
+    validation = _load_json(artifact_root / "source-parser-validation.json")
+    preview_manifest = _load_json(artifact_root / "source-preview-manifest.json")
+    packet = _load_json(
+        SAMPLE_STUDY / ".review_queue" / "source_intake_parser_ae_v1_001.json"
+    )
+
+    expected_hash = "2a6d72e9e5fa4bb8e3cc14b0c412fce3c37e519f3ab9105cdcff33ba031e8749"
+    assert metadata["artifact_type"] == "source_metadata"
+    assert metadata["source"]["sha256"] == expected_hash
+    assert metadata["dataset"]["row_count"] == 1066
+    assert metadata["dataset"]["column_count"] == 73
+    assert metadata["metadata_availability"]["column_labels"]["available_count"] == 73
+    assert metadata["metadata_availability"]["formats"]["available_count"] == 73
+    assert metadata["metadata_availability"]["value_labels"]["status"] == "unavailable"
+    assert profile["source"]["sha256"] == expected_hash
+    assert validation["valid"] is True
+    assert validation["checks"]["source_sha256_matches_inventory"] == "passed"
+    assert preview_manifest["preview"]["storage_policy"] == "local_untracked_noncanonical"
+    assert validate_review_packet_schema(packet) == []
+    assert packet["review_type"] == "source_intake"
+    assert "Parser/Derived 审核" in packet["agent_summary"]
+    assert all(finding["auto_approved"] is False for finding in packet["findings"])
+
+
+def test_sample_study_is_visible_with_source_and_parser_reviews() -> None:
     client = TestClient(create_app(ApplicationApiConfig(container_roots={"clinical-studies": STUDIES_ROOT})))
 
     studies = client.get("/api/v1/studies").json()
@@ -227,11 +263,21 @@ def test_sample_study_is_visible_to_application_api_with_pending_source_intake_r
     assert status["knowledge_lock"]["status"] == "missing"
 
     artifacts = client.get("/api/v1/studies/SAMPLE-AE-001/artifacts").json()
-    assert [artifact["artifact_id"] for artifact in artifacts["artifacts"]] == [
-        "review_queue--source_intake_sample_ae_v1_002.json"
-    ]
+    review_artifact_ids = {
+        artifact["artifact_id"]
+        for artifact in artifacts["artifacts"]
+        if artifact["artifact_type"] == "review_receipt"
+    }
+    assert review_artifact_ids == {
+        "review_queue--source_intake_sample_ae_v1_002.json",
+        "review_queue--source_intake_parser_ae_v1_001.json",
+    }
 
     reviews = client.get("/api/v1/studies/SAMPLE-AE-001/reviews").json()
-    assert reviews["reviews"][0]["review_id"] == "source_intake_sample_ae_v1_002"
-    assert reviews["reviews"][0]["review_type"] == "source_intake"
-    assert reviews["reviews"][0]["decision_state"] == "pending"
+    reviews_by_id = {review["review_id"]: review for review in reviews["reviews"]}
+    assert set(reviews_by_id) == {
+        "source_intake_sample_ae_v1_002",
+        "source_intake_parser_ae_v1_001",
+    }
+    assert all(review["review_type"] == "source_intake" for review in reviews_by_id.values())
+    assert all(review["decision_state"] == "pending" for review in reviews_by_id.values())

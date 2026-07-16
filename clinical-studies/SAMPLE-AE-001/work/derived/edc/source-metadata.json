@@ -1,0 +1,2107 @@
+{
+  "schema_version": "1.0.0",
+  "artifact_type": "source_metadata",
+  "artifact_id": "source-metadata-2a6d72e9e5fa",
+  "generated_at": "2026-07-16T09:15:23.517062+00:00",
+  "source": {
+    "relative_path": "input/edc/ae09jun2025.sas7bdat",
+    "format": "sas7bdat",
+    "sha256": "2a6d72e9e5fa4bb8e3cc14b0c412fce3c37e519f3ab9105cdcff33ba031e8749",
+    "size_bytes": 19667968
+  },
+  "parser": {
+    "name": "clinical-workflow-edc-importer",
+    "version": "1.0.0",
+    "python_version": "3.14.4",
+    "library_versions": {
+      "pandas": "2.3.3",
+      "pyreadstat": "1.3.5"
+    }
+  },
+  "dataset": {
+    "row_count": 1066,
+    "column_count": 73,
+    "file_label": null,
+    "file_encoding": "UTF-8",
+    "file_format": "sas7bdat",
+    "table_name": "AE09JUN2025"
+  },
+  "metadata_availability": {
+    "column_labels": {
+      "status": "available",
+      "available_count": 73,
+      "total_count": 73,
+      "reason": null
+    },
+    "formats": {
+      "status": "available",
+      "available_count": 73,
+      "total_count": 73,
+      "reason": null
+    },
+    "informats": {
+      "status": "unavailable",
+      "available_count": 0,
+      "total_count": 73,
+      "reason": "pyreadstat does not expose SAS informats from this dataset"
+    },
+    "value_labels": {
+      "status": "unavailable",
+      "available_count": 0,
+      "total_count": 73,
+      "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+    },
+    "external_format_catalog": {
+      "status": "not_supplied",
+      "available_count": 0,
+      "total_count": 1,
+      "reason": "No external SAS format catalog was registered"
+    }
+  },
+  "variables": [
+    {
+      "ordinal": 1,
+      "name": "projectid",
+      "logical_type": "double",
+      "source_storage_type": "double",
+      "storage_width": 8,
+      "column_label": {
+        "status": "available",
+        "value": "projectid",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "10",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 2,
+      "name": "project",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 765,
+      "column_label": {
+        "status": "available",
+        "value": "project",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$765",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 3,
+      "name": "studyid",
+      "logical_type": "double",
+      "source_storage_type": "double",
+      "storage_width": 8,
+      "column_label": {
+        "status": "available",
+        "value": "Internal id for the study",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "10",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 4,
+      "name": "environmentName",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 60,
+      "column_label": {
+        "status": "available",
+        "value": "Environment",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$60",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 5,
+      "name": "subjectId",
+      "logical_type": "double",
+      "source_storage_type": "double",
+      "storage_width": 8,
+      "column_label": {
+        "status": "available",
+        "value": "Internal id for the subject",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "10",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 6,
+      "name": "StudySiteId",
+      "logical_type": "double",
+      "source_storage_type": "double",
+      "storage_width": 8,
+      "column_label": {
+        "status": "available",
+        "value": "Internal id for study site",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "10",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 7,
+      "name": "Subject",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 150,
+      "column_label": {
+        "status": "available",
+        "value": "Subject name or identifier",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$150",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 8,
+      "name": "siteid",
+      "logical_type": "double",
+      "source_storage_type": "double",
+      "storage_width": 8,
+      "column_label": {
+        "status": "available",
+        "value": "Internal id for the site",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "10",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 9,
+      "name": "Site",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 765,
+      "column_label": {
+        "status": "available",
+        "value": "Site name",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$765",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 10,
+      "name": "SiteNumber",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 765,
+      "column_label": {
+        "status": "available",
+        "value": "SiteNumber",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$150",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 11,
+      "name": "SiteGroup",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 120,
+      "column_label": {
+        "status": "available",
+        "value": "SiteGroup",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$120",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 12,
+      "name": "instanceId",
+      "logical_type": "double",
+      "source_storage_type": "double",
+      "storage_width": 8,
+      "column_label": {
+        "status": "available",
+        "value": "Internal id for the instance",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "10",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 13,
+      "name": "InstanceName",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 765,
+      "column_label": {
+        "status": "available",
+        "value": "Folder instance name",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$765",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 14,
+      "name": "InstanceRepeatNumber",
+      "logical_type": "double",
+      "source_storage_type": "double",
+      "storage_width": 8,
+      "column_label": {
+        "status": "available",
+        "value": "InstanceRepeatNumber",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "10",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 15,
+      "name": "folderid",
+      "logical_type": "double",
+      "source_storage_type": "double",
+      "storage_width": 8,
+      "column_label": {
+        "status": "available",
+        "value": "Internal id for the folder",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "10",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 16,
+      "name": "Folder",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 50,
+      "column_label": {
+        "status": "available",
+        "value": "Folder OID",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$150",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 17,
+      "name": "FolderName",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 765,
+      "column_label": {
+        "status": "available",
+        "value": "Folder name",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$765",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 18,
+      "name": "FolderSeq",
+      "logical_type": "double",
+      "source_storage_type": "double",
+      "storage_width": 8,
+      "column_label": {
+        "status": "available",
+        "value": "Folder sequence number",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "12.1",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 19,
+      "name": "TargetDays",
+      "logical_type": "double",
+      "source_storage_type": "double",
+      "storage_width": 8,
+      "column_label": {
+        "status": "available",
+        "value": "Target days from study start",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "10",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 20,
+      "name": "DataPageId",
+      "logical_type": "double",
+      "source_storage_type": "double",
+      "storage_width": 8,
+      "column_label": {
+        "status": "available",
+        "value": "Internal id for data page",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "10",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 21,
+      "name": "DataPageName",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 765,
+      "column_label": {
+        "status": "available",
+        "value": "eCRF page name",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$765",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 22,
+      "name": "PageRepeatNumber",
+      "logical_type": "double",
+      "source_storage_type": "double",
+      "storage_width": 8,
+      "column_label": {
+        "status": "available",
+        "value": "Sequence number of eCRF page in folder",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "10",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 23,
+      "name": "RecordDate",
+      "logical_type": "double",
+      "source_storage_type": "double",
+      "storage_width": 8,
+      "column_label": {
+        "status": "available",
+        "value": "Clinical date of record (ex: visit date)",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "DATETIME22.3",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 24,
+      "name": "RecordId",
+      "logical_type": "double",
+      "source_storage_type": "double",
+      "storage_width": 8,
+      "column_label": {
+        "status": "available",
+        "value": "Internal id for the record",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "10",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 25,
+      "name": "RecordPosition",
+      "logical_type": "double",
+      "source_storage_type": "double",
+      "storage_width": 8,
+      "column_label": {
+        "status": "available",
+        "value": "Record number",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "10",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 26,
+      "name": "MinCreated",
+      "logical_type": "double",
+      "source_storage_type": "double",
+      "storage_width": 8,
+      "column_label": {
+        "status": "available",
+        "value": "Earliest data creation time",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "DATETIME22.3",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 27,
+      "name": "MaxUpdated",
+      "logical_type": "double",
+      "source_storage_type": "double",
+      "storage_width": 8,
+      "column_label": {
+        "status": "available",
+        "value": "Latest data update time",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "DATETIME22.3",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 28,
+      "name": "SaveTS",
+      "logical_type": "double",
+      "source_storage_type": "double",
+      "storage_width": 8,
+      "column_label": {
+        "status": "available",
+        "value": "Timestamp of last save in clinical views",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "DATETIME22.3",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 29,
+      "name": "StudyEnvSiteNumber",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 20,
+      "column_label": {
+        "status": "available",
+        "value": "StudyEnvSiteNumber",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$60",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 30,
+      "name": "AEYN",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 9,
+      "column_label": {
+        "status": "available",
+        "value": "Were there any Adverse Events?",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$9",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 31,
+      "name": "AEYN_STD",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 3,
+      "column_label": {
+        "status": "available",
+        "value": "Were there any Adverse Events?Coded Value",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$3",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 32,
+      "name": "AESTDAT",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 33,
+      "column_label": {
+        "status": "available",
+        "value": "Start date",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$33",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 33,
+      "name": "AEPRINF",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 9,
+      "column_label": {
+        "status": "available",
+        "value": "<i><b>If start date of Adverse Event is same date as the firstinfusion date</b></i><br/><br/>Did the Adverse Event occur prior to first infusion?",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$9",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 34,
+      "name": "AEPRINF_STD",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 3,
+      "column_label": {
+        "status": "available",
+        "value": "<i><b>If start date of Adverse Event is same date as the firstinfusion date</b></i><br/><br/>Did the Adverse Event occur prior to first infusion?Coded Value",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$3",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 35,
+      "name": "AEENDAT",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 33,
+      "column_label": {
+        "status": "available",
+        "value": "Stop date",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$33",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 36,
+      "name": "AESEV",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 87,
+      "column_label": {
+        "status": "available",
+        "value": "CTCAE Grade",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$87",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 37,
+      "name": "AESEV_STD",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 30,
+      "column_label": {
+        "status": "available",
+        "value": "CTCAE GradeCoded Value",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$30",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 38,
+      "name": "AESER",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 9,
+      "column_label": {
+        "status": "available",
+        "value": "Serious Event?<br/><br/>If Yes, complete SAE Criteria",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$9",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 39,
+      "name": "AESER_STD",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 3,
+      "column_label": {
+        "status": "available",
+        "value": "Serious Event?<br/><br/>If Yes, complete SAE CriteriaCoded Value",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$3",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 40,
+      "name": "AESDTH",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 6,
+      "column_label": {
+        "status": "available",
+        "value": "<ul/><li/>Results in death",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$6",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 41,
+      "name": "AESLIFE",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 6,
+      "column_label": {
+        "status": "available",
+        "value": "<ul/><li/>Is life-threatening",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$6",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 42,
+      "name": "AESHOSP",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 6,
+      "column_label": {
+        "status": "available",
+        "value": "<ul/><li/>Requires hospitalization or prolongation of existing hospitalization",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$6",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 43,
+      "name": "AESDISAB",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 6,
+      "column_label": {
+        "status": "available",
+        "value": "<ul/><li/>Results in persistent or significant disability or incapacity",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$6",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 44,
+      "name": "AESBIRTH",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 6,
+      "column_label": {
+        "status": "available",
+        "value": "<ul/><li/>Is a congenital anomaly or birth defect",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$6",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 45,
+      "name": "AESCONG",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 6,
+      "column_label": {
+        "status": "available",
+        "value": "<ul/><li/>Important medical events that may not result in death, be life-threatening, or require hospitalization",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$6",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 46,
+      "name": "AEREL",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 60,
+      "column_label": {
+        "status": "available",
+        "value": "Reasonable causal relationship to Study Drug",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$60",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 47,
+      "name": "AEREL_STD",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 60,
+      "column_label": {
+        "status": "available",
+        "value": "Reasonable causal relationship to Study DrugCoded Value",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$60",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 48,
+      "name": "AEACN",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 90,
+      "column_label": {
+        "status": "available",
+        "value": "Action taken with Study Drug",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$90",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 49,
+      "name": "AEACN_STD",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 90,
+      "column_label": {
+        "status": "available",
+        "value": "Action taken with Study DrugCoded Value",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$90",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 50,
+      "name": "AEACNOT1",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 6,
+      "column_label": {
+        "status": "available",
+        "value": "Other specific treatment(s) of Adverse Event,<br/>check all that apply <ul/><li/> None",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$6",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 51,
+      "name": "AEACNOT2",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 6,
+      "column_label": {
+        "status": "available",
+        "value": "<ul/><li/>Required Concomitant Medication",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$6",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 52,
+      "name": "AEACNOT3",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 6,
+      "column_label": {
+        "status": "available",
+        "value": "<ul/><li/>Other",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$6",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 53,
+      "name": "AEACNOTH",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 600,
+      "column_label": {
+        "status": "available",
+        "value": "&nbsp;&nbsp;&nbsp;&nbsp;If Other, please specify",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$600",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 54,
+      "name": "AEOUT",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 150,
+      "column_label": {
+        "status": "available",
+        "value": "Outcome",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$150",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 55,
+      "name": "AEOUT_STD",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 150,
+      "column_label": {
+        "status": "available",
+        "value": "OutcomeCoded Value",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$150",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 56,
+      "name": "COVAL",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 600,
+      "column_label": {
+        "status": "available",
+        "value": "Comments 1",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$600",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 57,
+      "name": "COVAL2",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 600,
+      "column_label": {
+        "status": "available",
+        "value": "Comments 2",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$600",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 58,
+      "name": "COVAL3",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 600,
+      "column_label": {
+        "status": "available",
+        "value": "Comments 3",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$600",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 59,
+      "name": "AETERM",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 600,
+      "column_label": {
+        "status": "available",
+        "value": "Adverse Event, specify, give diagnosis if possible",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$600",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 60,
+      "name": "AETERM_CoderDictName",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 450,
+      "column_label": {
+        "status": "available",
+        "value": "Adverse Event, specify, give diagnosis if possible_CoderDictName",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$450",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 61,
+      "name": "AETERM_CoderDictVersion",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 450,
+      "column_label": {
+        "status": "available",
+        "value": "Adverse Event, specify, give diagnosis if possible_CoderDictVersion",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$450",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 62,
+      "name": "AETERM_HLGT",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 1500,
+      "column_label": {
+        "status": "available",
+        "value": "Adverse Event, specify, give diagnosis if possible_HLGT",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$1500",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 63,
+      "name": "AETERM_HLGT_CD",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 150,
+      "column_label": {
+        "status": "available",
+        "value": "Adverse Event, specify, give diagnosis if possible_HLGT_CD",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$150",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 64,
+      "name": "AETERM_HLT",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 1500,
+      "column_label": {
+        "status": "available",
+        "value": "Adverse Event, specify, give diagnosis if possible_HLT",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$1500",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 65,
+      "name": "AETERM_HLT_CD",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 150,
+      "column_label": {
+        "status": "available",
+        "value": "Adverse Event, specify, give diagnosis if possible_HLT_CD",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$150",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 66,
+      "name": "AETERM_LLT",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 1500,
+      "column_label": {
+        "status": "available",
+        "value": "Adverse Event, specify, give diagnosis if possible_LLT",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$1500",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 67,
+      "name": "AETERM_LLT_CD",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 150,
+      "column_label": {
+        "status": "available",
+        "value": "Adverse Event, specify, give diagnosis if possible_LLT_CD",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$150",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 68,
+      "name": "AETERM_PT",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 1500,
+      "column_label": {
+        "status": "available",
+        "value": "Adverse Event, specify, give diagnosis if possible_PT",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$1500",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 69,
+      "name": "AETERM_PT_CD",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 150,
+      "column_label": {
+        "status": "available",
+        "value": "Adverse Event, specify, give diagnosis if possible_PT_CD",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$150",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 70,
+      "name": "AETERM_SOC",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 1500,
+      "column_label": {
+        "status": "available",
+        "value": "Adverse Event, specify, give diagnosis if possible_SOC",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$1500",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 71,
+      "name": "AETERM_SOC_CD",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 150,
+      "column_label": {
+        "status": "available",
+        "value": "Adverse Event, specify, give diagnosis if possible_SOC_CD",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$150",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 72,
+      "name": "DER_AESER",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 9,
+      "column_label": {
+        "status": "available",
+        "value": "DER_AESER",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$9",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    },
+    {
+      "ordinal": 73,
+      "name": "DER_AESER_STD",
+      "logical_type": "string",
+      "source_storage_type": "string",
+      "storage_width": 3,
+      "column_label": {
+        "status": "available",
+        "value": "DER_AESERCoded Value",
+        "reason": null
+      },
+      "source_format": {
+        "status": "available",
+        "value": "$3",
+        "reason": null
+      },
+      "source_informat": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "pyreadstat does not expose SAS informats from this dataset"
+      },
+      "value_labels": {
+        "status": "unavailable",
+        "label_set": null,
+        "mapping": {},
+        "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+      }
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "schema_version": "1.0.0",
+  "artifact_type": "source_parser_validation",
+  "artifact_id": "source-metadata-2a6d72e9e5fa",
+  "generated_at": "2026-07-16T09:15:23.517062+00:00",
+  "source": {
+    "relative_path": "input/edc/ae09jun2025.sas7bdat",
+    "format": "sas7bdat",
+    "sha256": "2a6d72e9e5fa4bb8e3cc14b0c412fce3c37e519f3ab9105cdcff33ba031e8749"
+  },
+  "parser": {
+    "name": "clinical-workflow-edc-importer",
+    "version": "1.0.0",
+    "python_version": "3.14.4",
+    "library_versions": {
+      "pandas": "2.3.3",
+      "pyreadstat": "1.3.5"
+    }
+  },
+  "valid": true,
+  "checks": {
+    "source_path_inside_study_root": "passed",
+    "source_sha256_matches_inventory": "passed",
+    "source_metadata_schema": "passed"
+  },
+  "schema_errors": [],
+  "gaps": [
+    {
+      "metadata": "informats",
+      "status": "unavailable",
+      "reason": "pyreadstat does not expose SAS informats from this dataset"
+    },
+    {
+      "metadata": "value_labels",
+      "status": "unavailable",
+      "reason": "No resolvable value-label mapping is embedded or supplied by catalog"
+    },
+    {
+      "metadata": "external_format_catalog",
+      "status": "not_supplied",
+      "reason": "No external SAS format catalog was registered"
+    }
+  ],
+  "derived_artifacts": {
+    "source_metadata": {
+      "relative_path": "work/derived/edc/source-metadata.json",
+      "sha256": "c5d94223a8a4ba6ecfe9c0e9d757c064a927f094d56e1f69086a3920d70d3147"
+    },
+    "data_profile": {
+      "relative_path": "work/derived/edc/source-data-profile.json",
+      "sha256": "d9a3ee59c76d4dc027f997b57f373b93c0c0c067a34ce1e76aac5476cea7e978"
+    },
+    "preview_manifest": {
+      "relative_path": "work/derived/edc/source-preview-manifest.json",
+      "sha256": "ba57152623028fe5cd9fce2b293b916b91cfadbbae2a6f7bc10989e28fd6e356"
+    }
+  }
+}

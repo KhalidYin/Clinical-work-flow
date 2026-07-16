@@ -1,0 +1,392 @@
+{
+  "schema_version": "1.0.0",
+  "artifact_type": "source_data_profile",
+  "artifact_id": "source-metadata-2a6d72e9e5fa",
+  "generated_at": "2026-07-16T09:15:23.517062+00:00",
+  "source": {
+    "relative_path": "input/edc/ae09jun2025.sas7bdat",
+    "format": "sas7bdat",
+    "sha256": "2a6d72e9e5fa4bb8e3cc14b0c412fce3c37e519f3ab9105cdcff33ba031e8749"
+  },
+  "parser": {
+    "name": "clinical-workflow-edc-importer",
+    "version": "1.0.0",
+    "python_version": "3.14.4",
+    "library_versions": {
+      "pandas": "2.3.3",
+      "pyreadstat": "1.3.5"
+    }
+  },
+  "row_count": 1066,
+  "column_count": 73,
+  "total_cells": 77818,
+  "missing_cells": 2132,
+  "missing_rate_pct": 2.7397,
+  "variables": [
+    {
+      "name": "projectid",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "project",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "studyid",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "environmentName",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "subjectId",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "StudySiteId",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "Subject",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "siteid",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "Site",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "SiteNumber",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "SiteGroup",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "instanceId",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "InstanceName",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "InstanceRepeatNumber",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "folderid",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "Folder",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "FolderName",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "FolderSeq",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "TargetDays",
+      "missing_count": 1066,
+      "missing_rate_pct": 100.0
+    },
+    {
+      "name": "DataPageId",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "DataPageName",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "PageRepeatNumber",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "RecordDate",
+      "missing_count": 1066,
+      "missing_rate_pct": 100.0
+    },
+    {
+      "name": "RecordId",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "RecordPosition",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "MinCreated",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "MaxUpdated",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "SaveTS",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "StudyEnvSiteNumber",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AEYN",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AEYN_STD",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AESTDAT",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AEPRINF",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AEPRINF_STD",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AEENDAT",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AESEV",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AESEV_STD",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AESER",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AESER_STD",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AESDTH",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AESLIFE",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AESHOSP",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AESDISAB",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AESBIRTH",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AESCONG",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AEREL",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AEREL_STD",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AEACN",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AEACN_STD",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AEACNOT1",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AEACNOT2",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AEACNOT3",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AEACNOTH",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AEOUT",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AEOUT_STD",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "COVAL",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "COVAL2",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "COVAL3",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AETERM",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AETERM_CoderDictName",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AETERM_CoderDictVersion",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AETERM_HLGT",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AETERM_HLGT_CD",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AETERM_HLT",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AETERM_HLT_CD",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AETERM_LLT",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AETERM_LLT_CD",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AETERM_PT",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AETERM_PT_CD",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AETERM_SOC",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "AETERM_SOC_CD",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "DER_AESER",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    },
+    {
+      "name": "DER_AESER_STD",
+      "missing_count": 0,
+      "missing_rate_pct": 0.0
+    }
+  ]
+}

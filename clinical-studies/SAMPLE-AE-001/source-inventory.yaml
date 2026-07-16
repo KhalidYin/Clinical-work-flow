@@ -11,8 +11,8 @@ gate_policy:
   program_review_required_before_canonical_output: true
 supported_input_formats:
   accepted_source_storage: ["txt", "md", "pdf", "docx", "csv", "tsv", "xlsx", "xpt", "sas7bdat"]
-  current_poc_auto_parse: ["txt", "csv"]
-  p9_planned_auto_parse: ["sas7bdat"]
+  current_poc_auto_parse: ["txt", "csv", "sas7bdat"]
+  p9_planned_auto_parse: []
   forbidden_in_input: ["json"]
 target_artifact_profiles:
   sdtm_ae_dataset:
@@ -45,7 +45,7 @@ sources:
     role: "ae_source_data"
     storage_policy: "local_untracked_raw"
     required_in_repository: false
-    parser_status: "planned_p9_p2"
+    parser_status: "implemented"
     size_bytes: 19667968
     sha256: "2a6d72e9e5fa4bb8e3cc14b0c412fce3c37e519f3ab9105cdcff33ba031e8749"
   - path: "input/raw/ae.csv"

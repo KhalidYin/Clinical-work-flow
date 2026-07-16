@@ -128,3 +128,41 @@
 - `clinical-workflow/study_template/` source/profile contract
 - `clinical-workflow/tests/application_api/test_sample_study_scaffold.py`
 - `docs/main/memory/`, `docs/dep/`（本 Phase 提交）
+
+### R052 [17:17] [P9-metadata-driven-sdtm-ae-minimal-poc] P2: 完成 SAS7BDAT Source Metadata 解析 Gate
+
+#### Done
+
+- 扩展 `edc_importer.py`：新增 Study-root/path/extension/SHA-256 fail-closed 校验，并同时返回 DataFrame、Source Metadata、缺失概况和 parser validation；旧 `read_edc_file()` 保持兼容。
+- 建立 importer-local prerelease Source Metadata Schema，结构化保存变量名、ReadStat 类型、存储宽度、column label、SAS format、informat 状态和值标签状态。
+- 实际读取登记的 `ae09jun2025.sas7bdat`：1066 行、73 列、73 个 column label 和 source format 可得；informat、value-label mapping、外部 catalog 明确为 gap，不从数据值猜测。
+- 生成版本化 metadata/profile/validation/preview manifest；5 行 row-level preview 保持 local untracked、noncanonical。
+- 生成中文 Parser/Derived Runtime ReviewPacket；它继续使用已存在的 `source_intake` review type，但与来源准入包分开，不作为开发阶段确认。
+- 将 Study/template 的当前自动解析能力更新为 TXT/CSV/SAS7BDAT，并补齐 parser/API/scaffold 测试。
+
+#### Issues / Blockers
+
+- `pyreadstat` 首次安装因包索引连接中断只取得 metadata，重试后成功安装 1.3.5；项目依赖约束收敛为 `>=1.3,<2`，产物记录实际 toolchain。
+- 首轮组合测试 2 项失败：API 测试仍假设只有一个 pending ReviewPacket，已按两个独立 Runtime Gate 更新；另一个失败揭示既有 R050 bundle 漂移——`source_intake` 已加入 Review Schema，但 1.1.0 bundle hash 未同步，clean HEAD 即可复现 `40d30d... != 72e5fe...`。
+- P2 不篡改旧 bundle hash，也不提前迁移 Wiki snapshots；Source Metadata 维持 importer-local prerelease。该一致性债务在 P9.1 最终发布前必须闭合。
+
+#### Validation
+
+- 实际 SAS7BDAT Smoke：hash 匹配，1066×73，Schema valid，gaps=`informats/value_labels/external_format_catalog`。
+- `python -m pytest tests/test_edc_importer.py tests/test_review_schema_contract.py tests/application_api/test_sample_study_scaffold.py -q`（21 passed）。
+- `python -m pytest -q -k "not test_shared_contract_bundle_is_complete_and_hash_locked"`（246 passed, 1 deselected；排除项为上述既有 bundle 漂移）。
+- `python -m ruff check src tests`（success）。
+
+#### Next
+
+1. P3 实现确定性的 Minimum Information Plan schema/model 和 `sdtm_ae_dataset` capability profile。
+2. 用本次 Source Metadata 证明 raw-only、无 CRF 时可 `draft_allowed`，但 reference date/coding/value-label 相关变量保持 gap/blocked。
+3. 缺 raw、subject identity、target standard 或 metadata 损坏时 fail closed；不生成 MappingSpec。
+
+#### Files Changed / Commits
+
+- `clinical-workflow/src/mcp_tools/edc_importer.py`, `src/mcp_tools/contracts/source-metadata.schema.json`
+- `clinical-workflow/tests/test_edc_importer.py`, sample scaffold tests
+- `clinical-studies/SAMPLE-AE-001/work/derived/edc/`, `.review_queue/`, source policy/inventory/README
+- `docs/specs/13-Environment-Files.md`, `15-Review-Protocol.md`, `21-Knowledge-Workflow-Integration.md`
+- `docs/main/memory/`, `docs/dep/`（本 Phase 提交）

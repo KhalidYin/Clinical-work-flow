@@ -33,8 +33,8 @@ programming_chain:
 source_policy:
   input_json_allowed: false
   accepted_source_storage_formats: ["txt", "md", "pdf", "docx", "csv", "tsv", "xlsx", "xpt", "sas7bdat"]
-  current_poc_auto_parse_formats: ["txt", "csv"]
-  p9_planned_auto_parse_formats: ["sas7bdat"]
+  current_poc_auto_parse_formats: ["txt", "csv", "sas7bdat"]
+  p9_planned_auto_parse_formats: []
   source_requirements: "target_artifact_profile"
   derived_json_root: "work/derived"
   mapping_candidate_root: "work/mapping"

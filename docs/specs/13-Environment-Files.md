@@ -160,6 +160,33 @@ Step 3: 异常处理
     → Agent 继续, 但在后续 QC 阶段高亮
 ```
 
+### 2.2.1 已登记来源的受控 Parser（P9.1-P2）
+
+`read_edc_file()` 保留为旧导入接口；新 POC 必须调用
+`parse_registered_edc_source()`。调用方必须同时提供 Study root、登记格式和
+Source Inventory 中的 SHA-256。Parser 在读取前校验路径不能越出 Study root、
+扩展名必须匹配登记格式、文件 hash 必须一致；任一检查失败时不写 derived artifact。
+
+```text
+registered CSV/SAS7BDAT/XPT
+  -> path + extension + SHA-256 Gate
+  -> DataFrame（仅当前解析进程使用）
+  -> Source Metadata Artifact
+  -> Source Data Profile
+  -> local untracked preview + tracked preview manifest
+  -> parser validation + Runtime ReviewPacket
+```
+
+SAS7BDAT 的稳定元数据合同至少保存变量名、ReadStat 类型、存储宽度、column
+label、SAS format、informat 状态和值标签状态。`pyreadstat` 未暴露 informat，或
+文件没有携带可解析 value-label mapping / 外部 format catalog 时，必须写成
+`unavailable`/`not_supplied` 和明确原因；禁止从当前数据值猜测标签。
+
+Source Metadata Schema 当前是 importer-local prerelease contract，路径为
+`clinical-workflow/src/mcp_tools/contracts/source-metadata.schema.json`。P2 只在
+Engine 本地消费，不改变已发布 1.1.0 bundle。P3 若让 Runtime/Wiki 跨模块锁定该
+合同，必须单独处理 bundle 与 snapshot 迁移，不能静默改变现有知识快照。
+
 ### 2.3 EDC 数据字典规范
 
 ```

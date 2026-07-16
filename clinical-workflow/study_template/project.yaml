@@ -18,7 +18,7 @@ standards:
 source_policy:
   input_json_allowed: false
   accepted_source_storage_formats: ["txt", "md", "pdf", "docx", "csv", "tsv", "xlsx", "xpt", "sas7bdat"]
-  current_poc_auto_parse_formats: ["txt", "csv"]
+  current_poc_auto_parse_formats: ["txt", "csv", "sas7bdat"]
   planned_auto_parse_formats: []
   source_requirements: "target_artifact_profile"
   derived_json_root: "work/derived"
