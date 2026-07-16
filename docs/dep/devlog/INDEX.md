@@ -40,5 +40,6 @@
 | R044 | 2026-07-16 | 10:54 | P8-workflow-api-study-console | P2 | 实现 Study/status/artifact/context/provenance/audit 只读 API | `clinical-workflow/src/application_api/`, `clinical-workflow/tests/application_api/`, `USAGE.md`, `docs/specs/`, `docs/dep/` | active/DEVLOG-R009-R048.md |
 | R045 | 2026-07-16 | 11:35 | P8-workflow-api-study-console | P3 | 实现 run/resume/review decision 写 API 与事件流 | `clinical-workflow/src/application_api/`, `clinical-workflow/schemas/application/`, `clinical-workflow/tests/application_api/`, `USAGE.md`, `docs/specs/`, `docs/dep/` | active/DEVLOG-R009-R048.md |
 | R046 | 2026-07-16 | 13:05 | P8-workflow-api-study-console | P4 | 实现本地 Study Console 核心界面 | `clinical-workflow/src/study_console/`, `clinical-workflow/src/application_api/`, `clinical-workflow/tests/study_console/`, `USAGE.md`, `docs/specs/`, `docs/dep/` | active/DEVLOG-R009-R048.md |
+| R047 | 2026-07-16 | 14:47 | P8-workflow-api-study-console | P5 | 完成产物追溯视图、本地发布说明与 P8 归档 | `clinical-workflow/src/study_console/`, `clinical-workflow/tests/study_console/`, `start-study-console.ps1`, `USAGE.md`, `docs/specs/`, `docs/deploy/`, `docs/dep/` | active/DEVLOG-R009-R048.md |
 
 > Legacy rounds R001-R008 remain immutable in [DEVLOG-legacy.md](archive/DEVLOG-legacy.md). They predate the searchable index and were intentionally not rewritten during adoption.

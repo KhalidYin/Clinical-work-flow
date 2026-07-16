@@ -619,3 +619,23 @@ P8-P4 已新增本地 Web Study Console，入口为 Application API 的 `/consol
 P8-P4 的浏览器 smoke 使用 agent-browser 在本地 Console 中完成：打开 `/console/`、选择 synthetic Study、提交 run request、展示 4 个 AE Review finding、逐 finding 选择 approved 并写入 DecisionReceipt。该验证证明前端能接入现有文件协议；canonical promotion 仍未由浏览器执行，留给 Runtime/Agent。
 
 P8-P5 将继续补 UI-05 至 UI-07：artifact preview/diff、context/provenance 和 audit timeline，并完成本地发布与恢复说明。
+
+---
+
+## 26. P8-P5 本地 Study Console 完成态
+
+P8-P5 已将本地 `/console/` 补齐到 UI-01 至 UI-07 的单机完成态：
+
+- UI-05 Artifact：列出 Study 中已登记的 draft/canonical/review artifact，选择后展示注册 container、relative path、SHA-256、provenance ID 和安全预览；
+- UI-06 Context/Provenance：展示当前 Study/Stage 可派生的 bundle lock、source refs、rule refs、Study decision refs、traceability refs 和显式 gaps；
+- UI-07 Audit：展示只读 event timeline，并支持按 event type 筛选，筛选条件可通过 URL 恢复。
+
+这些视图证明 P7 synthetic AE 链路产生的 canonical AE、draft、ReviewPacket、ConfirmationReceipt、traceability report 和 provenance 可以通过 Application API 被普通本地浏览器查看。它们不改变三层权威：
+
+1. Wiki 仍只负责 approved knowledge/snapshot；
+2. Runtime/Agent 仍负责消费 DecisionReceipt、生成 ConfirmationReceipt 和提升 canonical artifact；
+3. Study 文件、Review Protocol、traceability、audit 和 Git 仍是执行状态权威。
+
+P8-P5 同步新增 `start-study-console.ps1`，用于从仓库根目录启动 loopback-only Study Console。P8 不授权内网共享、云端、多用户、认证或 GxP 生产上线。
+
+P8 留下的明确后续项是 Runtime bridge：当前 `POST /runs` 只写 durable request/event，不自动启动 Runtime executor。若后续要从浏览器“发起并驱动完整执行”，必须单独设计进程模型、锁、日志、失败恢复、review blocking/resume 和权限边界。

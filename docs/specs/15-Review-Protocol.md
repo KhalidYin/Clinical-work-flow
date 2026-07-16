@@ -1146,3 +1146,14 @@ P8-P4 的 Study Console 直接使用 Study 级 Review façade，不再读取 `.r
 - DecisionReceipt 写入后，Console 只显示 decided 状态；ConfirmationReceipt、rework 生成和 canonical promotion 仍等待 Runtime/Agent。
 
 因此 Web Console 与 VSCode Review Panel 是两个客户端入口，共享 Review Protocol 文件权威，不形成第二套审核语义。
+
+### 13.3 P8-P5 Review 与产物追溯边界
+
+P8-P5 的 Study Console 增加 Artifact、Context/Provenance 和 Audit 视图，但不改变 Review Protocol：
+
+- Review Inbox 仍只把 ReviewPacket 投影为浏览器表单，并写 DecisionReceipt-compatible payload；
+- Artifact 视图可以显示 ReviewPacket、DecisionReceipt、ConfirmationReceipt 和输出产物的只读登记信息，但不能归档 packet、生成 confirmation 或提升 canonical；
+- Audit 时间线可展示 `review_packet_written`、`decision_receipt_written`、`confirmation_receipt_written` 等事件，事件本身不成为额外审核语义；
+- VSCode Review Panel、根目录 Web Review Panel 与 Study Console 继续共享同一 Review Schema 和文件权威。
+
+因此，若 Console 已提交 DecisionReceipt 但 canonical artifact 尚未出现，这是预期状态：必须由 Runtime/Agent 消费 decision 并写 ConfirmationReceipt 后，产物才可被提升。

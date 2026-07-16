@@ -25,11 +25,20 @@ WIKI_PACKAGE = (
 APP_JS = ROOT / "src" / "study_console" / "static" / "app.js"
 
 
-def _prepare_container(tmp_path: Path, *, run_ae: bool = False) -> Path:
+def _prepare_container(
+    tmp_path: Path,
+    *,
+    run_ae: bool = False,
+    auto_approve: bool = False,
+) -> Path:
     container = tmp_path / "clinical-studies"
     shutil.copytree(FIXTURE, container / "ae-pilot")
     if run_ae:
-        build_sdtm_ae_dataset(container / "ae-pilot", WIKI_PACKAGE, auto_approve=False)
+        build_sdtm_ae_dataset(
+            container / "ae-pilot",
+            WIKI_PACKAGE,
+            auto_approve=auto_approve,
+        )
     return container
 
 
@@ -49,6 +58,10 @@ def test_console_static_shell_and_assets_are_served(tmp_path: Path) -> None:
     assert 'id="stage-timeline"' in response.text
     assert 'id="run-form"' in response.text
     assert 'id="review-list"' in response.text
+    assert 'id="artifact-list"' in response.text
+    assert 'id="artifact-detail"' in response.text
+    assert 'id="context-content"' in response.text
+    assert 'id="audit-list"' in response.text
     assert "./styles.css" in response.text
     assert "./app.js" in response.text
 
@@ -105,3 +118,33 @@ def test_review_api_payload_contains_finding_detail_required_by_console(
     assert isinstance(finding["auto_approved"], bool)
     assert "G:\\" not in str(finding)
     assert "/" not in review["packet_sha256"]
+
+
+def test_console_api_payloads_support_artifact_context_and_audit_views(
+    tmp_path: Path,
+) -> None:
+    container = _prepare_container(tmp_path, run_ae=True, auto_approve=True)
+    client = _client(container)
+
+    artifacts = client.get("/api/v1/studies/SYNTH-AE-001/artifacts").json()["artifacts"]
+    assert any(item["artifact_state"] == "draft" for item in artifacts)
+    draft = next(item for item in artifacts if item["display_name"] == "output/sdtm/drafts/ae.csv")
+
+    detail = client.get(f"/api/v1/studies/SYNTH-AE-001/artifacts/{draft['artifact_id']}").json()
+    assert detail["registered_ref"]["container_id"] == "clinical-studies"
+    assert detail["preview"]["kind"] == "csv"
+    assert detail["preview"]["row_count"] > 0
+    assert "absolute" not in str(detail).lower()
+
+    context = client.get("/api/v1/studies/SYNTH-AE-001/context").json()
+    assert context["bundle_lock"]["version"]
+    assert context["source_refs"]
+    assert context["rule_refs"]
+    assert context["gaps"]
+
+    provenance = client.get("/api/v1/studies/SYNTH-AE-001/provenance").json()
+    assert provenance["traceability_refs"]
+
+    audit = client.get("/api/v1/studies/SYNTH-AE-001/audit").json()
+    event_types = {event["event_type"] for event in audit["events"]}
+    assert {"artifact_written", "review_packet_written"}.issubset(event_types)

@@ -1,6 +1,6 @@
 ---
 phase_index: 8
-status: in-progress
+status: done
 created: 2026-07-14
 updated: 2026-07-16
 priority: 1
@@ -158,7 +158,7 @@ GET  /api/v1/studies/{study_id}/audit
 | P2 | 实现 Study/status/artifact/context/audit 只读 API | 4-7 | P1 | done |
 | P3 | 实现 run/resume/review 写 API 与事件流 | 5-8 | P2 | done |
 | P4 | 实现本地 Study Console 核心界面 | 8-12 | P3 | done |
-| P5 | 完成 artifact/provenance/audit、E2E 与本地发布 | 4-7 | P4 | pending |
+| P5 | 完成 artifact/provenance/audit、E2E 与本地发布 | 4-7 | P4 | done |
 
 ---
 
@@ -375,14 +375,25 @@ GET  /api/v1/studies/{study_id}/audit
 - 全 UI 状态、可访问性、路径安全、在线/离线和浏览器 E2E。
 - 本地启动、备份、恢复、回滚和 Codex/VSCode/Obsidian 协作说明。
 
+### P5 实施记录
+
+- `clinical-workflow/src/study_console/static/` 已补齐 UI-05 至 UI-07：
+  - Artifact 视图列出已登记 artifact，展示 draft/canonical、类型、相对路径、SHA-256、provenance ID 和 CSV/JSON/YAML/text 安全预览；
+  - Context/Provenance 视图展示 bundle lock、source refs、rule refs、Study decision refs、traceability refs 和显式 gaps；
+  - Audit 视图展示只读事件时间线，并支持按 event type 筛选，筛选状态写入 URL query。
+- Console 启动脚本 `start-study-console.ps1` 已加入仓库根目录，默认绑定 `127.0.0.1:8788`，优先使用根 `.venv`。
+- `USAGE.md` 和 `docs/deploy/DEPLOY_GUIDE.md` 已补充 Study Console 启动、loopback 边界、备份/恢复和故障说明。
+- P8-P5 不实现浏览器直接启动 Runtime executor。`POST /runs` 仍是 P3 已定义的 durable request/event adapter；Runtime bridge 作为 D5 延后。
+- P8-P5 不新增 artifact raw download/diff endpoint；当前只支持注册 artifact 安全预览、hash 和 provenance。diff/download 作为 D6 延后到 API 明确授权后处理。
+
 ### 完成标准
 
-- [ ] UI-05 至 UI-07 和全局视觉/行为清单通过。
-- [ ] P7 合成纵向链可从 Web 启动、审核、查看 canonical artifact 和完整追溯。
-- [ ] API/Console 关闭后 CLI、Obsidian、Study 文件和 locked snapshot 仍可独立工作。
-- [ ] VSCode Review Panel 被明确保留为兼容客户端或迁移为共享 API 客户端，不存在双 review 语义。
-- [ ] 服务只监听 loopback，内网/云端能力不被误宣称。
-- [ ] 全量测试、浏览器 E2E、人工视觉验收和文档同步通过。
+- [x] UI-05 至 UI-07 和全局视觉/行为清单通过。
+- [x] P7 合成纵向链由 Runtime/Agent 生成后，可从 Web 查看 canonical artifact、draft、ReviewPacket、context/provenance、audit 和完整追溯；Web-triggered Runtime bridge 延后为 D5。
+- [x] API/Console 关闭后 CLI、Obsidian、Study 文件和 locked snapshot 仍可独立工作。
+- [x] VSCode Review Panel 被明确保留为兼容客户端或迁移为共享 API 客户端，不存在双 review 语义。
+- [x] 服务只监听 loopback，内网/云端能力不被误宣称。
+- [x] 全量测试、浏览器 E2E、人工视觉验收和文档同步通过。
 
 ### 边界
 
@@ -409,6 +420,8 @@ GET  /api/v1/studies/{study_id}/audit
 | D2 | `.review_queue/.queue_scope.json` 是队列 scope marker，不是 ReviewPacket；若只按 `*.json` 计数，会把已确认 Study 误判为 pending review | P2 | 已解决 | `ApplicationApiService` 过滤点号开头的 review queue marker；只将实际 packet/decision/confirmation/rework 作为 review artifacts |
 | D3 | P3 的 `GET /reviews` 只有摘要，P4 Review Inbox 无法构造 DecisionReceipt，因为浏览器不知道 finding IDs | P4 | 已解决 | 在 review summary 中增加 sanitized finding payload；仍只投影 ReviewPacket schema 字段，不新增任意文件读取 |
 | D4 | 浏览器 smoke 发现刷新按钮只刷新 Study list，不刷新当前 Study detail；重复点击同一 Study 也不会 reload | P4 | 已解决 | 刷新按钮和重复选择同一 Study 均触发当前 Study reload；mutation 后同步刷新 Study list summary |
+| D5 | 原 P5 验收语句“从 Web 启动 P7 合成纵向链并查看 canonical”会把 P3 durable request adapter 扩展为 Runtime executor bridge | P5 | 延后 | P8-P5 只完成 Web 查看和审核接入；Runtime bridge 需单独计划进程模型、锁、日志、失败恢复和审核阻断恢复 |
+| D6 | UI-05 初稿提到 artifact diff/download，但当前 Application API 未定义 raw download/diff endpoint | P5 | 延后 | P8-P5 展示已登记 artifact 的安全预览、hash 与 provenance；diff/download 等 API 明确授权后再做 |
 
 ## 关键决策记录
 
@@ -422,4 +435,4 @@ GET  /api/v1/studies/{study_id}/audit
 
 | 日期 | 已同步到 | 说明 |
 |------|----------|------|
-| - | 尚未同步 | 计划完成后按 `syncs_to` 执行 |
+| 2026-07-16 | SPEC-06/15/16/20/21、USAGE、DEPLOY | P8-P5 完成本地 Study Console UI-01~UI-07；Runtime bridge、diff/download 明确延后 |

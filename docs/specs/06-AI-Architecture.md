@@ -446,3 +446,15 @@ P8-P4 新增 `clinical-workflow/src/study_console/static/`，由 Application API
 Console 不新增 Node 构建链，不引入第二后端。`create_app()` 支持 `CLINICAL_STUDIES_ROOT` 环境变量，用于本地 smoke 或外部 Study container；未设置时仍默认读取仓库根 `clinical-studies/`。
 
 浏览器端按钮可用性只依据 Application API payload（如 `run_state`、`pending_review_count`、`decision_state`），不得复制 Pipeline/Review 的业务推进逻辑。P8-P4 不实现 UI-05 至 UI-07 的完整 artifact/context/audit 页面。
+
+## 14. P8-P5 产物、上下文、追溯与审计视图
+
+P8-P5 将 `/console/` 补齐为本地单机 Study Console 完成态，新增 UI-05 至 UI-07：
+
+- Artifact 视图：从 `GET /artifacts` 和 `GET /artifacts/{artifact_id}` 展示 draft/canonical、类型、注册相对路径、SHA-256、provenance ID 和安全预览；
+- Context/Provenance：从 `GET /context` 与 `GET /provenance` 展示 bundle lock、source refs、rule refs、Study decision refs、traceability refs 和显式 gaps；
+- Audit 时间线：从 `GET /audit` 展示只读事件流，并支持按 event type 过滤，筛选状态写入 URL query。
+
+这三个视图只消费 Application API payload，不直接读取 Study 文件，也不在浏览器合并或推断规则。浏览器不会访问未登记 artifact、不会返回绝对路径、不会把 draft 当 canonical 展示。
+
+P8-P5 仍不实现 Web-triggered Runtime execution bridge。`POST /runs` 产生的是 durable request/event layer；若需要浏览器提交后自动驱动 Runtime 完整执行，需要后续单独计划，明确进程模型、锁、日志、失败恢复和人类审核交接。

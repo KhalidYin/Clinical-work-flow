@@ -1301,3 +1301,5 @@ P8-P1 将 Review 交互抽象为 Application API draft contract：`clinical-work
 - P8 不同时维护独立 Web Relay 后端和 Study Console 后端。旧 SPEC-20 中仍有效的审核 API 需求由 Application API 吸收。
 
 P8-P4 已实现 `/console/` Study Console 的 Review Inbox。该 Inbox 通过 `GET /api/v1/studies/{study_id}/reviews` 获取 sanitized finding payload，并通过 `POST /api/v1/studies/{study_id}/reviews/{review_id}/decisions` 写 DecisionReceipt。VSCode Review Panel 与 Web Console 仍共享同一 Review Protocol；Panel 不需要迁移为 P8-P4 前置条件。
+
+P8-P5 补齐 `/console/` 的 Artifact、Context/Provenance 和 Audit 视图后，Review Panel 的定位不变：它仍可作为独立审核客户端保留。Study Console 可以在同一 Study 页面中查看审核、产物和追溯，但不能替代 Runtime/Agent 对 DecisionReceipt 的应用步骤。未来如果统一前端，应复用同一 Application API/Review Schema，而不是创建第二套 review 语义或第二个 queue 格式。

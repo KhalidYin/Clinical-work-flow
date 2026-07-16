@@ -676,3 +676,5 @@ P8-P1 已冻结本地 Study Console 的 Application API draft contract：`clinic
 P8 当前主线是：Study Console → Application API → Runtime/Review Protocol/Study files。若后续需要内网协作，应在 P9 以 Application API 为基础新增权限和协作层，而不是恢复独立 Relay 状态机。
 
 P8-P4 已落地单机 `/console/` 静态 Study Console：Review Inbox 直接消费 Application API，不引入数据库、WebSocket 或多人冲突合并。SPEC-20 的多人协作、通知和 Relay 数据库存储仍为 P9 以后重新评估项。
+
+P8-P5 后，`/console/` 已覆盖 artifact preview、context/provenance 和 audit timeline。本地用户可在一个 Study 页面中完成查看状态、提交 run request、批量审核、查看产物/追溯/审计的基本操作。但这仍不是原 SPEC-20 描述的共享 Web Relay：没有共享数据库、WebSocket、多审核人冲突合并、用户认证、Git 自动提交服务或内网监听。若后续进入 P9，应以 Application API 为基础新增协作层，而不是恢复本 SPEC 旧版 Relay 状态机。

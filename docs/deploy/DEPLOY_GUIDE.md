@@ -2,7 +2,7 @@
 
 ## 1. 发布边界
 
-P6 只发布可复现的单机基线：Wiki Service 绑定 loopback，Engine 与 Wiki 共用当前 monorepo Git，Study 保留独立目录和锁定快照。本文不授权内网/云端监听、OAuth、多租户、公开发布、远程推送或真实 Study 数据迁入。
+P6/P8 只发布可复现的单机基线：Wiki Service 与 Study Console 均绑定 loopback，Engine 与 Wiki 共用当前 monorepo Git，Study 保留独立目录、`.application_api/` 请求记录、`.review_queue/` 审核证据和锁定快照。本文不授权内网/云端监听、OAuth、多租户、公开发布、远程推送或真实 Study 数据迁入。
 
 ## 2. 前置条件
 
@@ -14,6 +14,8 @@ P6 只发布可复现的单机基线：Wiki Service 绑定 loopback，Engine 与
 安装命令见仓库根 [USAGE.md](../../USAGE.md)。安装后先运行 Engine/Wiki 全量测试、Ruff、Review Panel compile、内容 finalizer check 和 Schema drift 比对。
 
 ## 3. 启动与健康检查
+
+### 3.1 Knowledge Service
 
 ```powershell
 Set-Location .\clinical-llm-wiki
@@ -28,6 +30,23 @@ $version
 ```
 
 预期 `status=ok`，bundle version 为 `1.1.0`，hash 与 `clinical-workflow/schemas/contract-bundle.json` 完全一致。Engine CLI 必须显式接收 Study 路径；把平台根目录当 Study 会拒绝自动提交。
+
+### 3.2 Study Console / Application API
+
+Study Console 是 P8 本地浏览器入口，只监听 `127.0.0.1`：
+
+```powershell
+.\start-study-console.ps1
+.\start-study-console.ps1 -StudiesRoot .\clinical-studies -Port 8788
+```
+
+打开 `http://127.0.0.1:8788/console/`。验证 API：
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8788/api/v1/studies
+```
+
+Console 只消费 Application API。`/runs` 和 `/resume` 写入 Study 内 `.application_api/` durable request/event；`/reviews/{review_id}/decisions` 写入 DecisionReceipt。它不启动 Runtime executor、不写 ConfirmationReceipt、不归档 ReviewPacket、不提升 canonical artifact。Artifact、Context/Provenance 与 Audit 视图均为只读派生视图。
 
 ## 4. 索引刷新与重建
 
@@ -73,7 +92,7 @@ Compress-Archive -Path `
   -DestinationPath .\backup\clinical-platform-state.zip
 ```
 
-Git 追踪内容与 Study/Wiki 运行状态均要保留。`indexes/` 可重建，不作为权威备份。`vault/90_System/Attachments/Sources/restricted-local/` 已设置防提交门禁；其中真实受限数据不得进入普通 ZIP 或远程仓库，应进入批准的加密受控介质。
+Git 追踪内容与 Study/Wiki 运行状态均要保留。Study 内 `.application_api/`、`.review_queue/`、`audit_trail.jsonl`、`output/` 和 locked snapshots 都属于恢复执行状态所需证据，包含在 `clinical-studies` 备份中。`indexes/` 可重建，不作为权威备份。`vault/90_System/Attachments/Sources/restricted-local/` 已设置防提交门禁；其中真实受限数据不得进入普通 ZIP 或远程仓库，应进入批准的加密受控介质。
 
 ## 7. 恢复
 
@@ -105,6 +124,9 @@ Expand-Archive .\backup\clinical-platform-state.zip .\restored-state
 | 未知 rights/storage | 内容不具生产资格 | 完成权利审查，不手工强改状态 |
 | 规则冲突、未知工具、路径越界 | 执行前阻断 | 修正规则/Action/路径并重新走 Review |
 | monorepo 其他模块脏 | 只提交当前 Study | 不清理、不带入；Runtime 使用 Study pathspec |
+| 8788 端口占用 | Study Console 启动失败 | 停止冲突进程或改用本机其他端口；不改为非 loopback |
+| Console 已写 DecisionReceipt 但 canonical 未出现 | 预期行为 | 启动 Runtime/Agent 消费 DecisionReceipt 并生成 ConfirmationReceipt |
+| `.application_api/` run 长期 queued | durable request 已写但 Runtime bridge 未消费 | 用 Codex/CLI 继续执行，或在后续计划实现显式 Runtime bridge |
 
 ## 10. 后续部署候选
 

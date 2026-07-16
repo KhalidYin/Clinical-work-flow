@@ -6,9 +6,7 @@ updated: 2026-07-16
 
 ## 进行中
 
-| # | 子计划 | 文件 | 当前阶段 | 已用轮次 | 开始日期 |
-|---|--------|------|----------|----------|----------|
-| P8 | Workflow Application API 与本地 Study Console | [P8-workflow-api-study-console.md](plans/ongoing/P8-workflow-api-study-console.md) | P4 done；下一阶段 P5：产物追溯与本地发布 | 4 | 2026-07-16 |
+当前无进行中的子计划。
 
 ## 待开始
 
@@ -16,7 +14,9 @@ updated: 2026-07-16
 |---|--------|------|----------|------|
 | P9 | 多 Study 内网协作与受控部署 | [P9-multi-study-intranet-collaboration.md](plans/backlog/P9-multi-study-intranet-collaboration.md) | 20-32（执行前重估） | P8 完成并重新确认部署授权 |
 
-> 当前执行视野只展开 P6 → P7：P6 先建立覆盖 461 页的全书导航结构层，并只对 Core/Events/AE 建立深度 locator、逐条知识解析、关系和引用质量验收；P7 再用“生成 SDTM AE”证明 Wiki + LLM + Workflow 的实际执行价值。P8/P9 保留长期方向，但必须基于 P7 的真实证据重新确认范围，不允许提前扩展。后续知识按同一质量 Gate 随实际 Workflow 缺口增量摄取。
+> 当前执行视野只展开 P6 → P8：P6 先建立 SDTMIG 3.4 Core/Events/AE 知识解析质量基线；P7 再用“生成 SDTM AE”证明 Wiki + LLM + Workflow 的实际执行价值；P8 在此基础上完成本地 Application API + Study Console。后续知识按同一质量 Gate 随实际 Workflow 缺口增量摄取。
+
+P8 已完成本地单机 Application API + Study Console 基线。下一步若继续推进前端/部署，应先从 P9 重新确认“内网协作/多用户/Runtime bridge”范围，不应把 P8 的 durable request adapter 误解为自动执行 Runtime。
 
 ## 最近完成
 
@@ -24,9 +24,9 @@ updated: 2026-07-16
 
 | 日期 | 子计划 | 文件 | 已同步到 |
 |------|--------|------|----------|
+| 2026-07-16 | Workflow Application API 与本地 Study Console | [P8-workflow-api-study-console.md](plans/complete/P8-workflow-api-study-console.md) | SPEC-06/15/16/20/21、USAGE、DEPLOY、项目记忆 |
 | 2026-07-16 | AE 数据集知识驱动执行闭环 | [P7-safety-analysis-vertical-workflow.md](plans/complete/P7-safety-analysis-vertical-workflow.md) | SPEC-02/09/15/17/21、USAGE、项目记忆、P7 Review 记录 |
 | 2026-07-15 | SDTMIG 3.4 知识解析质量与引用基线 | [P6-clinical-knowledge-evolution.md](plans/complete/P6-clinical-knowledge-evolution.md) | SPEC-02/07/13/21、USAGE、Wiki README、P6 release artifacts |
-| 2026-07-15 | 根目录轻量本地 Review Panel | [P0-local-review-panel.md](plans/complete/P0-local-review-panel.md) | review-panel 模块、SPEC-13/15/16/21、README、USAGE、DEVLOG |
 
 ## 延后
 

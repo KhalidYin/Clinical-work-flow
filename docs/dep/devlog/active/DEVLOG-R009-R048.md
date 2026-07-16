@@ -877,6 +877,57 @@ Done — no next steps。若需要跨阶段全量语义图，应另立 typed-rel
 
 ---
 
+### R047 [14:47] [P8-workflow-api-study-console] P5: 完成产物追溯视图、本地发布说明与 P8 归档
+
+#### Done
+- 补齐 Study Console UI-05 至 UI-07：Artifact 视图、Context/Provenance 视图和 Audit 时间线。
+- Artifact 视图只展示 Application API 已登记 artifact，支持选择 artifact 后查看相对路径、SHA-256、provenance ID 和 CSV/JSON/YAML/text 安全预览。
+- Context/Provenance 视图展示 bundle lock、source refs、rule refs、Study decision refs、traceability refs 和显式 gaps；Audit 视图按 event type 筛选并把筛选状态写入 URL query。
+- 新增根目录 `start-study-console.ps1`，默认启动 loopback-only Study Console，并优先使用仓库根 `.venv`。
+- 更新 `USAGE.md`、`docs/deploy/DEPLOY_GUIDE.md`、SPEC-06/15/16/20/21，明确 P8 完成态和不变权威边界。
+- 更新项目记忆 `p8-study-console-baseline.md`，记录 P8 是本地 Application API + Console 基线，不是内网/云端/Runtime bridge。
+- 将 P8 子计划从 `plans/ongoing/` 移动到 `plans/complete/`，并更新 `PLAN.md` 最近完成列表。
+
+#### Issues / Blockers
+- 原 P5 验收语句包含“从 Web 启动 P7 合成纵向链并查看 canonical”。实际 P3/P4 已确认 `/runs` 只是 durable request/event adapter，不会启动 Runtime executor。处理：P5 完成 Web 查看/审核/追溯能力，Runtime bridge 作为 D5 延后。
+- UI-05 初稿提到 diff/download，但 Application API 未定义 raw download/diff endpoint。处理：P8-P5 仅实现安全预览、hash 和 provenance；diff/download 作为 D6 延后。
+- 浏览器 smoke 中未加引号的 `@e23` 在 PowerShell/agent-browser 交互下未可靠传入 selector。根因是工具调用方式，不是前端事件或 API；用 DOM click 与 API detail 验证 artifact 预览成功。
+
+#### Validation
+- agent-browser smoke（success）：打开 `/console/`，选择 synthetic AE Study，确认 UI-05/06/07 可见，读取 context/provenance，按 `artifact_written` 过滤 audit，选择 canonical AE artifact 并显示 CSV preview。
+- `python -m pytest tests/study_console/test_console_static.py tests/application_api/test_write_api.py tests/application_api/test_readonly_api.py tests/test_p8_application_api_contract.py tests/test_p7_ae_workflow_e2e.py tests/test_review_protocol.py tests/test_knowledge_contracts.py tests/test_runtime_knowledge_integration.py -q`（99 passed）
+- `ruff check src/application_api src/study_console tests/study_console tests/application_api tests/test_p8_application_api_contract.py`（success）
+- `node --check src/study_console/static/app.js`（success）
+- `git diff --check`（success；仅 LF/CRLF warning）
+
+#### Next
+1. P8 已完成并归档。
+2. 若继续前端/部署方向，应先从 P9 重新确认内网共享、多用户、权限和 Runtime bridge 范围。
+3. Runtime bridge 不应作为 P8 小补丁隐式加入；需要单独设计进程模型、锁、日志、失败恢复和 review blocking/resume。
+
+#### Files Changed / Commits
+- `clinical-workflow/src/study_console/static/index.html`
+- `clinical-workflow/src/study_console/static/styles.css`
+- `clinical-workflow/src/study_console/static/app.js`
+- `clinical-workflow/tests/study_console/test_console_static.py`
+- `start-study-console.ps1`
+- `USAGE.md`
+- `docs/deploy/DEPLOY_GUIDE.md`
+- `docs/specs/06-AI-Architecture.md`
+- `docs/specs/15-Review-Protocol.md`
+- `docs/specs/16-Review-Panel.md`
+- `docs/specs/20-Web-Relay.md`
+- `docs/specs/21-Knowledge-Workflow-Integration.md`
+- `docs/main/memory/MEMORY.md`
+- `docs/main/memory/p8-study-console-baseline.md`
+- `docs/dep/PLAN.md`
+- `docs/dep/plans/complete/P8-workflow-api-study-console.md`
+- `docs/dep/plans/ongoing/P8-workflow-api-study-console.md`（moved）
+- `docs/dep/devlog/INDEX.md`
+- `docs/dep/devlog/active/DEVLOG-R009-R048.md`
+
+---
+
 ### R046 [13:05] [P8-workflow-api-study-console] P4: 实现本地 Study Console 核心界面
 
 #### Done

@@ -130,6 +130,51 @@
             <div id="review-list" class="review-list"></div>
           </section>
         </div>
+
+        <section class="panel artifact-panel" aria-labelledby="artifact-panel-title">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">UI-05</p>
+              <h2 id="artifact-panel-title">Artifact 视图</h2>
+            </div>
+            <span id="artifact-count" class="status-pill status-muted">0 artifact</span>
+          </div>
+          <div id="artifact-message" class="notice" role="status"></div>
+          <div class="artifact-grid">
+            <div id="artifact-list" class="artifact-list"></div>
+            <article id="artifact-detail" class="artifact-detail" aria-live="polite">
+              <div class="empty-state">选择 artifact 后显示注册引用、hash 和预览。</div>
+            </article>
+          </div>
+        </section>
+
+        <div class="work-grid lower-grid">
+          <section class="panel" aria-labelledby="context-panel-title">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">UI-06</p>
+                <h2 id="context-panel-title">Context / Provenance</h2>
+              </div>
+              <span id="context-lock" class="status-pill status-muted">lock: n/a</span>
+            </div>
+            <div id="context-message" class="notice" role="status"></div>
+            <div id="context-content" class="reference-grid"></div>
+          </section>
+
+          <section class="panel" aria-labelledby="audit-panel-title">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">UI-07</p>
+                <h2 id="audit-panel-title">Audit 时间线</h2>
+              </div>
+              <select id="audit-filter" aria-label="Audit event type filter">
+                <option value="">全部事件</option>
+              </select>
+            </div>
+            <div id="audit-message" class="notice" role="status"></div>
+            <ol id="audit-list" class="audit-list"></ol>
+          </section>
+        </div>
       </section>
     </main>
   </body>

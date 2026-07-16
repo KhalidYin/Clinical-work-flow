@@ -129,14 +129,25 @@ python -m pytest tests/test_p7_ae_workflow_e2e.py -q
 
 ## 6. 启动 P8 Application API 与 Study Console
 
-P8-P4 提供本地 Application API 和静态 Study Console。Console 位于 `/console/`，当前覆盖 Study list、Dashboard、Run panel 和 Review Inbox（UI-01 至 UI-04）。Artifact/Context/Audit 完整视图留给 P8-P5。
+P8 提供本地 Application API 和静态 Study Console。Console 位于 `/console/`，当前覆盖 Study list、Dashboard、Run panel、Review Inbox、Artifact、Context/Provenance 和 Audit（UI-01 至 UI-07）。
 
 边界：
 
 - `/runs` 与 `/resume` 只写 `.application_api/runs/*.json`、`.application_api/events.jsonl` 和幂等记录；不直接启动 Runtime、不调用 core MCP tools、不执行任意系统命令。
 - `/reviews/{review_id}/decisions` 只通过 `ReviewQueue.submit_decision()` 写正式 DecisionReceipt；不写 ConfirmationReceipt、不归档、不提升 canonical artifact。
 - Console 只消费 Application API payload，不在浏览器重排 Pipeline、不直接读取本地文件、不提升 artifact。
+- Artifact 视图只展示已登记 artifact 的相对路径、hash、状态和安全预览；不会返回绝对路径或访问未登记文件。
+- Context/Provenance 和 Audit 视图只展示 API 已派生的来源、规则、Study decision、gap、traceability 与事件；浏览器不得自行合并或推断规则。
 - 产物提升仍由 Runtime/Agent 读取 DecisionReceipt 后完成。
+
+推荐从仓库根目录用启动脚本运行：
+
+```powershell
+.\start-study-console.ps1
+.\start-study-console.ps1 -StudiesRoot .\clinical-studies -Port 8788
+```
+
+等价手动命令：
 
 ```powershell
 Set-Location .\clinical-workflow
@@ -154,6 +165,8 @@ http://127.0.0.1:8788/console/
 ```powershell
 $env:CLINICAL_STUDIES_ROOT = "G:\Project\Python\Clinical work flow\clinical-studies"
 ```
+
+服务只应监听 `127.0.0.1`。内网共享、云端部署、用户登录、租户隔离和远程自动推送不属于 P8 本地首版。
 
 接口包括：
 

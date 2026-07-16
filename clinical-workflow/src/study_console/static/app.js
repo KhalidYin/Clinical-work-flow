@@ -7,6 +7,11 @@
     status: null,
     events: [],
     reviews: [],
+    artifacts: [],
+    context: null,
+    provenance: null,
+    audit: [],
+    selectedArtifactId: "",
     activeRunId: "",
     loading: false,
   };
@@ -77,6 +82,16 @@
         submitReviewDecision(button.dataset.submitReview);
       }
     });
+    $("artifact-list").addEventListener("click", (event) => {
+      const button = event.target.closest("[data-artifact-id]");
+      if (button) {
+        selectArtifact(button.dataset.artifactId);
+      }
+    });
+    $("audit-filter").addEventListener("change", renderAudit);
+    $("audit-filter").addEventListener("change", () => {
+      setAuditFilterUrl($("audit-filter").value);
+    });
   }
 
   async function loadStudies() {
@@ -102,6 +117,11 @@
       state.status = null;
       state.events = [];
       state.reviews = [];
+      state.artifacts = [];
+      state.context = null;
+      state.provenance = null;
+      state.audit = [];
+      state.selectedArtifactId = "";
       state.activeRunId = "";
       renderAll();
       return;
@@ -117,14 +137,28 @@
     state.loading = true;
     renderAll();
     try {
-      const [status, events, reviews] = await Promise.all([
+      const [status, events, reviews, artifacts, context, provenance, audit] = await Promise.all([
         apiGet(`/api/v1/studies/${encodeURIComponent(studyId)}/status`),
         apiGet(`/api/v1/studies/${encodeURIComponent(studyId)}/events`),
         apiGet(`/api/v1/studies/${encodeURIComponent(studyId)}/reviews`),
+        apiGet(`/api/v1/studies/${encodeURIComponent(studyId)}/artifacts`),
+        apiGet(`/api/v1/studies/${encodeURIComponent(studyId)}/context`),
+        apiGet(`/api/v1/studies/${encodeURIComponent(studyId)}/provenance`),
+        apiGet(`/api/v1/studies/${encodeURIComponent(studyId)}/audit`),
       ]);
       state.status = status;
       state.events = events.events || [];
       state.reviews = reviews.reviews || [];
+      state.artifacts = artifacts.artifacts || [];
+      state.context = context;
+      state.provenance = provenance;
+      state.audit = audit.events || [];
+      if (
+        state.selectedArtifactId &&
+        !state.artifacts.some((artifact) => artifact.artifact_id === state.selectedArtifactId)
+      ) {
+        state.selectedArtifactId = "";
+      }
       state.activeRunId = latestRunId(state.events) || storedRunId(studyId);
       if (state.activeRunId) {
         localStorage.setItem(runStorageKey(studyId), state.activeRunId);
@@ -134,6 +168,11 @@
       state.status = null;
       state.events = [];
       state.reviews = [];
+      state.artifacts = [];
+      state.context = null;
+      state.provenance = null;
+      state.audit = [];
+      state.selectedArtifactId = "";
       setApiStatus("danger", "API 错误");
       setText("run-message", `Study 读取失败：${error.message}`);
     } finally {
@@ -148,6 +187,9 @@
     renderRunPanel();
     renderEvents();
     renderReviews();
+    renderArtifacts();
+    renderContextProvenance();
+    renderAudit();
   }
 
   function renderStudies(partialErrors) {
@@ -289,6 +331,213 @@
       return;
     }
     $("review-list").innerHTML = reviews.map(renderReviewCard).join("");
+  }
+
+  function renderArtifacts() {
+    const artifacts = state.artifacts || [];
+    setText("artifact-count", `${artifacts.length} artifact${artifacts.length === 1 ? "" : "s"}`);
+    if (!state.selectedStudyId) {
+      $("artifact-list").innerHTML = `<div class="empty-state">选择 Study 后显示 artifact。</div>`;
+      $("artifact-detail").innerHTML = `<div class="empty-state">选择 artifact 后显示注册引用、hash 和预览。</div>`;
+      return;
+    }
+    if (!artifacts.length) {
+      $("artifact-list").innerHTML = `<div class="empty-state">当前没有已登记 artifact。</div>`;
+      $("artifact-detail").innerHTML = `<div class="empty-state">尚无 artifact 可预览。</div>`;
+      return;
+    }
+    $("artifact-list").innerHTML = artifacts
+      .map((artifact) => `
+        <button
+          class="artifact-card"
+          type="button"
+          data-artifact-id="${escapeAttr(artifact.artifact_id)}"
+          aria-current="${artifact.artifact_id === state.selectedArtifactId ? "true" : "false"}"
+        >
+          <strong>${escapeHtml(artifact.display_name || artifact.artifact_id)}</strong>
+          <span>
+            <span class="status-pill ${statusClass(artifact.artifact_state)}">${escapeHtml(artifact.artifact_state)}</span>
+            <span class="status-pill status-muted">${escapeHtml(artifact.artifact_type)}</span>
+          </span>
+          <span class="mono">${escapeHtml(shortHash(artifact.sha256))}</span>
+        </button>
+      `)
+      .join("");
+    const selected = artifacts.find((artifact) => artifact.artifact_id === state.selectedArtifactId);
+    if (!selected && !state.selectedArtifactId) {
+      $("artifact-detail").innerHTML = `<div class="empty-state">选择 artifact 后显示注册引用、hash 和预览。</div>`;
+    }
+  }
+
+  async function selectArtifact(artifactId) {
+    if (!state.selectedStudyId) {
+      return;
+    }
+    state.selectedArtifactId = artifactId;
+    renderArtifacts();
+    setText("artifact-message", "正在读取 artifact 详情…");
+    try {
+      const detail = await apiGet(
+        `/api/v1/studies/${encodeURIComponent(state.selectedStudyId)}/artifacts/${encodeURIComponent(artifactId)}`
+      );
+      renderArtifactDetail(detail);
+      setText("artifact-message", "");
+    } catch (error) {
+      setText("artifact-message", `Artifact 读取失败：${error.message}`);
+    }
+  }
+
+  function renderArtifactDetail(detail) {
+    const artifact = detail.artifact;
+    const ref = detail.registered_ref;
+    $("artifact-detail").innerHTML = `
+      <h3>${escapeHtml(artifact.display_name || artifact.artifact_id)}</h3>
+      <dl class="metadata-list">
+        <dt>Artifact ID</dt>
+        <dd class="mono">${escapeHtml(artifact.artifact_id)}</dd>
+        <dt>State / Type</dt>
+        <dd>${escapeHtml(artifact.artifact_state)} / ${escapeHtml(artifact.artifact_type)}</dd>
+        <dt>Registered ref</dt>
+        <dd class="mono">${escapeHtml(ref.container_id)}:${escapeHtml(ref.relative_path)}</dd>
+        <dt>SHA-256</dt>
+        <dd class="mono">${escapeHtml(ref.sha256)}</dd>
+        <dt>Provenance ID</dt>
+        <dd class="mono">${escapeHtml(artifact.provenance_id || "n/a")}</dd>
+      </dl>
+      <div class="preview-box">${renderPreview(detail.preview)}</div>
+    `;
+  }
+
+  function renderPreview(preview) {
+    if (!preview) {
+      return `<div class="empty-state">该 artifact 暂不支持浏览器预览。</div>`;
+    }
+    if (preview.kind === "csv") {
+      const rows = preview.rows || [];
+      if (!rows.length) {
+        return `<div class="empty-state">CSV 无数据行。row_count=${preview.row_count || 0}</div>`;
+      }
+      const columns = Object.keys(rows[0]);
+      return `
+        <p class="help-text">CSV preview: showing ${rows.length} of ${preview.row_count} rows</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>${columns.map((column) => `<th>${escapeHtml(column)}</th>`).join("")}</tr></thead>
+            <tbody>
+              ${rows.map((row) => `
+                <tr>${columns.map((column) => `<td>${escapeHtml(row[column])}</td>`).join("")}</tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+    if (preview.kind === "text") {
+      return `<pre>${escapeHtml(preview.value || "")}</pre>`;
+    }
+    return `<pre>${escapeHtml(JSON.stringify(preview.value, null, 2))}</pre>`;
+  }
+
+  function renderContextProvenance() {
+    if (!state.selectedStudyId) {
+      $("context-content").innerHTML = `<div class="empty-state">选择 Study 后显示 context/provenance。</div>`;
+      setText("context-lock", "lock: n/a");
+      return;
+    }
+    const context = state.context || {};
+    const provenance = state.provenance || {};
+    const lock = context.bundle_lock || {};
+    setText("context-lock", `lock: ${lock.version || "n/a"}`);
+    const sections = [
+      ["Source refs", context.source_refs || []],
+      ["Rule refs", context.rule_refs || []],
+      ["Study decisions", context.study_decision_refs || []],
+      ["Traceability refs", provenance.traceability_refs || []],
+    ];
+    $("context-content").innerHTML = `
+      <div class="reference-card">
+        <h3>Bundle lock</h3>
+        <p class="mono">${escapeHtml(lock.version || "n/a")} · ${escapeHtml(shortHash(lock.sha256))}</p>
+      </div>
+      ${sections.map(([title, refs]) => renderReferenceSection(title, refs)).join("")}
+      <div class="reference-card">
+        <h3>Explicit gaps</h3>
+        ${(context.gaps || []).length
+          ? `<ul>${context.gaps.map((gap) => `<li class="mono">${escapeHtml(gap)}</li>`).join("")}</ul>`
+          : `<p class="help-text">无显式 gap。</p>`}
+      </div>
+    `;
+  }
+
+  function renderReferenceSection(title, refs) {
+    return `
+      <div class="reference-card">
+        <h3>${escapeHtml(title)}</h3>
+        ${refs.length
+          ? `<ul>${refs.map((ref) => `
+              <li>
+                <span class="status-pill status-muted">${escapeHtml(ref.ref_type)}</span>
+                <span class="mono">${escapeHtml(ref.ref_id)}</span>
+                <span class="mono">${escapeHtml(shortHash(ref.sha256))}</span>
+              </li>
+            `).join("")}</ul>`
+          : `<p class="help-text">无引用。</p>`}
+      </div>
+    `;
+  }
+
+  function renderAudit() {
+    const filter = $("audit-filter").value || getAuditFilterFromUrl();
+    const eventTypes = Array.from(new Set((state.audit || []).map((event) => event.event_type))).sort();
+    $("audit-filter").innerHTML = [
+      `<option value="">全部事件</option>`,
+      ...eventTypes.map((type) => `<option value="${escapeAttr(type)}">${escapeHtml(type)}</option>`),
+    ].join("");
+    $("audit-filter").value = eventTypes.includes(filter) ? filter : "";
+    const filtered = $("audit-filter").value
+      ? (state.audit || []).filter((event) => event.event_type === $("audit-filter").value)
+      : (state.audit || []);
+    if (!state.selectedStudyId) {
+      $("audit-list").innerHTML = `<li class="empty-state">选择 Study 后显示 audit timeline。</li>`;
+      setText("audit-message", "");
+      return;
+    }
+    setText("audit-message", `${filtered.length} / ${(state.audit || []).length} events`);
+    if (!filtered.length) {
+      $("audit-list").innerHTML = `<li class="empty-state">没有匹配事件。</li>`;
+      return;
+    }
+    $("audit-list").innerHTML = filtered
+      .slice()
+      .reverse()
+      .map((event) => `
+        <li class="audit-item">
+          <div>
+            <strong>${escapeHtml(event.event_type)}</strong>
+            <span class="mono">${escapeHtml(event.event_id)}</span>
+          </div>
+          <p>${escapeHtml(event.occurred_at || "")} · ${escapeHtml(event.stage_id || "n/a")}</p>
+          ${renderRelatedRefs(event.related_refs || [])}
+        </li>
+      `)
+      .join("");
+  }
+
+  function renderRelatedRefs(refs) {
+    if (!refs.length) {
+      return `<p class="help-text">No related refs.</p>`;
+    }
+    return `
+      <ul class="related-refs">
+        ${refs.map((ref) => `
+          <li>
+            <span>${escapeHtml(ref.ref_type)}</span>
+            <span class="mono">${escapeHtml(ref.ref_id)}</span>
+            <span class="mono">${escapeHtml(shortHash(ref.sha256))}</span>
+          </li>
+        `).join("")}
+      </ul>
+    `;
   }
 
   function renderReviewCard(review) {
@@ -565,6 +814,20 @@
 
   function storedRunId(studyId) {
     return localStorage.getItem(runStorageKey(studyId)) || "";
+  }
+
+  function getAuditFilterFromUrl() {
+    return new URLSearchParams(window.location.search).get("audit") || "";
+  }
+
+  function setAuditFilterUrl(value) {
+    const url = new URL(window.location.href);
+    if (value) {
+      url.searchParams.set("audit", value);
+    } else {
+      url.searchParams.delete("audit");
+    }
+    window.history.replaceState(null, "", url.toString());
   }
 
   function newIdempotencyKey() {
