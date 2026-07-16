@@ -166,3 +166,40 @@
 - `clinical-studies/SAMPLE-AE-001/work/derived/edc/`, `.review_queue/`, source policy/inventory/README
 - `docs/specs/13-Environment-Files.md`, `15-Review-Protocol.md`, `21-Knowledge-Workflow-Integration.md`
 - `docs/main/memory/`, `docs/dep/`（本 Phase 提交）
+
+### R053 [17:32] [P9-metadata-driven-sdtm-ae-minimal-poc] P3: 完成 Minimum Information Planner
+
+#### Done
+
+- 新增确定性 `src/runtime/minimum_information.py` 和 Runtime-local prerelease Plan Schema；Planner 不注册为 core MCP tool，不调用 LLM。
+- 冻结首个 `sdtm_ae_dataset` capability profile：required raw/metadata/standard/subject identity/knowledge，conditional reference date/coding/CRF，optional Protocol/SAP。
+- Plan 输出 required/conditional/optional、available evidence、producible/blocked variables、explicit gaps、required Wiki queries、required reviews、eligibility 和内容 hash。
+- `producible_variables` 明确定义为“可进入 Mapping 候选”，不是已完成映射；缺 value-label mapping 时仍保留 `gap-controlled-value-labels` 和 Mapping Review。
+- 验证 P6 SDTMIG 3.4 snapshot envelope/content hash，实际生成 `SAMPLE-AE-001/work/derived/plans/minimum-information-sdtm-ae.json`：`draft_allowed`，17 个首期候选，0 blocked，1 个显式 CT/value-label gap。
+- Plan 固定 `creates_stage_completion_evidence=false`，不会伪造 Protocol/SAP 或任何 SDTM Stage completion。
+
+#### Issues / Blockers
+
+- 当前 sample inventory 同时包含 CRF/Protocol/SAP/reference fixture，因此实际 artifact 是 full-input preflight；raw-only 无 CRF 的行为由独立回归测试固定，不把不存在的运行情景伪造成当前 Study 事实。
+- 既有 bundle hash 漂移仍按 P2 记录保留；P3 的 Plan Schema 维持 Runtime-local prerelease，不触发 Wiki snapshot 迁移。
+
+#### Validation
+
+- `python -m pytest tests/test_minimum_information.py tests/test_edc_importer.py tests/application_api/test_sample_study_scaffold.py -q`（25 passed）。
+- `python -m pytest -q -k "not test_shared_contract_bundle_is_complete_and_hash_locked"`（255 passed, 1 deselected；排除项为既有 bundle 漂移）。
+- `python -m ruff check src tests`（success）。
+- 实际 CLI preflight：`draft_allowed`，Plan Schema/hash valid，knowledge reference 无绝对路径或 `..`。
+
+#### Next
+
+1. P4 在 Plan 的 source/rule/gap 闭包内构建 AE Mapping context，并执行锁定 Wiki 查询。
+2. 正式化 MappingSpec 候选和中文 mapping ReviewPacket；证据不足变量不得 mapped。
+3. 同一 MappingSpec 驱动 Python/R/SAS 代码产物；Python 执行生成 draft CSV，R/SAS 只做受控代码 artifact。
+
+#### Files Changed / Commits
+
+- `clinical-workflow/src/runtime/minimum_information.py`, `src/runtime/contracts/minimum-information-plan.schema.json`
+- `clinical-workflow/tests/test_minimum_information.py`
+- `clinical-studies/SAMPLE-AE-001/work/derived/plans/minimum-information-sdtm-ae.json`, Study README
+- `docs/specs/02-SDTM.md`, `09-MCP-Tools-Design.md`, `21-Knowledge-Workflow-Integration.md`
+- `docs/main/memory/`, `docs/dep/`（本 Phase 提交）

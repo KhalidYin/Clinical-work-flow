@@ -686,3 +686,10 @@ parser validation 和中文 ReviewPacket。该样例实际解析为 1066 行、7
 73 个 column label 和 source format 可取得；informat、value-label mapping 和外部
 format catalog 保持显式 gap。P2 不调用 Wiki、不生成 MappingSpec，也不把 parser
 审核当作开发阶段确认。
+
+P9.1-P3 已实现确定性 Minimum Information preflight。它验证 Source Inventory、
+P2 metadata、目标 SDTMIG 3.4 lock 和 snapshot 内容 hash，输出 required、
+conditional、optional、producible/blocked variables、显式 gap、后续 Wiki query 和
+Review Gate。样例输出为 `draft_allowed`，但
+`creates_stage_completion_evidence=false`；因此它不能把 Protocol/SAP/SDTM Stage
+标记为完成。raw-only 无 CRF 场景由独立回归锁定，知识查询和 Mapping 仍留在 P4。

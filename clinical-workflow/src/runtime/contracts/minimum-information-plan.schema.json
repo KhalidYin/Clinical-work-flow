@@ -1,0 +1,195 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://clinical-workflow/prerelease/minimum-information-plan",
+  "title": "Minimum Information Plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "plan_id",
+    "planner_version",
+    "generated_at",
+    "study_id",
+    "target_artifact",
+    "target_standard",
+    "target_standard_version",
+    "source_metadata_artifact_id",
+    "required",
+    "conditional",
+    "optional",
+    "available_evidence",
+    "producible_variables",
+    "blocked_variables",
+    "explicit_gaps",
+    "required_wiki_queries",
+    "required_reviews",
+    "execution_eligibility",
+    "creates_stage_completion_evidence",
+    "plan_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "plan_id": {
+      "type": "string",
+      "pattern": "^minimum-information-[a-z0-9-]+-sdtm-ae-v[0-9]+$"
+    },
+    "planner_version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "study_id": { "type": "string", "minLength": 1 },
+    "target_artifact": { "const": "sdtm_ae_dataset" },
+    "target_standard": { "const": "SDTMIG" },
+    "target_standard_version": { "type": "string", "minLength": 1 },
+    "source_metadata_artifact_id": {
+      "type": ["string", "null"],
+      "pattern": "^source-metadata-[a-f0-9]{12}$"
+    },
+    "required": {
+      "type": "array",
+      "minItems": 4,
+      "items": { "$ref": "#/$defs/requirement" }
+    },
+    "conditional": {
+      "type": "array",
+      "minItems": 3,
+      "items": { "$ref": "#/$defs/requirement" }
+    },
+    "optional": {
+      "type": "array",
+      "minItems": 2,
+      "items": { "$ref": "#/$defs/requirement" }
+    },
+    "available_evidence": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/evidence" }
+    },
+    "producible_variables": { "$ref": "#/$defs/variable_list" },
+    "blocked_variables": { "$ref": "#/$defs/variable_list" },
+    "explicit_gaps": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/gap" }
+    },
+    "required_wiki_queries": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/wiki_query" }
+    },
+    "required_reviews": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/review" }
+    },
+    "execution_eligibility": {
+      "enum": ["blocked", "draft_allowed", "canonical_candidate"]
+    },
+    "creates_stage_completion_evidence": { "const": false },
+    "plan_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  },
+  "$defs": {
+    "variable_list": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[A-Z][A-Z0-9]{0,7}$" }
+    },
+    "requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requirement_id",
+        "classification",
+        "status",
+        "blocking",
+        "affects_variables",
+        "evidence_refs",
+        "reason"
+      ],
+      "properties": {
+        "requirement_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]+$" },
+        "classification": { "enum": ["required", "conditional", "optional"] },
+        "status": { "enum": ["available", "missing", "invalid", "not_required"] },
+        "blocking": { "type": "boolean" },
+        "affects_variables": { "$ref": "#/$defs/variable_list" },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "reason": { "type": "string", "minLength": 10 }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_id", "evidence_type", "status", "reference", "sha256"],
+      "properties": {
+        "evidence_id": { "type": "string", "pattern": "^evidence-[a-z0-9-]+$" },
+        "evidence_type": { "type": "string", "minLength": 1 },
+        "status": { "type": "string", "minLength": 1 },
+        "reference": { "type": "string", "minLength": 1 },
+        "sha256": {
+          "type": ["string", "null"],
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "gap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "gap_id",
+        "category",
+        "description",
+        "blocking",
+        "affects_variables",
+        "evidence_refs",
+        "required_action"
+      ],
+      "properties": {
+        "gap_id": { "type": "string", "pattern": "^gap-[a-z0-9-]+$" },
+        "category": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 10 },
+        "blocking": { "type": "boolean" },
+        "affects_variables": { "$ref": "#/$defs/variable_list" },
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "required_action": { "type": "string", "minLength": 10 }
+      }
+    },
+    "wiki_query": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "query_id",
+        "purpose",
+        "scope",
+        "terms",
+        "required_for_variables",
+        "snapshot_id"
+      ],
+      "properties": {
+        "query_id": { "type": "string", "pattern": "^wiki-query-[a-z0-9-]+$" },
+        "purpose": { "type": "string", "minLength": 10 },
+        "scope": { "type": "string", "minLength": 1 },
+        "terms": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "required_for_variables": { "$ref": "#/$defs/variable_list" },
+        "snapshot_id": { "type": ["string", "null"] }
+      }
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["review_id", "review_type", "reason", "blocking_before"],
+      "properties": {
+        "review_id": { "type": "string", "minLength": 3 },
+        "review_type": { "enum": ["source_intake", "sdtm_spec"] },
+        "reason": { "type": "string", "minLength": 10 },
+        "blocking_before": { "enum": ["mapping_context", "program_generation"] }
+      }
+    }
+  }
+}

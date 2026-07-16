@@ -141,7 +141,7 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 |-------|------|----------|------|------|
 | P1 | 修订上位合同并纠正 SAS7BDAT Source Intake | 2-3 | P8完成 | done |
 | P2 | 解析 SAS7BDAT 数据及完整可得元数据 | 3-4 | P1 | done |
-| P3 | 实现 Minimum Information Planner 和 raw-only AE preflight | 2-4 | P2 | pending |
+| P3 | 实现 Minimum Information Planner 和 raw-only AE preflight | 2-4 | P2 | done |
 | P4 | Wiki 辅助 MappingSpec、三语言程序和 Python reference execution | 4-6 | P3 | pending |
 | P5 | 通用规则治理、发布和干净再查询复用 | 2-3 | P4 | pending |
 | P6 | 单机快速启动、回归、人工验收与旧 P9 解锁 | 1-2 + 用户确认 | P5 | pending |
@@ -259,12 +259,12 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 
 ### 完成标准
 
-- [ ] Planner 仅根据 target profile、已登记来源、解析 metadata、已批准 Study decisions 和 locked knowledge availability 判断，不调用 LLM 猜测。
-- [ ] 输出 required/conditional/optional、producible variables、blocked variables、explicit gaps、Wiki query 和 Review action。
-- [ ] raw-only 情景在 CRF 缺失时仍可得到 `draft_allowed`，同时对依赖 CRF/参考日期/coding 的具体变量给出 gap 或 blocked。
-- [ ] 缺 raw dataset、无法形成 subject identity 或 target standard 未锁定时 fail closed。
-- [ ] Planner 不创建前序 Stage completion evidence，也不修改 canonical pipeline order。
-- [ ] 覆盖 full-input、raw-only、conditional-missing、required-missing、损坏 metadata 和 snapshot unavailable 的测试，并单独提交。
+- [x] Planner 仅根据 target profile、已登记来源、解析 metadata、已批准 Study decisions 和 locked knowledge availability 判断，不调用 LLM 猜测。
+- [x] 输出 required/conditional/optional、producible variables、blocked variables、explicit gaps、Wiki query 和 Review action。
+- [x] raw-only 情景在 CRF 缺失时仍可得到 `draft_allowed`，同时对依赖 CRF/参考日期/coding 的具体变量给出 gap 或 blocked。
+- [x] 缺 raw dataset、无法形成 subject identity 或 target standard 未锁定时 fail closed。
+- [x] Planner 不创建前序 Stage completion evidence，也不修改 canonical pipeline order。
+- [x] 覆盖 full-input、raw-only、conditional-missing、required-missing、损坏 metadata 和 snapshot unavailable 的测试，并单独提交。
 
 ### 边界（本 Phase 明确不做）
 
@@ -276,7 +276,7 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 
 | 文件 | 操作 | 预计行数 |
 |------|------|----------|
-| `clinical-workflow/schemas/runtime/minimum-information-plan.schema.json` | 新建 | ~180 |
+| `clinical-workflow/src/runtime/contracts/minimum-information-plan.schema.json` | 新建 prerelease contract | ~180 |
 | `clinical-workflow/src/runtime/minimum_information.py` | 新建 | ~250-400 |
 | `clinical-workflow/src/runtime/context_resolver.py` | 适配 | +30-70 |
 | `clinical-workflow/tests/test_minimum_information.py` | 新建 | ~250-400 |
@@ -459,9 +459,11 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 | 2026-07-16 | 规则复用验收 | candidate 即完成 / governed publish + clean query | governed publish + clean query | 防止把待审候选误报为已沉淀知识 |
 | 2026-07-16 | 旧 P9 解锁 | 自动测试 / AI 判断 / 用户单机确认 | 用户单机确认 | 满足用户明确的部署前置边界 |
 | 2026-07-16 | P2 Source Metadata schema 发布范围 | 直接升级 shared bundle / importer-local prerelease | importer-local prerelease | 避免解析阶段静默使 P6/P7 locked Wiki snapshots 失效；跨模块发布留给协调迁移 |
+| 2026-07-16 | producible variable 语义 | 已映射 / 可进入 Mapping 候选 | 可进入 Mapping 候选 | Planner 只分类证据；未解析 value labels 等风险必须同时保留 gap/review |
 
 ## 同步记录
 
 | 日期 | 已同步到 | 说明 |
 |------|----------|------|
 | 2026-07-16 | SPEC-13/15/21、Study README、memory | P2 parser、local preview、显式 metadata gap 与 Review 边界 |
+| 2026-07-16 | SPEC-02/09/21、Study README、memory | P3 Minimum Information、raw-only、局部阻断和 Stage 非完成语义 |

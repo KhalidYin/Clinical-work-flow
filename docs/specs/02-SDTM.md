@@ -391,3 +391,11 @@ P7 已实现一条 synthetic AE 纵向闭环，用于证明 SDTM AE 可以由 Wi
 | Protocol/SAP | optional | 仅在 Study 设计影响映射时升级为 conditional |
 
 Planner 输出必须列出 producible variables、blocked variables 和 explicit gaps。基础输入足以支持的字段可以进入 draft MappingSpec；缺失 conditional 证据的字段保持 gap，不补默认值。SAS7BDAT 的 column labels、formats 和实际可解析的 value labels 是来源证据，但不是自动批准的 SDTM 映射。
+
+P9.1-P3 的样例 preflight 已使用 P2 metadata 和校验通过的
+`snapshot-sdtmig34-core-events-ae-v1` 生成
+`work/derived/plans/minimum-information-sdtm-ae.json`。当前完整 sample inventory
+得到 `draft_allowed`，且不创建任何 Stage completion evidence。独立 raw-only
+回归会移除 CRF/Protocol/SAP，仍得到 `draft_allowed`；移除 reference date 或 coding
+来源时只阻断 AESTDY/AEENDY 或 AEDECOD/AEBODSYS/AESOC，移除 raw、subject
+identity、target standard 或知识 lock 时整体 fail closed。

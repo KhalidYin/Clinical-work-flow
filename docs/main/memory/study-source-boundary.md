@@ -14,6 +14,8 @@
 - `source_intake` 是正式 ReviewPacket 类型，只批准来源进入 Parser/Derived Gate，不批准 MappingSpec、程序执行或 canonical artifact promotion。
 - 本地 SAS7BDAT 等二进制可以作为正式 raw source：在 Git 中登记相对路径、大小、hash、storage policy 和 parser status，二进制本体保持未跟踪。受控 parser 必须校验 Study root、格式和 hash，同时保留 column label、format、宽度和值标签可得状态；缺 catalog/value labels 时保持 gap，不能从数据值猜测。
 - 行级 preview 使用 `source-preview.local.csv`，仅保存在本地且不作为 canonical/版本化证据；Git 保存 preview manifest、来源 hash 和 parser toolchain。Parser Review 是实际 Workflow Human-loop，不是开发阶段批准步骤。
+- Minimum Information Planner 判断一次目标产物是否具有足够信息，不判断十阶段是否完成。`producible_variables` 是可进入 Mapping 候选的证据范围，不等于映射已批准；Plan 固定 `creates_stage_completion_evidence=false`。
+- 对基础 SDTM AE，raw-only 且无 CRF/Protocol/SAP 可以 `draft_allowed`；缺 reference date/coding 只阻断受影响变量，缺 raw、subject identity、target standard 或 locked knowledge 时整体 blocked。
 
 ## 理由
 

@@ -33,6 +33,18 @@
 当前显式 gap 是 SAS informat、value-label mapping 和外部 format catalog；P3/P4
 必须按变量证据处理，不能通过观察数据值补造标签。
 
+## P3 Minimum Information 当前产物
+
+- `work/derived/plans/minimum-information-sdtm-ae.json`：确定性 preflight，当前为
+  `draft_allowed`；它只说明哪些变量可进入 Mapping 候选。
+- 当前 sample inventory 中 raw、subject identity、reference date、coding fields 和
+  SDTMIG 3.4 snapshot 均可验证，因此 17 个首期目标变量均为 producible candidate。
+- SAS value-label mapping 仍不可得，所以保留
+  `gap-controlled-value-labels`；AESEV/AESER/AEREL/AEACN/AEOUT 必须由 Wiki CT
+  与后续 Mapping Review 约束。
+- Plan 固定 `creates_stage_completion_evidence=false`，没有把 Protocol/SAP 或任何
+  SDTM Stage 标为完成，也没有执行 LLM、Mapping 或代码。
+
 ## 预期后续审核顺序
 
 1. Source Intake Review：确认 synthetic source 文件形态、字段、无真实数据。

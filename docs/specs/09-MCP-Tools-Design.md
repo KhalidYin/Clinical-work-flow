@@ -786,3 +786,16 @@ P7 未新增 core MCP tool，也未改变六个 core tool 名称。AE 执行通�
 Minimum Information Planner 是 Runtime/Agent 的确定性 preflight，不新增第 7 个 core MCP tool。输入只包含目标产物、Source Inventory、reviewed Source Metadata、capability profile、locked Wiki availability 和 approved Study decisions；输出包含 required/conditional/optional、producible/blocked variables、explicit gaps、required Wiki queries、required reviews 和 execution eligibility。
 
 Planner 不调用 LLM 判断文件是否存在，不推断未知 source semantics，不生成 MappingSpec，也不写 Stage completion evidence。后续 LLM 只能在该 Plan 限定的 source/rule/gap 闭包内提交 schema-valid MappingSpec 候选。
+
+P9.1-P3 已实现 `src/runtime/minimum_information.py`，当前只注册
+`sdtm_ae_dataset` capability profile。它验证 raw source 与 Source Metadata 的
+path/hash 一致性、SDTMIG 版本锁、知识 snapshot 内容 hash、subject identity
+候选和 conditional source availability。`producible_variables` 只表示“证据允许
+进入 Mapping 候选”，不表示已经完成映射、CT 转换或人工批准；例如 SAS 文件没有
+value-label mapping 时，AESEV/AESER 等可保持 producible，但必须同时携带
+`gap-controlled-value-labels` 和 Mapping Review。
+
+当前 prerelease Plan Schema 位于
+`src/runtime/contracts/minimum-information-plan.schema.json`。Plan 带内容 hash，
+tamper 时 fail closed；`creates_stage_completion_evidence` 固定为 false。该模块没有
+注册到 MCP Server，也不改变六个 core tool。

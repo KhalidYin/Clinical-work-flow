@@ -1,0 +1,345 @@
+{
+  "schema_version": "1.0.0",
+  "plan_id": "minimum-information-sample-ae-001-sdtm-ae-v1",
+  "planner_version": "1.0.0",
+  "generated_at": "2026-07-16T09:28:30.641121+00:00",
+  "study_id": "SAMPLE-AE-001",
+  "target_artifact": "sdtm_ae_dataset",
+  "target_standard": "SDTMIG",
+  "target_standard_version": "3.4",
+  "source_metadata_artifact_id": "source-metadata-2a6d72e9e5fa",
+  "required": [
+    {
+      "requirement_id": "ae_raw_dataset",
+      "classification": "required",
+      "status": "available",
+      "blocking": false,
+      "affects_variables": [
+        "STUDYID",
+        "DOMAIN",
+        "USUBJID",
+        "AESEQ",
+        "AETERM",
+        "AESTDTC",
+        "AEENDTC",
+        "AESEV",
+        "AESER",
+        "AEREL",
+        "AEACN",
+        "AEOUT",
+        "AEDECOD",
+        "AEBODSYS",
+        "AESOC",
+        "AESTDY",
+        "AEENDY"
+      ],
+      "evidence_refs": [
+        "input/edc/ae09jun2025.sas7bdat"
+      ],
+      "reason": "Registered AE raw source is available"
+    },
+    {
+      "requirement_id": "source_metadata",
+      "classification": "required",
+      "status": "available",
+      "blocking": false,
+      "affects_variables": [
+        "STUDYID",
+        "DOMAIN",
+        "USUBJID",
+        "AESEQ",
+        "AETERM",
+        "AESTDTC",
+        "AEENDTC",
+        "AESEV",
+        "AESER",
+        "AEREL",
+        "AEACN",
+        "AEOUT",
+        "AEDECOD",
+        "AEBODSYS",
+        "AESOC",
+        "AESTDY",
+        "AEENDY"
+      ],
+      "evidence_refs": [
+        "work/derived/edc/source-metadata.json"
+      ],
+      "reason": "Source Metadata schema and raw source identity are valid"
+    },
+    {
+      "requirement_id": "target_standard",
+      "classification": "required",
+      "status": "available",
+      "blocking": false,
+      "affects_variables": [
+        "STUDYID",
+        "DOMAIN",
+        "USUBJID",
+        "AESEQ",
+        "AETERM",
+        "AESTDTC",
+        "AEENDTC",
+        "AESEV",
+        "AESER",
+        "AEREL",
+        "AEACN",
+        "AEOUT",
+        "AEDECOD",
+        "AEBODSYS",
+        "AESOC",
+        "AESTDY",
+        "AEENDY"
+      ],
+      "evidence_refs": [
+        "runtime-manifest.draft.yaml#domain_knowledge"
+      ],
+      "reason": "SDTMIG 3.4 is locked"
+    },
+    {
+      "requirement_id": "governed_knowledge_snapshot",
+      "classification": "required",
+      "status": "available",
+      "blocking": false,
+      "affects_variables": [
+        "STUDYID",
+        "DOMAIN",
+        "USUBJID",
+        "AESEQ",
+        "AETERM",
+        "AESTDTC",
+        "AEENDTC",
+        "AESEV",
+        "AESER",
+        "AEREL",
+        "AEACN",
+        "AEOUT",
+        "AEDECOD",
+        "AEBODSYS",
+        "AESOC",
+        "AESTDY",
+        "AEENDY"
+      ],
+      "evidence_refs": [
+        "clinical-llm-wiki/snapshots/snapshot-sdtmig34-core-events-ae-v1.json"
+      ],
+      "reason": "Locked governed Wiki snapshot is available"
+    },
+    {
+      "requirement_id": "subject_identity",
+      "classification": "required",
+      "status": "available",
+      "blocking": false,
+      "affects_variables": [
+        "USUBJID",
+        "AESEQ"
+      ],
+      "evidence_refs": [
+        "source-metadata#variables/Subject"
+      ],
+      "reason": "A registered subject-identity source candidate is present; derivation remains reviewable"
+    }
+  ],
+  "conditional": [
+    {
+      "requirement_id": "reference_date_source",
+      "classification": "conditional",
+      "status": "available",
+      "blocking": false,
+      "affects_variables": [
+        "AESTDY",
+        "AEENDY"
+      ],
+      "evidence_refs": [
+        "input/raw/subject-reference.csv"
+      ],
+      "reason": "Reference-date source is available for study-day candidates"
+    },
+    {
+      "requirement_id": "meddra_coding_source",
+      "classification": "conditional",
+      "status": "available",
+      "blocking": false,
+      "affects_variables": [
+        "AEDECOD",
+        "AEBODSYS",
+        "AESOC"
+      ],
+      "evidence_refs": [
+        "source-metadata#variables/AETERM_PT",
+        "source-metadata#variables/AETERM_SOC",
+        "source-metadata#variables/AETERM_SOC"
+      ],
+      "reason": "Raw metadata contains PT/SOC coding candidates; dictionary/version still require Mapping review"
+    },
+    {
+      "requirement_id": "crf_metadata",
+      "classification": "conditional",
+      "status": "available",
+      "blocking": false,
+      "affects_variables": [],
+      "evidence_refs": [
+        "input/crf/ae-crf-fields.csv"
+      ],
+      "reason": "CRF metadata is available as supporting evidence"
+    }
+  ],
+  "optional": [
+    {
+      "requirement_id": "protocol_context",
+      "classification": "optional",
+      "status": "available",
+      "blocking": false,
+      "affects_variables": [],
+      "evidence_refs": [
+        "input/protocol/protocol-synopsis.txt"
+      ],
+      "reason": "Optional study_design_context is available"
+    },
+    {
+      "requirement_id": "sap_context",
+      "classification": "optional",
+      "status": "available",
+      "blocking": false,
+      "affects_variables": [],
+      "evidence_refs": [
+        "input/sap/sap-ae-excerpt.txt"
+      ],
+      "reason": "Optional analysis_context is available"
+    }
+  ],
+  "available_evidence": [
+    {
+      "evidence_id": "evidence-ae-raw-source",
+      "evidence_type": "registered_source",
+      "status": "available",
+      "reference": "input/edc/ae09jun2025.sas7bdat",
+      "sha256": "2a6d72e9e5fa4bb8e3cc14b0c412fce3c37e519f3ab9105cdcff33ba031e8749"
+    },
+    {
+      "evidence_id": "evidence-source-metadata",
+      "evidence_type": "source_metadata",
+      "status": "available",
+      "reference": "work/derived/edc/source-metadata.json",
+      "sha256": "2a6d72e9e5fa4bb8e3cc14b0c412fce3c37e519f3ab9105cdcff33ba031e8749"
+    },
+    {
+      "evidence_id": "evidence-governed-knowledge",
+      "evidence_type": "knowledge_snapshot",
+      "status": "available",
+      "reference": "clinical-llm-wiki/snapshots/snapshot-sdtmig34-core-events-ae-v1.json",
+      "sha256": "d8aafb73ccca987d597e372435b664ba074c1a45688d5e2eef809c72f475a9ec"
+    }
+  ],
+  "producible_variables": [
+    "STUDYID",
+    "DOMAIN",
+    "USUBJID",
+    "AESEQ",
+    "AETERM",
+    "AESTDTC",
+    "AEENDTC",
+    "AESEV",
+    "AESER",
+    "AEREL",
+    "AEACN",
+    "AEOUT",
+    "AEDECOD",
+    "AEBODSYS",
+    "AESOC",
+    "AESTDY",
+    "AEENDY"
+  ],
+  "blocked_variables": [],
+  "explicit_gaps": [
+    {
+      "gap_id": "gap-controlled-value-labels",
+      "category": "source_metadata",
+      "description": "Source file does not provide resolvable value-label mappings for controlled fields",
+      "blocking": false,
+      "affects_variables": [
+        "AESEV",
+        "AESER",
+        "AEREL",
+        "AEACN",
+        "AEOUT"
+      ],
+      "evidence_refs": [
+        "source-metadata#metadata_availability/value_labels"
+      ],
+      "required_action": "Use governed CT plus Mapping Review; do not infer labels from observed values"
+    }
+  ],
+  "required_wiki_queries": [
+    {
+      "query_id": "wiki-query-ae-domain",
+      "purpose": "Load approved SDTMIG 3.4 AE structure and assumptions",
+      "scope": "sdtm/events/ae",
+      "terms": [
+        "AE",
+        "AETERM",
+        "one record per adverse event per subject"
+      ],
+      "required_for_variables": [
+        "STUDYID",
+        "DOMAIN",
+        "USUBJID",
+        "AESEQ",
+        "AETERM"
+      ],
+      "snapshot_id": "snapshot-sdtmig34-core-events-ae-v1"
+    },
+    {
+      "query_id": "wiki-query-ae-controlled-terms",
+      "purpose": "Load governed terminology constraints without inferring raw value labels",
+      "scope": "sdtm/controlled-terminology/ae",
+      "terms": [
+        "AESEV",
+        "AESER",
+        "AEREL",
+        "AEACN",
+        "AEOUT"
+      ],
+      "required_for_variables": [
+        "AESEV",
+        "AESER",
+        "AEREL",
+        "AEACN",
+        "AEOUT"
+      ],
+      "snapshot_id": "snapshot-sdtmig34-core-events-ae-v1"
+    },
+    {
+      "query_id": "wiki-query-study-day",
+      "purpose": "Load approved --DY calculation rule when reference dates are available",
+      "scope": "sdtm/core/study-day",
+      "terms": [
+        "AESTDY",
+        "AEENDY",
+        "RFSTDTC"
+      ],
+      "required_for_variables": [
+        "AESTDY",
+        "AEENDY"
+      ],
+      "snapshot_id": "snapshot-sdtmig34-core-events-ae-v1"
+    }
+  ],
+  "required_reviews": [
+    {
+      "review_id": "source_intake_parser_ae_v1_001",
+      "review_type": "source_intake",
+      "reason": "Confirm parser evidence and retain unavailable metadata as explicit gaps",
+      "blocking_before": "mapping_context"
+    },
+    {
+      "review_id": "sdtm_spec_ae_v1_001",
+      "review_type": "sdtm_spec",
+      "reason": "Approve source-to-target mappings and every evidence-dependent gap decision",
+      "blocking_before": "program_generation"
+    }
+  ],
+  "execution_eligibility": "draft_allowed",
+  "creates_stage_completion_evidence": false,
+  "plan_sha256": "e9064390bc48e6b779770f012ca89e8c24e00fb0f9a632257b20a3ff3f2f4a8b"
+}
