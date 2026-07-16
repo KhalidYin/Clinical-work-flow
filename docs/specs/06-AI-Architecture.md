@@ -406,3 +406,16 @@ P8-P1 新增 draft Application API 合同：`clinical-workflow/schemas/applicati
 - artifact/context/provenance/audit 默认只读，路径以注册 container 和 relative path 暴露，不向客户端返回绝对路径。
 
 P8-P1 合同仍是 draft，未进入 released `contract-bundle.json`，避免 P6/P7 locked snapshot 从 `1.1.0` 发生无业务必要漂移。后续 P2/P3 实现 API 后，再决定是否升级 shared released schema。
+
+## 11. P8-P2 只读 Application API 实现态
+
+P8-P2 已实现 `clinical-workflow/src/application_api/`：
+
+- `ApplicationApiService` 从配置的 `clinical-studies` container root 派生 Study list/status/artifact/context/provenance/audit；
+- `create_app()` 提供 FastAPI 只读路由，默认 loopback 运行，不实现 P8-P3 的写 API；
+- 服务不写 Study 文件、不启动 Runtime、不写 DecisionReceipt、不引入数据库状态权威；
+- artifact 注册只接受 Study 内 `output/**` 和 `.review_queue/*.json`，并过滤 `.queue_scope.json` 等队列 marker；
+- public response 只暴露 `container_id + relative_path + sha256`，不会把绝对路径返回给浏览器；
+- 损坏 traceability/provenance JSON 返回结构化 `provenance_unavailable`，不会静默展示空 context。
+
+因此 P8-P2 可以作为 Study Console 的只读数据源，但还不是完整 Console 后端。运行、恢复和审核写入仍等待 P8-P3。

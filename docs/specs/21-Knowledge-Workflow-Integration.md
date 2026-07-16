@@ -558,3 +558,24 @@ P8-P1 已新增 `clinical-workflow/schemas/application/openapi.yaml`，作为本
 - UI-01 至 UI-07 的 payload 映射写入 OpenAPI 根级 `x-ui-contracts`，前端不得从缺失 payload 自行推断状态。
 
 P8-P1 未升级 released `contract-bundle.json`。原因是 P6/P7 locked snapshot 仍固定 Engine bundle `1.1.0`，而 Application API draft 尚未被 Runtime/Wiki 双端锁定消费。后续 P2/P3 实现 API 后，如需把 Application API schema 纳入 released bundle，必须同步 Wiki mirror、locked snapshot 兼容策略和相关测试。
+
+---
+
+## 23. P8-P2 只读 Study API 基线
+
+P8-P2 已提供本地只读 Application API，实现范围限定为 UI-01、UI-02、UI-05、UI-06、UI-07 的数据源：
+
+- `GET /api/v1/studies` 从配置的 `clinical-studies` container root 扫描 `project.yaml`，返回 Study summary 和 partial errors；
+- `GET /status` 根据 Pipeline Contract、review queue、artifact/provenance 派生十阶段状态，不维护第二状态机；
+- `GET /artifacts` 与 `GET /artifacts/{artifact_id}` 只访问注册 artifact，返回 hash、draft/canonical 标签和预览安全内容；
+- `GET /context` 与 `GET /provenance` 从 P7 traceability/provenance artifacts 提取 rule/source/study decision/gap 引用；
+- `GET /audit` 首版从 review queue 与 output artifacts 派生事件；若 Study 存在 `audit_trail.jsonl`，可合并结构化事件。
+
+安全和边界：
+
+- API 不写 Study 文件、不启动 Runtime、不写 DecisionReceipt、不提升 canonical artifact；
+- `.review_queue/.queue_scope.json` 等 scope marker 不计入 pending review，也不作为 Review artifact；
+- symlink、path traversal、绝对路径、未知 Study、未登记 artifact 和损坏 traceability JSON 均 fail closed；
+- 没有引入 PostgreSQL 或其他业务状态缓存；文件扫描视图可随时重建。
+
+P8-P2 的测试使用 P7 synthetic AE full chain 作为读模型证据：同一临时 Study 中 canonical AE、draft/review 状态、traceability、context 和 audit 均可由只读 API 读取。P8-P3 才会实现 run/resume/review decision 写入。

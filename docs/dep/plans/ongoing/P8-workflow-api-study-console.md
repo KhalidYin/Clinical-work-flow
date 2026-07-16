@@ -155,7 +155,7 @@ GET  /api/v1/studies/{study_id}/audit
 | Phase | 目标 | 预估轮次 | 依赖 | 状态 |
 |-------|------|----------|------|------|
 | P1 | 冻结 Application API、事件和安全合同 | 1-2 | P7完成 | done |
-| P2 | 实现 Study/status/artifact/context/audit 只读 API | 4-7 | P1 | pending |
+| P2 | 实现 Study/status/artifact/context/audit 只读 API | 4-7 | P1 | done |
 | P3 | 实现 run/resume/review 写 API 与事件流 | 5-8 | P2 | pending |
 | P4 | 实现本地 Study Console 核心界面 | 8-12 | P3 | pending |
 | P5 | 完成 artifact/provenance/audit、E2E 与本地发布 | 4-7 | P4 | pending |
@@ -224,13 +224,24 @@ GET  /api/v1/studies/{study_id}/audit
 - 文件扫描缓存（如需要）及可重建策略。
 - 合同、路径、部分数据和性能测试。
 
+### P2 实施记录
+
+- 新增 `clinical-workflow/src/application_api/`，提供 `ApplicationApiService` 和 `create_app()` FastAPI adapter。
+- 只读 API 已实现：`GET /api/v1/studies`、`GET /status`、`GET /artifacts`、`GET /artifacts/{artifact_id}`、`GET /context`、`GET /provenance`、`GET /audit`。
+- 服务只从配置的 `clinical-studies` container root 派生视图，不写 Study 文件、不启动 Runtime、不写 review decision、不引入数据库状态权威。
+- artifact 注册限定为 Study 内 `output/**` 和 `.review_queue/*.json`，过滤 `.queue_scope.json` 等 scope marker；symlink、path traversal、绝对路径、未登记 artifact 均 fail closed。
+- context/provenance 从 P7 traceability/provenance artifacts 派生，损坏 JSON 返回结构化 `provenance_unavailable`，不降级为模型推断或空成功。
+- audit timeline 首版从 `.review_queue` 与 output artifacts 派生事件；若 Study 提供 `audit_trail.jsonl`，则合并其中结构化事件。
+- 新增 `clinical-workflow/tests/application_api/test_readonly_api.py`，覆盖 P7 synthetic AE full chain、review-required 状态、partial study discovery error、unknown study、unregistered artifact、damaged traceability 和路径安全。
+- `clinical-workflow/pyproject.toml` 增加 FastAPI/uvicorn 依赖声明，避免只读 API 隐式依赖根 Review Panel 环境。
+
 ### 完成标准
 
-- [ ] API 响应与直接读取 Runtime/Study 权威结果一致。
-- [ ] 缺失/损坏/不兼容 manifest、Snapshot、audit 或 artifact 显示明确错误/部分状态。
-- [ ] 缓存删除后可重建，不改变 Study 文件和 Git。
-- [ ] 路径越界、未知 Study 和未登记 artifact 被拒绝。
-- [ ] UI-01、UI-02、UI-05、UI-06、UI-07 所需只读 payload 完整。
+- [x] API 响应与直接读取 Runtime/Study 权威结果一致。
+- [x] 缺失/损坏/不兼容 manifest、Snapshot、audit 或 artifact 显示明确错误/部分状态。
+- [x] 缓存删除后可重建，不改变 Study 文件和 Git。
+- [x] 路径越界、未知 Study 和未登记 artifact 被拒绝。
+- [x] UI-01、UI-02、UI-05、UI-06、UI-07 所需只读 payload 完整。
 
 ### 边界
 
@@ -370,6 +381,7 @@ GET  /api/v1/studies/{study_id}/audit
 | ID | 描述 | 发现于 | 类型 | 处理 |
 |----|------|--------|------|------|
 | D1 | 若 P8-P1 将 Application API schema 直接加入 released `contract-bundle.json`，会迫使 P6/P7 locked snapshot 从 1.1.0 漂移，但 P8-P1 尚未实现跨模块运行时消费 | P1 | 已解决 | P1 以 `schemas/application/openapi.yaml` 发布 draft contract，并用测试确认 `x-released-contract-bundle=false` 与 bundle 1.1.0 不变；P2/P3 实现后再评估是否升级 released bundle |
+| D2 | `.review_queue/.queue_scope.json` 是队列 scope marker，不是 ReviewPacket；若只按 `*.json` 计数，会把已确认 Study 误判为 pending review | P2 | 已解决 | `ApplicationApiService` 过滤点号开头的 review queue marker；只将实际 packet/decision/confirmation/rework 作为 review artifacts |
 
 ## 关键决策记录
 

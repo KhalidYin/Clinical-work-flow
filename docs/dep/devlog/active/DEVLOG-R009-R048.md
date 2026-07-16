@@ -1230,3 +1230,49 @@ Done — no next steps。若需要跨阶段全量语义图，应另立 typed-rel
 - `docs/dep/TASK_STATE.md`
 - `docs/dep/devlog/INDEX.md`
 - `docs/dep/devlog/active/DEVLOG-R009-R048.md`
+
+---
+
+### R044 [10:54] [P8-workflow-api-study-console] P2: 实现 Study/status/artifact/context/provenance/audit 只读 API
+
+#### Done
+- 新增 `clinical-workflow/src/application_api/`，实现 `ApplicationApiService` 和 `create_app()` FastAPI adapter。
+- 实现 P8-P2 只读路由：Study list/status、artifact list/detail、context、provenance 和 audit。
+- 只读服务从配置的 `clinical-studies` container root 扫描 Study 文件，不写 Study、不启动 Runtime、不写 review decision、不引入数据库状态权威。
+- artifact 注册限定在 Study 内 `output/**` 与 `.review_queue/*.json`，过滤 `.queue_scope.json` marker，拒绝 symlink、path traversal、绝对路径、未知 Study 和未登记 artifact。
+- context/provenance 从 P7 traceability/provenance artifact 派生；损坏 JSON 返回结构化 `provenance_unavailable`。
+- audit timeline 首版从 `.review_queue` 与 output artifact 派生事件，并兼容 Study `audit_trail.jsonl`。
+- 新增 `tests/application_api/test_readonly_api.py`，覆盖 P7 full-chain 读取、review-required 状态、partial discovery error、路径安全、损坏 traceability 和 artifact 预览。
+- `clinical-workflow/pyproject.toml` 增加 FastAPI/uvicorn 依赖声明，避免隐式依赖根 Review Panel 环境。
+- 更新 P8 子计划、PLAN、USAGE、SPEC-06 和 SPEC-21。
+
+#### Issues / Blockers
+- 首轮测试发现 auto-approved Study 仍显示 `blocked_review`，review-required Study pending 数为 2。根因是 `.review_queue/.queue_scope.json` 被按 `*.json` 误计为 ReviewPacket；已过滤点号开头的 queue marker，并保留只读 artifact 扫描边界。
+- 第二轮测试发现 CSV 预览行数断言硬编码为 2，但 P7 expected AE baseline 实际为 3 行。根因是测试假设错误；已改为读取 fixture baseline 行数，不改 API 行为。
+
+#### Validation
+- `python -m pytest tests/application_api/test_readonly_api.py -q`（6 passed）
+- `python -m pytest tests/application_api/test_readonly_api.py tests/test_p8_application_api_contract.py tests/test_p7_ae_workflow_e2e.py tests/test_knowledge_contracts.py tests/test_runtime_knowledge_integration.py -q`（84 passed）
+- `python -m pytest tests/application_api/test_readonly_api.py tests/test_p8_application_api_contract.py -q`（13 passed）
+- `python -m ruff check src/application_api tests/application_api/test_readonly_api.py tests/test_p8_application_api_contract.py`（success）
+- `git diff --check`（success；仅 LF/CRLF warning）
+
+#### Next
+1. P8-P3：实现 run/resume/review decision 写 API 与事件流。
+2. P8-P3：写 API 只能通过 Runtime/Review Protocol 改变状态；Web server 仍不得直接调用 core tools 或提升 artifact。
+3. P8-P3：补同一 Study 运行锁、事件游标恢复和 DecisionReceipt 幂等/过期冲突测试。
+
+#### Files Changed / Commits
+- `clinical-workflow/src/application_api/__init__.py`
+- `clinical-workflow/src/application_api/app.py`
+- `clinical-workflow/src/application_api/service.py`
+- `clinical-workflow/tests/application_api/test_readonly_api.py`
+- `clinical-workflow/pyproject.toml`
+- `USAGE.md`
+- `docs/specs/06-AI-Architecture.md`
+- `docs/specs/21-Knowledge-Workflow-Integration.md`
+- `docs/dep/plans/ongoing/P8-workflow-api-study-console.md`
+- `docs/dep/PLAN.md`
+- `docs/dep/TASK_STATE.md`
+- `docs/dep/devlog/INDEX.md`
+- `docs/dep/devlog/active/DEVLOG-R009-R048.md`

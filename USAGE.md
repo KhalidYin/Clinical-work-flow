@@ -127,7 +127,30 @@ python -m pytest tests/test_p7_ae_workflow_e2e.py -q
 
 运行产物落在测试 Study 副本的 `output/sdtm/`：draft、canonical dataset、program manifest、validation report、execution log、provenance 和 traceability report。AEDECOD、AESEV、AEENRF 仍是显式 gap。
 
-## 6. 验证
+## 6. 启动 P8 只读 Application API
+
+P8-P2 提供本地只读 Application API，用于 Study Console 后续前端读取 Study/status/artifact/context/provenance/audit。它不启动 Runtime、不写 DecisionReceipt、不提升 artifact。
+
+```powershell
+Set-Location .\clinical-workflow
+..\.venv\Scripts\python -m uvicorn "src.application_api.app:create_app" --factory --host 127.0.0.1 --port 8788
+```
+
+当前服务默认从仓库根 `clinical-studies/` 读取 Study。只读接口包括：
+
+```text
+GET /api/v1/studies
+GET /api/v1/studies/{study_id}/status
+GET /api/v1/studies/{study_id}/artifacts
+GET /api/v1/studies/{study_id}/artifacts/{artifact_id}
+GET /api/v1/studies/{study_id}/context
+GET /api/v1/studies/{study_id}/provenance
+GET /api/v1/studies/{study_id}/audit
+```
+
+P8-P3 前，`POST /runs`、`POST /resume` 和 `POST /reviews/.../decisions` 仍未实现。
+
+## 7. 验证
 
 ```powershell
 Set-Location .\clinical-workflow
@@ -136,6 +159,9 @@ Set-Location .\clinical-workflow
 
 # P7 synthetic AE 纵向链路
 ..\.venv\Scripts\python -m pytest tests/test_p7_ae_workflow_e2e.py tests/test_p7_ae_execution.py tests/test_p7_ae_mapping_context.py tests/test_p7_ae_mapping_contract.py -q
+
+# P8 Application API 合同与只读 API
+..\.venv\Scripts\python -m pytest tests/test_p8_application_api_contract.py tests/application_api/test_readonly_api.py -q
 
 Set-Location ..\clinical-llm-wiki
 ..\.venv\Scripts\python -m pytest -q

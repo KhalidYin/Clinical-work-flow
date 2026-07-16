@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "AI-powered clinical statistical programming workflow: Protocol → TFL"
 requires-python = ">=3.11"
 dependencies = [
+    "fastapi>=0.111",
     "pandas>=2.0",
     "pyreadstat>=1.2",
     "pydantic>=2.0",
@@ -12,6 +13,7 @@ dependencies = [
     "jinja2>=3.1",
     "jsonschema>=4.23",
     "mcp>=1.0",
+    "uvicorn>=0.30",
 ]
 
 [project.optional-dependencies]
