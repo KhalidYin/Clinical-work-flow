@@ -674,3 +674,5 @@ P8-P1 已冻结本地 Study Console 的 Application API draft contract：`clinic
 - 不把 Review 数据库作为文件系统 `.review_queue/` 之外的新业务权威。
 
 P8 当前主线是：Study Console → Application API → Runtime/Review Protocol/Study files。若后续需要内网协作，应在 P9 以 Application API 为基础新增权限和协作层，而不是恢复独立 Relay 状态机。
+
+P8-P4 已落地单机 `/console/` 静态 Study Console：Review Inbox 直接消费 Application API，不引入数据库、WebSocket 或多人冲突合并。SPEC-20 的多人协作、通知和 Relay 数据库存储仍为 P9 以后重新评估项。

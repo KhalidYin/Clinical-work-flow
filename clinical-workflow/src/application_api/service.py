@@ -711,6 +711,10 @@ class ApplicationApiService:
             "finding_count": len(packet.get("findings", [])),
             "packet_sha256": _sha256_file(path),
             "confirmation_sha256": _sha256_file(confirmation) if confirmation.exists() else None,
+            "agent_summary": packet.get("agent_summary", ""),
+            "source_documents": list(packet.get("source_documents", [])),
+            "created_at": packet.get("created_at"),
+            "findings": [_review_finding_summary(item) for item in packet.get("findings", [])],
         }
 
     def _decision_objects(
@@ -1200,6 +1204,21 @@ def _safe_review_id(review_id: str) -> str:
             status_code=400,
         )
     return review_id
+
+
+def _review_finding_summary(item: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        "finding_id": str(item.get("id", "")),
+        "category": str(item.get("category", "")),
+        "severity": str(item.get("severity", "")),
+        "location": str(item.get("location", "")),
+        "title": str(item.get("title", "")),
+        "current_value": str(item.get("current_value", "")),
+        "proposed_value": str(item.get("proposed_value", "")),
+        "rationale": str(item.get("rationale", "")),
+        "evidence_refs": [str(ref) for ref in item.get("evidence_refs", [])],
+        "auto_approved": bool(item.get("auto_approved", False)),
+    }
 
 
 def _is_registered_artifact(relative_path: str) -> bool:

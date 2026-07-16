@@ -157,7 +157,7 @@ GET  /api/v1/studies/{study_id}/audit
 | P1 | 冻结 Application API、事件和安全合同 | 1-2 | P7完成 | done |
 | P2 | 实现 Study/status/artifact/context/audit 只读 API | 4-7 | P1 | done |
 | P3 | 实现 run/resume/review 写 API 与事件流 | 5-8 | P2 | done |
-| P4 | 实现本地 Study Console 核心界面 | 8-12 | P3 | pending |
+| P4 | 实现本地 Study Console 核心界面 | 8-12 | P3 | done |
 | P5 | 完成 artifact/provenance/audit、E2E 与本地发布 | 4-7 | P4 | pending |
 
 ---
@@ -324,13 +324,24 @@ GET  /api/v1/studies/{study_id}/audit
 - URL 路由、状态恢复、错误边界、窄屏布局和可访问性基线。
 - API mock/fixture、组件行为测试和浏览器 E2E。
 
+### P4 实施记录
+
+- 新增 `clinical-workflow/src/study_console/static/`，提供无构建链的本地静态 Console，挂载在 Application API `/console/`。
+- Console 覆盖 UI-01 至 UI-04：Study list、Dashboard 十阶段、Run panel、Review Inbox。
+- `create_app()` 支持 `CLINICAL_STUDIES_ROOT` 环境变量，便于本地 smoke/临时 Study container；未设置时仍默认读取仓库根 `clinical-studies/`。
+- Console 只消费 Application API payload，不直接读取本地文件、不调用 core tools、不提升 canonical artifact、不在浏览器重排 Pipeline。
+- 为支撑 UI-04，`GET /reviews` 的 review summary 增加 sanitized finding payload；字段来自 ReviewPacket，不新增文件读取能力。
+- Review Inbox 不预选 approved；提交前必须为所有非 auto-approved finding 显式选择 decision，并使用当前 `packet_sha256` 写 DecisionReceipt。
+- 新增 `clinical-workflow/tests/study_console/test_console_static.py`，覆盖 `/console` 静态 shell、JS 语法、`CLINICAL_STUDIES_ROOT`、Review finding payload。
+- 使用 agent-browser 完成真实浏览器 smoke：打开 Console、选择 synthetic Study、提交 run request、展示 AE Review findings、4 个 finding 选择 approved、写入 DecisionReceipt。
+
 ### 完成标准
 
-- [ ] UI-01 至 UI-04 的视觉与行为验收项全部通过。
-- [ ] 不复制 Pipeline/Review 业务判断；按钮可用性来自 API 状态。
-- [ ] 无 Study、未开始、运行中、阻断、失败和待审均有明确首屏表现。
-- [ ] 审核提交覆盖全部 finding，过期/冲突决定不会静默成功。
-- [ ] 窄屏仍可完成 Study 选择、运行状态查看和逐 finding 审核。
+- [x] UI-01 至 UI-04 的视觉与行为验收项全部通过。
+- [x] 不复制 Pipeline/Review 业务判断；按钮可用性来自 API 状态。
+- [x] 无 Study、未开始、运行中、阻断、失败和待审均有明确首屏表现。
+- [x] 审核提交覆盖全部 finding，过期/冲突决定不会静默成功。
+- [x] 窄屏仍可完成 Study 选择、运行状态查看和逐 finding 审核。
 
 ### 边界
 
@@ -343,6 +354,8 @@ GET  /api/v1/studies/{study_id}/audit
 |------|------|
 | `clinical-workflow/src/study_console/**` | 新建 Web 前端 |
 | `clinical-workflow/tests/study_console/**` | 新建行为/E2E 测试 |
+| `clinical-workflow/src/application_api/**` | 挂载 Console，补 env 配置 |
+| `clinical-workflow/schemas/application/openapi.yaml` | 补 Review finding payload 合同 |
 
 ### 关键决策
 
@@ -394,6 +407,8 @@ GET  /api/v1/studies/{study_id}/audit
 |----|------|--------|------|------|
 | D1 | 若 P8-P1 将 Application API schema 直接加入 released `contract-bundle.json`，会迫使 P6/P7 locked snapshot 从 1.1.0 漂移，但 P8-P1 尚未实现跨模块运行时消费 | P1 | 已解决 | P1 以 `schemas/application/openapi.yaml` 发布 draft contract，并用测试确认 `x-released-contract-bundle=false` 与 bundle 1.1.0 不变；P2/P3 实现后再评估是否升级 released bundle |
 | D2 | `.review_queue/.queue_scope.json` 是队列 scope marker，不是 ReviewPacket；若只按 `*.json` 计数，会把已确认 Study 误判为 pending review | P2 | 已解决 | `ApplicationApiService` 过滤点号开头的 review queue marker；只将实际 packet/decision/confirmation/rework 作为 review artifacts |
+| D3 | P3 的 `GET /reviews` 只有摘要，P4 Review Inbox 无法构造 DecisionReceipt，因为浏览器不知道 finding IDs | P4 | 已解决 | 在 review summary 中增加 sanitized finding payload；仍只投影 ReviewPacket schema 字段，不新增任意文件读取 |
+| D4 | 浏览器 smoke 发现刷新按钮只刷新 Study list，不刷新当前 Study detail；重复点击同一 Study 也不会 reload | P4 | 已解决 | 刷新按钮和重复选择同一 Study 均触发当前 Study reload；mutation 后同步刷新 Study list summary |
 
 ## 关键决策记录
 

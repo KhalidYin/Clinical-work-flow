@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Clinical Study Console</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script defer src="./app.js"></script>
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">Local-first</p>
+        <h1>Clinical Study Console</h1>
+      </div>
+      <div class="header-status" aria-live="polite">
+        <span id="api-status" class="status-pill status-muted">API 未连接</span>
+        <span id="selected-study-label" class="mono">未选择 Study</span>
+      </div>
+    </header>
+
+    <main class="console-shell" aria-label="Clinical workflow console">
+      <aside class="study-sidebar" aria-labelledby="study-list-title">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">UI-01</p>
+            <h2 id="study-list-title">Study 列表</h2>
+          </div>
+          <button id="refresh-studies" class="button button-ghost" type="button">
+            刷新
+          </button>
+        </div>
+        <div id="study-list-message" class="notice" role="status"></div>
+        <div id="study-list" class="study-list"></div>
+      </aside>
+
+      <section class="workspace" aria-label="Study workspace">
+        <section class="panel dashboard-panel" aria-labelledby="dashboard-title">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">UI-02</p>
+              <h2 id="dashboard-title">Study Dashboard</h2>
+            </div>
+            <span id="knowledge-lock" class="status-pill status-muted">Knowledge: n/a</span>
+          </div>
+          <div id="dashboard-empty" class="empty-state">
+            请选择左侧 Study。选择后会从 Application API 读取状态，不在浏览器推断阶段。
+          </div>
+          <div id="dashboard-content" class="dashboard-content" hidden>
+            <div class="summary-grid">
+              <article class="summary-card">
+                <span>当前阶段</span>
+                <strong id="current-stage">-</strong>
+              </article>
+              <article class="summary-card">
+                <span>运行状态</span>
+                <strong id="run-state">-</strong>
+              </article>
+              <article class="summary-card">
+                <span>待审核</span>
+                <strong id="pending-review-count">-</strong>
+              </article>
+              <article class="summary-card">
+                <span>状态完整性</span>
+                <strong id="incomplete-reasons">-</strong>
+              </article>
+            </div>
+            <ol id="stage-timeline" class="stage-timeline" aria-label="Pipeline stages"></ol>
+          </div>
+        </section>
+
+        <div class="work-grid">
+          <section class="panel" aria-labelledby="run-panel-title">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">UI-03</p>
+                <h2 id="run-panel-title">Run 面板</h2>
+              </div>
+              <span id="active-run-id" class="mono">run: n/a</span>
+            </div>
+            <form id="run-form" class="stacked-form">
+              <label>
+                Intent
+                <textarea
+                  id="run-intent"
+                  rows="3"
+                  required
+                  minlength="3"
+                  placeholder="例如：生成 AE 数据集"
+                ></textarea>
+              </label>
+              <div class="form-row">
+                <label>
+                  Target stage
+                  <select id="target-stage"></select>
+                </label>
+                <label>
+                  Dataset
+                  <input id="run-dataset" pattern="[A-Z][A-Z0-9]{0,7}" placeholder="AE" />
+                </label>
+              </div>
+              <div class="button-row">
+                <button id="start-run" class="button button-primary" type="submit">
+                  提交 Run Request
+                </button>
+                <button id="resume-run" class="button button-secondary" type="button">
+                  Resume
+                </button>
+              </div>
+              <p id="run-help" class="help-text">
+                run/resume 只写 durable request 和事件；Runtime 执行仍由后续受控流程消费。
+              </p>
+              <div id="run-message" class="notice" role="status"></div>
+            </form>
+            <div class="event-panel">
+              <h3>事件</h3>
+              <ul id="event-list" class="event-list"></ul>
+            </div>
+          </section>
+
+          <section class="panel" aria-labelledby="review-panel-title">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">UI-04</p>
+                <h2 id="review-panel-title">Review Inbox</h2>
+              </div>
+              <span id="review-count" class="status-pill status-muted">0 review</span>
+            </div>
+            <div id="review-message" class="notice" role="status"></div>
+            <div id="review-list" class="review-list"></div>
+          </section>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

@@ -758,6 +758,56 @@ components:
           $ref: "#/components/schemas/Sha256"
         confirmation_sha256:
           type: ["string", "null"]
+        agent_summary:
+          type: string
+        source_documents:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: ["string", "null"]
+        findings:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReviewFindingSummary"
+
+    ReviewFindingSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - finding_id
+        - category
+        - severity
+        - location
+        - title
+        - current_value
+        - proposed_value
+        - rationale
+        - evidence_refs
+        - auto_approved
+      properties:
+        finding_id:
+          type: string
+        category:
+          type: string
+        severity:
+          type: string
+        location:
+          type: string
+        title:
+          type: string
+        current_value:
+          type: string
+        proposed_value:
+          type: string
+        rationale:
+          type: string
+        evidence_refs:
+          type: array
+          items:
+            type: string
+        auto_approved:
+          type: boolean
 
     ReviewDecisionRequest:
       type: object

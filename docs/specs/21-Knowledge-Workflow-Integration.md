@@ -600,3 +600,22 @@ P8-P3 已把 Application API 从只读门面扩展为受控写入门面，但仍
 5. approved DecisionReceipt 可被现有 AE workflow 消费并在 Runtime/Agent 步骤中提升 canonical AE。
 
 P8-P3 仍不启动 Runtime executor；`.application_api/` 中的 run 文件是下一阶段 Study Console/Runtime bridge 的 durable request layer，不是第二状态机。Knowledge/Wiki 的作用保持不变：提供规范、引用和执行约束；当前 Study 的执行事实仍由 Study 文件、Review Protocol、traceability 和 Git/audit 共同证明。
+
+---
+
+## 25. P8-P4 Study Console 核心 UI 基线
+
+P8-P4 已新增本地 Web Study Console，入口为 Application API 的 `/console/` 静态页面。该入口面向普通本地操作，不取代 Codex/VSCode 高级入口或 Obsidian 知识维护入口。
+
+首版 Console 覆盖：
+
+- UI-01 Study list：读取 Study summary、当前阶段、run state 和 pending review；
+- UI-02 Dashboard：按 API 返回的 `stage_order/stages` 渲染十阶段，不在浏览器重排或跳步；
+- UI-03 Run panel：通过 Application API 写 run/resume request 和查看事件；
+- UI-04 Review Inbox：展示 ReviewPacket finding 摘要并提交 DecisionReceipt。
+
+为支撑 UI-04，`GET /api/v1/studies/{study_id}/reviews` 增加 sanitized finding payload。该字段仍是 ReviewPacket 的只读投影，不是新知识源，不允许浏览器读取 PDF/source 原文或 Study 任意文件。
+
+P8-P4 的浏览器 smoke 使用 agent-browser 在本地 Console 中完成：打开 `/console/`、选择 synthetic Study、提交 run request、展示 4 个 AE Review finding、逐 finding 选择 approved 并写入 DecisionReceipt。该验证证明前端能接入现有文件协议；canonical promotion 仍未由浏览器执行，留给 Runtime/Agent。
+
+P8-P5 将继续补 UI-05 至 UI-07：artifact preview/diff、context/provenance 和 audit timeline，并完成本地发布与恢复说明。

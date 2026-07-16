@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from fastapi import Body, FastAPI, Header, Query, Request, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 from .service import ApplicationApiConfig, ApplicationApiError, ApplicationApiService
 
@@ -24,8 +26,9 @@ def create_app(config: ApplicationApiConfig | None = None) -> FastAPI:
         docs_url="/docs",
         openapi_url="/openapi.json",
     )
-    service = ApplicationApiService(config or ApplicationApiConfig.for_platform_root(Path.cwd().parent))
+    service = ApplicationApiService(config or _default_config())
     app.state.application_api_service = service
+    console_static_dir = Path(__file__).resolve().parents[1] / "study_console" / "static"
 
     @app.exception_handler(ApplicationApiError)
     async def application_api_error_handler(
@@ -33,6 +36,10 @@ def create_app(config: ApplicationApiConfig | None = None) -> FastAPI:
         exc: ApplicationApiError,
     ) -> JSONResponse:
         return JSONResponse(status_code=exc.status_code, content=exc.as_response())
+
+    @app.get("/console", include_in_schema=False)
+    def study_console_redirect() -> RedirectResponse:
+        return RedirectResponse(url="/console/")
 
     @app.get("/api/v1/studies")
     def list_studies() -> dict:
@@ -111,4 +118,18 @@ def create_app(config: ApplicationApiConfig | None = None) -> FastAPI:
     def get_audit(study_id: str, cursor: str | None = Query(default=None)) -> dict:
         return service.get_audit(study_id, cursor=cursor)
 
+    if console_static_dir.exists():
+        app.mount(
+            "/console",
+            StaticFiles(directory=console_static_dir, html=True),
+            name="study-console",
+        )
+
     return app
+
+
+def _default_config() -> ApplicationApiConfig:
+    studies_root = os.environ.get("CLINICAL_STUDIES_ROOT")
+    if studies_root:
+        return ApplicationApiConfig(container_roots={"clinical-studies": Path(studies_root)})
+    return ApplicationApiConfig.for_platform_root(Path.cwd().parent)

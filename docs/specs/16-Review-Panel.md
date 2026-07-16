@@ -1299,3 +1299,5 @@ P8-P1 将 Review 交互抽象为 Application API draft contract：`clinical-work
 - ConfirmationReceipt、artifact promotion、Git 阶段推进仍由 Runtime/Agent 完成；
 - 已有 VSCode Extension 源码继续作为兼容/历史入口，不成为 P8 的实现前置；
 - P8 不同时维护独立 Web Relay 后端和 Study Console 后端。旧 SPEC-20 中仍有效的审核 API 需求由 Application API 吸收。
+
+P8-P4 已实现 `/console/` Study Console 的 Review Inbox。该 Inbox 通过 `GET /api/v1/studies/{study_id}/reviews` 获取 sanitized finding payload，并通过 `POST /api/v1/studies/{study_id}/reviews/{review_id}/decisions` 写 DecisionReceipt。VSCode Review Panel 与 Web Console 仍共享同一 Review Protocol；Panel 不需要迁移为 P8-P4 前置条件。

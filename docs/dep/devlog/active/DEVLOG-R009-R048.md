@@ -877,6 +877,58 @@ Done — no next steps。若需要跨阶段全量语义图，应另立 typed-rel
 
 ---
 
+### R046 [13:05] [P8-workflow-api-study-console] P4: 实现本地 Study Console 核心界面
+
+#### Done
+- 新增 `clinical-workflow/src/study_console/static/`，实现无构建链的本地 `/console/` 静态 Study Console。
+- Console 覆盖 UI-01 至 UI-04：Study list、Dashboard 十阶段、Run panel、Review Inbox。
+- `create_app()` 挂载 `/console/`，并支持 `CLINICAL_STUDIES_ROOT` 环境变量指向临时或外部 Study container。
+- Console 只消费 Application API payload，不直接读取本地文件、不调用 core tools、不提升 canonical artifact。
+- 为支撑 Review Inbox，`GET /reviews` 的 review summary 增加 sanitized finding payload；字段只来自 ReviewPacket schema。
+- Review Inbox 不预选 approved；用户必须为所有非 auto-approved finding 显式选择 decision，提交时使用当前 `packet_sha256` 写 DecisionReceipt。
+- 新增 `tests/study_console/test_console_static.py`，覆盖静态 shell/assets、JS 语法、env config 和 Review finding payload。
+- 同步 OpenAPI、USAGE、SPEC-06/15/16/20/21、P8 子计划和 PLAN。
+
+#### Issues / Blockers
+- P4 发现 P3 的 `GET /reviews` 只有摘要，前端无法构造 DecisionReceipt。处理：在 review summary 中加入 sanitized finding payload，不新增任意文件读取能力。
+- 浏览器 smoke 发现刷新按钮只刷新 Study list，不刷新当前 Study detail；重复点击同一 Study 也不会 reload。处理：刷新和重复选择均触发当前 Study reload；run/review mutation 后同步刷新 Study list summary。
+- 本机无 Chrome/Edge driver，`pip install playwright` 长时间挂起；改用已安装的 agent-browser CLI 做真实浏览器 smoke，并终止挂起的 pip 安装进程。
+
+#### Validation
+- `python -m pytest tests/study_console/test_console_static.py tests/application_api/test_write_api.py tests/application_api/test_readonly_api.py tests/test_p8_application_api_contract.py -q`（23 passed）
+- `python -m pytest tests/study_console/test_console_static.py tests/application_api/test_write_api.py tests/application_api/test_readonly_api.py tests/test_p8_application_api_contract.py tests/test_p7_ae_workflow_e2e.py tests/test_review_protocol.py tests/test_knowledge_contracts.py tests/test_runtime_knowledge_integration.py -q`（98 passed）
+- `ruff check src/application_api src/study_console tests/study_console tests/application_api tests/test_p8_application_api_contract.py`（success）
+- `node --check src/study_console/static/app.js`（success）
+- `git diff --check`（success；仅 LF/CRLF warning）
+- agent-browser smoke（success）：打开 `/console/`、选择 synthetic Study、提交 run request、展示 4 个 AE Review finding、逐 finding 选择 approved、写入 DecisionReceipt。
+
+#### Next
+1. P8-P5：补 UI-05 至 UI-07，完成 Artifact、Context/Provenance 和 Audit 视图。
+2. P8-P5：完成本地发布、启动/关闭、备份/恢复和回滚说明。
+3. P8-P5：确认 VSCode Review Panel 作为兼容客户端保留，不形成第二套 Review 语义。
+
+#### Files Changed / Commits
+- `clinical-workflow/src/application_api/app.py`
+- `clinical-workflow/src/application_api/service.py`
+- `clinical-workflow/src/study_console/__init__.py`
+- `clinical-workflow/src/study_console/static/index.html`
+- `clinical-workflow/src/study_console/static/styles.css`
+- `clinical-workflow/src/study_console/static/app.js`
+- `clinical-workflow/schemas/application/openapi.yaml`
+- `clinical-workflow/tests/study_console/test_console_static.py`
+- `USAGE.md`
+- `docs/specs/06-AI-Architecture.md`
+- `docs/specs/15-Review-Protocol.md`
+- `docs/specs/16-Review-Panel.md`
+- `docs/specs/20-Web-Relay.md`
+- `docs/specs/21-Knowledge-Workflow-Integration.md`
+- `docs/dep/plans/ongoing/P8-workflow-api-study-console.md`
+- `docs/dep/PLAN.md`
+- `docs/dep/devlog/INDEX.md`
+- `docs/dep/devlog/active/DEVLOG-R009-R048.md`
+
+---
+
 ### R045 [11:35] [P8-workflow-api-study-console] P3: 实现 run/resume/review decision 写 API 与事件流
 
 #### Done

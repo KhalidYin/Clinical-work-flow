@@ -1134,3 +1134,15 @@ P8-P3 已在 Application API 中实现 Study 级 Review façade：
 - 为保持现有 Runtime/AE workflow 兼容，P8-P3 默认不写带 role 后缀的 decision 文件；多审核人 role 后缀留给后续共识策略阶段。
 
 P8-P3 的 rejected 决策只会生成 DecisionReceipt。后续 rework、ConfirmationReceipt 和 canonical promotion 仍由 Runtime/Agent 消费 DecisionReceipt 后完成；Application API 不代替该步骤。
+
+### 13.2 P8-P4 Study Console Review Inbox
+
+P8-P4 的 Study Console 直接使用 Study 级 Review façade，不再读取 `.review_queue/` 文件系统：
+
+- `GET /api/v1/studies/{study_id}/reviews` 在每个 review summary 中提供 sanitized finding payload：`finding_id`、category、severity、location、title、current/proposed value、rationale、evidence refs 和 `auto_approved`；
+- payload 只来自 ReviewPacket schema 字段，不授权浏览器读取任意本地文件；
+- Console 不预选 `approved`，用户必须为所有非 `auto_approved` finding 显式选择 approved / modified / rejected；
+- 提交时 Console 使用当前 `packet_sha256`，并覆盖全部 `findings_needing_decision()`；stale/conflict/schema 错误必须显示为失败，不静默成功；
+- DecisionReceipt 写入后，Console 只显示 decided 状态；ConfirmationReceipt、rework 生成和 canonical promotion 仍等待 Runtime/Agent。
+
+因此 Web Console 与 VSCode Review Panel 是两个客户端入口，共享 Review Protocol 文件权威，不形成第二套审核语义。

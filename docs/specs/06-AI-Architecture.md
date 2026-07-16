@@ -433,3 +433,16 @@ P8-P3 扩充 `clinical-workflow/src/application_api/`，提供 UI-03/UI-04 的�
 同一 Study 中已有 `queued/running/blocked_review/blocked_error` run 时，新的 run request 返回 `runtime_busy`；不同 Study 的 `.application_api/` 与 `.review_queue/` 物理隔离。Application API 自己写的事件 ID 使用同秒递增后缀，保证 cursor 重连不会因同秒事件排序而漏事件。
 
 该实现仍不是第二 Runtime：它不会执行 core MCP tools、不会执行任意系统命令、不会写 ConfirmationReceipt，也不会提升 canonical artifact。真正的 artifact promotion 仍由 Runtime/Agent 读取 DecisionReceipt 后完成。
+
+## 13. P8-P4 本地 Study Console 核心界面
+
+P8-P4 新增 `clinical-workflow/src/study_console/static/`，由 Application API 在 `/console/` 挂载为本地静态 Web UI。首版 Console 覆盖 UI-01 至 UI-04：
+
+- Study list：从 `GET /api/v1/studies` 读取 Study summary、pending review 和当前阶段，不自动选择 Study；
+- Dashboard：从 `GET /status` 渲染十阶段进度，阶段顺序和状态完全来自 API payload；
+- Run panel：提交 `POST /runs` 与 `POST /resume`，只显示 durable request/event 状态，不启动 Runtime executor；
+- Review Inbox：从 `GET /reviews` 渲染 ReviewPacket sanitized finding payload，批量提交 DecisionReceipt。
+
+Console 不新增 Node 构建链，不引入第二后端。`create_app()` 支持 `CLINICAL_STUDIES_ROOT` 环境变量，用于本地 smoke 或外部 Study container；未设置时仍默认读取仓库根 `clinical-studies/`。
+
+浏览器端按钮可用性只依据 Application API payload（如 `run_state`、`pending_review_count`、`decision_state`），不得复制 Pipeline/Review 的业务推进逻辑。P8-P4 不实现 UI-05 至 UI-07 的完整 artifact/context/audit 页面。

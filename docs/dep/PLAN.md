@@ -8,7 +8,7 @@ updated: 2026-07-16
 
 | # | 子计划 | 文件 | 当前阶段 | 已用轮次 | 开始日期 |
 |---|--------|------|----------|----------|----------|
-| P8 | Workflow Application API 与本地 Study Console | [P8-workflow-api-study-console.md](plans/ongoing/P8-workflow-api-study-console.md) | P3 done；下一阶段 P4：本地 Study Console 核心界面 | 3 | 2026-07-16 |
+| P8 | Workflow Application API 与本地 Study Console | [P8-workflow-api-study-console.md](plans/ongoing/P8-workflow-api-study-console.md) | P4 done；下一阶段 P5：产物追溯与本地发布 | 4 | 2026-07-16 |
 
 ## 待开始
 
