@@ -34,6 +34,7 @@ export function ReviewDecisionForm({
   const [reviewer, setReviewer] = useState(DEFAULT_REVIEWER);
   const [generalNotes, setGeneralNotes] = useState("");
   const [drafts, setDrafts] = useState<Record<string, DecisionDraft>>({});
+  const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
 
   const loadReview = useCallback(async () => {
     setLoadState("loading");
@@ -56,6 +57,14 @@ export function ReviewDecisionForm({
   const requiredFindings = useMemo(
     () => review?.findings.filter((finding) => !finding.auto_approved) ?? [],
     [review],
+  );
+  const selectedFinding = useMemo(
+    () =>
+      review?.findings.find((finding) => finding.finding_id === selectedFindingId) ??
+      requiredFindings[0] ??
+      review?.findings[0] ??
+      null,
+    [requiredFindings, review, selectedFindingId],
   );
   const validationIssues = useMemo(
     () => validateDecisionDrafts(requiredFindings, drafts, reviewer),
@@ -159,24 +168,6 @@ export function ReviewDecisionForm({
           <textarea value={generalNotes} onChange={(event) => setGeneralNotes(event.target.value)} />
         </label>
       </div>
-      <div className="button-row">
-        <button
-          className="button button-secondary"
-          disabled={review.decision_state !== "pending" || requiredFindings.length === 0}
-          type="button"
-          onClick={approveAll}
-        >
-          Approve all required findings
-        </button>
-        <button
-          className="button button-primary"
-          disabled={!canSubmit}
-          type="button"
-          onClick={() => void submitDecisionReceipt()}
-        >
-          Submit DecisionReceipt
-        </button>
-      </div>
       {validationIssues.length ? (
         <ul className="validation-list" aria-label="Review form validation">
           {validationIssues.map((issue) => (
@@ -184,15 +175,59 @@ export function ReviewDecisionForm({
           ))}
         </ul>
       ) : null}
-      <div className="finding-list">
-        {review.findings.map((finding) => (
+      <div className="review-layout">
+        <nav className="finding-nav" aria-label="Review findings">
+          <ol className="finding-nav-list">
+            {review.findings.map((finding, index) => (
+              <li key={finding.finding_id}>
+                <button
+                  aria-current={selectedFinding?.finding_id === finding.finding_id}
+                  className="finding-nav-button"
+                  type="button"
+                  onClick={() => setSelectedFindingId(finding.finding_id)}
+                >
+                  <span className="mono">{index + 1}/{review.findings.length} · {finding.finding_id}</span>
+                  <strong>{finding.title}</strong>
+                  <small>{finding.auto_approved ? "auto-approved" : drafts[finding.finding_id]?.decision ?? "待决定"}</small>
+                </button>
+              </li>
+            ))}
+          </ol>
+        </nav>
+        {selectedFinding ? (
           <FindingDecisionCard
-            key={finding.finding_id}
-            draft={drafts[finding.finding_id] ?? {}}
-            finding={finding}
-            onChange={(patch) => setFindingDraft(finding.finding_id, patch)}
+            key={selectedFinding.finding_id}
+            draft={drafts[selectedFinding.finding_id] ?? {}}
+            finding={selectedFinding}
+            onChange={(patch) => setFindingDraft(selectedFinding.finding_id, patch)}
           />
-        ))}
+        ) : (
+          <div className="empty-state">ReviewPacket 没有 finding。</div>
+        )}
+      </div>
+      <div className="review-submit-bar">
+        <span className="help-text">
+          已决定 {requiredFindings.filter((finding) => drafts[finding.finding_id]?.decision).length}/
+          {requiredFindings.length} 个 required finding
+        </span>
+        <div className="button-row">
+          <button
+            className="button button-secondary"
+            disabled={review.decision_state !== "pending" || requiredFindings.length === 0}
+            type="button"
+            onClick={approveAll}
+          >
+            Approve all required findings
+          </button>
+          <button
+            className="button button-primary"
+            disabled={!canSubmit}
+            type="button"
+            onClick={() => void submitDecisionReceipt()}
+          >
+            Submit DecisionReceipt
+          </button>
+        </div>
       </div>
     </section>
   );

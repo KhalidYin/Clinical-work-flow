@@ -660,3 +660,43 @@
 - `clinical-workflow/src/agents/ae_metadata_workflow.py`, `src/codegen/ae_programs.py`, `src/mcp_tools/edc_importer.py`
 - `clinical-workflow/tests/application_api/test_poc_runner_contract.py`, `test_poc_runner_flow.py`
 - `docs/dep/PLAN.md`, `docs/dep/plans/ongoing/P0-study-workbench-flow-correction.md`, `docs/dep/devlog/`（本轮提交）
+
+---
+
+### R066 [20:10] [P0-study-workbench-flow-correction] P3: 收敛为横向阶段轨与单一主工作区
+
+#### Done
+
+- React 类型与 API client 切换到 POC schema v2，页面只消费 Runner ledger、Input Check、结构化 blocker 和 `next_actions[]`。
+- UI-02 改为 compact Run Bar；UI-03 改为横向可滚动 Stage Rail；UI-04 改为全宽主工作区，承接 Current Task、Input/Evidence、Review 和 Artifact 子视图。
+- blocker banner 展示阶段、检查、影响变量、证据和恢复语义；恢复按钮只保留在 Run Bar，避免页面出现两个同义主操作。
+- Review form 改为 finding 索引 + 单 finding 工作区 + 固定提交汇总，不再把全部 finding 纵向展开。
+- Activity/Evidence 使用默认折叠的 `details`，并按当前 run/step 过滤；仅 `running + visible` 启用 5 秒 polling，用户操作后即时刷新。
+- URL hash 保存当前 step/view；窄屏 Run Bar 重排为两列，Stage Rail 保持局部横向滚动，主工作区维持单列。
+- 重新构建 `/workbench/` 静态产物；未修改真实 Study 输入、审核决定或运行产物。
+
+#### Issues / Blockers
+
+- 首轮测试失败的根因是测试 fixture 仍使用旧 `blocked_review` 合同；已改为 v2 `blocked + blocker.kind`，未回退新合同。
+- 行为测试暴露 Run Bar 与 blocker banner 重复呈现同一 recovery action；已收敛为唯一动作入口。
+- 真实页面请求 `/favicon.ico` 返回 404，但无 JavaScript console/error，不影响 Workbench；为避免扩大 P3 范围暂不处理。
+- P3 只完成页面结构和人工只读视觉 Gate；点击 Run/Review/Retry/Artifact 的可丢弃 Study browser E2E 仍属于 P4。
+
+#### Validation
+
+- `npm test` in `clinical-workflow/src/study_console_react`（8 passed）。
+- `npm run build` in `clinical-workflow/src/study_console_react`（success）。
+- `python -m pytest tests/study_console/test_workbench_static.py tests/application_api/test_readonly_api.py tests/application_api/test_write_api.py tests/application_api/test_poc_runner_contract.py -q`（38 passed）。
+- `agent-browser` 只读打开真实 `/workbench/`：桌面和 768px 窄屏布局通过，Input/Evidence 显示真实 SAS7BDAT `1066 × 73`，无 console/error。
+
+#### Next
+
+1. P4 将现有 smoke 明确降级为 API preflight，并新增可丢弃 StudyRoot 的真实 browser E2E。
+2. P4 实际点击 Run、Input、Review submit、Retry/Resume 和 Artifact Preview，并核对页面 active/blocked stage 与 API ledger。
+3. P4 同步 06/15/17/21、USAGE、memory；完成后才重新邀请用户执行真实 `SAMPLE-AE-001` UAT。
+
+#### Files Changed / Commits
+
+- `clinical-workflow/src/study_console_react/src/`
+- `clinical-workflow/src/study_console_workbench_static/`
+- `docs/dep/PLAN.md`, `docs/dep/plans/ongoing/P0-study-workbench-flow-correction.md`, `docs/dep/devlog/`（本轮提交）

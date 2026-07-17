@@ -145,8 +145,8 @@ syncs_to:
 |-------|------|----------|------|------|
 | P1 | 冻结 Runner step ledger、Input Check 与结构化 blocker 合同 | 2-3 | 已完成旧 P0 | completed |
 | P2 | 实现 Input Check、步骤状态权威和阻断/Retry 流程 | 2-4 | P1 | completed |
-| P3 | 重构 UI-02、横向 UI-03 和主工作区 UI-04 | 2-3 | P1/P2 | in-progress |
-| P4 | 完成真实浏览器 E2E、文档同步和用户 UAT 前置验收 | 2-3 | P2/P3 | pending |
+| P3 | 重构 UI-02、横向 UI-03 和主工作区 UI-04 | 2-3 | P1/P2 | completed |
+| P4 | 完成真实浏览器 E2E、文档同步和用户 UAT 前置验收 | 2-3 | P2/P3 | in-progress |
 
 > 提交规则：每个 Phase 完成 Gate 后单独提交一次代码；不得把两个 Phase 合并成一个提交。
 
@@ -271,13 +271,13 @@ syncs_to:
 
 ### 完成标准
 
-- [ ] `[UI-01][UI-02]` 首屏状态和主动作按合同展示，blocked 时普通 Run 禁用且 recovery action 明确。
-- [ ] `[UI-03]` 阶段条为横向布局，active/blocked 自动进入视口；窄屏可横向滚动且不产生页面级横向溢出。
-- [ ] `[UI-04]` 主工作区占主要宽度，blocker banner 展示阶段、检查、数量、影响、证据和恢复动作。
-- [ ] `[UI-05][UI-06]` Review 与 Artifact/Input Evidence 在主工作区内切换，不再作为第三栏挤压。
-- [ ] `[UI-07]` Activity 默认折叠，展开后按当前 run/step 过滤。
-- [ ] polling 只在页面可见且 run 为 running 时启用；用户操作后立即刷新。
-- [ ] 默认、loading、empty、error、partial、narrow 状态通过行为测试和人工视觉核验。
+- [x] `[UI-01][UI-02]` 首屏状态和主动作按合同展示，blocked 时普通 Run 禁用且 recovery action 明确。
+- [x] `[UI-03]` 阶段条为横向布局，active/blocked 自动进入视口；窄屏可横向滚动且不产生页面级横向溢出。
+- [x] `[UI-04]` 主工作区占主要宽度，blocker banner 展示阶段、检查、数量、影响、证据和恢复动作。
+- [x] `[UI-05][UI-06]` Review 与 Artifact/Input Evidence 在主工作区内切换，不再作为第三栏挤压。
+- [x] `[UI-07]` Activity 默认折叠，展开后按当前 run/step 过滤。
+- [x] polling 只在页面可见且 run 为 running 时启用；用户操作后立即刷新。
+- [x] 默认、loading、empty、error、partial、narrow 状态通过行为测试和人工视觉核验。
 
 ### 边界（本 Phase 明确不做）
 
@@ -368,6 +368,7 @@ syncs_to:
 | D4 | 128 条 `AETERM` 为空只显示通用异常 | 规划 | 阻断 | P2 将其转为 validation/review blocker，展示数量和证据，不自动过滤 |
 | D5 | 旧 smoke 未操作真实页面却被用于完成 P0 Gate | 规划 | 阻断 | P4 区分 API preflight 与真实浏览器 E2E，重新执行 UI Gate |
 | D6 | 三栏布局和长 Event Log 挤压审核工作区 | 规划 | 阻断 | P3 落地 compact Run Bar、horizontal rail、main workspace 和 activity drawer |
+| D7 | 同一 recovery action 同时出现在 Run Bar 与 blocker banner | P3 | UX | 收敛为 Run Bar 唯一动作入口；blocker banner 只解释原因、影响与证据 |
 
 ## 关键决策记录
 

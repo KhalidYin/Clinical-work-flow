@@ -1,16 +1,23 @@
-export type RunState = "idle" | "running" | "blocked_review" | "blocked_error" | "done";
+export type RunState = "idle" | "running" | "blocked" | "done";
 
 export type StepState =
   | "pending"
   | "running"
   | "done"
-  | "blocked_review"
-  | "blocked_error"
+  | "blocked"
   | "skipped";
 
 export type StepKind = "instruction" | "review" | "artifact" | "error" | "complete";
 
-export type ActionId = "run_poc" | "resume" | "refresh" | "open_output_folder";
+export type ActionId =
+  | "run_poc"
+  | "retry_current_step"
+  | "open_review"
+  | "resume"
+  | "refresh"
+  | "open_output_folder";
+
+export type CheckState = "pass" | "warning" | "fail" | "unknown" | "not_applicable";
 
 export interface StudySummary {
   study_id: string;
@@ -66,6 +73,9 @@ export interface PocStep {
   state: StepState;
   kind: StepKind;
   summary: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+  checks: PocStepCheck[];
   blocking_reason?: string | null;
   review_id?: string | null;
   artifact_refs: ArtifactRef[];
@@ -87,6 +97,7 @@ export interface PocNextAction {
   action_id: ActionId;
   label: string;
   enabled: boolean;
+  primary: boolean;
   reason?: string | null;
   method: "GET" | "POST";
   endpoint: string;
@@ -104,19 +115,110 @@ export interface PocEvent {
   event_id: string;
   event_type: string;
   occurred_at: string;
+  run_id?: string | null;
   step_id?: string | null;
   summary: string;
   severity: "ok" | "warning" | "error";
   related_refs: Array<Record<string, unknown>>;
 }
 
+export interface PocStepCheck {
+  check_id: string;
+  state: CheckState;
+  summary: string;
+  detail?: string | null;
+  observed?: string | number | boolean | null;
+  expected?: string | number | boolean | null;
+  affected_variables: string[];
+  evidence_refs: string[];
+}
+
+export interface PocBlocker {
+  kind: "input" | "validation" | "review" | "system";
+  stage_id: string;
+  code: string;
+  summary: string;
+  detail: string;
+  affected_variables: string[];
+  affected_artifacts: string[];
+  evidence_refs: string[];
+  recovery_action:
+    | "provide_input"
+    | "repair_input"
+    | "install_dependency"
+    | "retry_current_step"
+    | "submit_review_decision"
+    | "resume_after_review"
+    | "refresh";
+  review_id?: string | null;
+  retryable: boolean;
+}
+
+export interface PocVariableProfile {
+  variable: string;
+  label?: string | null;
+  data_type?: string | null;
+  format?: string | null;
+  missing_count?: number | null;
+  non_missing_count?: number | null;
+  distinct_count?: number | null;
+  value_labels_available?: boolean | null;
+  evidence_refs: string[];
+}
+
+export interface PocInputCheck {
+  checked_at?: string | null;
+  summary: {
+    status: "not_run" | "ready" | "warning" | "blocked" | "partial";
+    required_total: number;
+    required_ready: number;
+    blocking_count: number;
+    warning_count: number;
+    message: string;
+  };
+  files: Array<{
+    source_id: string;
+    label: string;
+    relative_path: string;
+    format: string;
+    exists: boolean;
+    sha256?: string | null;
+    size_bytes?: number | null;
+    parser?: string | null;
+    parser_available?: boolean | null;
+    row_count?: number | null;
+    column_count?: number | null;
+    labels_available?: boolean | null;
+    formats_available?: boolean | null;
+    value_labels_available?: boolean | null;
+    warnings: string[];
+    evidence_refs: string[];
+  }>;
+  dependencies: Array<{
+    input_id: string;
+    label: string;
+    requirement: "required" | "conditional" | "optional" | "not_required";
+    status: "available" | "missing" | "invalid" | "gap" | "not_required";
+    blocking: boolean;
+    detail?: string | null;
+    evidence_refs: string[];
+  }>;
+  checks: PocStepCheck[];
+  variable_profiles: PocVariableProfile[];
+  warnings: string[];
+}
+
 export interface PocState {
+  schema_version: "2.0";
   study_id: string;
   target_artifact: "sdtm_ae_dataset";
   run_id?: string | null;
   run_state: RunState;
+  legacy_run_state?: string | null;
   source: Record<string, unknown>;
   knowledge: Record<string, unknown>;
+  input_check: PocInputCheck;
+  blocker?: PocBlocker | null;
   blocking_reason?: string | null;
   active_step?: PocActiveStep | null;
   steps: PocStep[];

@@ -60,7 +60,12 @@ export async function startPocRun(studyId: string): Promise<PocRunResponse> {
   );
 }
 
-export async function resumePocRun(studyId: string, runId: string): Promise<PocRunResponse> {
+export async function resumePocRun(
+  studyId: string,
+  runId: string,
+  reason: "review_decision_available" | "retry_after_failure",
+  reviewId?: string | null,
+): Promise<PocRunResponse> {
   return parseResponse<PocRunResponse>(
     await fetch(
       `/api/v1/studies/${encodeURIComponent(studyId)}/poc-runs/${encodeURIComponent(runId)}/resume`,
@@ -70,7 +75,7 @@ export async function resumePocRun(studyId: string, runId: string): Promise<PocR
           Accept: "application/json",
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ reason: "review_decision_available" }),
+        body: JSON.stringify({ reason, review_id: reviewId ?? undefined }),
       },
     ),
   );
