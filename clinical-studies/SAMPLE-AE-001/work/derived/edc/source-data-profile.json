@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "artifact_type": "source_data_profile",
   "artifact_id": "source-metadata-2a6d72e9e5fa",
-  "generated_at": "2026-07-16T09:15:23.517062+00:00",
+  "generated_at": "2026-07-17T09:22:17.500029+00:00",
   "source": {
     "relative_path": "input/edc/ae09jun2025.sas7bdat",
     "format": "sas7bdat",
@@ -13,15 +13,15 @@
     "version": "1.0.0",
     "python_version": "3.14.4",
     "library_versions": {
-      "pandas": "2.3.3",
+      "pandas": "3.0.3",
       "pyreadstat": "1.3.5"
     }
   },
   "row_count": 1066,
   "column_count": 73,
   "total_cells": 77818,
-  "missing_cells": 2132,
-  "missing_rate_pct": 2.7397,
+  "missing_cells": 13426,
+  "missing_rate_pct": 17.2531,
   "variables": [
     {
       "name": "projectid",
@@ -180,213 +180,213 @@
     },
     {
       "name": "AESTDAT",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 128,
+      "missing_rate_pct": 12.0075
     },
     {
       "name": "AEPRINF",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 1036,
+      "missing_rate_pct": 97.1857
     },
     {
       "name": "AEPRINF_STD",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 1036,
+      "missing_rate_pct": 97.1857
     },
     {
       "name": "AEENDAT",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 312,
+      "missing_rate_pct": 29.2683
     },
     {
       "name": "AESEV",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 128,
+      "missing_rate_pct": 12.0075
     },
     {
       "name": "AESEV_STD",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 128,
+      "missing_rate_pct": 12.0075
     },
     {
       "name": "AESER",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 128,
+      "missing_rate_pct": 12.0075
     },
     {
       "name": "AESER_STD",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 128,
+      "missing_rate_pct": 12.0075
     },
     {
       "name": "AESDTH",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 18,
+      "missing_rate_pct": 1.6886
     },
     {
       "name": "AESLIFE",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 18,
+      "missing_rate_pct": 1.6886
     },
     {
       "name": "AESHOSP",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 18,
+      "missing_rate_pct": 1.6886
     },
     {
       "name": "AESDISAB",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 18,
+      "missing_rate_pct": 1.6886
     },
     {
       "name": "AESBIRTH",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 18,
+      "missing_rate_pct": 1.6886
     },
     {
       "name": "AESCONG",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 18,
+      "missing_rate_pct": 1.6886
     },
     {
       "name": "AEREL",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 128,
+      "missing_rate_pct": 12.0075
     },
     {
       "name": "AEREL_STD",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 128,
+      "missing_rate_pct": 12.0075
     },
     {
       "name": "AEACN",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 128,
+      "missing_rate_pct": 12.0075
     },
     {
       "name": "AEACN_STD",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 128,
+      "missing_rate_pct": 12.0075
     },
     {
       "name": "AEACNOT1",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 18,
+      "missing_rate_pct": 1.6886
     },
     {
       "name": "AEACNOT2",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 18,
+      "missing_rate_pct": 1.6886
     },
     {
       "name": "AEACNOT3",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 18,
+      "missing_rate_pct": 1.6886
     },
     {
       "name": "AEACNOTH",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 1054,
+      "missing_rate_pct": 98.8743
     },
     {
       "name": "AEOUT",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 128,
+      "missing_rate_pct": 12.0075
     },
     {
       "name": "AEOUT_STD",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 128,
+      "missing_rate_pct": 12.0075
     },
     {
       "name": "COVAL",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 562,
+      "missing_rate_pct": 52.7205
     },
     {
       "name": "COVAL2",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 944,
+      "missing_rate_pct": 88.5553
     },
     {
       "name": "COVAL3",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 984,
+      "missing_rate_pct": 92.3077
     },
     {
       "name": "AETERM",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 128,
+      "missing_rate_pct": 12.0075
     },
     {
       "name": "AETERM_CoderDictName",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 128,
+      "missing_rate_pct": 12.0075
     },
     {
       "name": "AETERM_CoderDictVersion",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 128,
+      "missing_rate_pct": 12.0075
     },
     {
       "name": "AETERM_HLGT",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 128,
+      "missing_rate_pct": 12.0075
     },
     {
       "name": "AETERM_HLGT_CD",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 128,
+      "missing_rate_pct": 12.0075
     },
     {
       "name": "AETERM_HLT",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 128,
+      "missing_rate_pct": 12.0075
     },
     {
       "name": "AETERM_HLT_CD",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 128,
+      "missing_rate_pct": 12.0075
     },
     {
       "name": "AETERM_LLT",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 128,
+      "missing_rate_pct": 12.0075
     },
     {
       "name": "AETERM_LLT_CD",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 128,
+      "missing_rate_pct": 12.0075
     },
     {
       "name": "AETERM_PT",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 128,
+      "missing_rate_pct": 12.0075
     },
     {
       "name": "AETERM_PT_CD",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 128,
+      "missing_rate_pct": 12.0075
     },
     {
       "name": "AETERM_SOC",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 128,
+      "missing_rate_pct": 12.0075
     },
     {
       "name": "AETERM_SOC_CD",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 128,
+      "missing_rate_pct": 12.0075
     },
     {
       "name": "DER_AESER",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 1066,
+      "missing_rate_pct": 100.0
     },
     {
       "name": "DER_AESER_STD",
-      "missing_count": 0,
-      "missing_rate_pct": 0.0
+      "missing_count": 1066,
+      "missing_rate_pct": 100.0
     }
   ]
 }

@@ -1,0 +1,24 @@
+{
+  "review_id": "sdtm_spec_sample_ae_001_mapping_v1_001",
+  "reviewer": "中文审核人",
+  "timestamp": "2026-07-17T05:53:12.722396+00:00",
+  "decisions": [
+    {
+      "finding_id": "F-001",
+      "decision": "approved"
+    },
+    {
+      "finding_id": "F-002",
+      "decision": "approved"
+    },
+    {
+      "finding_id": "F-003",
+      "decision": "approved"
+    },
+    {
+      "finding_id": "F-004",
+      "decision": "approved"
+    }
+  ],
+  "general_notes": "1234"
+}

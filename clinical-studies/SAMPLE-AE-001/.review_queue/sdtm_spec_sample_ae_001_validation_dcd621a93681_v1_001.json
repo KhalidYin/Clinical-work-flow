@@ -1,0 +1,52 @@
+{
+  "review_id": "sdtm_spec_sample_ae_001_validation_dcd621a93681_v1_001",
+  "review_type": "sdtm_spec",
+  "source_documents": [
+    "work/mapping/ae-mapping-spec-approved.json",
+    "programs/edc_to_sdtm/program-manifest.json",
+    "output/sdtm/validation/ae-reference-validation.json",
+    "output/sdtm/logs/ae-reference-execution.json"
+  ],
+  "agent_summary": "Python reference execution 已完成确定性检查，但存在阻断性验证结果。请确认修复路径；本审核不会自动删除、过滤或补造源记录。",
+  "findings": [
+    {
+      "id": "F-001",
+      "category": "compliance",
+      "severity": "critical",
+      "location": "output/sdtm/validation/ae-reference-validation.json#blocking_summary/0",
+      "title": "确认 AE 验证阻断：AETERM",
+      "current_value": "检查 required_value_empty 发现 128/1066 条记录受影响；影响变量：AETERM",
+      "proposed_value": "保持 canonical 生成阻断；由人工确认源数据修复，或通过新的 MappingSpec 明确受控处理规则后再 Retry current step。",
+      "rationale": "验证失败属于数据/业务约束，不得由 Runtime 自动过滤、补值或视为普通 codegen 异常。",
+      "evidence_refs": [
+        "output/sdtm/validation/ae-reference-validation.json",
+        "output/sdtm/logs/ae-reference-execution.json",
+        "VAL-AE-REQ-1-AETERM",
+        "VAL-AE-REQ-2-AETERM",
+        "VAL-AE-REQ-3-AETERM",
+        "VAL-AE-REQ-4-AETERM",
+        "VAL-AE-REQ-5-AETERM",
+        "VAL-AE-REQ-6-AETERM",
+        "VAL-AE-REQ-7-AETERM",
+        "VAL-AE-REQ-8-AETERM",
+        "VAL-AE-REQ-43-AETERM",
+        "VAL-AE-REQ-44-AETERM",
+        "VAL-AE-REQ-57-AETERM",
+        "VAL-AE-REQ-58-AETERM",
+        "VAL-AE-REQ-59-AETERM",
+        "VAL-AE-REQ-60-AETERM",
+        "VAL-AE-REQ-123-AETERM",
+        "VAL-AE-REQ-124-AETERM",
+        "VAL-AE-REQ-151-AETERM",
+        "VAL-AE-REQ-152-AETERM",
+        "VAL-AE-REQ-164-AETERM",
+        "VAL-AE-REQ-165-AETERM"
+      ],
+      "auto_approved": false
+    }
+  ],
+  "urgency": "blocking",
+  "created_at": "2026-07-17T09:22:18.852554+00:00",
+  "generated_by": "P9 Metadata-driven AE Runtime",
+  "auto_approved_count": 0
+}

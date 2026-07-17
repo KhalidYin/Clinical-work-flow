@@ -1,0 +1,12 @@
+{
+  "created_at": "2026-07-17T09:28:45.367351+00:00",
+  "idempotency_key_sha256": "9422882d2f5385dfb2bf7afbadd62d7749d196baef4bda5afcb42c960bacc3cf",
+  "operation": "submit_review_decision",
+  "request_hash": "fbf726c3a824f4b4bc107d2c375ef0e88d1751a90efe05b4ea50db0b6f7e2dac",
+  "response": {
+    "decision_receipt_id": "sdtm_spec_sample_ae_001_validation_dcd621a93681_v1_001_decision",
+    "idempotency_key": "ui-review-1784280525319-sdtm_spec_sample_ae_001_validation_dcd621a93681_v1_001",
+    "review_id": "sdtm_spec_sample_ae_001_validation_dcd621a93681_v1_001",
+    "written": true
+  }
+}

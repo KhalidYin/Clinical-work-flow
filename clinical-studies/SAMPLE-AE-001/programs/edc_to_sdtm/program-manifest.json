@@ -1,0 +1,40 @@
+{
+  "arbitrary_commands_allowed": false,
+  "generated_at": "2026-07-17T09:22:18.077320+00:00",
+  "manifest_id": "ae-program-manifest-sample-ae-001-v1",
+  "mapping_spec_id": "ae-mapping-spec-sample-ae-001-v1",
+  "mapping_spec_sha256": "f9ede6b72fccf835d6ca9a0e1f35d4696b3e7e6587e31ee15e9c604f4ebb0ba6",
+  "programs": [
+    {
+      "execution_status": "registered_reference_adapter",
+      "language": "python",
+      "path": "programs/edc_to_sdtm/python/build_ae.py",
+      "sha256": "5104d0c6a6d43fbf222ef43e14315efde911f3863a05dc23d8749eed325bbe24"
+    },
+    {
+      "execution_status": "generated_not_executed",
+      "language": "r",
+      "path": "programs/edc_to_sdtm/r/build_ae.R",
+      "sha256": "3d285443ef21f6a20d7dc02e7a1f181d7e06ca06211d1f550a4eae77425804a4"
+    },
+    {
+      "execution_status": "generated_not_executed",
+      "language": "sas",
+      "path": "programs/edc_to_sdtm/sas/build_ae.sas",
+      "sha256": "e117728b012e061cdc8ec3c6323f3f70759b8d21f38e1353460d73c6553c31d1"
+    }
+  ],
+  "rule_refs": [
+    "proposal-sdtmig34-core-domain-code-consistency-v1",
+    "proposal-sdtmig34-core-identifier-variable-role-v1",
+    "proposal-sdtmig34-core-missing-values-as-nulls-v1",
+    "proposal-sdtmig34-gold-ae-structure-v1",
+    "proposal-sdtmig34-gold-aeterm-required-v1"
+  ],
+  "schema_version": "1.0.0",
+  "source_sha256": "2a6d72e9e5fa4bb8e3cc14b0c412fce3c37e519f3ab9105cdcff33ba031e8749",
+  "target_standard": {
+    "name": "SDTMIG",
+    "version": "3.4"
+  }
+}

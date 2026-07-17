@@ -1,0 +1,530 @@
+{
+  "blocker": {
+    "affected_artifacts": [
+      "output/sdtm/drafts/ae.csv",
+      "output/sdtm/datasets/ae.csv"
+    ],
+    "affected_variables": [
+      "AETERM"
+    ],
+    "code": "ae_reference_validation_failed",
+    "detail": "不得自动过滤或补值。请审核验证 finding，修复源数据或建立新的受控 MappingSpec 后再 Retry current step。",
+    "evidence_refs": [
+      "output/sdtm/validation/ae-reference-validation.json",
+      "output/sdtm/logs/ae-reference-execution.json",
+      ".review_queue/sdtm_spec_sample_ae_001_validation_dcd621a93681_v1_001.json"
+    ],
+    "kind": "validation",
+    "recovery_action": "submit_review_decision",
+    "retryable": true,
+    "review_id": "sdtm_spec_sample_ae_001_validation_dcd621a93681_v1_001",
+    "stage_id": "validation-review",
+    "summary": "AE reference validation blocked: 128/1066 项记录问题"
+  },
+  "blocking_reason": "AE reference validation blocked: 128/1066 项记录问题",
+  "blocking_review_id": "sdtm_spec_sample_ae_001_validation_dcd621a93681_v1_001",
+  "created_at": "2026-07-17T05:36:58.709180+00:00",
+  "current_step": "validation-review",
+  "input_check": {
+    "checked_at": "2026-07-17T09:22:17.853703+00:00",
+    "checks": [
+      {
+        "affected_variables": [],
+        "check_id": "source-exists",
+        "detail": null,
+        "evidence_refs": [
+          "input/edc/ae09jun2025.sas7bdat"
+        ],
+        "expected": null,
+        "observed": null,
+        "state": "pass",
+        "summary": "登记的 AE source file 存在。"
+      },
+      {
+        "affected_variables": [],
+        "check_id": "source-sha256",
+        "detail": null,
+        "evidence_refs": [
+          "source-inventory.yaml",
+          "work/derived/edc/source-metadata.json"
+        ],
+        "expected": null,
+        "observed": "2a6d72e9e5fa4bb8e3cc14b0c412fce3c37e519f3ab9105cdcff33ba031e8749",
+        "state": "pass",
+        "summary": "Source SHA-256 与 source-inventory.yaml 一致。"
+      },
+      {
+        "affected_variables": [],
+        "check_id": "source-parser",
+        "detail": null,
+        "evidence_refs": [
+          "work/derived/edc/source-parser-validation.json"
+        ],
+        "expected": null,
+        "observed": null,
+        "state": "pass",
+        "summary": "clinical-workflow-edc-importer 已成功解析 sas7bdat。"
+      },
+      {
+        "affected_variables": [],
+        "check_id": "metadata-availability",
+        "detail": "informats: pyreadstat does not expose SAS informats from this dataset；value_labels: No resolvable value-label mapping is embedded or supplied by catalog；external_format_catalog: No external SAS format catalog was registered",
+        "evidence_refs": [
+          "work/derived/edc/source-metadata.json#metadata_availability"
+        ],
+        "expected": null,
+        "observed": null,
+        "state": "warning",
+        "summary": "存在显式 metadata gap。"
+      }
+    ],
+    "dependencies": [
+      {
+        "blocking": false,
+        "detail": "当前 sdtm_ae_dataset 的唯一 required 输入。",
+        "evidence_refs": [
+          "source-inventory.yaml"
+        ],
+        "input_id": "ae-source-data",
+        "label": "AE raw data",
+        "requirement": "required",
+        "status": "available"
+      },
+      {
+        "blocking": false,
+        "detail": "当前 sdtm_ae_dataset raw-only POC 不以该文档为固定前置条件。",
+        "evidence_refs": [],
+        "input_id": "protocol",
+        "label": "Protocol",
+        "requirement": "not_required",
+        "status": "not_required"
+      },
+      {
+        "blocking": false,
+        "detail": "当前 sdtm_ae_dataset raw-only POC 不以该文档为固定前置条件。",
+        "evidence_refs": [],
+        "input_id": "sap",
+        "label": "SAP",
+        "requirement": "not_required",
+        "status": "not_required"
+      },
+      {
+        "blocking": false,
+        "detail": "当前 sdtm_ae_dataset raw-only POC 不以该文档为固定前置条件。",
+        "evidence_refs": [],
+        "input_id": "crf",
+        "label": "CRF",
+        "requirement": "not_required",
+        "status": "not_required"
+      }
+    ],
+    "files": [
+      {
+        "column_count": 73,
+        "evidence_refs": [
+          "work/derived/edc/source-metadata.json",
+          "work/derived/edc/source-data-profile.json",
+          "work/derived/edc/source-parser-validation.json"
+        ],
+        "exists": true,
+        "format": "sas7bdat",
+        "formats_available": true,
+        "label": "AE registered source",
+        "labels_available": true,
+        "parser": "clinical-workflow-edc-importer",
+        "parser_available": true,
+        "relative_path": "input/edc/ae09jun2025.sas7bdat",
+        "row_count": 1066,
+        "sha256": "2a6d72e9e5fa4bb8e3cc14b0c412fce3c37e519f3ab9105cdcff33ba031e8749",
+        "size_bytes": 19667968,
+        "source_id": "ae-source-data",
+        "value_labels_available": false,
+        "warnings": [
+          "informats: pyreadstat does not expose SAS informats from this dataset",
+          "value_labels: No resolvable value-label mapping is embedded or supplied by catalog",
+          "external_format_catalog: No external SAS format catalog was registered"
+        ]
+      }
+    ],
+    "summary": {
+      "blocking_count": 0,
+      "message": "AE source 已解析：1066 行、73 列；3 个 metadata gap。",
+      "required_ready": 1,
+      "required_total": 1,
+      "status": "warning",
+      "warning_count": 3
+    },
+    "variable_profiles": [
+      {
+        "data_type": "string",
+        "distinct_count": 180,
+        "evidence_refs": [
+          "work/derived/edc/source-data-profile.json#variables/Subject"
+        ],
+        "format": "$150",
+        "label": "Subject name or identifier",
+        "missing_count": 0,
+        "non_missing_count": 1066,
+        "value_labels_available": false,
+        "variable": "Subject"
+      },
+      {
+        "data_type": "double",
+        "distinct_count": 70,
+        "evidence_refs": [
+          "work/derived/edc/source-data-profile.json#variables/RecordPosition"
+        ],
+        "format": "10",
+        "label": "Record number",
+        "missing_count": 0,
+        "non_missing_count": 1066,
+        "value_labels_available": false,
+        "variable": "RecordPosition"
+      },
+      {
+        "data_type": "string",
+        "distinct_count": 331,
+        "evidence_refs": [
+          "work/derived/edc/source-data-profile.json#variables/AETERM"
+        ],
+        "format": "$600",
+        "label": "Adverse Event, specify, give diagnosis if possible",
+        "missing_count": 128,
+        "non_missing_count": 938,
+        "value_labels_available": false,
+        "variable": "AETERM"
+      },
+      {
+        "data_type": "string",
+        "distinct_count": 486,
+        "evidence_refs": [
+          "work/derived/edc/source-data-profile.json#variables/AESTDAT"
+        ],
+        "format": "$33",
+        "label": "Start date",
+        "missing_count": 128,
+        "non_missing_count": 938,
+        "value_labels_available": false,
+        "variable": "AESTDAT"
+      },
+      {
+        "data_type": "string",
+        "distinct_count": 430,
+        "evidence_refs": [
+          "work/derived/edc/source-data-profile.json#variables/AEENDAT"
+        ],
+        "format": "$33",
+        "label": "Stop date",
+        "missing_count": 312,
+        "non_missing_count": 754,
+        "value_labels_available": false,
+        "variable": "AEENDAT"
+      }
+    ],
+    "warnings": [
+      "informats: pyreadstat does not expose SAS informats from this dataset",
+      "value_labels: No resolvable value-label mapping is embedded or supplied by catalog",
+      "external_format_catalog: No external SAS format catalog was registered"
+    ]
+  },
+  "intent": "生成 SAMPLE-AE-001 SDTM AE 最小 POC",
+  "resume_count": 6,
+  "run_id": "run-poc-b0f32cf5f3263d55",
+  "run_state": "blocked",
+  "schema_version": "2.0",
+  "steps": [
+    {
+      "artifact_refs": [
+        {
+          "artifact_id": "poc-ff28a94a6a76c051",
+          "kind": "json",
+          "label": "poc-input-check.json",
+          "preview_available": true,
+          "relative_path": "work/derived/edc/poc-input-check.json",
+          "sha256": "42227ad420a694159025651ed05cdf78644ce68738bceb47ec9897581217624a"
+        },
+        {
+          "artifact_id": "poc-b11a3b5cea57a897",
+          "kind": "json",
+          "label": "source-metadata.json",
+          "preview_available": true,
+          "relative_path": "work/derived/edc/source-metadata.json",
+          "sha256": "caef66151800f58fb25ad910fca2f361cd1ccd415df3bebd76d37decf171f5ac"
+        },
+        {
+          "artifact_id": "poc-444d10086d3d3b84",
+          "kind": "json",
+          "label": "source-data-profile.json",
+          "preview_available": true,
+          "relative_path": "work/derived/edc/source-data-profile.json",
+          "sha256": "6db206637f58f865eacc6d1197a06f5fe85234e84d87c8bfad702a10568774a8"
+        }
+      ],
+      "blocking_reason": null,
+      "checks": [
+        {
+          "affected_variables": [],
+          "check_id": "source-exists",
+          "detail": null,
+          "evidence_refs": [
+            "input/edc/ae09jun2025.sas7bdat"
+          ],
+          "expected": null,
+          "observed": null,
+          "state": "pass",
+          "summary": "登记的 AE source file 存在。"
+        },
+        {
+          "affected_variables": [],
+          "check_id": "source-sha256",
+          "detail": null,
+          "evidence_refs": [
+            "source-inventory.yaml",
+            "work/derived/edc/source-metadata.json"
+          ],
+          "expected": null,
+          "observed": "2a6d72e9e5fa4bb8e3cc14b0c412fce3c37e519f3ab9105cdcff33ba031e8749",
+          "state": "pass",
+          "summary": "Source SHA-256 与 source-inventory.yaml 一致。"
+        },
+        {
+          "affected_variables": [],
+          "check_id": "source-parser",
+          "detail": null,
+          "evidence_refs": [
+            "work/derived/edc/source-parser-validation.json"
+          ],
+          "expected": null,
+          "observed": null,
+          "state": "pass",
+          "summary": "clinical-workflow-edc-importer 已成功解析 sas7bdat。"
+        },
+        {
+          "affected_variables": [],
+          "check_id": "metadata-availability",
+          "detail": "informats: pyreadstat does not expose SAS informats from this dataset；value_labels: No resolvable value-label mapping is embedded or supplied by catalog；external_format_catalog: No external SAS format catalog was registered",
+          "evidence_refs": [
+            "work/derived/edc/source-metadata.json#metadata_availability"
+          ],
+          "expected": null,
+          "observed": null,
+          "state": "warning",
+          "summary": "存在显式 metadata gap。"
+        }
+      ],
+      "completed_at": "2026-07-17T09:22:17.877053+00:00",
+      "evidence_refs": [],
+      "kind": "artifact",
+      "ordinal": 1,
+      "review_id": null,
+      "started_at": "2026-07-17T09:22:15.619732+00:00",
+      "state": "done",
+      "step_id": "input-check",
+      "summary": "AE source 已解析：1066 行、73 列；3 个 metadata gap。",
+      "title": "Input Check"
+    },
+    {
+      "artifact_refs": [
+        {
+          "artifact_id": "poc-1a58156ed6c0c2b7",
+          "kind": "json",
+          "label": "minimum-information-sdtm-ae.json",
+          "preview_available": true,
+          "relative_path": "work/derived/plans/minimum-information-sdtm-ae.json",
+          "sha256": "2aa2c2107602888ecc83fb25a0bbba6d8c0e32f9a4eff2affa4264a59caeb279"
+        }
+      ],
+      "blocking_reason": null,
+      "checks": [
+        {
+          "affected_variables": [],
+          "check_id": "raw-only-target-dependencies",
+          "detail": null,
+          "evidence_refs": [
+            "work/derived/plans/minimum-information-sdtm-ae.json",
+            "work/derived/edc/poc-input-check.json"
+          ],
+          "expected": null,
+          "observed": null,
+          "state": "pass",
+          "summary": "AE raw data 为 required；Protocol/SAP/CRF 为 not_required。"
+        }
+      ],
+      "completed_at": "2026-07-17T09:22:18.026546+00:00",
+      "evidence_refs": [],
+      "kind": "artifact",
+      "ordinal": 2,
+      "review_id": null,
+      "started_at": "2026-07-17T09:22:17.885928+00:00",
+      "state": "done",
+      "step_id": "minimum-information",
+      "summary": "raw-only SDTM AE 目标依赖已解析；Protocol/SAP/CRF 本目标不要求。",
+      "title": "Minimum Information"
+    },
+    {
+      "artifact_refs": [],
+      "blocking_reason": null,
+      "checks": [
+        {
+          "affected_variables": [],
+          "check_id": "poc-test-wiki-snapshot",
+          "detail": null,
+          "evidence_refs": [
+            "clinical-llm-wiki/snapshots/snapshot-sdtmig34-core-events-ae-v1.json"
+          ],
+          "expected": null,
+          "observed": null,
+          "state": "pass",
+          "summary": "p9-poc-test-only snapshot 可用。"
+        }
+      ],
+      "completed_at": "2026-07-17T09:22:18.031207+00:00",
+      "evidence_refs": [],
+      "kind": "instruction",
+      "ordinal": 3,
+      "review_id": null,
+      "started_at": "2026-07-17T09:22:18.028608+00:00",
+      "state": "done",
+      "step_id": "wiki-context",
+      "summary": "测试用 Wiki snapshot 已锁定；不声明为生产正式知识。",
+      "title": "Wiki Context"
+    },
+    {
+      "artifact_refs": [
+        {
+          "artifact_id": "poc-59edcaf0f5702cd3",
+          "kind": "json",
+          "label": "ae-mapping-spec-approved.json",
+          "preview_available": true,
+          "relative_path": "work/mapping/ae-mapping-spec-approved.json",
+          "sha256": "0b153a354c3c8688449ab4897e896618b669afc1046637b66eafa140b4ab3a02"
+        }
+      ],
+      "blocking_reason": null,
+      "checks": [],
+      "completed_at": "2026-07-17T09:22:18.042098+00:00",
+      "evidence_refs": [],
+      "kind": "artifact",
+      "ordinal": 4,
+      "review_id": null,
+      "started_at": "2026-07-17T09:22:18.033601+00:00",
+      "state": "done",
+      "step_id": "mapping-spec",
+      "summary": "复用已验证的 approved MappingSpec。",
+      "title": "MappingSpec"
+    },
+    {
+      "artifact_refs": [
+        {
+          "artifact_id": "poc-12cc2285929d2494",
+          "kind": "json",
+          "label": "program-manifest.json",
+          "preview_available": true,
+          "relative_path": "programs/edc_to_sdtm/program-manifest.json",
+          "sha256": "6c193766c8bc1b45918e7be81073700a9501e8b73e9e9177676053b1e9d323dd"
+        },
+        {
+          "artifact_id": "poc-a3271a123c96f6f7",
+          "kind": "json",
+          "label": "ae-reference-validation.json",
+          "preview_available": true,
+          "relative_path": "output/sdtm/validation/ae-reference-validation.json",
+          "sha256": "dcd621a9368125682c7ab4228dc7342f198227554803f33b9c4be764f2af27d1"
+        }
+      ],
+      "blocking_reason": null,
+      "checks": [
+        {
+          "affected_variables": [],
+          "check_id": "registered-reference-execution",
+          "detail": null,
+          "evidence_refs": [
+            "output/sdtm/validation/ae-reference-validation.json"
+          ],
+          "expected": null,
+          "observed": null,
+          "state": "warning",
+          "summary": "validation_review_required"
+        }
+      ],
+      "completed_at": "2026-07-17T09:22:18.870751+00:00",
+      "evidence_refs": [],
+      "kind": "artifact",
+      "ordinal": 5,
+      "review_id": null,
+      "started_at": "2026-07-17T09:22:18.057636+00:00",
+      "state": "done",
+      "step_id": "program-execution",
+      "summary": "程序生成和 Python reference execution 已产生可审核证据。",
+      "title": "Program / Execution"
+    },
+    {
+      "artifact_refs": [],
+      "blocking_reason": "AE reference validation blocked: 128/1066 项记录问题",
+      "checks": [
+        {
+          "affected_variables": [
+            "AETERM"
+          ],
+          "check_id": "required_value_empty",
+          "detail": null,
+          "evidence_refs": [
+            "output/sdtm/validation/ae-reference-validation.json",
+            "VAL-AE-REQ-1-AETERM",
+            "VAL-AE-REQ-2-AETERM",
+            "VAL-AE-REQ-3-AETERM",
+            "VAL-AE-REQ-4-AETERM",
+            "VAL-AE-REQ-5-AETERM",
+            "VAL-AE-REQ-6-AETERM",
+            "VAL-AE-REQ-7-AETERM",
+            "VAL-AE-REQ-8-AETERM",
+            "VAL-AE-REQ-43-AETERM",
+            "VAL-AE-REQ-44-AETERM",
+            "VAL-AE-REQ-57-AETERM",
+            "VAL-AE-REQ-58-AETERM",
+            "VAL-AE-REQ-59-AETERM",
+            "VAL-AE-REQ-60-AETERM",
+            "VAL-AE-REQ-123-AETERM",
+            "VAL-AE-REQ-124-AETERM",
+            "VAL-AE-REQ-151-AETERM",
+            "VAL-AE-REQ-152-AETERM",
+            "VAL-AE-REQ-164-AETERM",
+            "VAL-AE-REQ-165-AETERM"
+          ],
+          "expected": 0,
+          "observed": 128,
+          "state": "fail",
+          "summary": "AETERM: 128/1066 条记录"
+        }
+      ],
+      "completed_at": null,
+      "evidence_refs": [],
+      "kind": "review",
+      "ordinal": 6,
+      "review_id": "sdtm_spec_sample_ae_001_validation_dcd621a93681_v1_001",
+      "started_at": null,
+      "state": "blocked",
+      "step_id": "validation-review",
+      "summary": "AE reference validation blocked: 128/1066 项记录问题",
+      "title": "Validation / Review"
+    },
+    {
+      "artifact_refs": [],
+      "blocking_reason": null,
+      "checks": [],
+      "completed_at": null,
+      "evidence_refs": [],
+      "kind": "instruction",
+      "ordinal": 7,
+      "review_id": null,
+      "started_at": null,
+      "state": "pending",
+      "step_id": "canonical-ae",
+      "summary": "等待 Runner 执行。",
+      "title": "Canonical AE"
+    }
+  ],
+  "study_id": "SAMPLE-AE-001",
+  "target_artifact": "sdtm_ae_dataset",
+  "updated_at": "2026-07-17T09:29:19.745702+00:00"
+}

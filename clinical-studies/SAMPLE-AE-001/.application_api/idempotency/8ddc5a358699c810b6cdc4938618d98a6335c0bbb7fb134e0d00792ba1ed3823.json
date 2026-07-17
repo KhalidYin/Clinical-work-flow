@@ -1,0 +1,12 @@
+{
+  "created_at": "2026-07-17T03:19:41.949919+00:00",
+  "idempotency_key_sha256": "f167756d056fb3af6261f6806b5a221fe9380f040fb3ab7b6873a0b328d12667",
+  "operation": "start_run",
+  "request_hash": "eaf636f0781c580261090ab56570dffc7576d382c1e0dc9935a79b2a8826e24d",
+  "response": {
+    "accepted": true,
+    "idempotency_key": "ui-1784258381912-6kgdn7rrhn",
+    "run_id": "run-61b2ec4a714cbac29a9e",
+    "run_state": "queued"
+  }
+}

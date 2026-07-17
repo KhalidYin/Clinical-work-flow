@@ -1,0 +1,202 @@
+{
+  "checked_at": "2026-07-17T09:22:17.853703+00:00",
+  "checks": [
+    {
+      "affected_variables": [],
+      "check_id": "source-exists",
+      "detail": null,
+      "evidence_refs": [
+        "input/edc/ae09jun2025.sas7bdat"
+      ],
+      "expected": null,
+      "observed": null,
+      "state": "pass",
+      "summary": "登记的 AE source file 存在。"
+    },
+    {
+      "affected_variables": [],
+      "check_id": "source-sha256",
+      "detail": null,
+      "evidence_refs": [
+        "source-inventory.yaml",
+        "work/derived/edc/source-metadata.json"
+      ],
+      "expected": null,
+      "observed": "2a6d72e9e5fa4bb8e3cc14b0c412fce3c37e519f3ab9105cdcff33ba031e8749",
+      "state": "pass",
+      "summary": "Source SHA-256 与 source-inventory.yaml 一致。"
+    },
+    {
+      "affected_variables": [],
+      "check_id": "source-parser",
+      "detail": null,
+      "evidence_refs": [
+        "work/derived/edc/source-parser-validation.json"
+      ],
+      "expected": null,
+      "observed": null,
+      "state": "pass",
+      "summary": "clinical-workflow-edc-importer 已成功解析 sas7bdat。"
+    },
+    {
+      "affected_variables": [],
+      "check_id": "metadata-availability",
+      "detail": "informats: pyreadstat does not expose SAS informats from this dataset；value_labels: No resolvable value-label mapping is embedded or supplied by catalog；external_format_catalog: No external SAS format catalog was registered",
+      "evidence_refs": [
+        "work/derived/edc/source-metadata.json#metadata_availability"
+      ],
+      "expected": null,
+      "observed": null,
+      "state": "warning",
+      "summary": "存在显式 metadata gap。"
+    }
+  ],
+  "dependencies": [
+    {
+      "blocking": false,
+      "detail": "当前 sdtm_ae_dataset 的唯一 required 输入。",
+      "evidence_refs": [
+        "source-inventory.yaml"
+      ],
+      "input_id": "ae-source-data",
+      "label": "AE raw data",
+      "requirement": "required",
+      "status": "available"
+    },
+    {
+      "blocking": false,
+      "detail": "当前 sdtm_ae_dataset raw-only POC 不以该文档为固定前置条件。",
+      "evidence_refs": [],
+      "input_id": "protocol",
+      "label": "Protocol",
+      "requirement": "not_required",
+      "status": "not_required"
+    },
+    {
+      "blocking": false,
+      "detail": "当前 sdtm_ae_dataset raw-only POC 不以该文档为固定前置条件。",
+      "evidence_refs": [],
+      "input_id": "sap",
+      "label": "SAP",
+      "requirement": "not_required",
+      "status": "not_required"
+    },
+    {
+      "blocking": false,
+      "detail": "当前 sdtm_ae_dataset raw-only POC 不以该文档为固定前置条件。",
+      "evidence_refs": [],
+      "input_id": "crf",
+      "label": "CRF",
+      "requirement": "not_required",
+      "status": "not_required"
+    }
+  ],
+  "files": [
+    {
+      "column_count": 73,
+      "evidence_refs": [
+        "work/derived/edc/source-metadata.json",
+        "work/derived/edc/source-data-profile.json",
+        "work/derived/edc/source-parser-validation.json"
+      ],
+      "exists": true,
+      "format": "sas7bdat",
+      "formats_available": true,
+      "label": "AE registered source",
+      "labels_available": true,
+      "parser": "clinical-workflow-edc-importer",
+      "parser_available": true,
+      "relative_path": "input/edc/ae09jun2025.sas7bdat",
+      "row_count": 1066,
+      "sha256": "2a6d72e9e5fa4bb8e3cc14b0c412fce3c37e519f3ab9105cdcff33ba031e8749",
+      "size_bytes": 19667968,
+      "source_id": "ae-source-data",
+      "value_labels_available": false,
+      "warnings": [
+        "informats: pyreadstat does not expose SAS informats from this dataset",
+        "value_labels: No resolvable value-label mapping is embedded or supplied by catalog",
+        "external_format_catalog: No external SAS format catalog was registered"
+      ]
+    }
+  ],
+  "summary": {
+    "blocking_count": 0,
+    "message": "AE source 已解析：1066 行、73 列；3 个 metadata gap。",
+    "required_ready": 1,
+    "required_total": 1,
+    "status": "warning",
+    "warning_count": 3
+  },
+  "variable_profiles": [
+    {
+      "data_type": "string",
+      "distinct_count": 180,
+      "evidence_refs": [
+        "work/derived/edc/source-data-profile.json#variables/Subject"
+      ],
+      "format": "$150",
+      "label": "Subject name or identifier",
+      "missing_count": 0,
+      "non_missing_count": 1066,
+      "value_labels_available": false,
+      "variable": "Subject"
+    },
+    {
+      "data_type": "double",
+      "distinct_count": 70,
+      "evidence_refs": [
+        "work/derived/edc/source-data-profile.json#variables/RecordPosition"
+      ],
+      "format": "10",
+      "label": "Record number",
+      "missing_count": 0,
+      "non_missing_count": 1066,
+      "value_labels_available": false,
+      "variable": "RecordPosition"
+    },
+    {
+      "data_type": "string",
+      "distinct_count": 331,
+      "evidence_refs": [
+        "work/derived/edc/source-data-profile.json#variables/AETERM"
+      ],
+      "format": "$600",
+      "label": "Adverse Event, specify, give diagnosis if possible",
+      "missing_count": 128,
+      "non_missing_count": 938,
+      "value_labels_available": false,
+      "variable": "AETERM"
+    },
+    {
+      "data_type": "string",
+      "distinct_count": 486,
+      "evidence_refs": [
+        "work/derived/edc/source-data-profile.json#variables/AESTDAT"
+      ],
+      "format": "$33",
+      "label": "Start date",
+      "missing_count": 128,
+      "non_missing_count": 938,
+      "value_labels_available": false,
+      "variable": "AESTDAT"
+    },
+    {
+      "data_type": "string",
+      "distinct_count": 430,
+      "evidence_refs": [
+        "work/derived/edc/source-data-profile.json#variables/AEENDAT"
+      ],
+      "format": "$33",
+      "label": "Stop date",
+      "missing_count": 312,
+      "non_missing_count": 754,
+      "value_labels_available": false,
+      "variable": "AEENDAT"
+    }
+  ],
+  "warnings": [
+    "informats: pyreadstat does not expose SAS informats from this dataset",
+    "value_labels: No resolvable value-label mapping is embedded or supplied by catalog",
+    "external_format_catalog: No external SAS format catalog was registered"
+  ]
+}

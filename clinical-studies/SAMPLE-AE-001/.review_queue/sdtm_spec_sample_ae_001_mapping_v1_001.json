@@ -1,0 +1,76 @@
+{
+  "review_id": "sdtm_spec_sample_ae_001_mapping_v1_001",
+  "review_type": "sdtm_spec",
+  "source_documents": [
+    "work/mapping/ae-mapping-context.json",
+    "work/mapping/ae-mapping-spec-candidate.json",
+    "work/derived/plans/minimum-information-sdtm-ae.json"
+  ],
+  "agent_summary": "已完成最小信息规划后的 AE Mapping 候选。请审核来源变量、受控操作、Wiki 引用和显式缺口；批准前不会生成或执行 Python/R/SAS 程序。",
+  "findings": [
+    {
+      "id": "F-001",
+      "category": "mapping",
+      "severity": "warning",
+      "location": "work/mapping/ae-mapping-spec-candidate.json",
+      "title": "确认基于真实 SAS7BDAT metadata 的 AE MappingSpec",
+      "current_value": "MappingSpec 为候选状态，尚未生成或执行程序",
+      "proposed_value": "批准以下变量进入受控程序生成：STUDYID, DOMAIN, USUBJID, AESEQ, AETERM, AESTDTC, AEENDTC, AEDECOD, AEBODSYS, AESOC",
+      "rationale": "候选仅使用已登记来源、P3 最小信息计划和锁定 SDTMIG 3.4 Wiki 证据；CRF、Protocol、SAP 均不是本步骤的硬依赖。",
+      "evidence_refs": [
+        "work/mapping/ae-mapping-context.json",
+        "work/mapping/ae-mapping-spec-candidate.json"
+      ],
+      "auto_approved": false
+    },
+    {
+      "id": "F-002",
+      "category": "terminology",
+      "severity": "warning",
+      "location": "AE:AESEV,AESER,AEREL,AEACN,AEOUT",
+      "title": "确认保留显式缺口：gap-controlled-value-labels",
+      "current_value": "SAS catalog/value-label mapping unavailable; controlled fields are not mapped",
+      "proposed_value": "本轮不推断、不补齐，继续保留为可追溯 gap",
+      "rationale": "证据不足的字段不得因名称相似或模型推测进入 mapped 状态。",
+      "evidence_refs": [
+        "work/mapping/ae-mapping-context.json",
+        "gap-controlled-value-labels"
+      ],
+      "auto_approved": false
+    },
+    {
+      "id": "F-003",
+      "category": "mapping",
+      "severity": "warning",
+      "location": "AE:AESTDY,AEENDY",
+      "title": "确认保留显式缺口：gap-reference-date-identity-no-overlap",
+      "current_value": "Reference-date source cannot join to Source.Subject; study-day fields are omitted",
+      "proposed_value": "本轮不推断、不补齐，继续保留为可追溯 gap",
+      "rationale": "证据不足的字段不得因名称相似或模型推测进入 mapped 状态。",
+      "evidence_refs": [
+        "work/mapping/ae-mapping-context.json",
+        "gap-reference-date-identity-no-overlap"
+      ],
+      "auto_approved": false
+    },
+    {
+      "id": "F-004",
+      "category": "mapping",
+      "severity": "warning",
+      "location": "AE:AE",
+      "title": "确认保留显式缺口：gap-full-sdtmig-conformance-not-claimed",
+      "current_value": "This POC validates a bounded AE subset, not complete SDTMIG conformance",
+      "proposed_value": "本轮不推断、不补齐，继续保留为可追溯 gap",
+      "rationale": "证据不足的字段不得因名称相似或模型推测进入 mapped 状态。",
+      "evidence_refs": [
+        "work/mapping/ae-mapping-context.json",
+        "gap-full-sdtmig-conformance-not-claimed"
+      ],
+      "auto_approved": false
+    }
+  ],
+  "urgency": "blocking",
+  "created_at": "2026-07-17T05:48:49.332215+00:00",
+  "generated_by": "P9 Metadata-driven AE Mapping Planner",
+  "auto_approved_count": 0
+}

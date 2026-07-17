@@ -1,0 +1,11 @@
+{
+  "review_id": "sdtm_spec_sample_ae_001_validation_dcd621a93681_v1_001",
+  "reviewer": "中文审核人",
+  "timestamp": "2026-07-17T09:28:45.353569+00:00",
+  "decisions": [
+    {
+      "finding_id": "F-001",
+      "decision": "approved"
+    }
+  ]
+}

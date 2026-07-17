@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "artifact_type": "source_parser_validation",
   "artifact_id": "source-metadata-2a6d72e9e5fa",
-  "generated_at": "2026-07-16T09:15:23.517062+00:00",
+  "generated_at": "2026-07-17T09:22:17.500029+00:00",
   "source": {
     "relative_path": "input/edc/ae09jun2025.sas7bdat",
     "format": "sas7bdat",
@@ -13,7 +13,7 @@
     "version": "1.0.0",
     "python_version": "3.14.4",
     "library_versions": {
-      "pandas": "2.3.3",
+      "pandas": "3.0.3",
       "pyreadstat": "1.3.5"
     }
   },
@@ -44,15 +44,15 @@
   "derived_artifacts": {
     "source_metadata": {
       "relative_path": "work/derived/edc/source-metadata.json",
-      "sha256": "c5d94223a8a4ba6ecfe9c0e9d757c064a927f094d56e1f69086a3920d70d3147"
+      "sha256": "caef66151800f58fb25ad910fca2f361cd1ccd415df3bebd76d37decf171f5ac"
     },
     "data_profile": {
       "relative_path": "work/derived/edc/source-data-profile.json",
-      "sha256": "d9a3ee59c76d4dc027f997b57f373b93c0c0c067a34ce1e76aac5476cea7e978"
+      "sha256": "6db206637f58f865eacc6d1197a06f5fe85234e84d87c8bfad702a10568774a8"
     },
     "preview_manifest": {
       "relative_path": "work/derived/edc/source-preview-manifest.json",
-      "sha256": "ba57152623028fe5cd9fce2b293b916b91cfadbbae2a6f7bc10989e28fd6e356"
+      "sha256": "ab3067618ed89eb401daf57bbb1fcc2df626ac498f208d08d856c189d30fd21c"
     }
   }
 }
