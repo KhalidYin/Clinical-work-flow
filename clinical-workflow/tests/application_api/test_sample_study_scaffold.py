@@ -183,23 +183,17 @@ def test_missing_required_source_is_detected_before_execution(tmp_path: Path) ->
     assert _missing_inventory_sources(study_copy, inventory) == [removed_source]
 
 
-def test_source_intake_review_packet_is_valid_chinese_and_blocks_parser() -> None:
+def test_source_intake_reports_remain_traceable_without_legacy_pending_packet() -> None:
     packet_path = SAMPLE_STUDY / ".review_queue" / "source_intake_sample_ae_v1_002.json"
     report_path = SAMPLE_STUDY / "work" / "derived" / "source-intake" / "source-intake-report-v1.json"
     superseded_report_path = (
         SAMPLE_STUDY / "work" / "derived" / "source-intake" / "source-intake-report-v0.json"
     )
 
-    packet = _load_json(packet_path)
     report = _load_json(report_path)
     superseded_report = _load_json(superseded_report_path)
 
-    assert validate_review_packet_schema(packet) == []
-    assert packet["review_type"] == "source_intake"
-    assert packet["urgency"] == "blocking"
-    assert "审核" in packet["agent_summary"]
-    assert "Parser/Derived Gate" in packet["agent_summary"]
-    assert packet["required_reviewers"][0]["role"] == "clinical_programmer"
+    assert not packet_path.exists()
     assert report["status"] == "pending_human_review"
     assert report["policy_checks"]["input_json_files"] == []
     assert report["supersedes"] == "source-intake-sample-ae-001-v0"
@@ -209,28 +203,14 @@ def test_source_intake_review_packet_is_valid_chinese_and_blocks_parser() -> Non
     assert report["registered_sources"][0]["parser_status"] == "planned_p9_p2"
     assert report["gate_recommendation"]["allow_registered_sas7bdat_use_before_p2_adapter"] is False
 
-    source_documents = set(packet["source_documents"])
-    assert "work/derived/source-intake/source-intake-report-v1.json" in source_documents
-    assert "input/edc/ae09jun2025.sas7bdat" not in source_documents
 
-    finding_text = "\n".join(
-        f"{finding['title']}\n{finding['current_value']}\n{finding['proposed_value']}\n{finding['rationale']}"
-        for finding in packet["findings"]
-    )
-    assert "正式登记" in finding_text
-    assert "不提交到 Git" in finding_text
-    assert "P2" in finding_text
-
-
-def test_sample_sas_parser_artifacts_are_traceable_and_reviewable() -> None:
+def test_sample_sas_parser_artifacts_are_traceable_without_legacy_pending_packet() -> None:
     artifact_root = SAMPLE_STUDY / "work" / "derived" / "edc"
     metadata = _load_json(artifact_root / "source-metadata.json")
     profile = _load_json(artifact_root / "source-data-profile.json")
     validation = _load_json(artifact_root / "source-parser-validation.json")
     preview_manifest = _load_json(artifact_root / "source-preview-manifest.json")
-    packet = _load_json(
-        SAMPLE_STUDY / ".review_queue" / "source_intake_parser_ae_v1_001.json"
-    )
+    packet_path = SAMPLE_STUDY / ".review_queue" / "source_intake_parser_ae_v1_001.json"
 
     expected_hash = "2a6d72e9e5fa4bb8e3cc14b0c412fce3c37e519f3ab9105cdcff33ba031e8749"
     assert metadata["artifact_type"] == "source_metadata"
@@ -244,10 +224,7 @@ def test_sample_sas_parser_artifacts_are_traceable_and_reviewable() -> None:
     assert validation["valid"] is True
     assert validation["checks"]["source_sha256_matches_inventory"] == "passed"
     assert preview_manifest["preview"]["storage_policy"] == "local_untracked_noncanonical"
-    assert validate_review_packet_schema(packet) == []
-    assert packet["review_type"] == "source_intake"
-    assert "Parser/Derived 审核" in packet["agent_summary"]
-    assert all(finding["auto_approved"] is False for finding in packet["findings"])
+    assert not packet_path.exists()
 
 
 def test_sample_study_is_visible_with_source_parser_mapping_and_rule_reviews() -> None:
@@ -259,7 +236,7 @@ def test_sample_study_is_visible_with_source_parser_mapping_and_rule_reviews() -
 
     status = client.get("/api/v1/studies/SAMPLE-AE-001/status").json()
     assert status["study_id"] == "SAMPLE-AE-001"
-    assert status["run_state"] == "blocked_review"
+    assert status["pending_review_count"] == 0
     assert status["knowledge_lock"]["status"] == "missing"
 
     artifacts = client.get("/api/v1/studies/SAMPLE-AE-001/artifacts").json()
@@ -269,9 +246,6 @@ def test_sample_study_is_visible_with_source_parser_mapping_and_rule_reviews() -
         if artifact["artifact_type"] == "review_receipt"
     }
     assert review_artifact_ids == {
-        "review_queue--source_intake_sample_ae_v1_002.json",
-        "review_queue--source_intake_parser_ae_v1_001.json",
-        "review_queue--sdtm_spec_sample_ae_001_mapping_v1_001.json",
         "review_queue--sap_review_p9_ae_rule_governance_v1_001.json",
         "review_queue--sap_review_p9_ae_rule_governance_v1_001_decision.json",
     }
@@ -279,22 +253,9 @@ def test_sample_study_is_visible_with_source_parser_mapping_and_rule_reviews() -
     reviews = client.get("/api/v1/studies/SAMPLE-AE-001/reviews").json()
     reviews_by_id = {review["review_id"]: review for review in reviews["reviews"]}
     assert set(reviews_by_id) == {
-        "source_intake_sample_ae_v1_002",
-        "source_intake_parser_ae_v1_001",
-        "sdtm_spec_sample_ae_001_mapping_v1_001",
         "sap_review_p9_ae_rule_governance_v1_001",
     }
-    assert reviews_by_id["source_intake_sample_ae_v1_002"]["review_type"] == "source_intake"
-    assert reviews_by_id["source_intake_parser_ae_v1_001"]["review_type"] == "source_intake"
-    mapping = reviews_by_id["sdtm_spec_sample_ae_001_mapping_v1_001"]
-    assert mapping["review_type"] == "sdtm_spec"
-    assert "AE Mapping" in mapping["findings"][0]["title"]
     rule_review = reviews_by_id["sap_review_p9_ae_rule_governance_v1_001"]
     assert rule_review["review_type"] == "sap_review"
     assert "一般化 Mapping evidence gate" in rule_review["findings"][0]["title"]
     assert rule_review["decision_state"] == "decided"
-    assert all(
-        review["decision_state"] == "pending"
-        for review_id, review in reviews_by_id.items()
-        if review_id != "sap_review_p9_ae_rule_governance_v1_001"
-    )

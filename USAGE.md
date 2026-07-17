@@ -145,7 +145,13 @@ P8 提供本地 Application API 和静态 Study Console。Console 位于 `/conso
 ```powershell
 .\start-study-console.ps1
 .\start-study-console.ps1 -StudiesRoot .\clinical-studies -Port 8788
+.\start-study-console.ps1 -CheckOnly
+.\start-study-console.ps1 -NoBrowser
 ```
+
+脚本会先执行 Application API 预检；默认打开浏览器并把当前 PowerShell 窗口作为本地 API 常驻进程，按 `Ctrl+C` 停止。若 `127.0.0.1:8788` 已有 Study Console 监听，脚本会复用现有服务并提示 owning process，不再重复启动第二个 uvicorn。
+
+Console 的 Review Inbox 采用队列/详情布局：左侧只显示 ReviewPacket 摘要与状态筛选，右侧显示选中 packet 的详情；finding 默认折叠，避免把完整审阅流在长页面中全部铺开。正式 human-loop 仍以 ReviewPacket → DecisionReceipt 为准，Console 只写 DecisionReceipt，不写 ConfirmationReceipt。
 
 等价手动命令：
 

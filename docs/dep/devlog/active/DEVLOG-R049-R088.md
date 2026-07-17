@@ -320,3 +320,45 @@
 - `clinical-llm-wiki/scripts/content/p9_ae_rule_governance_release.py`, `tests/test_p9_ae_rule_governance_release.py`
 - `clinical-workflow/tests/test_p9_rule_governance.py`
 - `docs/specs/15-Review-Protocol.md`, `docs/specs/21-Knowledge-Workflow-Integration.md`, `docs/main/memory/`, `docs/dep/`（本轮提交）
+
+---
+
+### R057 [11:10] [P9-metadata-driven-sdtm-ae-minimal-poc] P6: 修复 Study Console 启动体验并收敛 Review Inbox 审阅布局
+
+#### Done
+
+- 定位 `start-study-console.ps1`：脚本可启动 loopback API，原先容易被误解为“卡住”，因为 uvicorn 是常驻进程且不自动打开浏览器。
+- 启动脚本新增 Application API 预检、`-CheckOnly`、`-NoBrowser`、端口已监听时复用现有服务并提示 owning process；启动时明确提示 `Ctrl+C` 停止。
+- 清理 `SAMPLE-AE-001/.review_queue` 中 3 个早期开发阶段遗留 pending packet；当前 API `pending_review_count=0`，只保留已批准的测试用规则治理追溯记录。
+- Study Console Review Inbox 改为状态筛选 + 左侧 packet 队列摘要 + 右侧选中详情；finding 默认折叠，避免长页面铺开完整审阅流。
+- 同步 USAGE、P9.1 计划执行中发现、TASK_STATE 和项目记忆，明确该布局偏好和遗留 packet 清理口径。
+- `clinical-workflow[dev]` 增加 `httpx2`，匹配当前 Starlette TestClient 依赖。
+
+#### Issues / Blockers
+
+- 本地 `.venv` 缺少 `pytest` 与 `httpx2`，已按项目规则补齐依赖后完成测试。
+- 当前 Study 仍缺 `runtime-manifest.yaml` / locked knowledge，因此 `knowledge_lock.status=missing` 属于既有 P6 验收前状态，不在本轮修复。
+- R050 shared bundle hash 漂移仍为既有债务，本轮未处理。
+
+#### Validation
+
+- `node --check clinical-workflow/src/study_console/static/app.js`（success）。
+- `.\start-study-console.ps1 -CheckOnly -NoBrowser`（Study Console preflight OK）。
+- `python -m pytest clinical-workflow/tests/study_console/test_console_static.py clinical-workflow/tests/application_api/test_sample_study_scaffold.py`（14 passed）。
+- `GET /api/v1/studies/SAMPLE-AE-001/status`：`pending_review_count=0`，`run_state=idle`。
+- `git diff --check`（success；仅 LF/CRLF warning）。
+
+#### Next
+
+1. 继续 P6：补 POC 快速启动/验收脚本，串起 Console、Review Panel、Knowledge Service 与人工验收清单。
+2. 继续 P6：整理用户本机执行说明和失败诊断清单；不解锁旧 P9。
+3. 用户实际运行并确认前，本计划保持 in-progress。
+
+#### Files Changed / Commits
+
+- `start-study-console.ps1`
+- `clinical-workflow/src/study_console/static/index.html`, `app.js`, `styles.css`
+- `clinical-studies/SAMPLE-AE-001/.review_queue/README.md`，删除 3 个遗留 pending packet
+- `clinical-workflow/tests/study_console/test_console_static.py`, `tests/application_api/test_sample_study_scaffold.py`
+- `clinical-workflow/pyproject.toml`
+- `USAGE.md`, `docs/main/memory/`, `docs/dep/`（本轮提交）

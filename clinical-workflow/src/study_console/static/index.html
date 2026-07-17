@@ -127,7 +127,23 @@
               <span id="review-count" class="status-pill status-muted">0 review</span>
             </div>
             <div id="review-message" class="notice" role="status"></div>
-            <div id="review-list" class="review-list"></div>
+            <div class="review-toolbar" aria-label="Review filters">
+              <button class="filter-chip" type="button" data-review-filter="pending" aria-pressed="true">
+                待处理
+              </button>
+              <button class="filter-chip" type="button" data-review-filter="decided" aria-pressed="false">
+                已处理
+              </button>
+              <button class="filter-chip" type="button" data-review-filter="all" aria-pressed="false">
+                全部
+              </button>
+            </div>
+            <div class="review-workbench">
+              <div id="review-list" class="review-list review-queue-list"></div>
+              <article id="review-detail" class="review-detail" aria-live="polite">
+                <div class="empty-state">选择左侧 ReviewPacket 后显示详情。</div>
+              </article>
+            </div>
           </section>
         </div>
 

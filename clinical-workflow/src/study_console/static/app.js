@@ -12,6 +12,8 @@
     provenance: null,
     audit: [],
     selectedArtifactId: "",
+    selectedReviewId: "",
+    reviewFilter: "pending",
     activeRunId: "",
     loading: false,
   };
@@ -77,10 +79,25 @@
     $("run-form").addEventListener("submit", submitRunRequest);
     $("resume-run").addEventListener("click", submitResumeRequest);
     $("review-list").addEventListener("click", (event) => {
+      const reviewButton = event.target.closest("[data-review-id]");
+      if (reviewButton) {
+        state.selectedReviewId = reviewButton.dataset.reviewId;
+        renderReviews();
+        return;
+      }
+    });
+    $("review-detail").addEventListener("click", (event) => {
       const button = event.target.closest("[data-submit-review]");
       if (button) {
         submitReviewDecision(button.dataset.submitReview);
       }
+    });
+    document.querySelectorAll("[data-review-filter]").forEach((button) => {
+      button.addEventListener("click", () => {
+        state.reviewFilter = button.dataset.reviewFilter || "pending";
+        state.selectedReviewId = "";
+        renderReviews();
+      });
     });
     $("artifact-list").addEventListener("click", (event) => {
       const button = event.target.closest("[data-artifact-id]");
@@ -122,6 +139,7 @@
       state.provenance = null;
       state.audit = [];
       state.selectedArtifactId = "";
+      state.selectedReviewId = "";
       state.activeRunId = "";
       renderAll();
       return;
@@ -159,6 +177,12 @@
       ) {
         state.selectedArtifactId = "";
       }
+      if (
+        state.selectedReviewId &&
+        !state.reviews.some((review) => review.review_id === state.selectedReviewId)
+      ) {
+        state.selectedReviewId = "";
+      }
       state.activeRunId = latestRunId(state.events) || storedRunId(studyId);
       if (state.activeRunId) {
         localStorage.setItem(runStorageKey(studyId), state.activeRunId);
@@ -173,6 +197,7 @@
       state.provenance = null;
       state.audit = [];
       state.selectedArtifactId = "";
+      state.selectedReviewId = "";
       setApiStatus("danger", "API 错误");
       setText("run-message", `Study 读取失败：${error.message}`);
     } finally {
@@ -321,16 +346,38 @@
 
   function renderReviews() {
     const reviews = state.reviews || [];
-    setText("review-count", `${reviews.length} review${reviews.length === 1 ? "" : "s"}`);
+    const pendingCount = reviews.filter((review) => review.decision_state === "pending").length;
+    setText("review-count", `${pendingCount} pending / ${reviews.length} total`);
+    document.querySelectorAll("[data-review-filter]").forEach((button) => {
+      button.setAttribute("aria-pressed", String(button.dataset.reviewFilter === state.reviewFilter));
+    });
     if (!state.selectedStudyId) {
       $("review-list").innerHTML = `<div class="empty-state">选择 Study 后显示 ReviewPacket。</div>`;
+      $("review-detail").innerHTML = `<div class="empty-state">选择左侧 ReviewPacket 后显示详情。</div>`;
       return;
     }
     if (!reviews.length) {
       $("review-list").innerHTML = `<div class="empty-state">当前没有 ReviewPacket。</div>`;
+      $("review-detail").innerHTML = `<div class="empty-state">没有需要审阅的内容。</div>`;
       return;
     }
-    $("review-list").innerHTML = reviews.map(renderReviewCard).join("");
+    const visibleReviews = filterReviews(reviews);
+    if (!visibleReviews.length) {
+      $("review-list").innerHTML = `<div class="empty-state">当前筛选条件下没有 ReviewPacket。</div>`;
+      $("review-detail").innerHTML = `<div class="empty-state">切换筛选条件可查看其他状态。</div>`;
+      return;
+    }
+    if (
+      !state.selectedReviewId ||
+      !visibleReviews.some((review) => review.review_id === state.selectedReviewId)
+    ) {
+      state.selectedReviewId = visibleReviews[0].review_id;
+    }
+    $("review-list").innerHTML = visibleReviews.map(renderReviewQueueItem).join("");
+    const selected = visibleReviews.find((review) => review.review_id === state.selectedReviewId);
+    $("review-detail").innerHTML = selected
+      ? renderReviewDetail(selected)
+      : `<div class="empty-state">选择左侧 ReviewPacket 后显示详情。</div>`;
   }
 
   function renderArtifacts() {
@@ -540,7 +587,36 @@
     `;
   }
 
-  function renderReviewCard(review) {
+  function filterReviews(reviews) {
+    if (state.reviewFilter === "pending") {
+      return reviews.filter((review) => review.decision_state === "pending");
+    }
+    if (state.reviewFilter === "decided") {
+      return reviews.filter((review) => review.decision_state !== "pending");
+    }
+    return reviews;
+  }
+
+  function renderReviewQueueItem(review) {
+    const current = review.review_id === state.selectedReviewId;
+    return `
+      <button
+        class="review-summary-card"
+        type="button"
+        data-review-id="${escapeAttr(review.review_id)}"
+        aria-current="${current ? "true" : "false"}"
+      >
+        <span class="review-summary-topline">
+          <strong>${escapeHtml(review.review_id)}</strong>
+          <span class="status-pill ${statusClass(review.decision_state)}">${escapeHtml(review.decision_state)}</span>
+        </span>
+        <span>${escapeHtml(review.review_type || "review")}</span>
+        <span class="mono">${review.finding_count || 0} finding · ${escapeHtml(shortHash(review.packet_sha256))}</span>
+      </button>
+    `;
+  }
+
+  function renderReviewDetail(review) {
     const findings = review.findings || [];
     const requiredFindings = findings.filter((finding) => !finding.auto_approved);
     const canSubmit = review.decision_state === "pending" && requiredFindings.length > 0;
@@ -578,16 +654,17 @@
     const disabled = canSubmit && !finding.auto_approved ? "" : "disabled";
     const autoNote = finding.auto_approved ? `<span class="status-pill status-ok">auto-approved</span>` : "";
     return `
-      <section class="finding-card" aria-label="${escapeAttr(finding.finding_id)}">
-        <div>
+      <details class="finding-card" aria-label="${escapeAttr(finding.finding_id)}">
+        <summary>
           <div class="finding-meta">
             <span class="status-pill status-muted">${escapeHtml(finding.finding_id)}</span>
             <span class="status-pill ${statusClass(finding.severity)}">${escapeHtml(finding.severity)}</span>
             ${autoNote}
           </div>
-          <h4>${escapeHtml(finding.title)}</h4>
+          <strong>${escapeHtml(finding.title)}</strong>
+        </summary>
+        <div class="finding-body">
           <p>${escapeHtml(finding.rationale)}</p>
-        </div>
         <dl>
           <dt>Location</dt>
           <dd class="mono">${escapeHtml(finding.location)}</dd>
@@ -622,7 +699,8 @@
           Comment
           <input id="${findingDomId}-comment" ${disabled} maxlength="500" placeholder="可选说明" />
         </label>
-      </section>
+        </div>
+      </details>
     `;
   }
 

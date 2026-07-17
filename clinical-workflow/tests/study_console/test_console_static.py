@@ -58,6 +58,9 @@ def test_console_static_shell_and_assets_are_served(tmp_path: Path) -> None:
     assert 'id="stage-timeline"' in response.text
     assert 'id="run-form"' in response.text
     assert 'id="review-list"' in response.text
+    assert 'id="review-detail"' in response.text
+    assert 'data-review-filter="pending"' in response.text
+    assert '$("review-detail")' in client.get("/console/app.js").text
     assert 'id="artifact-list"' in response.text
     assert 'id="artifact-detail"' in response.text
     assert 'id="context-content"' in response.text
