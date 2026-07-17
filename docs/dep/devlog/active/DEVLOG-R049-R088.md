@@ -621,3 +621,42 @@
 - `clinical-workflow/schemas/application/openapi.yaml`
 - `clinical-workflow/tests/application_api/`, `clinical-workflow/tests/test_p8_application_api_contract.py`
 - `docs/dep/`（本轮提交）
+
+---
+
+### R065 [19:52] [P0-study-workbench-flow-correction] P2: 落地 Input Check 与真实阻断流程
+
+#### Done
+
+- Runner 原生持久化 schema v2 step ledger，并在步骤开始、完成、阻断时原子更新；Application API 不再依赖 artifact 推断当前状态。
+- Input Check 每个新 run 重新验证 source inventory、文件、SHA-256、格式与 parser，并写入行列数、SAS 标签/格式/值标签可用性和关键变量 profile。
+- `sdtm_ae_dataset` 明确只要求 AE raw data；Protocol/SAP/CRF 在当前 raw-only 目标中为 `not_required`，缺失不阻断。
+- source missing/hash drift/parser missing/unsupported format 分别进入结构化 input blocker，并提供 `provide_input`、`repair_input` 或 `install_dependency` 恢复动作。
+- AE reference validation 将空 `AETERM` 等确定性 finding 汇总为带数量、变量和证据的 ReviewPacket；同一证据复用同一 ID，新证据生成新 ID，旧 DecisionReceipt 不覆盖。
+- blocked run 禁止普通 Run 静默复用；Review/Retry 只恢复当前 blocker stage，next actions 根据 DecisionReceipt 状态切换。
+- Source profile 补充对空白字符串的 missing 统计，使真实 SAS7BDAT 的 128 条空 `AETERM` 能在 Input Check 前置显示。
+
+#### Issues / Blockers
+
+- P2 定向回归全部通过；全量 302 项测试中 301 项通过，唯一失败为既有 `clinical-workflow/schemas/contract-bundle.json` 的 hash lock 与未修改 schema 集合不一致。该失败不由 P2 改动引入，也不影响本 Phase 的 Runner/Review/source importer Gate。
+- P2 不自动过滤空 `AETERM`，也不执行 R/SAS；validation human-loop 只确认阻断与修复路径。
+
+#### Validation
+
+- `ruff check` 覆盖 P2 修改的 Runner、service、models、workflow、codegen、source importer 和测试（通过）。
+- `python -m pytest -q clinical-workflow/tests/test_edc_importer.py clinical-workflow/tests/test_p9_sample_ae_poc.py clinical-workflow/tests/test_review_protocol.py clinical-workflow/tests/application_api`（70 passed）。
+- `python -m pytest -q clinical-workflow/tests`（301 passed，1 个既有 contract bundle hash lock 失败）。
+- 真实 SAS7BDAT 可丢弃副本：1066 行、73 列，labels/formats 可用、value labels 不可用、`AETERM` missing=128。
+
+#### Next
+
+1. P3 按已批准基线实现 compact Run Bar、horizontal Stage Rail 和单一 Main Workspace。
+2. P3 只消费 P2 payload，不修改 Review/Runner 合同。
+3. contract bundle hash lock 作为独立基线问题处理，不混入 P3 UI 改造。
+
+#### Files Changed / Commits
+
+- `clinical-workflow/src/application_api/poc_models.py`, `poc_runner.py`, `service.py`
+- `clinical-workflow/src/agents/ae_metadata_workflow.py`, `src/codegen/ae_programs.py`, `src/mcp_tools/edc_importer.py`
+- `clinical-workflow/tests/application_api/test_poc_runner_contract.py`, `test_poc_runner_flow.py`
+- `docs/dep/PLAN.md`, `docs/dep/plans/ongoing/P0-study-workbench-flow-correction.md`, `docs/dep/devlog/`（本轮提交）

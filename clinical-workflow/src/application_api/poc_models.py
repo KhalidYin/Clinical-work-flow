@@ -69,6 +69,31 @@ class PocStepKind(StrEnum):
     COMPLETE = "complete"
 
 
+POC_STEP_DEFINITIONS = (
+    ("input-check", "Input Check"),
+    ("minimum-information", "Minimum Information"),
+    ("wiki-context", "Wiki Context"),
+    ("mapping-spec", "MappingSpec"),
+    ("program-execution", "Program / Execution"),
+    ("validation-review", "Validation / Review"),
+    ("canonical-ae", "Canonical AE"),
+)
+
+LEGACY_POC_STEP_ALIASES = {
+    "source-intake": "input-check",
+    "sas-metadata": "input-check",
+    "state-preflight": "input-check",
+    "minimum-information": "minimum-information",
+    "wiki-context": "wiki-context",
+    "mapping-spec": "mapping-spec",
+    "review-gate": "mapping-spec",
+    "codegen": "program-execution",
+    "draft-ae": "program-execution",
+    "output-review": "validation-review",
+    "canonical-ae": "canonical-ae",
+}
+
+
 class PocActionType(StrEnum):
     """Action IDs recognized by the Workbench."""
 

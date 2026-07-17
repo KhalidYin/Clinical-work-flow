@@ -144,8 +144,8 @@ syncs_to:
 | Phase | 目标 | 预估轮次 | 依赖 | 状态 |
 |-------|------|----------|------|------|
 | P1 | 冻结 Runner step ledger、Input Check 与结构化 blocker 合同 | 2-3 | 已完成旧 P0 | completed |
-| P2 | 实现 Input Check、步骤状态权威和阻断/Retry 流程 | 2-4 | P1 | pending |
-| P3 | 重构 UI-02、横向 UI-03 和主工作区 UI-04 | 2-3 | P1/P2 | pending |
+| P2 | 实现 Input Check、步骤状态权威和阻断/Retry 流程 | 2-4 | P1 | completed |
+| P3 | 重构 UI-02、横向 UI-03 和主工作区 UI-04 | 2-3 | P1/P2 | in-progress |
 | P4 | 完成真实浏览器 E2E、文档同步和用户 UAT 前置验收 | 2-3 | P2/P3 | pending |
 
 > 提交规则：每个 Phase 完成 Gate 后单独提交一次代码；不得把两个 Phase 合并成一个提交。
@@ -218,13 +218,13 @@ syncs_to:
 
 ### 完成标准
 
-- [ ] source file 不存在、hash 漂移、parser 缺失、格式不支持分别产生 input blocker 和明确 recovery action。
-- [ ] SAS7BDAT 成功解析后 Input Check 写入 row/column、labels/formats/value-label availability 和关键字段 profile。
-- [ ] 缺少 Protocol/SAP/CRF 不阻断当前 `sdtm_ae_dataset` raw-only target，并在 dependency summary 中显示 `not_required` 或 optional gap。
-- [ ] step ledger 中 active/blocked stage 与 Runner `current_step` 完全一致；不再标记第一个 pending step。
-- [ ] validation blocker 能转为受控 human-loop；既有批准 receipt 不被静默改写，新发现使用新的 ReviewPacket/ID。
-- [ ] 重复点击普通 Run 不复用 blocked run、不重复写相同事件；Retry 行为幂等且可审计。
-- [ ] POC runner flow、Review Protocol 和 source importer 回归测试通过。
+- [x] source file 不存在、hash 漂移、parser 缺失、格式不支持分别产生 input blocker 和明确 recovery action。
+- [x] SAS7BDAT 成功解析后 Input Check 写入 row/column、labels/formats/value-label availability 和关键字段 profile。
+- [x] 缺少 Protocol/SAP/CRF 不阻断当前 `sdtm_ae_dataset` raw-only target，并在 dependency summary 中显示 `not_required` 或 optional gap。
+- [x] step ledger 中 active/blocked stage 与 Runner `current_step` 完全一致；不再标记第一个 pending step。
+- [x] validation blocker 能转为受控 human-loop；既有批准 receipt 不被静默改写，新发现使用新的 ReviewPacket/ID。
+- [x] 重复点击普通 Run 不复用 blocked run、不重复写相同事件；Retry 行为幂等且可审计。
+- [x] POC runner flow、Review Protocol 和 source importer 回归测试通过。
 
 ### 边界（本 Phase 明确不做）
 

@@ -15,12 +15,15 @@ from src.agents.ae_metadata_poc import (
     AEMetadataPOCError,
     MAPPING_APPROVED_PATH,
     approve_mapping_from_receipt,
+    validate_mapping_spec,
 )
 from src.codegen.ae_programs import (
     DRAFT_DATASET_PATH,
+    EXECUTION_LOG_PATH,
     PROGRAM_MANIFEST_PATH,
     PROVENANCE_PATH,
     TRACEABILITY_PATH,
+    VALIDATION_PATH,
     generate_program_artifacts,
     run_python_reference,
 )
@@ -40,6 +43,7 @@ from src.runtime.review_protocol import (
 PROGRAM_REVIEW_ID = "sdtm_spec_sample_ae_001_program_v1_001"
 CANONICAL_DATASET_PATH = "output/sdtm/datasets/ae.csv"
 CANONICAL_TRACEABILITY_PATH = "output/sdtm/traceability/ae-canonical-traceability.json"
+VALIDATION_REVIEW_PREFIX = "sdtm_spec_sample_ae_001_validation"
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -131,12 +135,147 @@ def _program_review_packet(
     )
 
 
+def _validation_review_packet(
+    validation: Mapping[str, Any],
+    review_id: str,
+) -> ReviewPacket:
+    row_count = int(validation.get("observed_row_count", 0))
+    summaries = list(validation.get("blocking_summary") or [])
+    findings = []
+    for index, summary in enumerate(summaries, start=1):
+        variable = str(summary.get("variable") or "dataset")
+        count = int(summary.get("count", 0))
+        check_code = str(summary.get("check_code") or "validation")
+        findings.append(
+            ReviewFinding(
+                id=f"F-{index:03d}",
+                category=FindingCategory.COMPLIANCE,
+                severity=Severity.CRITICAL,
+                location=f"{VALIDATION_PATH}#blocking_summary/{index - 1}",
+                title=f"确认 AE 验证阻断：{variable}",
+                current_value=(
+                    f"检查 {check_code} 发现 {count}/{row_count} 条记录受影响；"
+                    f"影响变量：{variable}"
+                ),
+                proposed_value=(
+                    "保持 canonical 生成阻断；由人工确认源数据修复，或通过新的 MappingSpec "
+                    "明确受控处理规则后再 Retry current step。"
+                ),
+                rationale=(
+                    "验证失败属于数据/业务约束，不得由 Runtime 自动过滤、补值或视为普通 codegen 异常。"
+                ),
+                evidence_refs=[
+                    VALIDATION_PATH,
+                    EXECUTION_LOG_PATH,
+                    *[str(item) for item in summary.get("finding_ids", [])[:20]],
+                ],
+            )
+        )
+    if not findings:
+        raise AEMetadataPOCError("Validation review requires blocking_summary evidence")
+    return ReviewPacket(
+        review_id=review_id,
+        review_type=ReviewType.SDTM_SPEC,
+        source_documents=[
+            MAPPING_APPROVED_PATH,
+            PROGRAM_MANIFEST_PATH,
+            VALIDATION_PATH,
+            EXECUTION_LOG_PATH,
+        ],
+        agent_summary=(
+            "Python reference execution 已完成确定性检查，但存在阻断性验证结果。"
+            "请确认修复路径；本审核不会自动删除、过滤或补造源记录。"
+        ),
+        findings=findings,
+        urgency=Urgency.BLOCKING,
+        generated_by="P9 Metadata-driven AE Runtime",
+    )
+
+
+def prepare_validation_review(study_dir: str | Path) -> dict[str, Any]:
+    """Create one evidence-addressed packet without overwriting prior evidence."""
+
+    study = Path(study_dir).resolve()
+    validation_path = study / VALIDATION_PATH
+    validation = _read_json(validation_path)
+    if not validation.get("blocking_findings"):
+        raise AEMetadataPOCError("Validation review requires blocking findings")
+    digest = _sha256(validation_path)[:12]
+    review_id = f"{VALIDATION_REVIEW_PREFIX}_{digest}_v1_001"
+    queue = ReviewQueue(study)
+    packet_path = study / f".review_queue/{review_id}.json"
+    if queue.load_packet(review_id) is None:
+        packet_path = queue.submit_packet(_validation_review_packet(validation, review_id))
+    return {
+        "status": "validation_review_required",
+        "review_id": review_id,
+        "review_packet_path": _relative(study, packet_path),
+        "validation_path": VALIDATION_PATH,
+        "blocking_summary": list(validation.get("blocking_summary") or []),
+        "canonical_dataset_path": None,
+    }
+
+
+def ensure_approved_mapping(study_dir: str | Path) -> dict[str, Any]:
+    """Reuse a valid approved spec; otherwise apply the current mapping receipt."""
+
+    study = Path(study_dir).resolve()
+    approved_path = study / MAPPING_APPROVED_PATH
+    if approved_path.exists():
+        spec = _read_json(approved_path)
+        violations = validate_mapping_spec(spec)
+        if violations or spec.get("status") != "approved":
+            raise AEMetadataPOCError(
+                f"Approved MappingSpec invalid: {violations[0] if violations else spec.get('status')}"
+            )
+        return spec
+    return approve_mapping_from_receipt(study)
+
+
+def retry_validation_after_review(study_dir: str | Path) -> dict[str, Any]:
+    """Re-run only the registered Python validation after a validation review."""
+
+    study = Path(study_dir).resolve()
+    spec = ensure_approved_mapping(study)
+    manifest = _read_json(study / PROGRAM_MANIFEST_PATH)
+    try:
+        execution = run_python_reference(study)
+    except AEMetadataPOCError as exc:
+        validation_path = study / VALIDATION_PATH
+        if str(exc) == "Blocking AE reference validation finding" and validation_path.exists():
+            return {
+                **prepare_validation_review(study),
+                "program_manifest_path": PROGRAM_MANIFEST_PATH,
+            }
+        raise
+    queue = ReviewQueue(study)
+    packet_path = study / f".review_queue/{PROGRAM_REVIEW_ID}.json"
+    if queue.load_packet(PROGRAM_REVIEW_ID) is None:
+        packet_path = queue.submit_packet(_program_review_packet(spec, manifest, execution))
+    return {
+        **execution,
+        "status": "program_review_required",
+        "program_manifest_path": PROGRAM_MANIFEST_PATH,
+        "review_packet_path": _relative(study, packet_path),
+        "canonical_dataset_path": None,
+    }
+
+
 def run_after_mapping_approval(study_dir: str | Path) -> dict[str, Any]:
     """Apply mapping receipt, generate code, run Python, then pause for program review."""
     study = Path(study_dir).resolve()
-    spec = approve_mapping_from_receipt(study)
+    spec = ensure_approved_mapping(study)
     manifest = generate_program_artifacts(study)
-    execution = run_python_reference(study)
+    try:
+        execution = run_python_reference(study)
+    except AEMetadataPOCError as exc:
+        validation_path = study / VALIDATION_PATH
+        if str(exc) == "Blocking AE reference validation finding" and validation_path.exists():
+            return {
+                **prepare_validation_review(study),
+                "program_manifest_path": PROGRAM_MANIFEST_PATH,
+            }
+        raise
     packet_path = ReviewQueue(study).submit_packet(
         _program_review_packet(spec, manifest, execution)
     )

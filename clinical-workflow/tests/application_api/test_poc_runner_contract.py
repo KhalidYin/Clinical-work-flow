@@ -339,5 +339,5 @@ def test_poc_run_routes_normalize_legacy_runner_response(tmp_path: Path) -> None
     run = client.get(f"/api/v1/studies/{STUDY_ID}/poc-runs/{start_payload['run_id']}")
     assert run.status_code == 200
     assert run.json()["run_state"] == "blocked"
-    assert run.json()["legacy_run_state"] == "blocked_error"
-    assert run.json()["blocker"]["kind"] == "system"
+    assert run.json()["legacy_run_state"] is None
+    assert run.json()["blocker"]["kind"] == "input"

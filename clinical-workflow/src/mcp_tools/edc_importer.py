@@ -621,8 +621,17 @@ def parse_registered_edc_source(
     }
 
     total_cells = int(dataframe.shape[0] * dataframe.shape[1])
-    missing_by_variable = dataframe.isna().sum()
-    missing_cells = int(missing_by_variable.sum())
+    missing_by_variable = {
+        name: int(dataframe[name].isna().sum())
+        + int(
+            dataframe[name]
+            .dropna()
+            .map(lambda value: isinstance(value, str) and not value.strip())
+            .sum()
+        )
+        for name in dataframe.columns
+    }
+    missing_cells = sum(missing_by_variable.values())
     data_profile = {
         "schema_version": "1.0.0",
         "artifact_type": "source_data_profile",

@@ -8,7 +8,7 @@ updated: 2026-07-17
 
 | # | 子计划 | 文件 | 当前 Phase | 状态 |
 |---|--------|------|------------|------|
-| P0 | Study Workbench 流程与阻断可观测性修正 | [P0-study-workbench-flow-correction.md](plans/ongoing/P0-study-workbench-flow-correction.md) | P1 completed；下一 Gate 为 P2 Input Check 与真实阻断流程 | in-progress |
+| P0 | Study Workbench 流程与阻断可观测性修正 | [P0-study-workbench-flow-correction.md](plans/ongoing/P0-study-workbench-flow-correction.md) | P3 单一主工作区 UI 重构 | in-progress |
 | P9.1 | Metadata-driven SDTM AE 最小信息单机 POC | [P9-metadata-driven-sdtm-ae-minimal-poc.md](plans/ongoing/P9-metadata-driven-sdtm-ae-minimal-poc.md) | P6 单机快速启动、回归、人工验收与旧 P9 解锁 | in-progress |
 
 ## 待开始

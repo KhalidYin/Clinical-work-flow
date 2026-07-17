@@ -314,29 +314,77 @@ def _validate_rows(columns: list[str], rows: list[dict[str, str]], expected_rows
     findings: list[dict[str, Any]] = []
     required = ("STUDYID", "DOMAIN", "USUBJID", "AESEQ", "AETERM")
     if not set(required) <= set(columns):
-        findings.append({"finding_id": "VAL-AE-COLUMNS", "message": "Required POC columns absent"})
+        findings.append({
+            "finding_id": "VAL-AE-COLUMNS",
+            "check_code": "required_columns",
+            "message": "Required POC columns absent",
+            "affected_variables": sorted(set(required) - set(columns)),
+        })
     if len(rows) != expected_rows:
-        findings.append({"finding_id": "VAL-AE-ROWS", "message": "Source/output row count differs"})
+        findings.append({
+            "finding_id": "VAL-AE-ROWS",
+            "check_code": "row_count",
+            "message": "Source/output row count differs",
+            "affected_variables": [],
+        })
     keys = set()
     for index, row in enumerate(rows, start=1):
         for variable in required:
             if not row.get(variable):
-                findings.append({"finding_id": f"VAL-AE-REQ-{index}-{variable}",
-                                 "message": f"{variable} is empty"})
+                findings.append({
+                    "finding_id": f"VAL-AE-REQ-{index}-{variable}",
+                    "check_code": "required_value_empty",
+                    "row_number": index,
+                    "variable": variable,
+                    "affected_variables": [variable],
+                    "message": f"{variable} is empty",
+                })
         key = (row.get("USUBJID"), row.get("AESEQ"))
         if key in keys:
-            findings.append({"finding_id": f"VAL-AE-KEY-{index}", "message": "Duplicate AE key"})
+            findings.append({
+                "finding_id": f"VAL-AE-KEY-{index}",
+                "check_code": "duplicate_key",
+                "row_number": index,
+                "affected_variables": ["USUBJID", "AESEQ"],
+                "message": "Duplicate AE key",
+            })
         keys.add(key)
         for variable in ("AESTDTC", "AEENDTC"):
             value = row.get(variable, "")
             if value and not re.fullmatch(r"\d{4}(-\d{2}){0,2}", value):
-                findings.append({"finding_id": f"VAL-AE-DATE-{index}-{variable}",
-                                 "message": "Date is not ISO 8601 partial/full shape"})
+                findings.append({
+                    "finding_id": f"VAL-AE-DATE-{index}-{variable}",
+                    "check_code": "iso_partial_date_shape",
+                    "row_number": index,
+                    "variable": variable,
+                    "affected_variables": [variable],
+                    "message": "Date is not ISO 8601 partial/full shape",
+                })
+    grouped: dict[tuple[str, str], dict[str, Any]] = {}
+    for finding in findings:
+        variables = finding.get("affected_variables") or ["dataset"]
+        for variable in variables:
+            key = (str(finding.get("check_code", "validation")), str(variable))
+            item = grouped.setdefault(
+                key,
+                {
+                    "check_code": key[0],
+                    "variable": key[1],
+                    "count": 0,
+                    "row_count": len(rows),
+                    "finding_ids": [],
+                },
+            )
+            item["count"] += 1
+            item["finding_ids"].append(finding["finding_id"])
     return {
         "validation_id": "ae-reference-validation-sample-ae-001-v1",
         "passed": not findings,
+        "observed_row_count": len(rows),
+        "expected_row_count": expected_rows,
         "checks": ["row_count", "required_values", "unique_key", "iso_partial_date_shape"],
         "blocking_findings": findings,
+        "blocking_summary": list(grouped.values()),
         "full_sdtmig_conformance_claimed": False,
         "canonical_output_allowed": False,
     }

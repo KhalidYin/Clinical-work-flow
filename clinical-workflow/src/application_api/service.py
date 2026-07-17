@@ -19,6 +19,8 @@ from typing import Any, Iterable, Mapping
 import yaml
 
 from src.application_api.poc_models import (
+    LEGACY_POC_STEP_ALIASES,
+    POC_STEP_DEFINITIONS,
     PocActionType,
     PocActiveStep,
     PocArtifactRef,
@@ -66,30 +68,6 @@ STUDY_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{1,63}$")
 REVIEW_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{2,127}$")
 IDEMPOTENCY_KEY_PATTERN = re.compile(r"^[A-Za-z0-9_.:-]{16,128}$")
 SUPPORTED_CONTAINER_ID = "clinical-studies"
-
-POC_STEP_DEFINITIONS = (
-    ("input-check", "Input Check"),
-    ("minimum-information", "Minimum Information"),
-    ("wiki-context", "Wiki Context"),
-    ("mapping-spec", "MappingSpec"),
-    ("program-execution", "Program / Execution"),
-    ("validation-review", "Validation / Review"),
-    ("canonical-ae", "Canonical AE"),
-)
-LEGACY_POC_STEP_ALIASES = {
-    "source-intake": "input-check",
-    "sas-metadata": "input-check",
-    "state-preflight": "input-check",
-    "minimum-information": "minimum-information",
-    "wiki-context": "wiki-context",
-    "mapping-spec": "mapping-spec",
-    "review-gate": "mapping-spec",
-    "codegen": "program-execution",
-    "draft-ae": "program-execution",
-    "output-review": "validation-review",
-    "canonical-ae": "canonical-ae",
-}
-
 
 class ApplicationApiError(RuntimeError):
     """Structured API error returned by the FastAPI adapter."""
@@ -840,6 +818,31 @@ class ApplicationApiService:
     ) -> list[PocNextAction]:
         active_run = latest_poc_run(record.study_dir)
         run_id = str(active_run["run_id"]) if active_run else "{run_id}"
+        review_blocker = bool(
+            blocker
+            and blocker.kind in {PocBlockerKind.REVIEW, PocBlockerKind.VALIDATION}
+            and blocker.review_id
+        )
+        decision_available = bool(
+            review_blocker
+            and ReviewQueue(record.study_dir).check_decision(str(blocker.review_id)) is not None
+        )
+        retry_enabled = bool(
+            run_state is PocRunState.BLOCKED
+            and blocker
+            and blocker.retryable
+            and (
+                blocker.kind in {PocBlockerKind.INPUT, PocBlockerKind.SYSTEM}
+                or (blocker.kind is PocBlockerKind.VALIDATION and decision_available)
+            )
+        )
+        resume_enabled = bool(
+            run_state is PocRunState.BLOCKED
+            and blocker
+            and blocker.kind is PocBlockerKind.REVIEW
+            and decision_available
+        )
+        open_review_enabled = bool(review_blocker and not decision_available)
         actions = [
             PocNextAction(
                 action_id=PocActionType.RUN_POC,
@@ -852,47 +855,30 @@ class ApplicationApiService:
             PocNextAction(
                 action_id=PocActionType.RETRY_CURRENT_STEP,
                 label="Retry current step",
-                enabled=bool(
-                    run_state is PocRunState.BLOCKED
-                    and blocker
-                    and blocker.recovery_action is PocRecoveryAction.RETRY_CURRENT_STEP
-                ),
-                primary=bool(
-                    run_state is PocRunState.BLOCKED
-                    and blocker
-                    and blocker.recovery_action is PocRecoveryAction.RETRY_CURRENT_STEP
-                ),
+                enabled=retry_enabled,
+                primary=retry_enabled,
                 reason=(
                     None
-                    if blocker and blocker.recovery_action is PocRecoveryAction.RETRY_CURRENT_STEP
-                    else "current blocker is not retryable"
+                    if retry_enabled
+                    else "修复当前阻断；validation blocker 还需先提交 DecisionReceipt。"
                 ),
                 endpoint=f"/api/v1/studies/{record.study_id}/poc-runs/{run_id}/resume",
             ),
             PocNextAction(
                 action_id=PocActionType.OPEN_REVIEW,
                 label="Review",
-                enabled=bool(
-                    run_state is PocRunState.BLOCKED
-                    and blocker
-                    and blocker.kind is PocBlockerKind.REVIEW
-                    and blocker.review_id
-                ),
-                primary=bool(
-                    run_state is PocRunState.BLOCKED
-                    and blocker
-                    and blocker.kind is PocBlockerKind.REVIEW
-                    and blocker.review_id
-                ),
-                reason=None if blocker and blocker.kind is PocBlockerKind.REVIEW else "no review blocker",
+                enabled=open_review_enabled,
+                primary=open_review_enabled,
+                reason=None if open_review_enabled else "no pending review decision",
                 method="GET",
                 endpoint=f"/api/v1/studies/{record.study_id}/reviews",
             ),
             PocNextAction(
                 action_id=PocActionType.RESUME,
                 label="Resume",
-                enabled=False,
-                reason="enabled after a DecisionReceipt is available; P2 evaluates this precondition",
+                enabled=resume_enabled,
+                primary=resume_enabled,
+                reason=None if resume_enabled else "DecisionReceipt is not available",
                 endpoint=f"/api/v1/studies/{record.study_id}/poc-runs/{run_id}/resume",
             ),
             PocNextAction(
