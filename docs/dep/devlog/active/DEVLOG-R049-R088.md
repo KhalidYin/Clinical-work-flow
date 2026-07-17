@@ -279,3 +279,44 @@
 - `clinical-llm-wiki/scripts/content/p9_ae_rule_governance_release.py`, `clinical-llm-wiki/tests/test_p9_ae_rule_governance_release.py`
 - `clinical-studies/SAMPLE-AE-001/knowledge/promotion_candidates/`, `.review_queue/`, `audit_trail.jsonl`
 - `docs/specs/15-Review-Protocol.md`, `docs/specs/21-Knowledge-Workflow-Integration.md`, `docs/main/memory/`, `docs/dep/`（本轮提交）
+
+### R056 [09:51] [P9-metadata-driven-sdtm-ae-minimal-poc] P5: 应用批准并发布测试用 AE 规则治理 Wiki snapshot
+
+#### Done
+
+- 消费真实 `SAMPLE-AE-001` 的 `sap_review_p9_ae_rule_governance_v1_001_decision.json`，全部 finding 为 approved。
+- 生成 Study-local `knowledge/promotion_candidates/ae-rule-governance-approved.json`，candidate hash 与 DecisionReceipt hash 绑定。
+- 执行 Wiki release，写入测试用 governed card、release artifact、snapshot 和 Wiki governance evidence。
+- 按用户要求，Wiki card、release、snapshot/clean-room query 均声明 `p9-poc-test-only`：仅用于 P9.1 单机 POC / 测试验证，不是生产正式知识。
+- 生成 `knowledge/promotion_candidates/ae-rule-reuse-context.json`，证明 clean-room query 不读取原 Study candidate/DecisionReceipt，且可作为新 Mapping context rule ref。
+- 更新 P9.1 计划、PLAN、TASK_STATE、SPEC-15/21 和项目记忆：P5 完成，下一阶段为 P6 单机快速启动与用户验收。
+
+#### Issues / Blockers
+
+- 当前 Wiki 发布可被 snapshot/reuse 测试读取，但语义上仍是测试用发布；不得作为真实生产 Study 自动化依据。
+- 旧 P9 多 Study/内网协作仍未解锁；必须等待 P6 用户本机实际确认。
+- R050 shared bundle hash 漂移仍为既有债务，本轮未修改 released bundle。
+
+#### Validation
+
+- `python -m pytest tests/test_p9_rule_governance.py tests/application_api/test_sample_study_scaffold.py tests/test_p9_sample_ae_poc.py -q`（19 passed, 17 warnings）。
+- `python -m pytest tests/test_p9_ae_rule_governance_release.py tests/test_p6_release_quality.py -q`（16 passed, 1 warning）。
+- `python -m pytest -q -k "not test_shared_contract_bundle_is_complete_and_hash_locked"`（265 passed, 1 deselected；排除项为既有 bundle 漂移）。
+- `python -m ruff check src tests`（success）。
+- `python -m ruff check scripts tests`（success）。
+
+#### Next
+
+1. 跑 P5/P6 相关 targeted tests、Wiki quality tests、workflow full regression（排除既有 bundle drift）和 ruff。
+2. 若通过，提交本轮 P5 完成状态。
+3. 下一阶段进入 P6：整理单机快速启动、smoke、人工验收说明和旧 P9 解锁条件。
+
+#### Files Changed / Commits
+
+- `clinical-studies/SAMPLE-AE-001/.review_queue/sap_review_p9_ae_rule_governance_v1_001_decision.json`
+- `clinical-studies/SAMPLE-AE-001/knowledge/promotion_candidates/ae-rule-governance-approved.json`, `ae-rule-reuse-context.json`
+- `clinical-llm-wiki/vault/20_Knowledge/Programming/P9 SDTM AE Metadata Mapping Evidence Gate.md`
+- `clinical-llm-wiki/sources/packages/p9-ae-rule-governance/release.json`, `clinical-llm-wiki/snapshots/snapshot-p9-ae-rule-governance-v1.json`, `.review_queue/archive/`
+- `clinical-llm-wiki/scripts/content/p9_ae_rule_governance_release.py`, `tests/test_p9_ae_rule_governance_release.py`
+- `clinical-workflow/tests/test_p9_rule_governance.py`
+- `docs/specs/15-Review-Protocol.md`, `docs/specs/21-Knowledge-Workflow-Integration.md`, `docs/main/memory/`, `docs/dep/`（本轮提交）

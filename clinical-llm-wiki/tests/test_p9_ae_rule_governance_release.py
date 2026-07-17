@@ -31,6 +31,9 @@ def _wiki_copy(tmp_path: Path) -> Path:
     target = tmp_path / "wiki"
     shutil.copytree(ROOT / "schemas", target / "schemas")
     shutil.copytree(ROOT / "vault", target / "vault")
+    target_card = target / TARGET_CARD_PATH
+    if target_card.exists():
+        target_card.unlink()
     (target / ".review_queue" / "archive").mkdir(parents=True)
     return target
 
@@ -109,7 +112,13 @@ def test_p9_rule_release_writes_approved_card_snapshot_and_clean_query(tmp_path:
     assert (wiki / SNAPSHOT_PATH).is_file()
     assert query["knowledge_id"] == "pattern-p9-sdtm-ae-metadata-mapping-evidence-gate"
     assert query["rule_ids"] == ["rule-p9-sdtm-ae-metadata-mapping-evidence-gate"]
-    assert "SAMPLE-AE-001" not in (wiki / TARGET_CARD_PATH).read_text(encoding="utf-8")
+    assert query["usage_scope"] == "p9-poc-test-only"
+    release = json.loads((wiki / RELEASE_PATH).read_text(encoding="utf-8"))
+    card_text = (wiki / TARGET_CARD_PATH).read_text(encoding="utf-8")
+    assert release["usage_scope"] == "p9-poc-test-only"
+    assert "测试用途声明" in card_text
+    assert "p9-poc-test-only" in card_text
+    assert "SAMPLE-AE-001" not in card_text
 
 
 @pytest.mark.parametrize(

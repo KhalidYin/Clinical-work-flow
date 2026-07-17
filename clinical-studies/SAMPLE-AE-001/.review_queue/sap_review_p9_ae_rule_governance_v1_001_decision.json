@@ -1,0 +1,20 @@
+{
+  "decisions": [
+    {
+      "decision": "approved",
+      "finding_id": "F-002"
+    },
+    {
+      "decision": "approved",
+      "finding_id": "F-001"
+    },
+    {
+      "decision": "approved",
+      "finding_id": "F-003"
+    }
+  ],
+  "general_notes": "阿萨德",
+  "review_id": "sap_review_p9_ae_rule_governance_v1_001",
+  "reviewer": "阿斯蒂芬",
+  "timestamp": "2026-07-17T01:44:43.883632Z"
+}

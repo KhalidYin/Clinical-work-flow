@@ -1,0 +1,13 @@
+{
+  "decisions": [
+    {
+      "decision": "approved",
+      "finding_id": "F-001"
+    }
+  ],
+  "general_notes": "由已批准的 Study-local P9 reusable-rule ReviewPacket 转写为 Wiki governance evidence。",
+  "review_id": "sap_review_p9_ae_rule_governance_v1_001",
+  "reviewer": "阿斯蒂芬",
+  "reviewer_role": "knowledge_governance",
+  "timestamp": "2026-07-17T01:44:43.883632Z"
+}

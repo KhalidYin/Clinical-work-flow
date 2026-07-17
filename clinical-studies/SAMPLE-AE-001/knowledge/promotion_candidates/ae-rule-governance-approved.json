@@ -1,0 +1,85 @@
+{
+  "approved_candidate_id": "approved-p9-ae-rule-governance-v1",
+  "approved_candidate_sha256": "f20d5b8cb87ba8fb8111299f5e4340708358e4aa49e57ea05a8a387dc90ad685",
+  "candidate": {
+    "applicability": {
+      "conditions": [
+        "source metadata is hash-locked",
+        "MappingSpec uses only allowlisted operations",
+        "each mapping cites approved Wiki rules",
+        "insufficient source evidence remains an explicit gap"
+      ],
+      "domains": [
+        "sdtm",
+        "ae"
+      ],
+      "workflow_stages": [
+        "sdtm_spec",
+        "sdtm_programming"
+      ]
+    },
+    "approval": {
+      "approval_receipt_id": "review-sap-review-p9-ae-rule-governance-v1-001",
+      "approved_at": "2026-07-17T01:44:43.883632Z",
+      "decision_receipt_sha256": "24eaeaa7f4a0aade8ceb9eb6dc3d44df001be5b42817bba2ac54e33279855d6c",
+      "review_id": "sap_review_p9_ae_rule_governance_v1_001",
+      "review_packet_sha256": "76e0bd452f81b7b8c943d7174b7ba14fb10e7ba524def902b5c1f64ab037182f",
+      "reviewer": "阿斯蒂芬",
+      "reviewer_role": "knowledge_governance"
+    },
+    "candidate_id": "candidate-p9-ae-mapping-evidence-gate-v1",
+    "classification": "general_rule_candidate",
+    "deidentified": true,
+    "evidence": {
+      "approved_rule_refs": [
+        "proposal-sdtmig34-core-domain-code-consistency-v1",
+        "proposal-sdtmig34-core-identifier-variable-role-v1",
+        "proposal-sdtmig34-core-missing-values-as-nulls-v1",
+        "proposal-sdtmig34-gold-ae-structure-v1",
+        "proposal-sdtmig34-gold-aeterm-required-v1"
+      ],
+      "gap_ids": [
+        "gap-controlled-value-labels",
+        "gap-full-sdtmig-conformance-not-claimed",
+        "gap-reference-date-identity-no-overlap"
+      ],
+      "operation_allowlist": [
+        "constant",
+        "concat",
+        "sequence_by_group",
+        "copy_trim",
+        "partial_date_iso"
+      ],
+      "operations_used": [
+        "concat",
+        "constant",
+        "copy_trim",
+        "partial_date_iso",
+        "sequence_by_group"
+      ],
+      "source_rows": 1066
+    },
+    "non_applicability": [
+      "does not approve Study-specific constants or identifier prefixes",
+      "does not approve controlled terminology value mapping without catalog evidence",
+      "does not approve study-day derivation without a joinable reference date",
+      "does not claim full SDTMIG conformance"
+    ],
+    "review_status": "approved",
+    "source_context_sha256": "5b57e5777449b106baf487867cb270629ea5bd7ac6b188deed63d77448cb1497",
+    "source_decision_sha256": "24eaeaa7f4a0aade8ceb9eb6dc3d44df001be5b42817bba2ac54e33279855d6c",
+    "source_mapping_spec_sha256": "a9382fb69ed073906279ece888318707d286406b54790aef723809a9d76e19d9",
+    "source_study_sha256": "603e9826e0011cbbacd481fe4a80feeac8dd08a7734bf1cbc9870891d6bafdbf",
+    "source_version": {
+      "snapshot_id": "snapshot-sdtmig34-core-events-ae-v1",
+      "snapshot_sha256": "d8aafb73ccca987d597e372435b664ba074c1a45688d5e2eef809c72f475a9ec",
+      "standard": "SDTMIG",
+      "version": "3.4"
+    },
+    "target_knowledge_id": "pattern-p9-sdtm-ae-metadata-mapping-evidence-gate",
+    "target_rule_id": "rule-p9-sdtm-ae-metadata-mapping-evidence-gate",
+    "title": "P9 SDTM AE metadata mapping evidence gate"
+  },
+  "report_sha256": "027f55f19e5c55a23cf92d10be6fb7fea19559b268421ec8e618460a28e99122",
+  "schema_version": "1.0.0"
+}

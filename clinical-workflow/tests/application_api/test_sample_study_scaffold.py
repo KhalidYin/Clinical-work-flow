@@ -273,6 +273,7 @@ def test_sample_study_is_visible_with_source_parser_mapping_and_rule_reviews() -
         "review_queue--source_intake_parser_ae_v1_001.json",
         "review_queue--sdtm_spec_sample_ae_001_mapping_v1_001.json",
         "review_queue--sap_review_p9_ae_rule_governance_v1_001.json",
+        "review_queue--sap_review_p9_ae_rule_governance_v1_001_decision.json",
     }
 
     reviews = client.get("/api/v1/studies/SAMPLE-AE-001/reviews").json()
@@ -291,4 +292,9 @@ def test_sample_study_is_visible_with_source_parser_mapping_and_rule_reviews() -
     rule_review = reviews_by_id["sap_review_p9_ae_rule_governance_v1_001"]
     assert rule_review["review_type"] == "sap_review"
     assert "一般化 Mapping evidence gate" in rule_review["findings"][0]["title"]
-    assert all(review["decision_state"] == "pending" for review in reviews_by_id.values())
+    assert rule_review["decision_state"] == "decided"
+    assert all(
+        review["decision_state"] == "pending"
+        for review_id, review in reviews_by_id.items()
+        if review_id != "sap_review_p9_ae_rule_governance_v1_001"
+    )

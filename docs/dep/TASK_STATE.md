@@ -1,11 +1,11 @@
 # 当前任务状态
 
 - 计划：`P9-metadata-driven-sdtm-ae-minimal-poc.md`
-- 当前阶段：P5 — 通用规则治理、发布与干净再查询复用
-- 当前目标：从 P4 Mapping/执行证据中分类 general rule candidate、study-specific rule 和 unresolved gap；只对去标识、证据充分且人工批准的候选执行 Wiki governed publish，并用新 snapshot 的 clean-room 查询证明复用。
+- 当前阶段：P6 — 单机快速启动、回归、人工验收与旧 P9 解锁
+- 当前目标：用 `start-study-console.ps1` 作为用户实际入口，形成可复核的单机验收链路；只有用户确认本机跑通后，才允许重新讨论旧 P9 多 Study/内网协作。
 - 已确认入口：最终用户实测从 `start-study-console.ps1` 进入；P2 只提供低层 parser 与隔离 Smoke，不实现 Console Runtime bridge。
 - 已确认来源：`clinical-studies/SAMPLE-AE-001/input/edc/ae09jun2025.sas7bdat`，大小 19,667,968 bytes，SHA-256 `2a6d72e9e5fa4bb8e3cc14b0c412fce3c37e519f3ab9105cdcff33ba031e8749`。
-- 当前事实：P5 已从 P4 Mapping context/candidate 生成 `knowledge/promotion_candidates/ae-rule-governance-report.json`，分类为 1 个去标识 general rule candidate、Study-local 规则和 3 个 unresolved gaps；真实 Study 已写入中文 reusable-rule ReviewPacket `.review_queue/sap_review_p9_ae_rule_governance_v1_001.json`。
-- 当前事实：P5 的 approved-candidate、Wiki governed card、release artifact、locked snapshot 和 clean-room reuse path 已在隔离测试中证明；真实 `SAMPLE-AE-001` 尚无人工 DecisionReceipt，因此没有 `ae-rule-governance-approved.json`、Wiki 卡片或 P9 snapshot。
-- 边界：P5 不会因一次 Mapping 成功自动提升 general rule；当前真实 Study 尚未批准，故只能从通用受控 operation/证据治理模式中提出候选，不能把当前 Mapping 当作已验证历史经验。
-- 下一 Gate：用户在实际 workflow human-loop 中审核 `sap_review_p9_ae_rule_governance_v1_001`；若全部批准，Agent 才能运行 `approve_ae_rule_governance_from_receipt()` 生成 approved candidate，再由 Wiki release 脚本写入 governed card/snapshot 并执行 clean-room reuse 验证。若 rejected/modified，则候选保持 Study-local 并进入 rework。
+- 当前事实：P5 已完成。真实 `SAMPLE-AE-001` 的 reusable-rule DecisionReceipt 已全部 approved，已生成 `ae-rule-governance-approved.json`、测试用 Wiki card、release、snapshot 和 clean-room reuse context。
+- 当前事实：测试用 Wiki 发布明确声明 `p9-poc-test-only`，只用于 P9.1 单机 POC / 测试验证，不是生产正式知识，不得作为真实 Study 自动化的独立执行依据。
+- 边界：P6 只做单机快速启动、回归、验收说明和用户实测前准备；不得自动进入旧 P9 的内网、多用户、RBAC 或部署工作。
+- 下一 Gate：完成 P6 本地 smoke/文档后，由用户实际运行并确认；用户确认前不解锁旧 P9。

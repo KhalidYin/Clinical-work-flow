@@ -8,7 +8,7 @@ updated: 2026-07-16
 
 | # | 子计划 | 文件 | 当前 Phase | 状态 |
 |---|--------|------|------------|------|
-| P9.1 | Metadata-driven SDTM AE 最小信息单机 POC | [P9-metadata-driven-sdtm-ae-minimal-poc.md](plans/ongoing/P9-metadata-driven-sdtm-ae-minimal-poc.md) | P5 通用规则治理 Review 待批；发布链路已测试 | in-progress |
+| P9.1 | Metadata-driven SDTM AE 最小信息单机 POC | [P9-metadata-driven-sdtm-ae-minimal-poc.md](plans/ongoing/P9-metadata-driven-sdtm-ae-minimal-poc.md) | P6 单机快速启动、回归、人工验收与旧 P9 解锁 | in-progress |
 
 ## 待开始
 

@@ -72,9 +72,13 @@ def _decide_all(study: Path, decision: Decision = Decision.APPROVED) -> None:
     ))
 
 
-def test_actual_sample_prepares_rule_governance_review_without_wiki_publish() -> None:
+def test_actual_sample_rule_governance_is_approved_and_test_reusable() -> None:
     report = _read_json(SAMPLE_STUDY / RULE_GOVERNANCE_REPORT_PATH)
     packet = ReviewQueue(SAMPLE_STUDY).load_packet(RULE_GOVERNANCE_REVIEW_ID)
+    approved = _read_json(SAMPLE_STUDY / RULE_GOVERNANCE_APPROVED_PATH)
+    reuse = _read_json(
+        SAMPLE_STUDY / "knowledge/promotion_candidates/ae-rule-reuse-context.json"
+    )
 
     assert validate_ae_rule_governance_report(report) == []
     assert report["classification_counts"]["general_rule_candidate"] == 1
@@ -86,7 +90,11 @@ def test_actual_sample_prepares_rule_governance_review_without_wiki_publish() ->
     )
     assert packet is not None
     assert validate_review_packet_schema(packet.to_dict()) == []
-    assert not (SAMPLE_STUDY / RULE_GOVERNANCE_APPROVED_PATH).exists()
+    assert approved["candidate"]["review_status"] == "approved"
+    assert approved["candidate"]["source_decision_sha256"]
+    assert reuse["clean_room_query"]["usage_scope"] == "p9-poc-test-only"
+    assert reuse["reuse_context"]["source_study_artifacts_read"] is False
+    assert reuse["reuse_context"]["mapping_context_rule_refs"] == [TARGET_RULE_ID]
 
 
 def test_approved_rule_governance_candidate_is_deidentified_and_hash_bound(

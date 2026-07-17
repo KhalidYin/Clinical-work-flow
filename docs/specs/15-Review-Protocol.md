@@ -1179,5 +1179,7 @@ P9.1-P5 的 reusable-rule promotion 暂复用已发布枚举 `sap_review`，对�
 snapshot 尚未进行跨模块 bundle 迁移前的兼容措施，不表示该包审核 SAP 内容；实际语义由
 `review_id`、标题、finding、evidence refs 和 source documents 固定为规则治理候选审核。若后续新增
 `reusable_rule_promotion` 枚举，必须同步 Engine schema、Wiki mirror、snapshot 兼容策略和 Application API。
+该包批准后的 P9.1 Wiki 发布必须声明测试用途；当前发布标记为 `p9-poc-test-only`，只证明
+Study→Wiki→snapshot→clean-room reuse 的机制，不等同于生产正式知识批准。
 
 开发阶段的 Phase 确认和用户单机 UAT 不写 ReviewPacket；Review Panel 只处理实际 Workflow Human-loop。

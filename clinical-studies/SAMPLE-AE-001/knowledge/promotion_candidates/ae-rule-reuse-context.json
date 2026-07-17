@@ -1,0 +1,34 @@
+{
+  "clean_room_query": {
+    "knowledge_id": "pattern-p9-sdtm-ae-metadata-mapping-evidence-gate",
+    "knowledge_version": "1.0.0",
+    "query_id": "clean-room-p9-ae-rule-governance-v1",
+    "rule_ids": [
+      "rule-p9-sdtm-ae-metadata-mapping-evidence-gate"
+    ],
+    "snapshot_id": "snapshot-p9-ae-rule-governance-v1",
+    "snapshot_sha256": "a3b327f317e60dd5ba8042123256b0a19f144aa80cb9eefaabe5b380187fc1b2",
+    "usage_scope": "p9-poc-test-only"
+  },
+  "reuse_context": {
+    "context_id": "ae-rule-reuse-context-p9-v1",
+    "context_sha256": "1a2292998dfa0b2f6b93e0896a4dcf8b31d9d84ec7fc19aac0f525a2673fe52b",
+    "knowledge": {
+      "rules": [
+        {
+          "knowledge_id": "pattern-p9-sdtm-ae-metadata-mapping-evidence-gate",
+          "knowledge_version": "1.0.0",
+          "rule_id": "rule-p9-sdtm-ae-metadata-mapping-evidence-gate"
+        }
+      ],
+      "snapshot_id": "snapshot-p9-ae-rule-governance-v1",
+      "snapshot_sha256": "a3b327f317e60dd5ba8042123256b0a19f144aa80cb9eefaabe5b380187fc1b2"
+    },
+    "mapping_context_rule_refs": [
+      "rule-p9-sdtm-ae-metadata-mapping-evidence-gate"
+    ],
+    "schema_version": "1.0.0",
+    "source": "clean_room_wiki_snapshot_query",
+    "source_study_artifacts_read": false
+  }
+}
