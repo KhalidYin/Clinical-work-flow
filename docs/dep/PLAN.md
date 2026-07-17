@@ -14,13 +14,14 @@ updated: 2026-07-17
 
 | # | 子计划 | 文件 | 预估轮次 | 依赖 |
 |---|--------|------|----------|------|
+| P0 | Study Workbench 流程与阻断可观测性修正 | [P0-study-workbench-flow-correction.md](plans/backlog/P0-study-workbench-flow-correction.md) | 8-12 | 已完成旧 P0；作为 P9.1/P6 用户 UAT 前置阻断 |
 | P9.2 | 多 Study 内网协作与受控部署 | [P9-multi-study-intranet-collaboration.md](plans/backlog/P9-multi-study-intranet-collaboration.md) | 20-32（执行前重估） | P9.1 完成并由用户确认；随后重新确认部署授权 |
 
 > 当前执行视野只展开 P6 → P8：P6 先建立 SDTMIG 3.4 Core/Events/AE 知识解析质量基线；P7 再用“生成 SDTM AE”证明 Wiki + LLM + Workflow 的实际执行价值；P8 在此基础上完成本地 Application API + Study Console。后续知识按同一质量 Gate 随实际 Workflow 缺口增量摄取。
 
 P8 已完成本地单机 Application API + Study Console 基线。当前先执行 P9.1，以本地 SAS7BDAT、Minimum Information Planner、Wiki 辅助 MappingSpec、三语言程序产物和知识复用完成真实单机 POC。自动测试通过不能解锁 P9.2；只有用户明确确认本机跑通后，才可重新确认“内网协作/多用户/Runtime bridge”范围。
 
-2026-07-17 启动 P0 `Study Console React POC Workbench`：当前 P8 Console 不能支撑 work-to-end POC，`Submit Request` 只写 request 而无 runner 消费。该 P0 是 P9.1/P6 用户验收前置阻断修复；完成前不应继续要求用户验收现有 Console。
+2026-07-17 真实浏览器检查发现已完成的首版 React Workbench 仍存在 step 状态矛盾、blocked run 被普通 Run 重复复用、Input Check/验证证据不足和三栏挤压 Review 工作区等问题。新增 P0 `Study Workbench 流程与阻断可观测性修正` 作为 P9.1/P6 用户 UAT 的前置阻断；P9.1 继续保持 in-progress，但该 P0 完成真实浏览器 E2E 前不得再次要求用户验收或解锁 P9.2。
 
 ## 最近完成
 
