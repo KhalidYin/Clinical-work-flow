@@ -57,5 +57,6 @@
 | R061 | 2026-07-17 | 18:45 | P0-study-console-react-poc-workbench | P4 | 实现 Workbench 内嵌 Review Gate、DecisionReceipt 提交与 Resume 主交互 | `clinical-workflow/src/study_console_react/`, `clinical-workflow/src/study_console_workbench_static/`, `docs/dep/` | active/DEVLOG-R049-R088.md |
 | R062 | 2026-07-17 | 19:15 | P0-study-console-react-poc-workbench | P5 | 完成 Artifact Preview、只读 smoke 脚本、文档同步并归档 P0 | `clinical-workflow/src/study_console_react/`, `clinical-workflow/src/study_console_workbench_static/`, `scripts/smoke-sample-ae-workbench.ps1`, `USAGE.md`, `docs/specs/`, `docs/dep/` | active/DEVLOG-R049-R088.md |
 | R063 | 2026-07-17 | 19:30 | P9-metadata-driven-sdtm-ae-minimal-poc | QF | 补 Workbench 启动/smoke 的 pandas 与 pyreadstat 运行依赖预检 | `start-study-console.ps1`, `scripts/smoke-sample-ae-workbench.ps1`, `docs/dep/` | active/DEVLOG-R049-R088.md |
+| R064 | 2026-07-17 | 19:45 | P0-study-workbench-flow-correction | P1 | 冻结 Runner v2 step ledger、Input Check 与 blocker 合同 | `clinical-workflow/src/application_api/`, `clinical-workflow/schemas/application/openapi.yaml`, `clinical-workflow/tests/application_api/`, `docs/dep/` | active/DEVLOG-R049-R088.md |
 
 > Legacy rounds R001-R008 remain immutable in [DEVLOG-legacy.md](archive/DEVLOG-legacy.md). They predate the searchable index and were intentionally not rewritten during adoption.

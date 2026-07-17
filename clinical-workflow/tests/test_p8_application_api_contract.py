@@ -18,6 +18,10 @@ CONTRACT_BUNDLE = ROOT / "schemas" / "contract-bundle.json"
 EXPECTED_PATHS = {
     "/api/v1/studies",
     "/api/v1/studies/{study_id}/status",
+    "/api/v1/studies/{study_id}/poc-state",
+    "/api/v1/studies/{study_id}/poc-runs",
+    "/api/v1/studies/{study_id}/poc-runs/{run_id}",
+    "/api/v1/studies/{study_id}/poc-runs/{run_id}/resume",
     "/api/v1/studies/{study_id}/runs",
     "/api/v1/studies/{study_id}/runs/{run_id}",
     "/api/v1/studies/{study_id}/runs/{run_id}/resume",
@@ -116,6 +120,12 @@ def test_p8_application_ui_contracts_map_to_existing_endpoints_and_payload_field
     ui_contracts = spec["x-ui-contracts"]
     assert set(ui_contracts) == {f"UI-0{index}" for index in range(1, 8)}
     for contract in ui_contracts.values():
+        assert set(contract["endpoints"]).issubset(existing)
+        assert contract["required_payload"]
+
+    poc_contracts = spec["x-poc-workbench-contracts"]
+    assert set(poc_contracts) == {f"UI-0{index}" for index in range(1, 8)}
+    for contract in poc_contracts.values():
         assert set(contract["endpoints"]).issubset(existing)
         assert contract["required_payload"]
 

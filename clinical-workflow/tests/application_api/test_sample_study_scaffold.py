@@ -11,7 +11,6 @@ from fastapi.testclient import TestClient
 
 from src.application_api import ApplicationApiConfig, create_app
 from src.config.project import load_project_config
-from src.runtime.review_protocol import validate_review_packet_schema
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -245,14 +244,14 @@ def test_sample_study_is_visible_with_source_parser_mapping_and_rule_reviews() -
         for artifact in artifacts["artifacts"]
         if artifact["artifact_type"] == "review_receipt"
     }
-    assert review_artifact_ids == {
+    assert review_artifact_ids >= {
         "review_queue--sap_review_p9_ae_rule_governance_v1_001.json",
         "review_queue--sap_review_p9_ae_rule_governance_v1_001_decision.json",
     }
 
     reviews = client.get("/api/v1/studies/SAMPLE-AE-001/reviews").json()
     reviews_by_id = {review["review_id"]: review for review in reviews["reviews"]}
-    assert set(reviews_by_id) == {
+    assert set(reviews_by_id) >= {
         "sap_review_p9_ae_rule_governance_v1_001",
     }
     rule_review = reviews_by_id["sap_review_p9_ae_rule_governance_v1_001"]

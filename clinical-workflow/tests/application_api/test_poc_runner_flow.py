@@ -110,7 +110,7 @@ def test_poc_runner_reaches_mapping_program_review_and_canonical(tmp_path: Path)
     assert started.status_code == 202
     start_payload = started.json()
     assert start_payload["accepted"] is True
-    assert start_payload["run_state"] == "blocked_review"
+    assert start_payload["run_state"] == "blocked"
     assert (study / ".review_queue" / f"{MAPPING_REVIEW_ID}.json").exists()
     assert (study / "work/derived/edc/source-metadata.json").exists()
     assert (study / "work/derived/plans/minimum-information-sdtm-ae.json").exists()
@@ -121,6 +121,8 @@ def test_poc_runner_reaches_mapping_program_review_and_canonical(tmp_path: Path)
     assert state.run_id == start_payload["run_id"]
     assert state.active_step is not None
     assert state.active_step.review_id == MAPPING_REVIEW_ID
+    assert state.blocker is not None
+    assert state.blocker.kind.value == "review"
     assert {event.event_type for event in state.events} >= {
         "run_started",
         "mapping_review_written",
@@ -134,7 +136,7 @@ def test_poc_runner_reaches_mapping_program_review_and_canonical(tmp_path: Path)
     )
 
     assert after_mapping.status_code == 202
-    assert after_mapping.json()["run_state"] == "blocked_review"
+    assert after_mapping.json()["run_state"] == "blocked"
     assert (study / ".review_queue" / f"{PROGRAM_REVIEW_ID}.json").exists()
     assert (study / "programs/edc_to_sdtm/program-manifest.json").exists()
     assert (study / "output/sdtm/drafts/ae.csv").exists()
@@ -169,8 +171,9 @@ def test_poc_runner_rejected_mapping_review_fails_closed(tmp_path: Path) -> None
     )
 
     assert resumed.status_code == 202
-    assert resumed.json()["run_state"] == "blocked_error"
+    assert resumed.json()["run_state"] == "blocked"
     assert not (study / CANONICAL_DATASET_PATH).exists()
     state = client.get("/api/v1/studies/SAMPLE-AE-001/poc-state").json()
-    assert state["run_state"] == "blocked_error"
+    assert state["run_state"] == "blocked"
+    assert state["blocker"]["kind"] == "system"
     assert "rework" in state["blocking_reason"].lower()

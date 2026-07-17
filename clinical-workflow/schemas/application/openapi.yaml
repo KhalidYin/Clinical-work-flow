@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Clinical Workflow Application API
-  version: 0.1.0-draft
+  version: 0.2.0-draft
   summary: Local-first facade for Study Console, Codex and CLI clients.
   description: >
     P8-P1 draft contract. The API exposes study, status, run, review, artifact,
@@ -52,6 +52,35 @@ x-ui-contracts:
   UI-07:
     endpoints: ["GET /api/v1/studies/{study_id}/audit"]
     required_payload: [event_id, event_type, occurred_at, related_refs]
+x-poc-workbench-contracts:
+  UI-01:
+    endpoints: ["GET /api/v1/studies/{study_id}/poc-state"]
+    required_payload: [study_id, target_artifact, source, knowledge, run_state]
+  UI-02:
+    endpoints:
+      - "GET /api/v1/studies/{study_id}/poc-state"
+      - "POST /api/v1/studies/{study_id}/poc-runs"
+      - "POST /api/v1/studies/{study_id}/poc-runs/{run_id}/resume"
+    required_payload: [input_check, blocker, next_actions]
+  UI-03:
+    endpoints: ["GET /api/v1/studies/{study_id}/poc-state"]
+    required_payload: [steps, active_step]
+  UI-04:
+    endpoints: ["GET /api/v1/studies/{study_id}/poc-state"]
+    required_payload: [active_step, blocker, input_check]
+  UI-05:
+    endpoints:
+      - "GET /api/v1/studies/{study_id}/reviews"
+      - "POST /api/v1/studies/{study_id}/reviews/{review_id}/decisions"
+    required_payload: [review_id, evidence_refs, recovery_action]
+  UI-06:
+    endpoints:
+      - "GET /api/v1/studies/{study_id}/poc-state"
+      - "GET /api/v1/studies/{study_id}/artifacts/{artifact_id}"
+    required_payload: [files, variable_profiles, artifact_refs]
+  UI-07:
+    endpoints: ["GET /api/v1/studies/{study_id}/poc-state"]
+    required_payload: [events, run_id, step_id]
 tags:
   - name: Studies
   - name: Runs
@@ -119,6 +148,98 @@ paths:
                 $ref: "#/components/schemas/StudyStatusResponse"
         "404":
           $ref: "#/components/responses/NotFound"
+
+  /api/v1/studies/{study_id}/poc-state:
+    get:
+      tags: [Runs]
+      operationId: getPocState
+      summary: Return the authoritative P9.1 POC v2 ledger and evidence state.
+      x-authority: poc_runner_files_readonly
+      x-writes: none
+      parameters:
+        - $ref: "#/components/parameters/StudyId"
+      responses:
+        "200":
+          description: POC Workbench state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PocState"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/studies/{study_id}/poc-runs:
+    post:
+      tags: [Runs]
+      operationId: startPocRun
+      summary: Start a bounded SDTM AE POC run.
+      x-authority: bounded_poc_runner
+      x-writes: poc_run_ledger_and_events
+      x-forbidden-actions: [arbitrary_command_execution, sas_execution, promote_without_confirmation]
+      parameters:
+        - $ref: "#/components/parameters/StudyId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PocRunRequest"
+      responses:
+        "202":
+          description: POC run accepted and advanced to an observable state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PocRunResponse"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /api/v1/studies/{study_id}/poc-runs/{run_id}:
+    get:
+      tags: [Runs]
+      operationId: getPocRun
+      summary: Return one normalized POC run record.
+      x-authority: poc_runner_files_readonly
+      x-writes: none
+      parameters:
+        - $ref: "#/components/parameters/StudyId"
+        - $ref: "#/components/parameters/RunId"
+      responses:
+        "200":
+          description: Normalized POC run.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PocRunStatus"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/studies/{study_id}/poc-runs/{run_id}/resume:
+    post:
+      tags: [Runs]
+      operationId: resumePocRun
+      summary: Resume after a review decision or retry the current recoverable step.
+      x-authority: bounded_poc_runner
+      x-writes: poc_run_ledger_and_events
+      x-forbidden-actions: [arbitrary_command_execution, sas_execution, promote_without_confirmation]
+      parameters:
+        - $ref: "#/components/parameters/StudyId"
+        - $ref: "#/components/parameters/RunId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PocResumeRequest"
+      responses:
+        "202":
+          description: POC resume accepted and advanced to an observable state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PocRunResponse"
+        "409":
+          $ref: "#/components/responses/Conflict"
 
   /api/v1/studies/{study_id}/runs:
     post:
@@ -421,6 +542,534 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
 
   schemas:
+    PocState:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - study_id
+        - target_artifact
+        - run_state
+        - source
+        - knowledge
+        - input_check
+        - steps
+        - next_actions
+        - health
+        - events
+        - partial_errors
+      properties:
+        schema_version:
+          const: "2.0"
+        study_id:
+          type: string
+        target_artifact:
+          const: sdtm_ae_dataset
+        run_id:
+          type: [string, "null"]
+        run_state:
+          $ref: "#/components/schemas/PocRunState"
+        legacy_run_state:
+          type: [string, "null"]
+          description: Transparent compatibility evidence; clients must not branch on this field.
+        source:
+          type: object
+          additionalProperties: true
+        knowledge:
+          type: object
+          additionalProperties: true
+        input_check:
+          $ref: "#/components/schemas/PocInputCheck"
+        blocker:
+          oneOf:
+            - $ref: "#/components/schemas/PocBlocker"
+            - type: "null"
+        blocking_reason:
+          type: [string, "null"]
+          description: Compatibility summary; blocker is authoritative.
+        active_step:
+          oneOf:
+            - $ref: "#/components/schemas/PocActiveStep"
+            - type: "null"
+        steps:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/PocStep"
+        next_actions:
+          type: array
+          items:
+            $ref: "#/components/schemas/PocNextAction"
+        health:
+          type: array
+          items:
+            $ref: "#/components/schemas/PocHealthItem"
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/PocEvent"
+        partial_errors:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+    PocRunState:
+      enum: [idle, running, blocked, done]
+
+    PocStepState:
+      enum: [pending, running, done, blocked, skipped]
+
+    PocStep:
+      type: object
+      additionalProperties: false
+      required: [step_id, ordinal, title, state, kind, summary, checks, artifact_refs, evidence_refs]
+      properties:
+        step_id:
+          type: string
+          minLength: 3
+        ordinal:
+          type: integer
+          minimum: 1
+        title:
+          type: string
+          minLength: 1
+        state:
+          $ref: "#/components/schemas/PocStepState"
+        kind:
+          enum: [instruction, review, artifact, error, complete]
+        summary:
+          type: string
+        started_at:
+          type: [string, "null"]
+          format: date-time
+        completed_at:
+          type: [string, "null"]
+          format: date-time
+        checks:
+          type: array
+          items:
+            $ref: "#/components/schemas/PocStepCheck"
+        blocking_reason:
+          type: [string, "null"]
+        review_id:
+          type: [string, "null"]
+        artifact_refs:
+          type: array
+          items:
+            $ref: "#/components/schemas/PocArtifactRef"
+        evidence_refs:
+          type: array
+          items:
+            type: string
+
+    PocStepCheck:
+      type: object
+      additionalProperties: false
+      required: [check_id, state, summary, affected_variables, evidence_refs]
+      properties:
+        check_id:
+          type: string
+          minLength: 2
+        state:
+          enum: [pass, warning, fail, unknown, not_applicable]
+        summary:
+          type: string
+          minLength: 1
+        detail:
+          type: [string, "null"]
+        observed: {}
+        expected: {}
+        affected_variables:
+          type: array
+          items:
+            type: string
+        evidence_refs:
+          type: array
+          items:
+            type: string
+
+    PocBlocker:
+      type: object
+      additionalProperties: false
+      required:
+        - kind
+        - stage_id
+        - code
+        - summary
+        - detail
+        - affected_variables
+        - affected_artifacts
+        - evidence_refs
+        - recovery_action
+        - retryable
+      properties:
+        kind:
+          enum: [input, validation, review, system]
+        stage_id:
+          type: string
+          minLength: 3
+        code:
+          type: string
+          minLength: 3
+        summary:
+          type: string
+          minLength: 1
+        detail:
+          type: string
+          minLength: 1
+        affected_variables:
+          type: array
+          items:
+            type: string
+        affected_artifacts:
+          type: array
+          items:
+            type: string
+        evidence_refs:
+          type: array
+          items:
+            type: string
+        recovery_action:
+          enum:
+            - provide_input
+            - repair_input
+            - install_dependency
+            - retry_current_step
+            - submit_review_decision
+            - resume_after_review
+            - refresh
+        review_id:
+          type: [string, "null"]
+        retryable:
+          type: boolean
+
+    PocActiveStep:
+      type: object
+      additionalProperties: false
+      required: [step_id, kind, title, summary, artifact_refs]
+      properties:
+        step_id:
+          type: string
+          minLength: 3
+        kind:
+          enum: [instruction, review, artifact, error, complete]
+        title:
+          type: string
+          minLength: 1
+        summary:
+          type: string
+        blocking_reason:
+          type: [string, "null"]
+        next_instruction:
+          type: [string, "null"]
+        review_id:
+          type: [string, "null"]
+        artifact_refs:
+          type: array
+          items:
+            $ref: "#/components/schemas/PocArtifactRef"
+
+    PocInputCheck:
+      type: object
+      additionalProperties: false
+      required: [summary, files, dependencies, checks, variable_profiles, warnings]
+      properties:
+        checked_at:
+          type: [string, "null"]
+          format: date-time
+        summary:
+          $ref: "#/components/schemas/PocInputCheckSummary"
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/PocInputFile"
+        dependencies:
+          type: array
+          items:
+            $ref: "#/components/schemas/PocInputDependency"
+        checks:
+          type: array
+          items:
+            $ref: "#/components/schemas/PocStepCheck"
+        variable_profiles:
+          type: array
+          items:
+            $ref: "#/components/schemas/PocVariableProfile"
+        warnings:
+          type: array
+          items:
+            type: string
+
+    PocInputCheckSummary:
+      type: object
+      additionalProperties: false
+      required: [status, required_total, required_ready, blocking_count, warning_count, message]
+      properties:
+        status:
+          enum: [not_run, ready, warning, blocked, partial]
+        required_total:
+          type: integer
+          minimum: 0
+        required_ready:
+          type: integer
+          minimum: 0
+        blocking_count:
+          type: integer
+          minimum: 0
+        warning_count:
+          type: integer
+          minimum: 0
+        message:
+          type: string
+          minLength: 1
+
+    PocInputFile:
+      type: object
+      additionalProperties: false
+      required: [source_id, label, relative_path, format, exists, warnings, evidence_refs]
+      properties:
+        source_id:
+          type: string
+        label:
+          type: string
+        relative_path:
+          type: string
+        format:
+          type: string
+        exists:
+          type: boolean
+        sha256:
+          oneOf:
+            - $ref: "#/components/schemas/Sha256"
+            - type: "null"
+        size_bytes:
+          type: [integer, "null"]
+          minimum: 0
+        parser:
+          type: [string, "null"]
+        parser_available:
+          type: [boolean, "null"]
+        row_count:
+          type: [integer, "null"]
+          minimum: 0
+        column_count:
+          type: [integer, "null"]
+          minimum: 0
+        labels_available:
+          type: [boolean, "null"]
+        formats_available:
+          type: [boolean, "null"]
+        value_labels_available:
+          type: [boolean, "null"]
+        warnings:
+          type: array
+          items:
+            type: string
+        evidence_refs:
+          type: array
+          items:
+            type: string
+
+    PocInputDependency:
+      type: object
+      additionalProperties: false
+      required: [input_id, label, requirement, status, blocking, evidence_refs]
+      properties:
+        input_id:
+          type: string
+        label:
+          type: string
+        requirement:
+          enum: [required, conditional, optional, not_required]
+        status:
+          enum: [available, missing, invalid, gap, not_required]
+        blocking:
+          type: boolean
+        detail:
+          type: [string, "null"]
+        evidence_refs:
+          type: array
+          items:
+            type: string
+
+    PocVariableProfile:
+      type: object
+      additionalProperties: false
+      required: [variable, evidence_refs]
+      properties:
+        variable:
+          type: string
+        label:
+          type: [string, "null"]
+        data_type:
+          type: [string, "null"]
+        format:
+          type: [string, "null"]
+        missing_count:
+          type: [integer, "null"]
+          minimum: 0
+        non_missing_count:
+          type: [integer, "null"]
+          minimum: 0
+        distinct_count:
+          type: [integer, "null"]
+          minimum: 0
+        value_labels_available:
+          type: [boolean, "null"]
+        evidence_refs:
+          type: array
+          items:
+            type: string
+
+    PocArtifactRef:
+      type: object
+      additionalProperties: false
+      required: [artifact_id, label, relative_path, kind, preview_available]
+      properties:
+        artifact_id:
+          type: string
+        label:
+          type: string
+        relative_path:
+          type: string
+        kind:
+          enum: [json, csv, text, yaml, directory, unknown]
+        sha256:
+          oneOf:
+            - $ref: "#/components/schemas/Sha256"
+            - type: "null"
+        preview_available:
+          type: boolean
+
+    PocNextAction:
+      type: object
+      additionalProperties: false
+      required: [action_id, label, enabled, primary, method, endpoint]
+      properties:
+        action_id:
+          enum: [run_poc, retry_current_step, open_review, resume, refresh, open_output_folder]
+        label:
+          type: string
+        enabled:
+          type: boolean
+        primary:
+          type: boolean
+        reason:
+          type: [string, "null"]
+        method:
+          enum: [GET, POST]
+        endpoint:
+          type: string
+
+    PocHealthItem:
+      type: object
+      additionalProperties: false
+      required: [check_id, severity, summary, evidence_refs]
+      properties:
+        check_id:
+          type: string
+        severity:
+          enum: [ok, warning, error]
+        summary:
+          type: string
+        detail:
+          type: [string, "null"]
+        evidence_refs:
+          type: array
+          items:
+            type: string
+
+    PocEvent:
+      type: object
+      additionalProperties: false
+      required: [event_id, event_type, occurred_at, summary, severity, related_refs]
+      properties:
+        event_id:
+          type: string
+        event_type:
+          type: string
+        occurred_at:
+          type: string
+          format: date-time
+        run_id:
+          type: [string, "null"]
+        step_id:
+          type: [string, "null"]
+        summary:
+          type: string
+        severity:
+          enum: [ok, warning, error]
+        related_refs:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+    PocRunRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        target_artifact:
+          const: sdtm_ae_dataset
+          default: sdtm_ae_dataset
+        intent:
+          type: string
+          minLength: 3
+        force_restart:
+          type: boolean
+          default: false
+
+    PocRunResponse:
+      type: object
+      additionalProperties: false
+      required: [accepted, run_id, run_state, state_endpoint, message]
+      properties:
+        accepted:
+          type: boolean
+        run_id:
+          type: string
+        run_state:
+          $ref: "#/components/schemas/PocRunState"
+        state_endpoint:
+          type: string
+        message:
+          type: string
+
+    PocRunStatus:
+      type: object
+      additionalProperties: false
+      required: [run_id, study_id, run_state, current_step, state_endpoint]
+      properties:
+        run_id:
+          type: string
+        study_id:
+          type: string
+        run_state:
+          $ref: "#/components/schemas/PocRunState"
+        legacy_run_state:
+          type: [string, "null"]
+        current_step:
+          type: string
+        blocker:
+          oneOf:
+            - $ref: "#/components/schemas/PocBlocker"
+            - type: "null"
+        state_endpoint:
+          type: string
+
+    PocResumeRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        reason:
+          enum: [review_decision_available, operator_resume, retry_after_failure]
+          default: review_decision_available
+        review_id:
+          type: [string, "null"]
+        last_seen_event_id:
+          type: [string, "null"]
+
     StudyCreateRequest:
       type: object
       additionalProperties: false

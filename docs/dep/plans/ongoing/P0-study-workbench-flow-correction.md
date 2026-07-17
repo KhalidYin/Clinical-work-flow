@@ -1,6 +1,6 @@
 ---
 phase_index: 0
-status: planning
+status: in-progress
 created: 2026-07-17
 updated: 2026-07-17
 priority: 1
@@ -143,7 +143,7 @@ syncs_to:
 
 | Phase | 目标 | 预估轮次 | 依赖 | 状态 |
 |-------|------|----------|------|------|
-| P1 | 冻结 Runner step ledger、Input Check 与结构化 blocker 合同 | 2-3 | 已完成旧 P0 | pending |
+| P1 | 冻结 Runner step ledger、Input Check 与结构化 blocker 合同 | 2-3 | 已完成旧 P0 | completed |
 | P2 | 实现 Input Check、步骤状态权威和阻断/Retry 流程 | 2-4 | P1 | pending |
 | P3 | 重构 UI-02、横向 UI-03 和主工作区 UI-04 | 2-3 | P1/P2 | pending |
 | P4 | 完成真实浏览器 E2E、文档同步和用户 UAT 前置验收 | 2-3 | P2/P3 | pending |
@@ -170,11 +170,11 @@ syncs_to:
 
 ### 完成标准
 
-- [ ] JSON/Pydantic/OpenAPI 合同能够完整表达 step ledger、Input Check 和 blocker，不依赖文件名推断状态。
-- [ ] `blocked` 时 UI 能从一个 payload 获得阻断阶段、检查代码、证据和恢复动作。
-- [ ] ordinary Run、Retry current step、Review decision 和 Refresh 的启用条件无歧义。
-- [ ] 旧 `blocked_review/blocked_error` run 可读为 legacy 状态，但新 run 不继续写旧状态模型。
-- [ ] 合同测试覆盖 idle/running/input-blocked/validation-blocked/review-blocked/system-blocked/done/skipped/partial。
+- [x] JSON/Pydantic/OpenAPI 合同能够完整表达 step ledger、Input Check 和 blocker，不依赖文件名推断状态。
+- [x] `blocked` 时 UI 能从一个 payload 获得阻断阶段、检查代码、证据和恢复动作。
+- [x] ordinary Run、Retry current step、Review decision 和 Refresh 的启用条件无歧义。
+- [x] 旧 `blocked_review/blocked_error` run 可读为 legacy 状态，但 v2 公开合同不再暴露旧状态枚举。
+- [x] 合同测试覆盖 idle/running/input-blocked/validation-blocked/review-blocked/system-blocked/done/skipped/partial。
 
 ### 边界（本 Phase 明确不做）
 

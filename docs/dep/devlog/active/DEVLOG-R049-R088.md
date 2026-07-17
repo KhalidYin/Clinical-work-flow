@@ -586,3 +586,38 @@
 - `start-study-console.ps1`
 - `scripts/smoke-sample-ae-workbench.ps1`
 - `docs/dep/`（本轮提交）
+
+---
+
+### R064 [19:45] [P0-study-workbench-flow-correction] P1: 冻结 Runner v2 状态与证据合同
+
+#### Done
+
+- 将 Workbench 公开 run state 收敛为 `idle/running/blocked/done`，旧 `blocked_review/blocked_error` 仅作为兼容证据透明映射。
+- 新增七阶段 step ledger、Input Check、结构化 blocker、step check、target dependency、variable profile 和受控 next action Pydantic/OpenAPI 合同。
+- `PocState` 强制校验 `active_step`、`blocker.stage_id` 和唯一 blocked ledger step 一致，禁止前端从 artifact 推断步骤完成状态。
+- Application API 对 legacy run 建立兼容 ledger；artifact scan 只补充 preview refs，不再决定 done/blocked/pending。
+- 修正真实 Study fixture 对审核产物做精确集合断言的脆弱性，允许工作流追加合法 ReviewPacket/DecisionReceipt。
+
+#### Issues / Blockers
+
+- 根目录 `.venv` 未安装 `ruff`，pip 安装又遇到 SSL EOF；已使用本机全局 `ruff 0.15.18` 完成静态检查，不影响运行依赖。
+- 当前 Runner 内部存储仍是 legacy v1 记录；P2 将写入原生 v2 ledger 和结构化 blocker，P1 只负责公开合同与兼容读取。
+
+#### Validation
+
+- `ruff check clinical-workflow/src/application_api clinical-workflow/tests/application_api clinical-workflow/tests/test_p8_application_api_contract.py`（通过）。
+- `python -m pytest clinical-workflow/tests/application_api clinical-workflow/tests/test_p8_application_api_contract.py -q`（53 passed）。
+- 只读读取真实 `SAMPLE-AE-001`：`run_state=blocked`、`active_step=program-execution`、`blocker.stage_id=program-execution`、唯一 blocked step 一致。
+
+#### Next
+
+1. P2 让 Runner 原子写入 v2 step ledger 和完整 Input Check 产物。
+2. P2 将 validation finding 转为结构化 human-loop blocker，并修正 Run/Retry 语义。
+
+#### Files Changed / Commits
+
+- `clinical-workflow/src/application_api/poc_models.py`, `service.py`, `poc_runner.py`
+- `clinical-workflow/schemas/application/openapi.yaml`
+- `clinical-workflow/tests/application_api/`, `clinical-workflow/tests/test_p8_application_api_contract.py`
+- `docs/dep/`（本轮提交）

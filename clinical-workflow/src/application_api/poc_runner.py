@@ -33,6 +33,7 @@ from src.application_api.poc_models import (
     PocRunRequest,
     PocRunResponse,
     PocRunState,
+    normalize_poc_run_state,
 )
 from src.mcp_tools.edc_importer import parse_registered_edc_source, write_source_parse_artifacts
 from src.runtime.minimum_information import (
@@ -43,7 +44,9 @@ from src.runtime.minimum_information import (
 from src.runtime.review_protocol import ReviewQueue
 
 
-POC_RUN_ACTIVE_STATES = {"running", "blocked_review", "blocked_error"}
+LEGACY_BLOCKED_REVIEW_STATE = "blocked_review"
+LEGACY_BLOCKED_ERROR_STATE = "blocked_error"
+POC_RUN_ACTIVE_STATES = {"running", LEGACY_BLOCKED_REVIEW_STATE, LEGACY_BLOCKED_ERROR_STATE}
 POC_RUN_TERMINAL_STATES = {"done", "failed"}
 SOURCE_METADATA_PATH = "work/derived/edc/source-metadata.json"
 MINIMUM_INFORMATION_PATH = "work/derived/plans/minimum-information-sdtm-ae.json"
@@ -102,7 +105,7 @@ class PocRunner:
             raise PocRunnerError(f"POC run not found: {run_id}")
         if run["run_state"] == PocRunState.DONE.value:
             return self._response(run, accepted=True)
-        if run["run_state"] == PocRunState.BLOCKED_ERROR.value and (
+        if run["run_state"] == LEGACY_BLOCKED_ERROR_STATE and (
             request.reason.value != "retry_after_failure"
         ):
             raise PocRunnerError("blocked_error can only resume with retry_after_failure")
@@ -271,7 +274,7 @@ class PocRunner:
     ) -> None:
         run.update(
             {
-                "run_state": PocRunState.BLOCKED_REVIEW.value,
+                "run_state": LEGACY_BLOCKED_REVIEW_STATE,
                 "current_step": step_id,
                 "blocking_reason": reason,
                 "blocking_review_id": review_id,
@@ -284,7 +287,7 @@ class PocRunner:
     def _block_error(self, run: dict[str, Any], reason: str) -> None:
         run.update(
             {
-                "run_state": PocRunState.BLOCKED_ERROR.value,
+                "run_state": LEGACY_BLOCKED_ERROR_STATE,
                 "blocking_reason": reason,
                 "blocking_review_id": None,
                 "updated_at": _utc_now(),
@@ -338,7 +341,7 @@ class PocRunner:
         return PocRunResponse(
             accepted=accepted,
             run_id=str(run["run_id"]),
-            run_state=PocRunState(str(run["run_state"])),
+            run_state=normalize_poc_run_state(str(run["run_state"])),
             state_endpoint=f"/api/v1/studies/{self.study_dir.name}/poc-state",
             message=str(run.get("blocking_reason") or run.get("run_state") or "accepted"),
         )

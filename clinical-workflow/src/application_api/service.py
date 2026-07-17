@@ -22,10 +22,20 @@ from src.application_api.poc_models import (
     PocActionType,
     PocActiveStep,
     PocArtifactRef,
+    PocBlocker,
+    PocBlockerKind,
+    PocDependencyRequirement,
+    PocDependencyStatus,
     PocEvent,
     PocHealthItem,
     PocHealthSeverity,
+    PocInputCheck,
+    PocInputCheckState,
+    PocInputCheckSummary,
+    PocInputDependency,
+    PocInputFile,
     PocNextAction,
+    PocRecoveryAction,
     PocRunRequest,
     PocRunState,
     PocResumeRequest,
@@ -33,6 +43,7 @@ from src.application_api.poc_models import (
     PocStepKind,
     PocStepState,
     PocState,
+    normalize_poc_run_state,
 )
 from src.application_api.poc_runner import (
     PocRunner,
@@ -55,6 +66,29 @@ STUDY_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{1,63}$")
 REVIEW_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{2,127}$")
 IDEMPOTENCY_KEY_PATTERN = re.compile(r"^[A-Za-z0-9_.:-]{16,128}$")
 SUPPORTED_CONTAINER_ID = "clinical-studies"
+
+POC_STEP_DEFINITIONS = (
+    ("input-check", "Input Check"),
+    ("minimum-information", "Minimum Information"),
+    ("wiki-context", "Wiki Context"),
+    ("mapping-spec", "MappingSpec"),
+    ("program-execution", "Program / Execution"),
+    ("validation-review", "Validation / Review"),
+    ("canonical-ae", "Canonical AE"),
+)
+LEGACY_POC_STEP_ALIASES = {
+    "source-intake": "input-check",
+    "sas-metadata": "input-check",
+    "state-preflight": "input-check",
+    "minimum-information": "minimum-information",
+    "wiki-context": "wiki-context",
+    "mapping-spec": "mapping-spec",
+    "review-gate": "mapping-spec",
+    "codegen": "program-execution",
+    "draft-ae": "program-execution",
+    "output-review": "validation-review",
+    "canonical-ae": "canonical-ae",
+}
 
 
 class ApplicationApiError(RuntimeError):
@@ -291,13 +325,19 @@ class ApplicationApiService:
         run = load_poc_run(record.study_dir, run_id)
         if run is None:
             raise ApplicationApiError("run_not_found", f"POC run not found: {run_id}", status_code=404)
+        raw_state = str(run.get("run_state", "running"))
+        run_state = normalize_poc_run_state(raw_state)
+        blocker = self._poc_run_blocker(run, run_state, [])
         return {
             "run_id": run["run_id"],
             "study_id": record.study_id,
-            "run_state": run["run_state"],
-            "current_step": run.get("current_step"),
-            "blocking_reason": run.get("blocking_reason"),
-            "blocking_review_id": run.get("blocking_review_id"),
+            "run_state": run_state.value,
+            "legacy_run_state": raw_state if raw_state != run_state.value else None,
+            "current_step": self._legacy_poc_step_id(
+                str(run.get("current_step") or "input-check"),
+                str(run.get("blocking_review_id") or "") or None,
+            ),
+            "blocker": blocker.model_dump(mode="json") if blocker else None,
             "state_endpoint": f"/api/v1/studies/{record.study_id}/poc-state",
         }
 
@@ -463,108 +503,52 @@ class ApplicationApiService:
         artifact_refs = self._poc_artifact_refs(artifacts)
         pending_reviews = self._pending_review_ids(record)
         active_run = latest_poc_run(record.study_dir)
-        run_state = PocRunState.IDLE
-        blocking_reason = None
-        active_step = PocActiveStep(
-            step_id="source-intake",
-            kind=PocStepKind.INSTRUCTION,
-            title="准备运行 SDTM AE 最小 POC",
-            summary="点击 Run POC 后，P2 runner 将执行到下一可观察状态。",
-            next_instruction="本阶段只冻结 API 合同；真实执行由 P0/P2 实现。",
-            artifact_refs=artifact_refs[:3],
-        )
-        if partial_errors:
-            run_state = PocRunState.BLOCKED_ERROR
-            blocking_reason = "artifact scan returned partial errors"
-            active_step = PocActiveStep(
-                step_id="state-preflight",
-                kind=PocStepKind.ERROR,
-                title="状态预检失败",
-                summary="Application API 扫描 Study 产物时出现 partial error。",
-                blocking_reason=blocking_reason,
-            )
-        elif pending_reviews:
-            run_state = PocRunState.BLOCKED_REVIEW
-            blocking_reason = f"pending review: {pending_reviews[0]}"
-            active_step = PocActiveStep(
-                step_id="review-gate",
-                kind=PocStepKind.REVIEW,
-                title="等待人工 Review Gate",
-                summary="存在待审核 ReviewPacket，需提交 DecisionReceipt 后再 Resume。",
-                blocking_reason=blocking_reason,
-                next_instruction="打开当前 Review，批量提交中文 DecisionReceipt。",
-                review_id=pending_reviews[0],
-            )
-        elif active_run is not None:
-            state = str(active_run.get("run_state", "queued"))
-            blocking_reason = active_run.get("blocking_reason")
-            if state in {"queued", "running"}:
-                run_state = PocRunState.RUNNING
-                active_step = PocActiveStep(
-                    step_id=str(active_run.get("current_step") or "runner"),
-                    kind=PocStepKind.INSTRUCTION,
-                    title="Runner 正在推进",
-                    summary="POC runner 已开始执行到下一可观察状态。",
-                    next_instruction="刷新状态或等待当前同步执行返回。",
-                )
-            elif state == "blocked_error":
-                run_state = PocRunState.BLOCKED_ERROR
-                blocking_reason = str(active_run.get("blocking_reason") or "active run blocked")
-                active_step = PocActiveStep(
-                    step_id=str(active_run.get("current_step") or "runner-error"),
-                    kind=PocStepKind.ERROR,
-                    title="POC Runner 阻断",
-                    summary="Runner 无法继续自动推进。",
-                    blocking_reason=blocking_reason,
-                    next_instruction="修复根因后使用 retry_after_failure resume。",
-                )
-            elif state == "blocked_review":
-                run_state = PocRunState.BLOCKED_REVIEW
-                review_id = str(active_run.get("blocking_review_id") or pending_reviews[0])
-                blocking_reason = str(active_run.get("blocking_reason") or f"pending review: {review_id}")
-                active_step = PocActiveStep(
-                    step_id=str(active_run.get("current_step") or "review-gate"),
-                    kind=PocStepKind.REVIEW,
-                    title="等待人工 Review Gate",
-                    summary="POC runner 已在审核点暂停。",
-                    blocking_reason=blocking_reason,
-                    next_instruction="提交 DecisionReceipt 后点击 Resume。",
-                    review_id=review_id,
-                )
-            elif state == "done":
-                run_state = PocRunState.DONE
-                active_step = PocActiveStep(
-                    step_id=str(active_run.get("current_step") or "canonical-ae"),
-                    kind=PocStepKind.COMPLETE,
-                    title="POC 已完成",
-                    summary="SDTM AE 最小 POC 已完成到 canonical 或已检测到 canonical。",
-                    artifact_refs=[
-                        ref for ref in artifact_refs if ref.relative_path.endswith("output/sdtm/datasets/ae.csv")
-                    ],
-                )
-        elif any(ref.relative_path.endswith("output/sdtm/datasets/ae.csv") for ref in artifact_refs):
-            run_state = PocRunState.DONE
-            active_step = PocActiveStep(
-                step_id="canonical-ae",
-                kind=PocStepKind.COMPLETE,
-                title="Canonical AE 已存在",
-                summary="已发现 SDTM AE canonical CSV，可进入用户验收。",
-                artifact_refs=[
-                    ref for ref in artifact_refs if ref.relative_path.endswith("output/sdtm/datasets/ae.csv")
-                ],
-            )
+        source = self._poc_source_summary(record)
+        input_check = self._poc_input_check(active_run, source)
+        legacy_run_state = None
+        blocker = None
 
-        steps = self._poc_contract_steps(artifact_refs, pending_reviews, run_state)
+        if active_run is not None:
+            raw_state = str(active_run.get("run_state", "running"))
+            run_state = normalize_poc_run_state(raw_state)
+            legacy_run_state = raw_state if raw_state not in {state.value for state in PocRunState} else None
+            blocker = self._poc_run_blocker(active_run, run_state, partial_errors)
+        elif partial_errors:
+            run_state = PocRunState.BLOCKED
+            blocker = self._poc_system_blocker(partial_errors)
+        elif pending_reviews:
+            run_state = PocRunState.BLOCKED
+            review_id = pending_reviews[0]
+            stage_id = self._legacy_poc_step_id("review-gate", review_id)
+            blocker = PocBlocker(
+                kind=PocBlockerKind.REVIEW,
+                stage_id=stage_id,
+                code="pending_review_without_run",
+                summary="存在待审核 ReviewPacket",
+                detail="提交 DecisionReceipt 后，由 Runner 显式 Resume；ReviewPacket 本身不代表步骤完成。",
+                evidence_refs=[f".review_queue/{review_id}.json"],
+                recovery_action=PocRecoveryAction.SUBMIT_REVIEW_DECISION,
+                review_id=review_id,
+            )
+        else:
+            run_state = PocRunState.IDLE
+
+        steps = self._poc_contract_steps(active_run, run_state, blocker, artifact_refs)
+        active_step = self._poc_active_step(run_state, blocker, steps)
+        blocking_reason = blocker.summary if blocker else None
         return PocState(
             study_id=record.study_id,
             run_id=str(active_run["run_id"]) if active_run else None,
             run_state=run_state,
-            source=self._poc_source_summary(record),
+            legacy_run_state=legacy_run_state,
+            source=source,
             knowledge=self._poc_knowledge_summary(record),
+            input_check=input_check,
+            blocker=blocker,
             blocking_reason=blocking_reason,
             active_step=active_step,
             steps=steps,
-            next_actions=self._poc_next_actions(record, run_state),
+            next_actions=self._poc_next_actions(record, run_state, blocker),
             health=self._poc_health(record, partial_errors),
             events=self._poc_events(record),
             partial_errors=list(partial_errors),
@@ -596,118 +580,319 @@ class ApplicationApiService:
 
     def _poc_contract_steps(
         self,
-        artifact_refs: list[PocArtifactRef],
-        pending_reviews: list[str],
+        active_run: Mapping[str, Any] | None,
         run_state: PocRunState,
+        blocker: PocBlocker | None,
+        artifact_refs: list[PocArtifactRef],
     ) -> list[PocStep]:
-        by_path = {ref.relative_path: ref for ref in artifact_refs}
+        if active_run and str(active_run.get("schema_version")) == "2.0" and active_run.get("steps"):
+            steps = [PocStep.model_validate(item) for item in active_run["steps"]]
+        else:
+            current_step = self._legacy_poc_step_id(
+                str((active_run or {}).get("current_step") or "input-check"),
+                str((active_run or {}).get("blocking_review_id") or "") or None,
+            )
+            steps = []
+            for ordinal, (step_id, title) in enumerate(POC_STEP_DEFINITIONS, start=1):
+                state = PocStepState.PENDING
+                kind = PocStepKind.INSTRUCTION
+                summary = "等待 Runner v2 ledger；未根据磁盘产物推断完成状态。"
+                if run_state is PocRunState.RUNNING and step_id == current_step:
+                    state = PocStepState.RUNNING
+                    summary = "Legacy run 正在此阶段执行；P2 将写入原生 v2 ledger。"
+                elif run_state is PocRunState.BLOCKED and blocker and step_id == blocker.stage_id:
+                    state = PocStepState.BLOCKED
+                    kind = PocStepKind.REVIEW if blocker.kind is PocBlockerKind.REVIEW else PocStepKind.ERROR
+                    summary = blocker.summary
+                elif run_state is PocRunState.DONE:
+                    state = PocStepState.DONE if step_id == "canonical-ae" else PocStepState.SKIPPED
+                    summary = (
+                        "Legacy run 记录为完成。"
+                        if step_id == "canonical-ae"
+                        else "Legacy record 未包含可验证的逐步 ledger。"
+                    )
+                steps.append(
+                    PocStep(
+                        step_id=step_id,
+                        ordinal=ordinal,
+                        title=title,
+                        state=state,
+                        kind=kind,
+                        summary=summary,
+                        blocking_reason=blocker.summary if blocker and step_id == blocker.stage_id else None,
+                        review_id=blocker.review_id if blocker and step_id == blocker.stage_id else None,
+                    )
+                )
 
-        def artifact(path: str) -> list[PocArtifactRef]:
-            return [by_path[path]] if path in by_path else []
-
-        steps = [
-            PocStep(
-                step_id="source-intake",
-                ordinal=1,
-                title="Source Intake",
-                state=PocStepState.DONE if "work/derived/source-intake/source-intake-report-v1.json" in by_path else PocStepState.PENDING,
-                summary="检查输入来源、hash 和 input/ 禁止 JSON。",
-                artifact_refs=artifact("work/derived/source-intake/source-intake-report-v1.json"),
-            ),
-            PocStep(
-                step_id="sas-metadata",
-                ordinal=2,
-                title="Parse SAS7BDAT",
-                state=PocStepState.DONE if "work/derived/edc/source-metadata.json" in by_path else PocStepState.PENDING,
-                summary="解析 SAS7BDAT 标签、格式和 profile。",
-                artifact_refs=artifact("work/derived/edc/source-metadata.json"),
-            ),
-            PocStep(
-                step_id="minimum-information",
-                ordinal=3,
-                title="Minimum Information Plan",
-                state=PocStepState.DONE if "work/derived/plans/minimum-information-sdtm-ae.json" in by_path else PocStepState.PENDING,
-                summary="判断只用现有最小信息能否生成 SDTM AE draft。",
-                artifact_refs=artifact("work/derived/plans/minimum-information-sdtm-ae.json"),
-            ),
-            PocStep(
-                step_id="wiki-context",
-                ordinal=4,
-                title="Wiki Context",
-                state=PocStepState.DONE if "knowledge/promotion_candidates/ae-rule-reuse-context.json" in by_path else PocStepState.PENDING,
-                summary="加载 P9 测试用 Wiki 复用规则上下文。",
-                artifact_refs=artifact("knowledge/promotion_candidates/ae-rule-reuse-context.json"),
-            ),
-            PocStep(
-                step_id="mapping-spec",
-                ordinal=5,
-                title="MappingSpec",
-                state=PocStepState.DONE if "work/mapping/ae-mapping-spec-approved.json" in by_path else PocStepState.PENDING,
-                summary="生成并审核 AE MappingSpec。",
-                artifact_refs=artifact("work/mapping/ae-mapping-spec-candidate.json") + artifact("work/mapping/ae-mapping-spec-approved.json"),
-            ),
-            PocStep(
-                step_id="review-gate",
-                ordinal=6,
-                title="Review Gate",
-                state=PocStepState.BLOCKED_REVIEW if pending_reviews else PocStepState.DONE,
-                kind=PocStepKind.REVIEW if pending_reviews else PocStepKind.INSTRUCTION,
-                summary="阻断式人工审核点。",
-                review_id=pending_reviews[0] if pending_reviews else None,
-                blocking_reason=f"pending review: {pending_reviews[0]}" if pending_reviews else None,
-            ),
-            PocStep(
-                step_id="codegen",
-                ordinal=7,
-                title="Codegen",
-                state=PocStepState.DONE if "programs/edc_to_sdtm/program-manifest.json" in by_path else PocStepState.PENDING,
-                summary="生成 Python/R/SAS 程序 manifest。",
-                artifact_refs=artifact("programs/edc_to_sdtm/program-manifest.json"),
-            ),
-            PocStep(
-                step_id="draft-ae",
-                ordinal=8,
-                title="Draft AE",
-                state=PocStepState.DONE if "output/sdtm/drafts/ae.csv" in by_path else PocStepState.PENDING,
-                summary="运行 Python reference executor 生成 draft AE。",
-                artifact_refs=artifact("output/sdtm/drafts/ae.csv"),
-            ),
-            PocStep(
-                step_id="canonical-ae",
-                ordinal=9,
-                title="Canonical AE",
-                state=PocStepState.DONE if run_state is PocRunState.DONE else PocStepState.PENDING,
-                summary="经 program review 后提升 canonical AE。",
-                artifact_refs=artifact("output/sdtm/datasets/ae.csv"),
-            ),
-        ]
-        if run_state is PocRunState.BLOCKED_ERROR:
-            first_pending = next((step for step in steps if step.state is PocStepState.PENDING), None)
-            if first_pending:
-                first_pending.state = PocStepState.BLOCKED_ERROR
-                first_pending.kind = PocStepKind.ERROR
+        artifacts_by_step: dict[str, list[PocArtifactRef]] = {}
+        for artifact in artifact_refs:
+            step_id = self._poc_artifact_step_id(artifact.relative_path)
+            artifacts_by_step.setdefault(step_id, []).append(artifact)
+        for step in steps:
+            supplemental = artifacts_by_step.get(step.step_id, [])
+            known = {item.artifact_id for item in step.artifact_refs}
+            step.artifact_refs.extend(item for item in supplemental if item.artifact_id not in known)
         return steps
+
+    def _poc_active_step(
+        self,
+        run_state: PocRunState,
+        blocker: PocBlocker | None,
+        steps: list[PocStep],
+    ) -> PocActiveStep:
+        if blocker is not None:
+            step = next(item for item in steps if item.step_id == blocker.stage_id)
+            return PocActiveStep(
+                step_id=step.step_id,
+                kind=step.kind,
+                title=step.title,
+                summary=blocker.summary,
+                blocking_reason=blocker.summary,
+                next_instruction=blocker.detail,
+                review_id=blocker.review_id,
+                artifact_refs=step.artifact_refs,
+            )
+        if run_state is PocRunState.RUNNING:
+            step = next((item for item in steps if item.state is PocStepState.RUNNING), steps[0])
+            return PocActiveStep(
+                step_id=step.step_id,
+                kind=step.kind,
+                title=step.title,
+                summary=step.summary,
+                next_instruction="等待同步执行返回或刷新状态。",
+                artifact_refs=step.artifact_refs,
+            )
+        if run_state is PocRunState.DONE:
+            step = next(item for item in steps if item.step_id == "canonical-ae")
+            return PocActiveStep(
+                step_id=step.step_id,
+                kind=PocStepKind.COMPLETE,
+                title=step.title,
+                summary="POC run ledger 已到达完成状态。",
+                artifact_refs=step.artifact_refs,
+            )
+        step = steps[0]
+        return PocActiveStep(
+            step_id=step.step_id,
+            kind=PocStepKind.INSTRUCTION,
+            title="准备执行 Input Check",
+            summary="点击 Run POC 后先验证目标所需输入，不从已有产物推断步骤完成。",
+            next_instruction="确认 SAS7BDAT 已登记后运行 POC。",
+            artifact_refs=step.artifact_refs,
+        )
+
+    def _poc_run_blocker(
+        self,
+        active_run: Mapping[str, Any],
+        run_state: PocRunState,
+        partial_errors: Iterable[dict[str, Any]],
+    ) -> PocBlocker | None:
+        if run_state is not PocRunState.BLOCKED:
+            return None
+        if str(active_run.get("schema_version")) == "2.0" and active_run.get("blocker"):
+            return PocBlocker.model_validate(active_run["blocker"])
+
+        raw_state = str(active_run.get("run_state") or "blocked_error")
+        review_id = str(active_run.get("blocking_review_id") or "") or None
+        stage_id = self._legacy_poc_step_id(
+            str(active_run.get("current_step") or "input-check"),
+            review_id,
+        )
+        reason = str(active_run.get("blocking_reason") or "Legacy POC run is blocked")
+        if raw_state == "blocked_review":
+            return PocBlocker(
+                kind=PocBlockerKind.REVIEW,
+                stage_id=stage_id,
+                code="legacy_pending_review",
+                summary=reason,
+                detail="这是 legacy run 的兼容视图；提交 DecisionReceipt 后使用 Resume。",
+                evidence_refs=[f".review_queue/{review_id}.json"] if review_id else [],
+                recovery_action=PocRecoveryAction.SUBMIT_REVIEW_DECISION,
+                review_id=review_id,
+            )
+        if partial := list(partial_errors):
+            return self._poc_system_blocker(partial, stage_id=stage_id, summary=reason)
+        return PocBlocker(
+            kind=PocBlockerKind.SYSTEM,
+            stage_id=stage_id,
+            code="legacy_runner_error",
+            summary=reason,
+            detail="修复可见根因后只重试当前阶段；普通 Run 不应复用这个 blocked run。",
+            recovery_action=PocRecoveryAction.RETRY_CURRENT_STEP,
+            retryable=True,
+        )
+
+    def _poc_system_blocker(
+        self,
+        partial_errors: Iterable[dict[str, Any]],
+        *,
+        stage_id: str = "input-check",
+        summary: str = "Study 状态读取不完整",
+    ) -> PocBlocker:
+        partial = list(partial_errors)
+        return PocBlocker(
+            kind=PocBlockerKind.SYSTEM,
+            stage_id=stage_id,
+            code="study_state_partial_error",
+            summary=summary,
+            detail="Application API 无法完整读取 Study 证据；修复列出的文件或权限问题后刷新。",
+            affected_artifacts=[str(item.get("message", "unknown")) for item in partial],
+            evidence_refs=["poc-state.partial_errors"],
+            recovery_action=PocRecoveryAction.REFRESH,
+        )
+
+    def _poc_input_check(
+        self,
+        active_run: Mapping[str, Any] | None,
+        source: Mapping[str, Any],
+    ) -> PocInputCheck:
+        if active_run and str(active_run.get("schema_version")) == "2.0" and active_run.get("input_check"):
+            return PocInputCheck.model_validate(active_run["input_check"])
+
+        source_path = str(source.get("relative_path") or "input/edc/registered-source.sas7bdat")
+        source_available = bool(source.get("relative_path") and source.get("sha256"))
+        return PocInputCheck(
+            summary=PocInputCheckSummary(
+                status=PocInputCheckState.PARTIAL if source_available else PocInputCheckState.NOT_RUN,
+                required_total=1,
+                required_ready=1 if source_available else 0,
+                blocking_count=0 if source_available else 1,
+                warning_count=1,
+                message=(
+                    "已读取 legacy source metadata；完整 parser/profile 检查将在 Runner v2 执行。"
+                    if source_available
+                    else "Input Check 尚未执行。"
+                ),
+            ),
+            files=[
+                PocInputFile(
+                    source_id="ae-source-data",
+                    label="AE SAS7BDAT source",
+                    relative_path=source_path,
+                    format=str(source.get("format") or "sas7bdat"),
+                    exists=source_available,
+                    sha256=str(source["sha256"]) if source.get("sha256") else None,
+                    row_count=source.get("row_count"),
+                    column_count=source.get("column_count"),
+                    warnings=["legacy metadata does not prove parser/profile checks"],
+                )
+            ],
+            dependencies=[
+                PocInputDependency(
+                    input_id="ae-source-data",
+                    label="AE raw data",
+                    requirement=PocDependencyRequirement.REQUIRED,
+                    status=(
+                        PocDependencyStatus.AVAILABLE
+                        if source_available
+                        else PocDependencyStatus.MISSING
+                    ),
+                    blocking=not source_available,
+                    evidence_refs=[source_path] if source_available else [],
+                ),
+                *[
+                    PocInputDependency(
+                        input_id=input_id,
+                        label=label,
+                        requirement=PocDependencyRequirement.NOT_REQUIRED,
+                        status=PocDependencyStatus.NOT_REQUIRED,
+                        blocking=False,
+                        detail="当前 sdtm_ae_dataset raw-only POC 不以该文档为固定前置条件。",
+                    )
+                    for input_id, label in (
+                        ("protocol", "Protocol"),
+                        ("sap", "SAP"),
+                        ("crf", "CRF"),
+                    )
+                ],
+            ],
+            warnings=["compatibility view: full Input Check ledger is not available"],
+        )
+
+    @staticmethod
+    def _legacy_poc_step_id(step_id: str, review_id: str | None = None) -> str:
+        if step_id == "review-gate" and review_id and "program" in review_id.lower():
+            return "validation-review"
+        return LEGACY_POC_STEP_ALIASES.get(step_id, "input-check")
+
+    @staticmethod
+    def _poc_artifact_step_id(relative_path: str) -> str:
+        path = relative_path.replace("\\", "/")
+        if "minimum-information" in path:
+            return "minimum-information"
+        if path.startswith("knowledge/"):
+            return "wiki-context"
+        if path.startswith("work/mapping/"):
+            return "mapping-spec"
+        if path.startswith("programs/") or path.startswith("output/sdtm/drafts/"):
+            return "program-execution"
+        if "validation" in path or ".review_queue/" in path:
+            return "validation-review"
+        if path.startswith("output/sdtm/datasets/"):
+            return "canonical-ae"
+        return "input-check"
 
     def _poc_next_actions(
         self,
         record: StudyRecord,
         run_state: PocRunState,
+        blocker: PocBlocker | None,
     ) -> list[PocNextAction]:
         active_run = latest_poc_run(record.study_dir)
         run_id = str(active_run["run_id"]) if active_run else "{run_id}"
-        return [
+        actions = [
             PocNextAction(
                 action_id=PocActionType.RUN_POC,
                 label="Run POC",
-                enabled=run_state in {PocRunState.IDLE, PocRunState.BLOCKED_ERROR},
-                reason=None if run_state in {PocRunState.IDLE, PocRunState.BLOCKED_ERROR} else f"current state is {run_state.value}",
+                enabled=run_state is PocRunState.IDLE,
+                primary=run_state is PocRunState.IDLE,
+                reason=None if run_state is PocRunState.IDLE else f"current state is {run_state.value}",
                 endpoint=f"/api/v1/studies/{record.study_id}/poc-runs",
+            ),
+            PocNextAction(
+                action_id=PocActionType.RETRY_CURRENT_STEP,
+                label="Retry current step",
+                enabled=bool(
+                    run_state is PocRunState.BLOCKED
+                    and blocker
+                    and blocker.recovery_action is PocRecoveryAction.RETRY_CURRENT_STEP
+                ),
+                primary=bool(
+                    run_state is PocRunState.BLOCKED
+                    and blocker
+                    and blocker.recovery_action is PocRecoveryAction.RETRY_CURRENT_STEP
+                ),
+                reason=(
+                    None
+                    if blocker and blocker.recovery_action is PocRecoveryAction.RETRY_CURRENT_STEP
+                    else "current blocker is not retryable"
+                ),
+                endpoint=f"/api/v1/studies/{record.study_id}/poc-runs/{run_id}/resume",
+            ),
+            PocNextAction(
+                action_id=PocActionType.OPEN_REVIEW,
+                label="Review",
+                enabled=bool(
+                    run_state is PocRunState.BLOCKED
+                    and blocker
+                    and blocker.kind is PocBlockerKind.REVIEW
+                    and blocker.review_id
+                ),
+                primary=bool(
+                    run_state is PocRunState.BLOCKED
+                    and blocker
+                    and blocker.kind is PocBlockerKind.REVIEW
+                    and blocker.review_id
+                ),
+                reason=None if blocker and blocker.kind is PocBlockerKind.REVIEW else "no review blocker",
+                method="GET",
+                endpoint=f"/api/v1/studies/{record.study_id}/reviews",
             ),
             PocNextAction(
                 action_id=PocActionType.RESUME,
                 label="Resume",
-                enabled=run_state is PocRunState.BLOCKED_REVIEW,
-                reason=None if run_state is PocRunState.BLOCKED_REVIEW else "no blocking review is active",
+                enabled=False,
+                reason="enabled after a DecisionReceipt is available; P2 evaluates this precondition",
                 endpoint=f"/api/v1/studies/{record.study_id}/poc-runs/{run_id}/resume",
             ),
             PocNextAction(
@@ -726,6 +911,7 @@ class ApplicationApiService:
                 endpoint=f"/api/v1/studies/{record.study_id}/artifacts",
             ),
         ]
+        return actions
 
     def _poc_health(
         self,
@@ -791,6 +977,7 @@ class ApplicationApiService:
                     event_id=str(raw["event_id"]),
                     event_type=str(raw["event_type"]),
                     occurred_at=str(raw["occurred_at"]),
+                    run_id=str(raw.get("run_id")) if raw.get("run_id") else None,
                     step_id=str(raw.get("step_id")) if raw.get("step_id") else None,
                     summary=str(raw.get("summary") or raw["event_type"]),
                     severity=str(raw.get("severity", "ok")),
