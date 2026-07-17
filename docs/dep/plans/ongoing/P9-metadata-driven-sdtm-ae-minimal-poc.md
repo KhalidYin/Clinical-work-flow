@@ -452,6 +452,7 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 | D6 | R050 将 `source_intake` 加入 released Review Schema，但未同步 1.1.0 bundle hash；clean HEAD 可复现实际 hash `40d30d...` 与登记 `72e5fe...` 不一致 | P2 | 既有风险 | P2 不改旧 hash、不触发 Wiki snapshot 迁移；Source Metadata 保持 importer-local prerelease contract。P6 全量发布前必须建立协调迁移或恢复一致性 |
 | D7 | `SAMPLE-AE-001/.review_queue` 残留早期开发阶段 pending packet，导致 Console 误显示 blocked review | P6 | 阻断 | 清理遗留 pending packet；后续真实 Workflow 内容审核必须由 Runtime 重新生成 ReviewPacket |
 | D8 | Console Review Inbox 将 packet 和 finding 全量长页面铺开，不符合工业审阅流 | P6 | 增强 | 改为队列摘要 + 选中详情 + finding 折叠；ReviewPanel/Console 只承担正式 human-loop，不作为开发确认页面 |
+| D9 | 当前 Console 与最小 POC runner 脱节，`Submit Request` 无后续执行反馈，无法支撑用户 work-to-end 验收 | P6 | 阻断 | 新增 `P0-study-console-react-poc-workbench.md`；完成前不进行 P9.1/P6 用户验收 |
 
 ## 关键决策记录
 

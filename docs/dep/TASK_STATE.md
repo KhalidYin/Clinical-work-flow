@@ -10,5 +10,6 @@
 - 当前事实：P6 已清理 `SAMPLE-AE-001/.review_queue` 中早期开发阶段遗留 pending packet；当前 pending review count 为 0，保留已批准的测试用规则治理追溯记录。
 - 当前事实：Study Console Review Inbox 已改为队列摘要 + 状态筛选 + 选中详情 + finding 折叠，避免长页面铺开全部审阅流。
 - 当前事实：`start-study-console.ps1` 已增加预检、`-CheckOnly`、`-NoBrowser` 和端口复用提示；脚本常驻运行属于预期行为。
+- 当前事实：用户确认当前 Console 不符合 work-to-end POC 工作流习惯；已批准轻量 React Workbench + 最小 POC Runner 方向，登记为 `docs/dep/plans/backlog/P0-study-console-react-poc-workbench.md`。
 - 边界：P6 只做单机快速启动、回归、验收说明和用户实测前准备；不得自动进入旧 P9 的内网、多用户、RBAC 或部署工作。
-- 下一 Gate：完成 P6 本地 smoke/文档后，由用户实际运行并确认；用户确认前不解锁旧 P9。
+- 下一 Gate：先完成 P0 Study Console React POC Workbench，再回到 P9.1/P6 用户实际运行确认；用户确认前不解锁旧 P9。
