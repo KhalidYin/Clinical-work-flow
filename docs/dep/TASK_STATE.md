@@ -1,8 +1,8 @@
 # 当前任务状态
 
-- 计划：`P9-metadata-driven-sdtm-ae-minimal-poc.md`
-- 当前阶段：P6 — 单机快速启动、回归、人工验收与旧 P9 解锁
-- 当前目标：用 `start-study-console.ps1` 作为用户实际入口，形成可复核的单机验收链路；只有用户确认本机跑通后，才允许重新讨论旧 P9 多 Study/内网协作。
+- 计划：`P0-study-console-react-poc-workbench.md`
+- 当前阶段：P2 — 后端 POC Runner
+- 当前目标：用 P1 已冻结合同实现 `SAMPLE-AE-001` 的最小 start/status/resume runner，执行到 blocked_review/done/blocked_error，并把真实状态暴露给 Workbench。
 - 已确认入口：最终用户实测从 `start-study-console.ps1` 进入；P2 只提供低层 parser 与隔离 Smoke，不实现 Console Runtime bridge。
 - 已确认来源：`clinical-studies/SAMPLE-AE-001/input/edc/ae09jun2025.sas7bdat`，大小 19,667,968 bytes，SHA-256 `2a6d72e9e5fa4bb8e3cc14b0c412fce3c37e519f3ab9105cdcff33ba031e8749`。
 - 当前事实：P5 已完成。真实 `SAMPLE-AE-001` 的 reusable-rule DecisionReceipt 已全部 approved，已生成 `ae-rule-governance-approved.json`、测试用 Wiki card、release、snapshot 和 clean-room reuse context。
@@ -11,5 +11,5 @@
 - 当前事实：Study Console Review Inbox 已改为队列摘要 + 状态筛选 + 选中详情 + finding 折叠，避免长页面铺开全部审阅流。
 - 当前事实：`start-study-console.ps1` 已增加预检、`-CheckOnly`、`-NoBrowser` 和端口复用提示；脚本常驻运行属于预期行为。
 - 当前事实：用户确认当前 Console 不符合 work-to-end POC 工作流习惯；已批准轻量 React Workbench + 最小 POC Runner 方向，登记为 `docs/dep/plans/backlog/P0-study-console-react-poc-workbench.md`。
-- 边界：P6 只做单机快速启动、回归、验收说明和用户实测前准备；不得自动进入旧 P9 的内网、多用户、RBAC 或部署工作。
-- 下一 Gate：先完成 P0 Study Console React POC Workbench，再回到 P9.1/P6 用户实际运行确认；用户确认前不解锁旧 P9。
+- 边界：P0 只修复 `SAMPLE-AE-001` 单机 POC work-to-end 前端和最小 runner；不得进入多 Study、内网协作、RBAC、WebSocket 或生产部署。
+- 下一 Gate：完成 P2 runner flow 测试并提交，再进入 P3 React Workbench shell；P0 全部完成后才回到 P9.1/P6 用户实际运行确认。

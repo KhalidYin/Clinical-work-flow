@@ -297,6 +297,19 @@ Runtime-context 必须默认 approved-only，支持结构化 filters + SQLite FT
 - `GET /api/v1/reviews` 汇总根、Wiki 和 Study 受信队列中的活动 ReviewPacket；
 - `GET /api/v1/reviews/{queue_id}/{review_id}` 返回 packet、hash、状态、receipt/confirmation 摘要和 source availability；
 - `GET /api/v1/reviews/{queue_id}/{review_id}/sources/{source_index}` 只读预览 packet 声明且位于 owner root 内的来源；
+
+### 8.5 P9.1 单机 POC Workbench 与 Runner 合同
+
+P9.1 为 `SAMPLE-AE-001` 增加一个受限的本地 Workbench/Runner façade，用于完成 SDTM AE 最小 POC 的浏览器端 work-to-end 验收。该 façade 的权威边界如下：
+
+- `GET /api/v1/studies/{study_id}/poc-state` 是 React Workbench 的唯一状态入口；前端不得从文件名、绝对路径、旧 Console 文本或本地目录结构推断 run state。
+- `POST /api/v1/studies/{study_id}/poc-runs` 的语义是“执行到下一可观察状态”：`running`、`blocked_review`、`blocked_error` 或 `done`，不得仅写 durable request 后停止。
+- `POST /api/v1/studies/{study_id}/poc-runs/{run_id}/resume` 只能在 Review Gate 或可恢复错误后继续执行；Review Gate 必须已有正式 DecisionReceipt。
+- POC payload 必须显式提供 Study Header、Timeline、Active Task、Next Actions、Health、Event/Evidence Log 和 Artifact refs 所需字段；前端展示值必须来自 payload。
+- 该 façade 只服务 `sdtm_ae_dataset` 单机测试链路，不是通用十阶段 Runtime bridge，不授权多 Study、多人协作、WebSocket、任意命令执行、SAS 执行或生产 GxP 部署。
+- P9.1 可引用 `p9-poc-test-only` Wiki release 作为测试用知识上下文，但不得将其提升为真实 Study 自动化的生产知识依据。
+
+运行时状态仍以 Study 文件系统、ReviewPacket/DecisionReceipt、artifact hash 和 audit/event 记录为准；Workbench 只是当前 POC 的受控操作面板，不拥有临床事实或知识批准权。
 - `POST /api/v1/reviews/{queue_id}/{review_id}/decisions` 只原子写 DecisionReceipt。
 
 Panel 的状态来自文件组合：packet、decision receipt 和 confirmation receipt。它不能写 ConfirmationReceipt、不能归档、不能提升 canonical artifact、不能执行 Runtime/Git，也不能通过浏览器选择任意目录。未来 P8 Study Console 可以替换 `ReviewClient` 后端，但不得改变 Review Protocol 的文件权威和 Engine Schema 权威。

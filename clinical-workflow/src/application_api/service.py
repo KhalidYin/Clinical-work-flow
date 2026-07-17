@@ -18,6 +18,22 @@ from typing import Any, Iterable, Mapping
 
 import yaml
 
+from src.application_api.poc_models import (
+    PocActionType,
+    PocActiveStep,
+    PocArtifactRef,
+    PocEvent,
+    PocHealthItem,
+    PocHealthSeverity,
+    PocNextAction,
+    PocRunRequest,
+    PocRunResponse,
+    PocRunState,
+    PocStep,
+    PocStepKind,
+    PocStepState,
+    PocState,
+)
 from src.runtime.pipeline_contract import PipelineStage
 from src.runtime.review_protocol import (
     Decision,
@@ -233,6 +249,68 @@ class ApplicationApiService:
             events = [event for event in events if event["event_id"] > cursor]
         return {"events": events, "next_cursor": events[-1]["event_id"] if events else _empty_cursor()}
 
+    def get_poc_state(self, study_id: str) -> dict[str, Any]:
+        """Return the bounded P9.1 POC state contract.
+
+        P1 intentionally exposes a contract-complete state without executing the
+        runner.  P2 replaces the contract placeholder with real start/resume
+        execution while preserving this payload shape.
+        """
+
+        record = self._get_record(study_id)
+        return self._poc_contract_state(record).model_dump(mode="json")
+
+    def start_poc_run(
+        self,
+        study_id: str,
+        request: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        record = self._get_record(study_id)
+        parsed = PocRunRequest.model_validate(dict(request))
+        run_id = _new_run_id(record.study_id, "poc-contract-placeholder", _utc_now())
+        response = PocRunResponse(
+            accepted=False,
+            run_id=run_id,
+            run_state=PocRunState.BLOCKED_ERROR,
+            state_endpoint=f"/api/v1/studies/{record.study_id}/poc-state",
+            message=(
+                f"{parsed.target_artifact} POC runner API contract is registered; "
+                "execution is implemented in P0/P2."
+            ),
+        )
+        return response.model_dump(mode="json")
+
+    def get_poc_run(self, study_id: str, run_id: str) -> dict[str, Any]:
+        record = self._get_record(study_id)
+        if not re.fullmatch(r"run-[A-Za-z0-9_-]{8,64}", run_id):
+            raise ApplicationApiError("invalid_request", f"invalid run_id: {run_id}", status_code=400)
+        return {
+            "run_id": run_id,
+            "study_id": record.study_id,
+            "run_state": PocRunState.BLOCKED_ERROR.value,
+            "state_endpoint": f"/api/v1/studies/{record.study_id}/poc-state",
+            "message": "POC run status is contract-only until P0/P2 runner is implemented.",
+        }
+
+    def resume_poc_run(
+        self,
+        study_id: str,
+        run_id: str,
+        request: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        record = self._get_record(study_id)
+        if not re.fullmatch(r"run-[A-Za-z0-9_-]{8,64}", run_id):
+            raise ApplicationApiError("invalid_request", f"invalid run_id: {run_id}", status_code=400)
+        _ = request
+        response = PocRunResponse(
+            accepted=False,
+            run_id=run_id,
+            run_state=PocRunState.BLOCKED_ERROR,
+            state_endpoint=f"/api/v1/studies/{record.study_id}/poc-state",
+            message="POC resume is registered; execution is implemented in P0/P2.",
+        )
+        return response.model_dump(mode="json")
+
     def start_run(
         self,
         study_id: str,
@@ -369,6 +447,311 @@ class ApplicationApiService:
 
     def list_events(self, study_id: str, cursor: str | None = None) -> dict[str, Any]:
         return self.get_audit(study_id, cursor=cursor)
+
+    def _poc_contract_state(self, record: StudyRecord) -> PocState:
+        artifacts, partial_errors = self._list_artifact_summaries(record)
+        artifact_refs = self._poc_artifact_refs(artifacts)
+        pending_reviews = self._pending_review_ids(record)
+        active_run = self._active_run(record)
+        run_state = PocRunState.IDLE
+        blocking_reason = None
+        active_step = PocActiveStep(
+            step_id="source-intake",
+            kind=PocStepKind.INSTRUCTION,
+            title="准备运行 SDTM AE 最小 POC",
+            summary="点击 Run POC 后，P2 runner 将执行到下一可观察状态。",
+            next_instruction="本阶段只冻结 API 合同；真实执行由 P0/P2 实现。",
+            artifact_refs=artifact_refs[:3],
+        )
+        if partial_errors:
+            run_state = PocRunState.BLOCKED_ERROR
+            blocking_reason = "artifact scan returned partial errors"
+            active_step = PocActiveStep(
+                step_id="state-preflight",
+                kind=PocStepKind.ERROR,
+                title="状态预检失败",
+                summary="Application API 扫描 Study 产物时出现 partial error。",
+                blocking_reason=blocking_reason,
+            )
+        elif pending_reviews:
+            run_state = PocRunState.BLOCKED_REVIEW
+            blocking_reason = f"pending review: {pending_reviews[0]}"
+            active_step = PocActiveStep(
+                step_id="review-gate",
+                kind=PocStepKind.REVIEW,
+                title="等待人工 Review Gate",
+                summary="存在待审核 ReviewPacket，需提交 DecisionReceipt 后再 Resume。",
+                blocking_reason=blocking_reason,
+                next_instruction="打开当前 Review，批量提交中文 DecisionReceipt。",
+                review_id=pending_reviews[0],
+            )
+        elif active_run is not None:
+            state = str(active_run.get("run_state", "queued"))
+            if state in {"queued", "running"}:
+                run_state = PocRunState.RUNNING
+                active_step = PocActiveStep(
+                    step_id="runner",
+                    kind=PocStepKind.INSTRUCTION,
+                    title="Runner 已登记",
+                    summary="已有 active run；P2 会将其改为真实执行状态。",
+                    next_instruction="等待 runner 推进或刷新状态。",
+                )
+            elif state == "blocked_error":
+                run_state = PocRunState.BLOCKED_ERROR
+                blocking_reason = str(active_run.get("blocking_reason") or "active run blocked")
+        elif any(ref.relative_path.endswith("output/sdtm/datasets/ae.csv") for ref in artifact_refs):
+            run_state = PocRunState.DONE
+            active_step = PocActiveStep(
+                step_id="canonical-ae",
+                kind=PocStepKind.COMPLETE,
+                title="Canonical AE 已存在",
+                summary="已发现 SDTM AE canonical CSV，可进入用户验收。",
+                artifact_refs=[
+                    ref for ref in artifact_refs if ref.relative_path.endswith("output/sdtm/datasets/ae.csv")
+                ],
+            )
+
+        steps = self._poc_contract_steps(artifact_refs, pending_reviews, run_state)
+        return PocState(
+            study_id=record.study_id,
+            run_id=str(active_run["run_id"]) if active_run else None,
+            run_state=run_state,
+            source=self._poc_source_summary(record),
+            knowledge=self._poc_knowledge_summary(record),
+            blocking_reason=blocking_reason,
+            active_step=active_step,
+            steps=steps,
+            next_actions=self._poc_next_actions(record, run_state),
+            health=self._poc_health(record, partial_errors),
+            events=self._poc_events(record),
+            partial_errors=list(partial_errors),
+        )
+
+    def _poc_artifact_refs(self, artifacts: Iterable[dict[str, Any]]) -> list[PocArtifactRef]:
+        refs: list[PocArtifactRef] = []
+        for artifact in artifacts:
+            display = str(artifact["display_name"])
+            suffix = Path(display).suffix.lower()
+            kind = {
+                ".json": "json",
+                ".csv": "csv",
+                ".txt": "text",
+                ".yaml": "yaml",
+                ".yml": "yaml",
+            }.get(suffix, "unknown")
+            refs.append(
+                PocArtifactRef(
+                    artifact_id=str(artifact["artifact_id"]),
+                    label=display,
+                    relative_path=display,
+                    kind=kind,
+                    sha256=str(artifact["sha256"]),
+                    preview_available=bool(artifact.get("preview_available")),
+                )
+            )
+        return refs
+
+    def _poc_contract_steps(
+        self,
+        artifact_refs: list[PocArtifactRef],
+        pending_reviews: list[str],
+        run_state: PocRunState,
+    ) -> list[PocStep]:
+        by_path = {ref.relative_path: ref for ref in artifact_refs}
+
+        def artifact(path: str) -> list[PocArtifactRef]:
+            return [by_path[path]] if path in by_path else []
+
+        steps = [
+            PocStep(
+                step_id="source-intake",
+                ordinal=1,
+                title="Source Intake",
+                state=PocStepState.DONE if "work/derived/source-intake/source-intake-report-v1.json" in by_path else PocStepState.PENDING,
+                summary="检查输入来源、hash 和 input/ 禁止 JSON。",
+                artifact_refs=artifact("work/derived/source-intake/source-intake-report-v1.json"),
+            ),
+            PocStep(
+                step_id="sas-metadata",
+                ordinal=2,
+                title="Parse SAS7BDAT",
+                state=PocStepState.DONE if "work/derived/edc/source-metadata.json" in by_path else PocStepState.PENDING,
+                summary="解析 SAS7BDAT 标签、格式和 profile。",
+                artifact_refs=artifact("work/derived/edc/source-metadata.json"),
+            ),
+            PocStep(
+                step_id="minimum-information",
+                ordinal=3,
+                title="Minimum Information Plan",
+                state=PocStepState.DONE if "work/derived/plans/minimum-information-sdtm-ae.json" in by_path else PocStepState.PENDING,
+                summary="判断只用现有最小信息能否生成 SDTM AE draft。",
+                artifact_refs=artifact("work/derived/plans/minimum-information-sdtm-ae.json"),
+            ),
+            PocStep(
+                step_id="wiki-context",
+                ordinal=4,
+                title="Wiki Context",
+                state=PocStepState.DONE if "knowledge/promotion_candidates/ae-rule-reuse-context.json" in by_path else PocStepState.PENDING,
+                summary="加载 P9 测试用 Wiki 复用规则上下文。",
+                artifact_refs=artifact("knowledge/promotion_candidates/ae-rule-reuse-context.json"),
+            ),
+            PocStep(
+                step_id="mapping-spec",
+                ordinal=5,
+                title="MappingSpec",
+                state=PocStepState.DONE if "work/mapping/ae-mapping-spec-approved.json" in by_path else PocStepState.PENDING,
+                summary="生成并审核 AE MappingSpec。",
+                artifact_refs=artifact("work/mapping/ae-mapping-spec-candidate.json") + artifact("work/mapping/ae-mapping-spec-approved.json"),
+            ),
+            PocStep(
+                step_id="review-gate",
+                ordinal=6,
+                title="Review Gate",
+                state=PocStepState.BLOCKED_REVIEW if pending_reviews else PocStepState.DONE,
+                kind=PocStepKind.REVIEW if pending_reviews else PocStepKind.INSTRUCTION,
+                summary="阻断式人工审核点。",
+                review_id=pending_reviews[0] if pending_reviews else None,
+                blocking_reason=f"pending review: {pending_reviews[0]}" if pending_reviews else None,
+            ),
+            PocStep(
+                step_id="codegen",
+                ordinal=7,
+                title="Codegen",
+                state=PocStepState.DONE if "programs/edc_to_sdtm/program-manifest.json" in by_path else PocStepState.PENDING,
+                summary="生成 Python/R/SAS 程序 manifest。",
+                artifact_refs=artifact("programs/edc_to_sdtm/program-manifest.json"),
+            ),
+            PocStep(
+                step_id="draft-ae",
+                ordinal=8,
+                title="Draft AE",
+                state=PocStepState.DONE if "output/sdtm/drafts/ae.csv" in by_path else PocStepState.PENDING,
+                summary="运行 Python reference executor 生成 draft AE。",
+                artifact_refs=artifact("output/sdtm/drafts/ae.csv"),
+            ),
+            PocStep(
+                step_id="canonical-ae",
+                ordinal=9,
+                title="Canonical AE",
+                state=PocStepState.DONE if run_state is PocRunState.DONE else PocStepState.PENDING,
+                summary="经 program review 后提升 canonical AE。",
+                artifact_refs=artifact("output/sdtm/datasets/ae.csv"),
+            ),
+        ]
+        if run_state is PocRunState.BLOCKED_ERROR:
+            first_pending = next((step for step in steps if step.state is PocStepState.PENDING), None)
+            if first_pending:
+                first_pending.state = PocStepState.BLOCKED_ERROR
+                first_pending.kind = PocStepKind.ERROR
+        return steps
+
+    def _poc_next_actions(
+        self,
+        record: StudyRecord,
+        run_state: PocRunState,
+    ) -> list[PocNextAction]:
+        return [
+            PocNextAction(
+                action_id=PocActionType.RUN_POC,
+                label="Run POC",
+                enabled=run_state in {PocRunState.IDLE, PocRunState.BLOCKED_ERROR},
+                reason=None if run_state in {PocRunState.IDLE, PocRunState.BLOCKED_ERROR} else f"current state is {run_state.value}",
+                endpoint=f"/api/v1/studies/{record.study_id}/poc-runs",
+            ),
+            PocNextAction(
+                action_id=PocActionType.RESUME,
+                label="Resume",
+                enabled=run_state is PocRunState.BLOCKED_REVIEW,
+                reason=None if run_state is PocRunState.BLOCKED_REVIEW else "no blocking review is active",
+                endpoint=f"/api/v1/studies/{record.study_id}/poc-runs/{{run_id}}/resume",
+            ),
+            PocNextAction(
+                action_id=PocActionType.REFRESH,
+                label="Refresh",
+                enabled=True,
+                method="GET",
+                endpoint=f"/api/v1/studies/{record.study_id}/poc-state",
+            ),
+            PocNextAction(
+                action_id=PocActionType.OPEN_OUTPUT_FOLDER,
+                label="Open output folder",
+                enabled=False,
+                reason="browser cannot open local folders through the API contract",
+                method="GET",
+                endpoint=f"/api/v1/studies/{record.study_id}/artifacts",
+            ),
+        ]
+
+    def _poc_health(
+        self,
+        record: StudyRecord,
+        partial_errors: Iterable[dict[str, Any]],
+    ) -> list[PocHealthItem]:
+        items = [
+            PocHealthItem(
+                check_id="study-visible",
+                severity=PocHealthSeverity.OK,
+                summary="Study directory is visible to Application API",
+                evidence_refs=["project.yaml"],
+            )
+        ]
+        if partial := list(partial_errors):
+            items.append(
+                PocHealthItem(
+                    check_id="artifact-scan",
+                    severity=PocHealthSeverity.ERROR,
+                    summary="Artifact scan returned partial errors",
+                    detail=json.dumps(partial, ensure_ascii=False),
+                )
+            )
+        if not (record.study_dir / "runtime-manifest.yaml").exists():
+            items.append(
+                PocHealthItem(
+                    check_id="runtime-manifest",
+                    severity=PocHealthSeverity.WARNING,
+                    summary="runtime-manifest.yaml is missing; P9.1 POC still runs under bounded test scope",
+                    evidence_refs=["runtime-manifest.draft.yaml"],
+                )
+            )
+        return items
+
+    def _poc_source_summary(self, record: StudyRecord) -> dict[str, Any]:
+        metadata = self._read_optional_json(record, "work/derived/edc/source-metadata.json") or {}
+        source = metadata.get("source", {}) if isinstance(metadata, dict) else {}
+        return {
+            "format": source.get("format"),
+            "relative_path": source.get("relative_path"),
+            "sha256": source.get("sha256"),
+            "row_count": (metadata.get("dataset") or {}).get("row_count") if isinstance(metadata, dict) else None,
+            "column_count": (metadata.get("dataset") or {}).get("column_count") if isinstance(metadata, dict) else None,
+        }
+
+    def _poc_knowledge_summary(self, record: StudyRecord) -> dict[str, Any]:
+        reuse = self._read_optional_json(
+            record,
+            "knowledge/promotion_candidates/ae-rule-reuse-context.json",
+        ) or {}
+        return {
+            "test_only": True,
+            "status": "available" if reuse else "missing",
+            "scope": "p9-poc-test-only",
+            "rule_refs": reuse.get("rule_refs", []) if isinstance(reuse, dict) else [],
+        }
+
+    def _poc_events(self, record: StudyRecord) -> list[PocEvent]:
+        events = []
+        for raw in self._application_events(record)[-20:]:
+            events.append(
+                PocEvent(
+                    event_id=str(raw["event_id"]),
+                    event_type=str(raw["event_type"]),
+                    occurred_at=str(raw["occurred_at"]),
+                    step_id=str(raw.get("stage_id")) if raw.get("stage_id") else None,
+                    summary=str(raw["event_type"]),
+                    related_refs=list(raw.get("related_refs") or []),
+                )
+            )
+        return events
 
     def list_reviews(self, study_id: str) -> dict[str, Any]:
         record = self._get_record(study_id)

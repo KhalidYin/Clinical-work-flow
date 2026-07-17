@@ -49,6 +49,32 @@ def create_app(config: ApplicationApiConfig | None = None) -> FastAPI:
     def get_study_status(study_id: str) -> dict:
         return service.get_status(study_id)
 
+    @app.get("/api/v1/studies/{study_id}/poc-state")
+    def get_poc_state(study_id: str) -> dict:
+        return service.get_poc_state(study_id)
+
+    @app.post("/api/v1/studies/{study_id}/poc-runs", status_code=status.HTTP_202_ACCEPTED)
+    def start_poc_run(
+        study_id: str,
+        request: dict = Body(...),
+    ) -> dict:
+        return service.start_poc_run(study_id, request)
+
+    @app.get("/api/v1/studies/{study_id}/poc-runs/{run_id}")
+    def get_poc_run(study_id: str, run_id: str) -> dict:
+        return service.get_poc_run(study_id, run_id)
+
+    @app.post(
+        "/api/v1/studies/{study_id}/poc-runs/{run_id}/resume",
+        status_code=status.HTTP_202_ACCEPTED,
+    )
+    def resume_poc_run(
+        study_id: str,
+        run_id: str,
+        request: dict = Body(...),
+    ) -> dict:
+        return service.resume_poc_run(study_id, run_id, request)
+
     @app.post("/api/v1/studies/{study_id}/runs", status_code=status.HTTP_202_ACCEPTED)
     def start_run(
         study_id: str,

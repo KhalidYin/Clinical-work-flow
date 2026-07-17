@@ -1,6 +1,6 @@
 ---
 phase_index: 0
-status: planning
+status: active
 created: 2026-07-17
 updated: 2026-07-17
 priority: 1
@@ -127,7 +127,7 @@ syncs_to:
 
 | Phase | 目标 | 预估轮次 | 依赖 | 状态 |
 |-------|------|----------|------|------|
-| P1 | 冻结 POC Runner API 合同与执行状态模型 | 1-2 | P8/P9.1 P5 | pending |
+| P1 | 冻结 POC Runner API 合同与执行状态模型 | 1-2 | P8/P9.1 P5 | completed |
 | P2 | 实现后端 POC runner，打通 start/status/resume | 2-3 | P1 | pending |
 | P3 | 搭建 React Workbench shell 与数据拉取 | 1-2 | P1 | pending |
 | P4 | 实现 timeline、active task、review/resume 主交互 | 2-3 | P2/P3 | pending |
@@ -151,11 +151,11 @@ syncs_to:
 
 ### 完成标准
 
-- [ ] API 合同能表达 idle/running/blocked_review/blocked_error/done。
-- [ ] 每个 UI 展示字段都有 payload 来源，不允许前端推断。
-- [ ] `Run POC` 的后端语义明确：执行到下一可观察状态，而不是仅写 request。
-- [ ] `Resume` 的后端语义明确：必须在 review decision 可用后推进。
-- [ ] 合同测试覆盖 success、blocked_review、blocked_error、partial data。
+- [x] API 合同能表达 idle/running/blocked_review/blocked_error/done。
+- [x] 每个 UI 展示字段都有 payload 来源，不允许前端推断。
+- [x] `Run POC` 的后端语义明确：执行到下一可观察状态，而不是仅写 request。
+- [x] `Resume` 的后端语义明确：必须在 review decision 可用后推进。
+- [x] 合同测试覆盖 success、blocked_review、blocked_error、partial data。
 
 ### 边界（本 Phase 明确不做）
 
@@ -364,6 +364,7 @@ syncs_to:
 | D1 | 现有 `Submit Request` 只写 request 文件，没有 runner 消费 | 规划 | 阻断 | P1/P2 新增 POC runner contract 与执行器 |
 | D2 | 现有 Console 是模块堆叠，不是 work-to-end 前端 | 规划 | 阻断 | P3/P4 重建 React Workbench |
 | D3 | 当前 Review Panel/Console 审核能力与 POC 执行状态割裂 | 规划 | 阻断 | P4 将 active review gate 纳入 Workbench |
+| D4 | P1 合同路由已注册，但 start/resume 仍为 contract-only placeholder | P1 | 预期边界 | P2 替换为真实 POC runner；P1 不允许伪装已执行 |
 
 ## 关键决策记录
 
@@ -373,9 +374,11 @@ syncs_to:
 | 2026-07-17 | 后端联动 | 纯前端壳 / durable request façade / 最小 POC runner | 最小 POC runner | 用户需要点击后真实推进，不是写 request 后等待外部系统 |
 | 2026-07-17 | 实时机制 | WebSocket / polling / 后台 worker | polling | 单机 POC 足够，避免引入协作和长连接复杂度 |
 | 2026-07-17 | 范围 | 完整十阶段平台 / P9.1 SDTM AE POC / 通用多 Study | P9.1 SDTM AE POC | 当前目标是跑通最小链路并让用户验收 |
+| 2026-07-17 | P1 执行边界 | 合同阶段即执行 / 合同先行、执行 P2 | 合同先行、执行 P2 | P1 只冻结 payload 和 route；真实状态推进必须由 P2 runner 负责 |
 
 ## 同步记录
 
 | 日期 | 已同步到 | 说明 |
 |------|----------|------|
 | 2026-07-17 | PLAN.md | 登记为 P0 待开始阻断计划，作为 P9.1/P6 前置修复 |
+| 2026-07-17 | SPEC-21 | 增加 P9.1 POC Workbench/Runner façade 合同边界 |

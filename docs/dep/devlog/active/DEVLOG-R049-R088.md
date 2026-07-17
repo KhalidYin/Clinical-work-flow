@@ -362,3 +362,40 @@
 - `clinical-workflow/tests/study_console/test_console_static.py`, `tests/application_api/test_sample_study_scaffold.py`
 - `clinical-workflow/pyproject.toml`
 - `USAGE.md`, `docs/main/memory/`, `docs/dep/`（本轮提交）
+
+---
+
+### R058 [17:20] [P0-study-console-react-poc-workbench] P1: 冻结 POC Runner API 合同与执行状态模型
+
+#### Done
+
+- 将 `P0-study-console-react-poc-workbench.md` 从 backlog 转入 ongoing，并把 TASK_STATE 切到 P0/P1。
+- 新增 `src/application_api/poc_models.py`，冻结 `poc-state`、`poc-run`、step、next_action、health、event、artifact ref 等 Workbench payload。
+- Application API 新增 `GET /poc-state`、`POST /poc-runs`、`GET /poc-runs/{run_id}`、`POST /poc-runs/{run_id}/resume` route 草案。
+- P1 start/resume 明确返回 contract-only placeholder，不伪装已执行；真实 runner 延后到 P2。
+- SPEC-21 增加 P9.1 POC Workbench/Runner façade 边界，声明其不是通用 Runtime bridge，也不授权多 Study/生产部署。
+
+#### Issues / Blockers
+
+- 首轮验证发现 `PocEvent` import 漏掉，导致 `/poc-state` 路由 NameError；已补 import 并重跑通过。
+- P1 只完成合同和路由草案；用户可见的真实状态推进仍阻断于 P2。
+
+#### Validation
+
+- `python -m pytest clinical-workflow/tests/application_api/test_poc_runner_contract.py -q`（8 passed）。
+- `python -m pytest clinical-workflow/tests/application_api/test_sample_study_scaffold.py::test_sample_study_is_visible_with_source_parser_mapping_and_rule_reviews -q`（1 passed）。
+- `python -m ruff check clinical-workflow/src/application_api clinical-workflow/tests/application_api/test_poc_runner_contract.py`（success）。
+
+#### Next
+
+1. P2 新增真实 `poc_runner.py`，以 P1 payload 形状推进 start/status/resume。
+2. P2 需要执行到 `blocked_review`、`done` 或 `blocked_error`，并生成可见 runner events。
+3. P2 仍不得执行 SAS、任意命令、多 Study 或 WebSocket。
+
+#### Files Changed / Commits
+
+- `clinical-workflow/src/application_api/poc_models.py`
+- `clinical-workflow/src/application_api/app.py`, `service.py`
+- `clinical-workflow/tests/application_api/test_poc_runner_contract.py`
+- `docs/specs/21-Knowledge-Workflow-Integration.md`
+- `docs/dep/`（本轮提交）
