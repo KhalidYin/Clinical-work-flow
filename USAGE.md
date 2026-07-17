@@ -127,9 +127,9 @@ python -m pytest tests/test_p7_ae_workflow_e2e.py -q
 
 运行产物落在测试 Study 副本的 `output/sdtm/`：draft、canonical dataset、program manifest、validation report、execution log、provenance 和 traceability report。AEDECOD、AESEV、AEENRF 仍是显式 gap。
 
-## 6. 启动 P8 Application API 与 Study Console
+## 6. 启动 Application API、P9.1 Workbench 与 legacy Study Console
 
-P8 提供本地 Application API 和静态 Study Console。Console 位于 `/console/`，当前覆盖 Study list、Dashboard、Run panel、Review Inbox、Artifact、Context/Provenance 和 Audit（UI-01 至 UI-07）。
+P8 提供本地 Application API 和 legacy 静态 Study Console。P0 在同一 Application API 上新增 P9.1 `SAMPLE-AE-001` 单机 POC Workbench，入口为 `/workbench/`。`/console/` 仍保留为 legacy fallback，用于查看原 P8 Study list、Dashboard、Run panel、Review Inbox、Artifact、Context/Provenance 和 Audit。
 
 边界：
 
@@ -140,7 +140,7 @@ P8 提供本地 Application API 和静态 Study Console。Console 位于 `/conso
 - Context/Provenance 和 Audit 视图只展示 API 已派生的来源、规则、Study decision、gap、traceability 与事件；浏览器不得自行合并或推断规则。
 - 产物提升仍由 Runtime/Agent 读取 DecisionReceipt 后完成。
 
-推荐从仓库根目录用启动脚本运行：
+推荐从仓库根目录用启动脚本运行；该脚本默认打开 `/workbench/`：
 
 ```powershell
 .\start-study-console.ps1
@@ -150,6 +150,41 @@ P8 提供本地 Application API 和静态 Study Console。Console 位于 `/conso
 ```
 
 脚本会先执行 Application API 预检；默认打开浏览器并把当前 PowerShell 窗口作为本地 API 常驻进程，按 `Ctrl+C` 停止。若 `127.0.0.1:8788` 已有 Study Console 监听，脚本会复用现有服务并提示 owning process，不再重复启动第二个 uvicorn。
+
+### P9.1 `SAMPLE-AE-001` Workbench
+
+Workbench 是当前最小 POC 的 work-to-end 前端。它只服务 `SAMPLE-AE-001` 的 SDTM AE Minimal POC，不是多 Study 平台，也不是生产部署入口。页面只消费 Application API payload：
+
+- `Run POC` 调用 `POST /api/v1/studies/{study_id}/poc-runs`，runner 会真实推进到 `blocked_review`、`blocked_error` 或 `done`，不是只写 request 文件；
+- Active Task 展示当前阻断步骤、blocking reason、ReviewPacket 或 artifact preview；
+- Review Gate 内嵌 blocking ReviewPacket，人工提交正式 DecisionReceipt；Workbench 不写 ConfirmationReceipt、不归档、不提升 canonical；
+- `Resume` 调用 `POST /api/v1/studies/{study_id}/poc-runs/{run_id}/resume`，由后端继续推进到下一 gate、draft/canonical 或错误；
+- Artifact preview 只通过 `GET /artifacts/{artifact_id}` 显示登记 artifact 的 relative path、hash 和 JSON/CSV/TXT/YAML 安全预览，不返回绝对路径；
+- Event/Evidence log 只显示 POC runner/API 返回的事件，不在浏览器推断状态。
+
+当前 Workbench 使用的 Wiki 规则仍声明 `p9-poc-test-only`，仅用于 P9.1 单机 POC / 测试验证，不是生产正式知识，不得作为真实 Study 自动化的独立执行依据。
+
+只读 smoke 检查：
+
+```powershell
+.\scripts\smoke-sample-ae-workbench.ps1
+```
+
+该脚本会启动或复用 loopback Application API，检查 `/workbench/`、`GET /studies` 和 `GET /poc-state`，不会点击 Run，也不会修改 Study。若希望检查后保留服务：
+
+```powershell
+.\scripts\smoke-sample-ae-workbench.ps1 -KeepServer
+```
+
+人工最小验证流程：
+
+1. 运行 `.\start-study-console.ps1`，打开 `http://127.0.0.1:8788/workbench/`；
+2. 确认 Header 显示 `SAMPLE-AE-001`、`sdtm_ae_dataset` 和 `p9-poc-test-only`；
+3. 点击 `Run POC`，观察 Timeline 推进到 Review Gate、done 或 blocked_error；
+4. 若停在 Review Gate，在 Active Task 中审核 finding，提交 DecisionReceipt；
+5. 点击 `Resume`，观察后续 codegen/draft/program review/canonical 或失败原因；
+6. 点击 artifact ref，确认预览显示 relative path、hash 和 preview 内容；
+7. 失败时以 Active Task 的 blocking reason 为准，不通过聊天消息确认工作流状态。
 
 Console 的 Review Inbox 采用队列/详情布局：左侧只显示 ReviewPacket 摘要与状态筛选，右侧显示选中 packet 的详情；finding 默认折叠，避免把完整审阅流在长页面中全部铺开。正式 human-loop 仍以 ReviewPacket → DecisionReceipt 为准，Console 只写 DecisionReceipt，不写 ConfirmationReceipt。
 
@@ -163,7 +198,8 @@ Set-Location .\clinical-workflow
 打开：
 
 ```text
-http://127.0.0.1:8788/console/
+http://127.0.0.1:8788/workbench/
+http://127.0.0.1:8788/console/   # legacy P8 Console
 ```
 
 当前服务默认从仓库根 `clinical-studies/` 读取 Study。如需指向临时或外部 Study container：
@@ -179,6 +215,10 @@ $env:CLINICAL_STUDIES_ROOT = "G:\Project\Python\Clinical work flow\clinical-stud
 ```text
 GET /api/v1/studies
 GET /api/v1/studies/{study_id}/status
+GET /api/v1/studies/{study_id}/poc-state
+POST /api/v1/studies/{study_id}/poc-runs
+GET /api/v1/studies/{study_id}/poc-runs/{run_id}
+POST /api/v1/studies/{study_id}/poc-runs/{run_id}/resume
 POST /api/v1/studies/{study_id}/runs
 GET /api/v1/studies/{study_id}/runs/{run_id}
 POST /api/v1/studies/{study_id}/runs/{run_id}/resume
@@ -206,7 +246,15 @@ Set-Location .\clinical-workflow
 ..\.venv\Scripts\python -m pytest tests/test_p8_application_api_contract.py tests/application_api/test_readonly_api.py tests/application_api/test_write_api.py tests/study_console/test_console_static.py -q
 node --check .\src\study_console\static\app.js
 
-Set-Location ..\clinical-llm-wiki
+# P0 P9.1 React Workbench 与 POC runner
+..\.venv\Scripts\python -m pytest tests/application_api/test_poc_runner_contract.py tests/application_api/test_poc_runner_flow.py tests/study_console/test_workbench_static.py -q
+Set-Location .\src\study_console_react
+npm test
+npm run build
+Set-Location ..\..\..
+.\scripts\smoke-sample-ae-workbench.ps1
+
+Set-Location .\clinical-llm-wiki
 ..\.venv\Scripts\python -m pytest -q
 ..\.venv\Scripts\python -m ruff check .
 ..\.venv\Scripts\python -m scripts.content.generate_workflow_map --check

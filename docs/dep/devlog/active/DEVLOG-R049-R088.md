@@ -516,3 +516,44 @@
 - `clinical-workflow/src/study_console_react/src/App.tsx`, `api.ts`, `types.ts`, `styles.css`, `App.test.tsx`
 - `clinical-workflow/src/study_console_workbench_static/`
 - `docs/dep/`（本轮提交）
+
+---
+
+### R062 [19:15] [P0-study-console-react-poc-workbench] P5: 完成 Artifact Preview、smoke 与文档同步
+
+#### Done
+
+- 新增 Artifact detail 类型和 API client：`GET /api/v1/studies/{study_id}/artifacts/{artifact_id}`。
+- Workbench artifact ref 变为可点击按钮，Active Task 内显示 JSON/YAML、CSV、TXT 安全预览。
+- Artifact Preview 只展示 API 返回的 relative path、SHA-256、状态和 preview；不访问本地文件系统、不暴露绝对路径。
+- 新增 `scripts/smoke-sample-ae-workbench.ps1`：启动或复用 loopback API，检查 `/workbench/`、Study list 和 `poc-state`，不点击 Run、不修改 Study。
+- 同步 USAGE 和 SPEC-06/15/17/20/21，明确 `/workbench/` 是 P9.1 单机 POC 前端，`/console/` 是 legacy fallback。
+- P0 计划标记 complete，并归档到 `docs/dep/plans/complete/`；TASK_STATE 回到 P9.1/P6 用户本机实际运行确认。
+
+#### Issues / Blockers
+
+- TypeScript 在 `ArtifactPreview` effect 内未保留 `artifactId` 非空收窄；已用局部 `currentArtifactId` 固定。
+- P0 完成不等于用户已完成本机 UAT；P9.1/P6 仍需用户实际点击 Run/Review/Resume 并确认。
+
+#### Validation
+
+- `npm test` in `clinical-workflow/src/study_console_react`（4 passed）。
+- `npm run build` in `clinical-workflow/src/study_console_react`（success）。
+- `python -m pytest clinical-workflow/tests/application_api/test_poc_runner_contract.py clinical-workflow/tests/application_api/test_poc_runner_flow.py clinical-workflow/tests/study_console/test_console_static.py clinical-workflow/tests/study_console/test_workbench_static.py -q`（18 passed）。
+- `python -m ruff check clinical-workflow/src/application_api clinical-workflow/tests/study_console/test_workbench_static.py`（success）。
+- `.\scripts\smoke-sample-ae-workbench.ps1`（Smoke OK，run_state=idle，active_step=source-intake）。
+
+#### Next
+
+1. 用户运行 `.\start-study-console.ps1`，在 `/workbench/` 完成人工实际 POC 验收。
+2. 若用户确认跑通，继续 P9.1/P6 收尾并决定是否解锁后续旧 P9/P9.2。
+3. 若用户遇到失败，以 Workbench Active Task blocking reason 和 smoke stderr log 定位，不通过聊天消息替代 workflow 状态。
+
+#### Files Changed / Commits
+
+- `clinical-workflow/src/study_console_react/src/ArtifactPreview.tsx`
+- `clinical-workflow/src/study_console_react/src/App.tsx`, `api.ts`, `types.ts`, `styles.css`, `App.test.tsx`
+- `clinical-workflow/src/study_console_workbench_static/`
+- `scripts/smoke-sample-ae-workbench.ps1`
+- `USAGE.md`, `docs/specs/06-AI-Architecture.md`, `15-Review-Protocol.md`, `17-Code-Generation.md`, `20-Web-Relay.md`, `21-Knowledge-Workflow-Integration.md`
+- `docs/dep/`（本轮提交）

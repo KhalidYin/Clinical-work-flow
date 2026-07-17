@@ -678,3 +678,5 @@ P8 当前主线是：Study Console → Application API → Runtime/Review Protoc
 P8-P4 已落地单机 `/console/` 静态 Study Console：Review Inbox 直接消费 Application API，不引入数据库、WebSocket 或多人冲突合并。SPEC-20 的多人协作、通知和 Relay 数据库存储仍为 P9 以后重新评估项。
 
 P8-P5 后，`/console/` 已覆盖 artifact preview、context/provenance 和 audit timeline。本地用户可在一个 Study 页面中完成查看状态、提交 run request、批量审核、查看产物/追溯/审计的基本操作。但这仍不是原 SPEC-20 描述的共享 Web Relay：没有共享数据库、WebSocket、多审核人冲突合并、用户认证、Git 自动提交服务或内网监听。若后续进入 P9，应以 Application API 为基础新增协作层，而不是恢复本 SPEC 旧版 Relay 状态机。
+
+P0 `/workbench/` 进一步把 P9.1 单机 POC 的 Run → Review → DecisionReceipt → Resume → Artifact Preview 串成 work-to-end 前端，但边界仍相同：它使用 loopback Application API 和文件协议，不引入共享数据库、WebSocket、多人协作或远程监听。它证明的是单机 workflow UX，不是 Web Relay 复活。

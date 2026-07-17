@@ -1,4 +1,5 @@
 import type {
+  ArtifactDetail,
   PocRunResponse,
   PocState,
   ReviewDecisionAccepted,
@@ -29,6 +30,17 @@ export async function getPocState(studyId: string): Promise<PocState> {
     await fetch(`/api/v1/studies/${encodeURIComponent(studyId)}/poc-state`, {
       headers: { Accept: "application/json" },
     }),
+  );
+}
+
+export async function getArtifactDetail(studyId: string, artifactId: string): Promise<ArtifactDetail> {
+  return parseResponse<ArtifactDetail>(
+    await fetch(
+      `/api/v1/studies/${encodeURIComponent(studyId)}/artifacts/${encodeURIComponent(artifactId)}`,
+      {
+        headers: { Accept: "application/json" },
+      },
+    ),
   );
 }
 

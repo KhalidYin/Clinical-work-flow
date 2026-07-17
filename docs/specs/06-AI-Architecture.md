@@ -458,3 +458,15 @@ P8-P5 将 `/console/` 补齐为本地单机 Study Console 完成态，新增 UI-
 这三个视图只消费 Application API payload，不直接读取 Study 文件，也不在浏览器合并或推断规则。浏览器不会访问未登记 artifact、不会返回绝对路径、不会把 draft 当 canonical 展示。
 
 P8-P5 仍不实现 Web-triggered Runtime execution bridge。`POST /runs` 产生的是 durable request/event layer；若需要浏览器提交后自动驱动 Runtime 完整执行，需要后续单独计划，明确进程模型、锁、日志、失败恢复和人类审核交接。
+
+## 15. P0 P9.1 Workbench façade
+
+P0 在 Application API 上增加 `/workbench/` 和 POC runner façade，用于 `SAMPLE-AE-001` 单机 SDTM AE Minimal POC。它是 bounded façade，不是新的 Runtime：
+
+- 只调用已存在的 P9 受控函数和 Review Protocol；
+- 只推进到下一可观察状态：blocked_review、blocked_error 或 done；
+- 不执行任意命令、不执行 SAS、不引入后台 worker/WebSocket/数据库；
+- 状态来源仍是 Study 文件、ReviewQueue、`.application_api/poc_runs/`、POC events 和登记 artifact；
+- 浏览器只消费 API payload，不直接访问文件系统或推断 pipeline。
+
+该 façade 的长期作用是验证“代码平台/浏览器作为 AI workflow 前端”的最小可用形态。若未来要进入多 Study 或内网协作，必须在 P9.2 单独设计权限、锁、审计和部署边界。

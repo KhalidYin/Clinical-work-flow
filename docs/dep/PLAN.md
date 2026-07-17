@@ -8,7 +8,6 @@ updated: 2026-07-17
 
 | # | 子计划 | 文件 | 当前 Phase | 状态 |
 |---|--------|------|------------|------|
-| P0 | Study Console React POC Workbench | [P0-study-console-react-poc-workbench.md](plans/ongoing/P0-study-console-react-poc-workbench.md) | P5 Artifact / Evidence Preview 与验收 | in-progress |
 | P9.1 | Metadata-driven SDTM AE 最小信息单机 POC | [P9-metadata-driven-sdtm-ae-minimal-poc.md](plans/ongoing/P9-metadata-driven-sdtm-ae-minimal-poc.md) | P6 单机快速启动、回归、人工验收与旧 P9 解锁 | in-progress |
 
 ## 待开始
@@ -29,9 +28,9 @@ P8 已完成本地单机 Application API + Study Console 基线。当前先执�
 
 | 日期 | 子计划 | 文件 | 已同步到 |
 |------|--------|------|----------|
+| 2026-07-17 | Study Console React POC Workbench | [P0-study-console-react-poc-workbench.md](plans/complete/P0-study-console-react-poc-workbench.md) | SPEC-06/15/17/20/21、USAGE、DevLog、TASK_STATE |
 | 2026-07-16 | Workflow Application API 与本地 Study Console | [P8-workflow-api-study-console.md](plans/complete/P8-workflow-api-study-console.md) | SPEC-06/15/16/20/21、USAGE、DEPLOY、项目记忆 |
 | 2026-07-16 | AE 数据集知识驱动执行闭环 | [P7-safety-analysis-vertical-workflow.md](plans/complete/P7-safety-analysis-vertical-workflow.md) | SPEC-02/09/15/17/21、USAGE、项目记忆、P7 Review 记录 |
-| 2026-07-15 | SDTMIG 3.4 知识解析质量与引用基线 | [P6-clinical-knowledge-evolution.md](plans/complete/P6-clinical-knowledge-evolution.md) | SPEC-02/07/13/21、USAGE、Wiki README、P6 release artifacts |
 
 ## 延后
 

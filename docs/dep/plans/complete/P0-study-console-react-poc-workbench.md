@@ -1,6 +1,6 @@
 ---
 phase_index: 0
-status: active
+status: complete
 created: 2026-07-17
 updated: 2026-07-17
 priority: 1
@@ -131,7 +131,7 @@ syncs_to:
 | P2 | 实现后端 POC runner，打通 start/status/resume | 2-3 | P1 | completed |
 | P3 | 搭建 React Workbench shell 与数据拉取 | 1-2 | P1 | completed |
 | P4 | 实现 timeline、active task、review/resume 主交互 | 2-3 | P2/P3 | completed |
-| P5 | 实现 artifact/evidence preview、smoke 与文档同步 | 2 | P4 | pending |
+| P5 | 实现 artifact/evidence preview、smoke 与文档同步 | 2 | P4 | completed |
 
 ---
 
@@ -323,11 +323,11 @@ syncs_to:
 
 ### 完成标准
 
-- [ ] `[UI-06]` 能查看 source metadata、minimum plan、mapping spec、program manifest、draft/canonical AE 或缺失原因。
-- [ ] `[UI-07]` 能显示 Run/Review/Resume/artifact events。
-- [ ] 从 clean state 启动 POC，用户可通过浏览器完成到 blocked_review/done/error 的最小闭环。
-- [ ] 失败诊断覆盖依赖缺失、source hash 漂移、Wiki 不可用、Review pending/rejected 和 execution failure。
-- [ ] P9.1/P6 完成标准中与前端交互相关条目可重新验收。
+- [x] `[UI-06]` 能查看 source metadata、minimum plan、mapping spec、program manifest、draft/canonical AE 或缺失原因。
+- [x] `[UI-07]` 能显示 Run/Review/Resume/artifact events。
+- [x] 从 clean state 启动 POC，用户可通过浏览器完成到 blocked_review/done/error 的最小闭环。
+- [x] 失败诊断覆盖依赖缺失、source hash 漂移、Wiki 不可用、Review pending/rejected 和 execution failure。
+- [x] P9.1/P6 完成标准中与前端交互相关条目可重新验收。
 
 ### 边界（本 Phase 明确不做）
 
@@ -368,6 +368,7 @@ syncs_to:
 | D5 | tmp Study 容器运行 POC 时，Wiki 不一定与 `clinical-studies` 同级 | P2 | 阻断 | service 优先使用 Study 同级 Wiki，缺失时回退到 monorepo 根 `clinical-llm-wiki` |
 | D6 | `start-study-console.ps1` 仍指向旧 `/console/`，不能默认进入 work-to-end Workbench | P3 | 阻断 | 脚本默认打开 `/workbench/`；旧 `/console/` 仅作为 legacy fallback |
 | D7 | DecisionReceipt 提交后刷新状态会清空用户成功提示 | P4 | UX 缺陷 | `load({ preserveMessage: true })` 保留提交结果，同时刷新后端状态 |
+| D8 | 用户需要无需进入开发工具即可检查 Workbench 是否可启动 | P5 | 验收缺口 | 新增 `scripts/smoke-sample-ae-workbench.ps1`，只读检查 `/workbench/`、Study list 和 `poc-state` |
 
 ## 关键决策记录
 
@@ -389,3 +390,4 @@ syncs_to:
 | 2026-07-17 | SPEC-21 | 增加 P9.1 POC Workbench/Runner façade 合同边界 |
 | 2026-07-17 | PLAN.md / TASK_STATE / DevLog | P3 React Workbench shell 完成，下一阶段进入 P4 Review Gate 与 Resume 主交互 |
 | 2026-07-17 | PLAN.md / TASK_STATE / DevLog | P4 Review Gate 与 Resume 主交互完成，下一阶段进入 P5 artifact/evidence preview 与 smoke |
+| 2026-07-17 | USAGE / SPEC-06/15/17/20/21 / PLAN.md / TASK_STATE / DevLog | P5 完成并归档 P0；P9.1/P6 可回到用户本机实际运行确认 |

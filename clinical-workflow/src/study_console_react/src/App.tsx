@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { ArtifactPreview } from "./ArtifactPreview";
 import { getPocState, getStudies, resumePocRun, startPocRun } from "./api";
 import { ReviewDecisionForm } from "./ReviewDecisionForm";
 import type { PocNextAction, PocState, PocStep, StudySummary } from "./types";
@@ -13,6 +14,7 @@ export function App() {
   const [studyId, setStudyId] = useState(DEFAULT_STUDY_ID);
   const [pocState, setPocState] = useState<PocState | null>(null);
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
+  const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(null);
   const [loadState, setLoadState] = useState<LoadState>("idle");
   const [message, setMessage] = useState("");
 
@@ -34,9 +36,13 @@ export function App() {
       if (resolvedStudyId) {
         const state = await getPocState(resolvedStudyId);
         setPocState(state);
-        setSelectedStepId((current) => current ?? state.active_step?.step_id ?? state.steps[0]?.step_id);
+        const nextStepId = state.active_step?.step_id ?? state.steps[0]?.step_id ?? null;
+        const nextStep = state.steps.find((step) => step.step_id === nextStepId);
+        setSelectedStepId(nextStepId);
+        setSelectedArtifactId((current) => current ?? nextStep?.artifact_refs[0]?.artifact_id ?? null);
       } else {
         setPocState(null);
+        setSelectedArtifactId(null);
       }
       setLoadState("ready");
     } catch (error) {
@@ -80,6 +86,7 @@ export function App() {
       const state = await getPocState(studyId);
       setPocState(state);
       setSelectedStepId(state.active_step?.step_id ?? state.steps[0]?.step_id ?? null);
+      setSelectedArtifactId(state.active_step?.artifact_refs[0]?.artifact_id ?? null);
       setLoadState("ready");
     } catch (error) {
       setLoadState("error");
@@ -98,6 +105,7 @@ export function App() {
       const state = await getPocState(studyId);
       setPocState(state);
       setSelectedStepId(state.active_step?.step_id ?? state.steps[0]?.step_id ?? null);
+      setSelectedArtifactId(state.active_step?.artifact_refs[0]?.artifact_id ?? null);
       setLoadState("ready");
     } catch (error) {
       setLoadState("error");
@@ -127,16 +135,22 @@ export function App() {
         <WorkflowTimeline
           selectedStepId={selectedStep?.step_id ?? null}
           steps={pocState?.steps ?? []}
-          onSelectStep={setSelectedStepId}
+          onSelectStep={(stepId) => {
+            setSelectedStepId(stepId);
+            const step = pocState?.steps.find((item) => item.step_id === stepId);
+            setSelectedArtifactId(step?.artifact_refs[0]?.artifact_id ?? null);
+          }}
         />
         <ActiveTaskPanel
           activeStep={pocState?.active_step ?? null}
+          selectedArtifactId={selectedArtifactId}
           selectedStep={selectedStep}
           studyId={studyId}
           onDecisionSubmitted={(nextMessage) => {
             setMessage(nextMessage);
             void load({ preserveMessage: true });
           }}
+          onSelectArtifact={setSelectedArtifactId}
         />
       </section>
 
@@ -310,11 +324,15 @@ function WorkflowTimeline({
 function ActiveTaskPanel({
   activeStep,
   onDecisionSubmitted,
+  onSelectArtifact,
+  selectedArtifactId,
   selectedStep,
   studyId,
 }: {
   activeStep: PocState["active_step"];
   onDecisionSubmitted: (message: string) => void;
+  onSelectArtifact: (artifactId: string) => void;
+  selectedArtifactId: string | null;
   selectedStep: PocStep | null;
   studyId: string;
 }) {
@@ -339,7 +357,12 @@ function ActiveTaskPanel({
           {"next_instruction" in display && display.next_instruction ? (
             <p className="notice">{display.next_instruction}</p>
           ) : null}
-          <ArtifactRefs refs={display.artifact_refs ?? []} />
+          <ArtifactRefs
+            refs={display.artifact_refs ?? []}
+            selectedArtifactId={selectedArtifactId}
+            onSelectArtifact={onSelectArtifact}
+          />
+          <ArtifactPreview artifactId={selectedArtifactId} studyId={studyId} />
           {activeStep?.kind === "review" && reviewId ? (
             <ReviewDecisionForm
               reviewId={reviewId}
@@ -405,7 +428,15 @@ function EventLog({ events, health }: { events: PocState["events"]; health: PocS
   );
 }
 
-function ArtifactRefs({ refs }: { refs: PocStep["artifact_refs"] }) {
+function ArtifactRefs({
+  onSelectArtifact,
+  refs,
+  selectedArtifactId,
+}: {
+  onSelectArtifact: (artifactId: string) => void;
+  refs: PocStep["artifact_refs"];
+  selectedArtifactId: string | null;
+}) {
   if (!refs.length) {
     return <p className="empty-state">当前步骤无 artifact ref。</p>;
   }
@@ -413,7 +444,15 @@ function ArtifactRefs({ refs }: { refs: PocStep["artifact_refs"] }) {
     <ul className="artifact-ref-list">
       {refs.map((ref) => (
         <li key={ref.artifact_id}>
-          <span>{ref.label}</span>
+          <button
+            aria-pressed={ref.artifact_id === selectedArtifactId}
+            className="artifact-ref-button"
+            disabled={!ref.preview_available}
+            type="button"
+            onClick={() => onSelectArtifact(ref.artifact_id)}
+          >
+            {ref.label}
+          </button>
           <span className="mono">{shortHash(ref.sha256)}</span>
         </li>
       ))}

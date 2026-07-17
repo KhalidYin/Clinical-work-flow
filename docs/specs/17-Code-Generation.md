@@ -585,3 +585,8 @@ P9.1-P4 已实现该合同。`src/codegen/ae_programs.py` 只接受 status=appro
 文件记录 hash 和执行状态。Python reference adapter 直接解释同一 MappingSpec 的受控
 operation，不执行生成文本；R/SAS 标记为 `generated_not_executed`。当前真实 Study 尚未
 批准 Mapping，因此没有提前生成程序；完整三语言链路由隔离回归 Study 验证。
+
+P0 Workbench 不改变代码生成边界。浏览器点击 `Run POC` 或 `Resume` 只调用 POC runner façade；
+runner 仍必须等 MappingSpec/Program Review 的 DecisionReceipt 可用后，才调用 P9 受控函数生成
+program manifest、Python/R/SAS 文件和 Python reference draft。Workbench 只能预览这些已登记
+artifact，不能直接生成、编辑或执行程序文本。

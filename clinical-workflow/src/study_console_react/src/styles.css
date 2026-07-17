@@ -285,6 +285,67 @@ small {
   padding: 10px 12px;
 }
 
+.artifact-ref-button {
+  background: transparent;
+  border: 0;
+  color: var(--primary);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 0;
+  text-align: left;
+}
+
+.artifact-ref-button:disabled {
+  color: var(--muted-strong);
+  cursor: not-allowed;
+}
+
+.artifact-ref-button[aria-pressed="true"] {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.artifact-preview {
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 16px;
+  margin-top: 20px;
+  padding-top: 20px;
+}
+
+.preview-block {
+  background: #0f172a;
+  border-radius: 14px;
+  color: #e2e8f0;
+  max-height: 420px;
+  overflow: auto;
+  padding: 14px;
+  white-space: pre-wrap;
+}
+
+.csv-preview {
+  overflow: auto;
+}
+
+.csv-preview table {
+  border-collapse: collapse;
+  font-size: 12px;
+  min-width: 100%;
+}
+
+.csv-preview th,
+.csv-preview td {
+  border: 1px solid var(--border);
+  padding: 8px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.csv-preview th {
+  background: #f8fafc;
+}
+
 .review-form {
   border-top: 1px solid var(--border);
   display: grid;

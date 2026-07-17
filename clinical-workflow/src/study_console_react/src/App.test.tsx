@@ -31,7 +31,16 @@ const pocState: PocState = {
     summary: "POC runner 已在审核点暂停。",
     blocking_reason: "pending review",
     review_id: "sdtm_spec_sample_ae_001_mapping_v1_001",
-    artifact_refs: [],
+    artifact_refs: [
+      {
+        artifact_id: "work-mapping-ae-spec",
+        label: "work/mapping/ae-mapping-spec-candidate.json",
+        relative_path: "work/mapping/ae-mapping-spec-candidate.json",
+        kind: "json",
+        sha256: "c".repeat(64),
+        preview_available: true,
+      },
+    ],
   },
   steps: [
     {
@@ -52,7 +61,16 @@ const pocState: PocState = {
       kind: "review",
       summary: "review required",
       review_id: "sdtm_spec_sample_ae_001_mapping_v1_001",
-      artifact_refs: [],
+      artifact_refs: [
+        {
+          artifact_id: "work-mapping-ae-spec",
+          label: "work/mapping/ae-mapping-spec-candidate.json",
+          relative_path: "work/mapping/ae-mapping-spec-candidate.json",
+          kind: "json",
+          sha256: "c".repeat(64),
+          preview_available: true,
+        },
+      ],
       evidence_refs: [],
     },
   ],
@@ -152,6 +170,32 @@ describe("Clinical POC Workbench shell", () => {
       if (url.endsWith("/reviews")) {
         return jsonResponse(reviewsPayload);
       }
+      if (url.endsWith("/artifacts/work-mapping-ae-spec")) {
+        return jsonResponse({
+          artifact: {
+            artifact_id: "work-mapping-ae-spec",
+            stage_id: "sdtm_spec",
+            artifact_state: "draft",
+            artifact_type: "mapping_spec",
+            display_name: "work/mapping/ae-mapping-spec-candidate.json",
+            sha256: "c".repeat(64),
+            provenance_id: null,
+            preview_available: true,
+          },
+          registered_ref: {
+            container_id: "clinical-studies",
+            relative_path: "SAMPLE-AE-001/work/mapping/ae-mapping-spec-candidate.json",
+            sha256: "c".repeat(64),
+          },
+          preview: {
+            kind: "json",
+            value: {
+              domain: "AE",
+              mapping_count: 5,
+            },
+          },
+        });
+      }
       if (url.endsWith("/reviews/sdtm_spec_sample_ae_001_mapping_v1_001/decisions")) {
         const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
         return jsonResponse({
@@ -228,6 +272,19 @@ describe("Clinical POC Workbench shell", () => {
       );
     });
     expect(await screen.findByText(/DecisionReceipt 已写入/)).toBeInTheDocument();
+  });
+
+  it("opens an artifact preview through the Application API", async () => {
+    render(<App />);
+
+    const artifact = await screen.findByRole("button", {
+      name: "work/mapping/ae-mapping-spec-candidate.json",
+    });
+    fireEvent.click(artifact);
+
+    expect(await screen.findByRole("heading", { name: "work/mapping/ae-mapping-spec-candidate.json" })).toBeInTheDocument();
+    expect(await screen.findByText(/"domain": "AE"/)).toBeInTheDocument();
+    expect(screen.getByText("SAMPLE-AE-001/work/mapping/ae-mapping-spec-candidate.json")).toBeInTheDocument();
   });
 });
 

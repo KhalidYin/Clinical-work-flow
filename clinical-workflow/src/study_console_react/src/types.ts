@@ -33,6 +33,32 @@ export interface ArtifactRef {
   preview_available: boolean;
 }
 
+export interface ArtifactSummary {
+  artifact_id: string;
+  stage_id: string;
+  artifact_state: string;
+  artifact_type: string;
+  display_name: string;
+  sha256: string;
+  provenance_id?: string | null;
+  preview_available: boolean;
+}
+
+export type ArtifactPreviewPayload =
+  | { kind: "json" | "yaml"; value: unknown }
+  | { kind: "csv"; rows: Array<Record<string, string>>; row_count: number }
+  | { kind: "text"; value: string };
+
+export interface ArtifactDetail {
+  artifact: ArtifactSummary;
+  registered_ref: {
+    container_id: "clinical-studies";
+    relative_path: string;
+    sha256: string;
+  };
+  preview: ArtifactPreviewPayload | null;
+}
+
 export interface PocStep {
   step_id: string;
   ordinal: number;

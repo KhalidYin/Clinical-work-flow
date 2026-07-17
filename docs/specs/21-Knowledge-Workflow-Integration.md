@@ -743,3 +743,37 @@ DecisionReceipt hash、去标识、approved rule evidence 和 rule-id 冲突；�
 locked snapshot，返回 knowledge ID/version/rule refs，再构造新的 Mapping context rule ref；
 不得读取原 Study 的 promotion candidate 或 DecisionReceipt。真实 `SAMPLE-AE-001` 已写入
 `knowledge/promotion_candidates/ae-rule-reuse-context.json` 作为 P5 复用证明。
+
+---
+
+## 28. P0 P9.1 React Workbench 与最小 POC Runner
+
+P0 为 P9.1 用户验收增加一个 work-to-end 前端：`/workbench/`。它与 P8 `/console/` 共享 Application API，但目标不同：
+
+- `/workbench/` 只服务 `SAMPLE-AE-001` 的 SDTM AE Minimal POC；
+- `/console/` 保留为 legacy Study Console，用于浏览 P8 通用视图；
+- `start-study-console.ps1` 默认打开 `/workbench/`，避免用户继续进入不符合 POC 工作流习惯的模块堆叠页面。
+
+P0 新增 POC runner façade：
+
+```text
+React Workbench
+  ↓ Application API
+POC Runner façade
+  ↓ existing P9 controlled functions
+Source metadata / MinInfo / Mapping Review / Program Review / Canonical
+```
+
+该 façade 不是通用 Runtime bridge：不授权多 Study、RBAC、内网共享、WebSocket、云端部署或任意命令执行。`Run POC` 的语义是“执行到下一可观察状态”，状态只能是 `running`、`blocked_review`、`blocked_error` 或 `done`；不能只写 request 文件后无反馈。
+
+Workbench 的 human-loop 直接复用 Review Protocol：
+
+1. Active Task 展示当前 blocking ReviewPacket；
+2. 人工为所有非 `auto_approved` finding 选择 approved/rejected/modified；
+3. Workbench 调用 `POST /reviews/{review_id}/decisions` 写正式 DecisionReceipt；
+4. Workbench 不写 ConfirmationReceipt、不归档、不提升 canonical；
+5. 用户点击 Resume 后，runner 读取 DecisionReceipt 并推进到下一 gate 或产物。
+
+Artifact preview 只读取 Application API 返回的登记 artifact detail，显示 relative path、SHA-256 和安全 preview。浏览器不能读取本地文件系统、不能访问未登记路径、不能把 draft 当 canonical，也不能基于文件名推断 workflow state。
+
+P9.1 Workbench 当前使用的 Wiki release/snapshot 标记为 `p9-poc-test-only`。它只证明 Study→Wiki→snapshot→clean-room reuse 与 Workbench human-loop 的机制，不等同于生产正式知识批准。

@@ -1183,3 +1183,15 @@ snapshot 尚未进行跨模块 bundle 迁移前的兼容措施，不表示该包
 Study→Wiki→snapshot→clean-room reuse 的机制，不等同于生产正式知识批准。
 
 开发阶段的 Phase 确认和用户单机 UAT 不写 ReviewPacket；Review Panel 只处理实际 Workflow Human-loop。
+
+## 15. P0 Workbench Review Gate
+
+P0 `/workbench/` 在 Active Task 中内嵌当前 blocking ReviewPacket，但仍然只作为 Review Protocol 客户端：
+
+- 读取来源为 `GET /api/v1/studies/{study_id}/reviews` 的 sanitized ReviewPacket projection；
+- 写入只走 `POST /api/v1/studies/{study_id}/reviews/{review_id}/decisions`；
+- 请求必须包含当前 `packet_sha256`，并覆盖所有 `findings_needing_decision()`；
+- Workbench 不写 ConfirmationReceipt、不生成 rework、不提升 canonical artifact；
+- approved/rejected/modified 的后续语义由 Runtime/Agent 或 POC runner 消费 DecisionReceipt 后决定。
+
+因此 Workbench、legacy Study Console、根 Review Panel 和 VSCode Review Panel 是多个客户端入口，不是多套审核协议。若页面显示 DecisionReceipt 已写入但产物未提升，这是预期状态；必须点击 Resume 或由 Runtime 继续消费 decision。
