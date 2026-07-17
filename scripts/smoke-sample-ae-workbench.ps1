@@ -27,7 +27,28 @@ $env:CLINICAL_STUDIES_ROOT = Join-Path $repoRoot "clinical-studies"
 
 Push-Location -LiteralPath $workflowRoot
 try {
-    & $python -c "from src.application_api.app import create_app; create_app(); print('Application API preflight OK')"
+    $preflight = @'
+import importlib.util
+
+missing = [
+    name
+    for name in ("pandas", "pyreadstat")
+    if importlib.util.find_spec(name) is None
+]
+if missing:
+    raise SystemExit(
+        "Missing POC runtime dependencies: "
+        + ", ".join(missing)
+        + '. Run: .\\.venv\\Scripts\\python.exe -m pip install -e ".\\clinical-workflow[dev]"'
+    )
+
+from src.application_api.app import create_app
+
+create_app()
+print("Application API preflight OK")
+print("POC runtime dependency preflight OK")
+'@
+    & $python -c $preflight
 } finally {
     Pop-Location
 }

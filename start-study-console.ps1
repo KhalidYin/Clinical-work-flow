@@ -32,7 +32,28 @@ if ($StudiesRoot) {
 
 Push-Location -LiteralPath $workflowRoot
 try {
-    & $python -c "from src.application_api.app import create_app; create_app(); print('Study Console preflight OK')"
+    $preflight = @'
+import importlib.util
+
+missing = [
+    name
+    for name in ("pandas", "pyreadstat")
+    if importlib.util.find_spec(name) is None
+]
+if missing:
+    raise SystemExit(
+        "Missing POC runtime dependencies: "
+        + ", ".join(missing)
+        + '. Run: .\\.venv\\Scripts\\python.exe -m pip install -e ".\\clinical-workflow[dev]"'
+    )
+
+from src.application_api.app import create_app
+
+create_app()
+print("Study Console preflight OK")
+print("POC runtime dependency preflight OK")
+'@
+    & $python -c $preflight
 } finally {
     Pop-Location
 }

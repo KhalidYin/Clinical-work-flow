@@ -557,3 +557,32 @@
 - `scripts/smoke-sample-ae-workbench.ps1`
 - `USAGE.md`, `docs/specs/06-AI-Architecture.md`, `15-Review-Protocol.md`, `17-Code-Generation.md`, `20-Web-Relay.md`, `21-Knowledge-Workflow-Integration.md`
 - `docs/dep/`（本轮提交）
+
+---
+
+### R063 [19:30] [P9-metadata-driven-sdtm-ae-minimal-poc] QF: 补 Workbench POC 运行依赖预检
+
+#### Done
+
+- 定位用户 `Run POC: blocked_error · No module named 'pandas'` 根因：根目录 `.venv` 未安装 `clinical-workflow` 声明的 `pandas` 与 `pyreadstat` 运行依赖。
+- 已在本机 `.venv` 安装 `pandas 3.0.3`、`pyreadstat 1.3.5` 及其依赖。
+- `start-study-console.ps1` 与 `scripts/smoke-sample-ae-workbench.ps1` 增加 `pandas/pyreadstat` 预检；缺失时直接提示安装命令，避免启动通过但 Run POC 才失败。
+
+#### Validation
+
+- `.venv\Scripts\python.exe -c "import pandas, pyreadstat"`（success）。
+- `.venv\Scripts\python.exe -m pytest clinical-workflow/tests/test_edc_importer.py -q`（7 passed）。
+- `.venv\Scripts\python.exe -m pytest clinical-workflow/tests/application_api/test_poc_runner_flow.py -q`（2 passed）。
+- `.\start-study-console.ps1 -CheckOnly -NoBrowser`（Study Console preflight OK；POC runtime dependency preflight OK）。
+- `.\scripts\smoke-sample-ae-workbench.ps1`（Smoke OK；仍显示旧 failed run 的 `blocked_error`，需重新点击 Run POC 创建新 run）。
+
+#### Next
+
+1. 用户在 Workbench 中点击 `Run POC` 重新运行；旧 `blocked_error` run 记录不会自动消失。
+2. 新 run 应进入 Review Gate、done 或新的明确错误；若仍报错，以 Active Task blocking reason 继续定位。
+
+#### Files Changed / Commits
+
+- `start-study-console.ps1`
+- `scripts/smoke-sample-ae-workbench.ps1`
+- `docs/dep/`（本轮提交）
