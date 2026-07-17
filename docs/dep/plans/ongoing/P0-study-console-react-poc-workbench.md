@@ -128,7 +128,7 @@ syncs_to:
 | Phase | 目标 | 预估轮次 | 依赖 | 状态 |
 |-------|------|----------|------|------|
 | P1 | 冻结 POC Runner API 合同与执行状态模型 | 1-2 | P8/P9.1 P5 | completed |
-| P2 | 实现后端 POC runner，打通 start/status/resume | 2-3 | P1 | pending |
+| P2 | 实现后端 POC runner，打通 start/status/resume | 2-3 | P1 | completed |
 | P3 | 搭建 React Workbench shell 与数据拉取 | 1-2 | P1 | pending |
 | P4 | 实现 timeline、active task、review/resume 主交互 | 2-3 | P2/P3 | pending |
 | P5 | 实现 artifact/evidence preview、smoke 与文档同步 | 2 | P4 | pending |
@@ -194,11 +194,11 @@ syncs_to:
 
 ### 完成标准
 
-- [ ] `POST /poc-runs` 能从 idle 推进到至少 running 后再进入 blocked_review/done/error。
-- [ ] source hash 漂移、metadata 不足、Wiki 不可用、Review pending/rejected 和执行失败均进入 blocked_error 或 blocked_review，并有可读原因。
-- [ ] `GET /poc-state` 能展示 steps、active_step、next_actions、events。
-- [ ] `POST /resume` 在 DecisionReceipt 存在时能继续执行到下一 gate。
-- [ ] 不执行任意用户命令，不执行 SAS，不泄露绝对路径。
+- [x] `POST /poc-runs` 能从 idle 推进到至少 running 后再进入 blocked_review/done/error。
+- [x] source hash 漂移、metadata 不足、Wiki 不可用、Review pending/rejected 和执行失败均进入 blocked_error 或 blocked_review，并有可读原因。
+- [x] `GET /poc-state` 能展示 steps、active_step、next_actions、events。
+- [x] `POST /resume` 在 DecisionReceipt 存在时能继续执行到下一 gate。
+- [x] 不执行任意用户命令，不执行 SAS，不泄露绝对路径。
 
 ### 边界（本 Phase 明确不做）
 
@@ -365,6 +365,7 @@ syncs_to:
 | D2 | 现有 Console 是模块堆叠，不是 work-to-end 前端 | 规划 | 阻断 | P3/P4 重建 React Workbench |
 | D3 | 当前 Review Panel/Console 审核能力与 POC 执行状态割裂 | 规划 | 阻断 | P4 将 active review gate 纳入 Workbench |
 | D4 | P1 合同路由已注册，但 start/resume 仍为 contract-only placeholder | P1 | 预期边界 | P2 替换为真实 POC runner；P1 不允许伪装已执行 |
+| D5 | tmp Study 容器运行 POC 时，Wiki 不一定与 `clinical-studies` 同级 | P2 | 阻断 | service 优先使用 Study 同级 Wiki，缺失时回退到 monorepo 根 `clinical-llm-wiki` |
 
 ## 关键决策记录
 
@@ -375,6 +376,7 @@ syncs_to:
 | 2026-07-17 | 实时机制 | WebSocket / polling / 后台 worker | polling | 单机 POC 足够，避免引入协作和长连接复杂度 |
 | 2026-07-17 | 范围 | 完整十阶段平台 / P9.1 SDTM AE POC / 通用多 Study | P9.1 SDTM AE POC | 当前目标是跑通最小链路并让用户验收 |
 | 2026-07-17 | P1 执行边界 | 合同阶段即执行 / 合同先行、执行 P2 | 合同先行、执行 P2 | P1 只冻结 payload 和 route；真实状态推进必须由 P2 runner 负责 |
+| 2026-07-17 | P2 runner 机制 | 后台 worker/WebSocket/同步推进到下一状态 | 同步推进到下一状态 | 单机 POC 需要可复核闭环，不需要引入后台状态机 |
 
 ## 同步记录
 

@@ -29,10 +29,18 @@ STUDIES_ROOT = PLATFORM_ROOT / "clinical-studies"
 STUDY_ID = "SAMPLE-AE-001"
 
 
-def _client() -> TestClient:
+def _client(container: Path = STUDIES_ROOT) -> TestClient:
     return TestClient(
-        create_app(ApplicationApiConfig(container_roots={"clinical-studies": STUDIES_ROOT}))
+        create_app(ApplicationApiConfig(container_roots={"clinical-studies": container}))
     )
+
+
+def _minimal_container(tmp_path: Path) -> Path:
+    container = tmp_path / "clinical-studies"
+    study = container / STUDY_ID
+    study.mkdir(parents=True)
+    (study / "project.yaml").write_text('study_id: "SAMPLE-AE-001"\n', encoding="utf-8")
+    return container
 
 
 def _minimal_state(run_state: PocRunState) -> PocState:
@@ -144,8 +152,8 @@ def test_poc_state_route_exposes_workbench_payload_without_absolute_paths() -> N
     assert str(PLATFORM_ROOT) not in response.text
 
 
-def test_poc_run_routes_are_contract_registered_but_not_executors_yet() -> None:
-    client = _client()
+def test_poc_run_routes_are_contract_registered_and_return_state_endpoint(tmp_path: Path) -> None:
+    client = _client(_minimal_container(tmp_path))
     start = client.post(
         f"/api/v1/studies/{STUDY_ID}/poc-runs",
         json={"target_artifact": "sdtm_ae_dataset", "intent": "生成 AE POC"},
@@ -153,19 +161,10 @@ def test_poc_run_routes_are_contract_registered_but_not_executors_yet() -> None:
 
     assert start.status_code == 202
     start_payload = start.json()
-    assert start_payload["accepted"] is False
-    assert start_payload["run_state"] == "blocked_error"
+    assert start_payload["accepted"] is True
+    assert start_payload["run_state"] in {"blocked_review", "blocked_error", "done"}
     assert start_payload["state_endpoint"].endswith("/poc-state")
-    assert "P0/P2" in start_payload["message"]
 
     run = client.get(f"/api/v1/studies/{STUDY_ID}/poc-runs/{start_payload['run_id']}")
     assert run.status_code == 200
-    assert run.json()["run_state"] == "blocked_error"
-
-    resume = client.post(
-        f"/api/v1/studies/{STUDY_ID}/poc-runs/{start_payload['run_id']}/resume",
-        json={"reason": "operator_resume"},
-    )
-    assert resume.status_code == 202
-    assert resume.json()["accepted"] is False
-
+    assert run.json()["state_endpoint"].endswith("/poc-state")

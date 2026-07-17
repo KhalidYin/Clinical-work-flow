@@ -399,3 +399,41 @@
 - `clinical-workflow/tests/application_api/test_poc_runner_contract.py`
 - `docs/specs/21-Knowledge-Workflow-Integration.md`
 - `docs/dep/`（本轮提交）
+
+---
+
+### R059 [18:05] [P0-study-console-react-poc-workbench] P2: 实现后端 POC Runner start/status/resume
+
+#### Done
+
+- 新增 `src/application_api/poc_runner.py`，实现受限同步 runner：只服务 `sdtm_ae_dataset`，执行到下一可观察状态。
+- Runner 串联已存在的 P9 受控函数：Source Metadata/Minimum Information、`prepare_metadata_mapping_review`、`run_after_mapping_approval`、`apply_program_review`。
+- `POST /poc-runs` 现在会真实推进到 `blocked_review`、`blocked_error` 或 `done`；不再是 placeholder。
+- `POST /poc-runs/{run_id}/resume` 在 DecisionReceipt 后继续推进到 Program Review 或 canonical；review rejected/modified fail closed。
+- `/poc-state` 改为读取 `.application_api/poc_runs/` 与 `poc_events.jsonl`，暴露 active step、review id、blocking reason 和事件。
+- 对 tmp Study 容器增加 Wiki root fallback：Study 同级 Wiki 优先，否则使用 monorepo 根 `clinical-llm-wiki`。
+
+#### Issues / Blockers
+
+- 首轮 P2 测试进入 `blocked_error`，根因是 tmp Study 容器下没有同级 Wiki，Minimum Information 判断知识不可用；已增加 fallback。
+- Runner 对已有 pending ReviewPacket 不重复覆盖，避免用户审核期间 packet hash 漂移。
+
+#### Validation
+
+- `python -m pytest clinical-workflow/tests/application_api/test_poc_runner_flow.py clinical-workflow/tests/application_api/test_poc_runner_contract.py -q`（10 passed）。
+- `python -m pytest clinical-workflow/tests/application_api/test_sample_study_scaffold.py::test_sample_study_is_visible_with_source_parser_mapping_and_rule_reviews -q`（1 passed）。
+- `python -m ruff check clinical-workflow/src/application_api clinical-workflow/tests/application_api/test_poc_runner_contract.py clinical-workflow/tests/application_api/test_poc_runner_flow.py`（success）。
+
+#### Next
+
+1. P3 搭建 React + Vite + TypeScript Workbench shell。
+2. Workbench 首版读取 `/poc-state`，显示 Header、Run Control、Timeline、Active Task 和 Evidence Log。
+3. P3 不实现完整 Review form 和 artifact preview；留给 P4/P5。
+
+#### Files Changed / Commits
+
+- `clinical-workflow/src/application_api/poc_runner.py`
+- `clinical-workflow/src/application_api/service.py`
+- `clinical-workflow/tests/application_api/test_poc_runner_flow.py`
+- `clinical-workflow/tests/application_api/test_poc_runner_contract.py`
+- `docs/dep/`（本轮提交）

@@ -27,12 +27,19 @@ from src.application_api.poc_models import (
     PocHealthSeverity,
     PocNextAction,
     PocRunRequest,
-    PocRunResponse,
     PocRunState,
+    PocResumeRequest,
     PocStep,
     PocStepKind,
     PocStepState,
     PocState,
+)
+from src.application_api.poc_runner import (
+    PocRunner,
+    PocRunnerError,
+    latest_poc_run,
+    list_poc_events,
+    load_poc_run,
 )
 from src.runtime.pipeline_contract import PipelineStage
 from src.runtime.review_protocol import (
@@ -267,29 +274,31 @@ class ApplicationApiService:
     ) -> dict[str, Any]:
         record = self._get_record(study_id)
         parsed = PocRunRequest.model_validate(dict(request))
-        run_id = _new_run_id(record.study_id, "poc-contract-placeholder", _utc_now())
-        response = PocRunResponse(
-            accepted=False,
-            run_id=run_id,
-            run_state=PocRunState.BLOCKED_ERROR,
-            state_endpoint=f"/api/v1/studies/{record.study_id}/poc-state",
-            message=(
-                f"{parsed.target_artifact} POC runner API contract is registered; "
-                "execution is implemented in P0/P2."
-            ),
-        )
+        try:
+            response = self._poc_runner(record).start(parsed)
+        except PocRunnerError as exc:
+            raise ApplicationApiError(
+                "poc_runner_failed",
+                str(exc),
+                status_code=409,
+            ) from exc
         return response.model_dump(mode="json")
 
     def get_poc_run(self, study_id: str, run_id: str) -> dict[str, Any]:
         record = self._get_record(study_id)
         if not re.fullmatch(r"run-[A-Za-z0-9_-]{8,64}", run_id):
             raise ApplicationApiError("invalid_request", f"invalid run_id: {run_id}", status_code=400)
+        run = load_poc_run(record.study_dir, run_id)
+        if run is None:
+            raise ApplicationApiError("run_not_found", f"POC run not found: {run_id}", status_code=404)
         return {
-            "run_id": run_id,
+            "run_id": run["run_id"],
             "study_id": record.study_id,
-            "run_state": PocRunState.BLOCKED_ERROR.value,
+            "run_state": run["run_state"],
+            "current_step": run.get("current_step"),
+            "blocking_reason": run.get("blocking_reason"),
+            "blocking_review_id": run.get("blocking_review_id"),
             "state_endpoint": f"/api/v1/studies/{record.study_id}/poc-state",
-            "message": "POC run status is contract-only until P0/P2 runner is implemented.",
         }
 
     def resume_poc_run(
@@ -301,14 +310,15 @@ class ApplicationApiService:
         record = self._get_record(study_id)
         if not re.fullmatch(r"run-[A-Za-z0-9_-]{8,64}", run_id):
             raise ApplicationApiError("invalid_request", f"invalid run_id: {run_id}", status_code=400)
-        _ = request
-        response = PocRunResponse(
-            accepted=False,
-            run_id=run_id,
-            run_state=PocRunState.BLOCKED_ERROR,
-            state_endpoint=f"/api/v1/studies/{record.study_id}/poc-state",
-            message="POC resume is registered; execution is implemented in P0/P2.",
-        )
+        parsed = PocResumeRequest.model_validate(dict(request))
+        try:
+            response = self._poc_runner(record).resume(run_id, parsed)
+        except PocRunnerError as exc:
+            raise ApplicationApiError(
+                "poc_runner_failed",
+                str(exc),
+                status_code=409,
+            ) from exc
         return response.model_dump(mode="json")
 
     def start_run(
@@ -452,7 +462,7 @@ class ApplicationApiService:
         artifacts, partial_errors = self._list_artifact_summaries(record)
         artifact_refs = self._poc_artifact_refs(artifacts)
         pending_reviews = self._pending_review_ids(record)
-        active_run = self._active_run(record)
+        active_run = latest_poc_run(record.study_dir)
         run_state = PocRunState.IDLE
         blocking_reason = None
         active_step = PocActiveStep(
@@ -487,18 +497,51 @@ class ApplicationApiService:
             )
         elif active_run is not None:
             state = str(active_run.get("run_state", "queued"))
+            blocking_reason = active_run.get("blocking_reason")
             if state in {"queued", "running"}:
                 run_state = PocRunState.RUNNING
                 active_step = PocActiveStep(
-                    step_id="runner",
+                    step_id=str(active_run.get("current_step") or "runner"),
                     kind=PocStepKind.INSTRUCTION,
-                    title="Runner 已登记",
-                    summary="已有 active run；P2 会将其改为真实执行状态。",
-                    next_instruction="等待 runner 推进或刷新状态。",
+                    title="Runner 正在推进",
+                    summary="POC runner 已开始执行到下一可观察状态。",
+                    next_instruction="刷新状态或等待当前同步执行返回。",
                 )
             elif state == "blocked_error":
                 run_state = PocRunState.BLOCKED_ERROR
                 blocking_reason = str(active_run.get("blocking_reason") or "active run blocked")
+                active_step = PocActiveStep(
+                    step_id=str(active_run.get("current_step") or "runner-error"),
+                    kind=PocStepKind.ERROR,
+                    title="POC Runner 阻断",
+                    summary="Runner 无法继续自动推进。",
+                    blocking_reason=blocking_reason,
+                    next_instruction="修复根因后使用 retry_after_failure resume。",
+                )
+            elif state == "blocked_review":
+                run_state = PocRunState.BLOCKED_REVIEW
+                review_id = str(active_run.get("blocking_review_id") or pending_reviews[0])
+                blocking_reason = str(active_run.get("blocking_reason") or f"pending review: {review_id}")
+                active_step = PocActiveStep(
+                    step_id=str(active_run.get("current_step") or "review-gate"),
+                    kind=PocStepKind.REVIEW,
+                    title="等待人工 Review Gate",
+                    summary="POC runner 已在审核点暂停。",
+                    blocking_reason=blocking_reason,
+                    next_instruction="提交 DecisionReceipt 后点击 Resume。",
+                    review_id=review_id,
+                )
+            elif state == "done":
+                run_state = PocRunState.DONE
+                active_step = PocActiveStep(
+                    step_id=str(active_run.get("current_step") or "canonical-ae"),
+                    kind=PocStepKind.COMPLETE,
+                    title="POC 已完成",
+                    summary="SDTM AE 最小 POC 已完成到 canonical 或已检测到 canonical。",
+                    artifact_refs=[
+                        ref for ref in artifact_refs if ref.relative_path.endswith("output/sdtm/datasets/ae.csv")
+                    ],
+                )
         elif any(ref.relative_path.endswith("output/sdtm/datasets/ae.csv") for ref in artifact_refs):
             run_state = PocRunState.DONE
             active_step = PocActiveStep(
@@ -650,6 +693,8 @@ class ApplicationApiService:
         record: StudyRecord,
         run_state: PocRunState,
     ) -> list[PocNextAction]:
+        active_run = latest_poc_run(record.study_dir)
+        run_id = str(active_run["run_id"]) if active_run else "{run_id}"
         return [
             PocNextAction(
                 action_id=PocActionType.RUN_POC,
@@ -663,7 +708,7 @@ class ApplicationApiService:
                 label="Resume",
                 enabled=run_state is PocRunState.BLOCKED_REVIEW,
                 reason=None if run_state is PocRunState.BLOCKED_REVIEW else "no blocking review is active",
-                endpoint=f"/api/v1/studies/{record.study_id}/poc-runs/{{run_id}}/resume",
+                endpoint=f"/api/v1/studies/{record.study_id}/poc-runs/{run_id}/resume",
             ),
             PocNextAction(
                 action_id=PocActionType.REFRESH,
@@ -740,18 +785,26 @@ class ApplicationApiService:
 
     def _poc_events(self, record: StudyRecord) -> list[PocEvent]:
         events = []
-        for raw in self._application_events(record)[-20:]:
+        for raw in list_poc_events(record.study_dir)[-20:]:
             events.append(
                 PocEvent(
                     event_id=str(raw["event_id"]),
                     event_type=str(raw["event_type"]),
                     occurred_at=str(raw["occurred_at"]),
-                    step_id=str(raw.get("stage_id")) if raw.get("stage_id") else None,
-                    summary=str(raw["event_type"]),
+                    step_id=str(raw.get("step_id")) if raw.get("step_id") else None,
+                    summary=str(raw.get("summary") or raw["event_type"]),
+                    severity=str(raw.get("severity", "ok")),
                     related_refs=list(raw.get("related_refs") or []),
                 )
             )
         return events
+
+    def _poc_runner(self, record: StudyRecord) -> PocRunner:
+        sibling_wiki = record.container_root.parent / "clinical-llm-wiki"
+        if sibling_wiki.exists():
+            return PocRunner(record.study_dir, sibling_wiki)
+        platform_wiki = Path(__file__).resolve().parents[3] / "clinical-llm-wiki"
+        return PocRunner(record.study_dir, platform_wiki)
 
     def list_reviews(self, study_id: str) -> dict[str, Any]:
         record = self._get_record(study_id)
