@@ -8,13 +8,13 @@ updated: 2026-07-17
 
 | # | 子计划 | 文件 | 当前 Phase | 状态 |
 |---|--------|------|------------|------|
+| P0 | Study Console React POC Workbench | [P0-study-console-react-poc-workbench.md](plans/ongoing/P0-study-console-react-poc-workbench.md) | P4 Review Gate 与 Resume 主交互 | in-progress |
 | P9.1 | Metadata-driven SDTM AE 最小信息单机 POC | [P9-metadata-driven-sdtm-ae-minimal-poc.md](plans/ongoing/P9-metadata-driven-sdtm-ae-minimal-poc.md) | P6 单机快速启动、回归、人工验收与旧 P9 解锁 | in-progress |
 
 ## 待开始
 
 | # | 子计划 | 文件 | 预估轮次 | 依赖 |
 |---|--------|------|----------|------|
-| P0 | Study Console React POC Workbench | [P0-study-console-react-poc-workbench.md](plans/ongoing/P0-study-console-react-poc-workbench.md) | 8-12 | P8 完成；P9.1 P5 完成；阻断 P9.1 P6 用户验收 |
 | P9.2 | 多 Study 内网协作与受控部署 | [P9-multi-study-intranet-collaboration.md](plans/backlog/P9-multi-study-intranet-collaboration.md) | 20-32（执行前重估） | P9.1 完成并由用户确认；随后重新确认部署授权 |
 
 > 当前执行视野只展开 P6 → P8：P6 先建立 SDTMIG 3.4 Core/Events/AE 知识解析质量基线；P7 再用“生成 SDTM AE”证明 Wiki + LLM + Workflow 的实际执行价值；P8 在此基础上完成本地 Application API + Study Console。后续知识按同一质量 Gate 随实际 Workflow 缺口增量摄取。

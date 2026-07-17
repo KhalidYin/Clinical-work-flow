@@ -1,0 +1,58 @@
+import type { PocRunResponse, PocState, StudiesResponse } from "./types";
+
+async function parseResponse<T>(response: Response): Promise<T> {
+  const payload = (await response.json().catch(() => ({}))) as T & {
+    message?: string;
+    code?: string;
+  };
+  if (!response.ok) {
+    throw new Error(payload.message ?? payload.code ?? `HTTP ${response.status}`);
+  }
+  return payload;
+}
+
+export async function getStudies(): Promise<StudiesResponse> {
+  return parseResponse<StudiesResponse>(
+    await fetch("/api/v1/studies", { headers: { Accept: "application/json" } }),
+  );
+}
+
+export async function getPocState(studyId: string): Promise<PocState> {
+  return parseResponse<PocState>(
+    await fetch(`/api/v1/studies/${encodeURIComponent(studyId)}/poc-state`, {
+      headers: { Accept: "application/json" },
+    }),
+  );
+}
+
+export async function startPocRun(studyId: string): Promise<PocRunResponse> {
+  return parseResponse<PocRunResponse>(
+    await fetch(`/api/v1/studies/${encodeURIComponent(studyId)}/poc-runs`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        target_artifact: "sdtm_ae_dataset",
+        intent: "生成 SAMPLE-AE-001 SDTM AE 最小 POC",
+      }),
+    }),
+  );
+}
+
+export async function resumePocRun(studyId: string, runId: string): Promise<PocRunResponse> {
+  return parseResponse<PocRunResponse>(
+    await fetch(
+      `/api/v1/studies/${encodeURIComponent(studyId)}/poc-runs/${encodeURIComponent(runId)}/resume`,
+      {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ reason: "review_decision_available" }),
+      },
+    ),
+  );
+}

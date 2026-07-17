@@ -8,6 +8,7 @@ __pycache__/
 dist/
 build/
 node_modules/
+*.tsbuildinfo
 .venv/
 venv/
 *.egg

@@ -437,3 +437,44 @@
 - `clinical-workflow/tests/application_api/test_poc_runner_flow.py`
 - `clinical-workflow/tests/application_api/test_poc_runner_contract.py`
 - `docs/dep/`（本轮提交）
+
+---
+
+### R060 [18:20] [P0-study-console-react-poc-workbench] P3: 搭建 React Workbench shell 与 `/workbench/` 入口
+
+#### Done
+
+- 新增 `src/study_console_react/`，使用 React + Vite + TypeScript 实现 POC Workbench shell。
+- 首屏按 work-to-end 结构组织：Study Header、Run Control、Workflow Timeline、Active Task、Event / Evidence Log。
+- 前端只读取 Application API：`/api/v1/studies`、`/poc-state`、`/poc-runs`、`/resume`；不直接读取文件系统、不推断 run_state。
+- 新增 `src/study_console_workbench_static/` 构建产物，并在 FastAPI 中挂载 `/workbench/`；旧 `/console/` 保留为 legacy fallback。
+- `start-study-console.ps1` 默认打开 `/workbench/`，避免用户继续进入旧模块堆叠 Console。
+- 新增 Workbench 静态服务契约测试，确保 `/workbench/` 与 build assets 可由本地 API 直接访问。
+
+#### Issues / Blockers
+
+- 首轮 Vitest 失败是 UI 中重复文本导致的断言歧义，不是运行逻辑问题；已改为 role-based heading 断言。
+- P3 只完成 shell 和状态读取；Review form、DecisionReceipt 提交、artifact preview 仍在 P4/P5，不提前宣称完成。
+
+#### Validation
+
+- `npm test` in `clinical-workflow/src/study_console_react`（2 passed）。
+- `npm run build` in `clinical-workflow/src/study_console_react`（success）。
+- `python -m pytest clinical-workflow/tests/study_console/test_workbench_static.py -q`（3 passed）。
+- `python -m pytest clinical-workflow/tests/application_api/test_poc_runner_contract.py clinical-workflow/tests/application_api/test_poc_runner_flow.py clinical-workflow/tests/study_console/test_console_static.py clinical-workflow/tests/study_console/test_workbench_static.py -q`（18 passed）。
+- `python -m ruff check clinical-workflow/src/application_api clinical-workflow/tests/study_console/test_workbench_static.py`（success）。
+
+#### Next
+
+1. P4 在 Active Task 内实现当前 blocking ReviewPacket 展示。
+2. P4 提交正式 DecisionReceipt 后刷新状态，并启用 Resume。
+3. P4 验证 rejected/modified 的 fail-closed 行为，不自动批准。
+
+#### Files Changed / Commits
+
+- `clinical-workflow/src/study_console_react/`
+- `clinical-workflow/src/study_console_workbench_static/`
+- `clinical-workflow/src/application_api/app.py`
+- `clinical-workflow/tests/study_console/test_workbench_static.py`
+- `start-study-console.ps1`
+- `docs/dep/`（本轮提交）

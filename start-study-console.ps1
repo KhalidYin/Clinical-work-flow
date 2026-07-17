@@ -11,7 +11,7 @@ $repoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $workflowRoot = Join-Path $repoRoot "clinical-workflow"
 $venvPython = Join-Path $repoRoot ".venv\Scripts\python.exe"
 $python = "python"
-$url = "http://127.0.0.1:$Port/console/"
+$url = "http://127.0.0.1:$Port/workbench/"
 
 if (-not (Test-Path -LiteralPath $workflowRoot)) {
     throw "clinical-workflow folder not found under $repoRoot"

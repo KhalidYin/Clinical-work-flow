@@ -28,7 +28,9 @@ def create_app(config: ApplicationApiConfig | None = None) -> FastAPI:
     )
     service = ApplicationApiService(config or _default_config())
     app.state.application_api_service = service
-    console_static_dir = Path(__file__).resolve().parents[1] / "study_console" / "static"
+    ui_root = Path(__file__).resolve().parents[1]
+    console_static_dir = ui_root / "study_console" / "static"
+    workbench_static_dir = ui_root / "study_console_workbench_static"
 
     @app.exception_handler(ApplicationApiError)
     async def application_api_error_handler(
@@ -40,6 +42,10 @@ def create_app(config: ApplicationApiConfig | None = None) -> FastAPI:
     @app.get("/console", include_in_schema=False)
     def study_console_redirect() -> RedirectResponse:
         return RedirectResponse(url="/console/")
+
+    @app.get("/workbench", include_in_schema=False)
+    def study_workbench_redirect() -> RedirectResponse:
+        return RedirectResponse(url="/workbench/")
 
     @app.get("/api/v1/studies")
     def list_studies() -> dict:
@@ -149,6 +155,13 @@ def create_app(config: ApplicationApiConfig | None = None) -> FastAPI:
             "/console",
             StaticFiles(directory=console_static_dir, html=True),
             name="study-console",
+        )
+
+    if workbench_static_dir.exists():
+        app.mount(
+            "/workbench",
+            StaticFiles(directory=workbench_static_dir, html=True),
+            name="study-workbench",
         )
 
     return app
