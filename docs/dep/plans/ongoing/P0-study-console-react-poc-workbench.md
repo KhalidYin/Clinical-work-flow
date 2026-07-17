@@ -130,7 +130,7 @@ syncs_to:
 | P1 | 冻结 POC Runner API 合同与执行状态模型 | 1-2 | P8/P9.1 P5 | completed |
 | P2 | 实现后端 POC runner，打通 start/status/resume | 2-3 | P1 | completed |
 | P3 | 搭建 React Workbench shell 与数据拉取 | 1-2 | P1 | completed |
-| P4 | 实现 timeline、active task、review/resume 主交互 | 2-3 | P2/P3 | pending |
+| P4 | 实现 timeline、active task、review/resume 主交互 | 2-3 | P2/P3 | completed |
 | P5 | 实现 artifact/evidence preview、smoke 与文档同步 | 2 | P4 | pending |
 
 ---
@@ -279,11 +279,11 @@ syncs_to:
 
 ### 完成标准
 
-- [ ] `[UI-05]` 能展示当前 blocking ReviewPacket、finding、evidence refs 和 packet hash。
-- [ ] 用户可 approve/reject/modified；缺失必要 decision 时不能提交。
-- [ ] 提交后后端写正式 DecisionReceipt，Workbench 不写 ConfirmationReceipt。
-- [ ] Resume 后至少有一个后续 step 状态变化和 event。
-- [ ] Review rejected 时后续步骤不执行，Active Task 显示 rework/error。
+- [x] `[UI-05]` 能展示当前 blocking ReviewPacket、finding、evidence refs 和 packet hash。
+- [x] 用户可 approve/reject/modified；缺失必要 decision 时不能提交。
+- [x] 提交后后端写正式 DecisionReceipt，Workbench 不写 ConfirmationReceipt。
+- [x] Resume 后至少有一个后续 step 状态变化和 event。
+- [x] Review rejected 时后续步骤不执行，Active Task 显示 rework/error。
 
 ### 边界（本 Phase 明确不做）
 
@@ -367,6 +367,7 @@ syncs_to:
 | D4 | P1 合同路由已注册，但 start/resume 仍为 contract-only placeholder | P1 | 预期边界 | P2 替换为真实 POC runner；P1 不允许伪装已执行 |
 | D5 | tmp Study 容器运行 POC 时，Wiki 不一定与 `clinical-studies` 同级 | P2 | 阻断 | service 优先使用 Study 同级 Wiki，缺失时回退到 monorepo 根 `clinical-llm-wiki` |
 | D6 | `start-study-console.ps1` 仍指向旧 `/console/`，不能默认进入 work-to-end Workbench | P3 | 阻断 | 脚本默认打开 `/workbench/`；旧 `/console/` 仅作为 legacy fallback |
+| D7 | DecisionReceipt 提交后刷新状态会清空用户成功提示 | P4 | UX 缺陷 | `load({ preserveMessage: true })` 保留提交结果，同时刷新后端状态 |
 
 ## 关键决策记录
 
@@ -387,3 +388,4 @@ syncs_to:
 | 2026-07-17 | PLAN.md | 登记为 P0 待开始阻断计划，作为 P9.1/P6 前置修复 |
 | 2026-07-17 | SPEC-21 | 增加 P9.1 POC Workbench/Runner façade 合同边界 |
 | 2026-07-17 | PLAN.md / TASK_STATE / DevLog | P3 React Workbench shell 完成，下一阶段进入 P4 Review Gate 与 Resume 主交互 |
+| 2026-07-17 | PLAN.md / TASK_STATE / DevLog | P4 Review Gate 与 Resume 主交互完成，下一阶段进入 P5 artifact/evidence preview 与 smoke |

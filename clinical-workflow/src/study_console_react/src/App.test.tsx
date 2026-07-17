@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
-import type { PocState, StudiesResponse } from "./types";
+import type { PocState, ReviewsResponse, StudiesResponse } from "./types";
 
 const studiesPayload: StudiesResponse = {
   studies: [{ study_id: "SAMPLE-AE-001", title: "Sample AE" }],
@@ -95,15 +95,71 @@ const pocState: PocState = {
   partial_errors: [],
 };
 
+const reviewsPayload: ReviewsResponse = {
+  reviews: [
+    {
+      review_id: "sdtm_spec_sample_ae_001_mapping_v1_001",
+      review_type: "sdtm_mapping_spec",
+      urgency: "blocking",
+      decision_state: "pending",
+      finding_count: 2,
+      packet_sha256: "b".repeat(64),
+      confirmation_sha256: null,
+      agent_summary: "请审核 AE MappingSpec。",
+      source_documents: ["work/mapping/ae-mapping-spec-candidate.json"],
+      created_at: "2026-07-17T00:00:00+00:00",
+      findings: [
+        {
+          finding_id: "F-MAP-001",
+          category: "mapping",
+          severity: "major",
+          location: "AE.AETERM",
+          title: "确认 AETERM 映射",
+          current_value: "n/a",
+          proposed_value: "AE_TERM -> AETERM",
+          rationale: "需要人工确认 source label 与 SDTM target 一致。",
+          evidence_refs: ["SDTMIG-3.4#AE"],
+          auto_approved: false,
+        },
+        {
+          finding_id: "F-MAP-002",
+          category: "metadata",
+          severity: "minor",
+          location: "AE.DOMAIN",
+          title: "DOMAIN 固定值",
+          current_value: "AE",
+          proposed_value: "AE",
+          rationale: "DOMAIN 为固定值。",
+          evidence_refs: [],
+          auto_approved: true,
+        },
+      ],
+    },
+  ],
+  partial_errors: [],
+};
+
 describe("Clinical POC Workbench shell", () => {
   beforeEach(() => {
-    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url.endsWith("/api/v1/studies")) {
         return jsonResponse(studiesPayload);
       }
       if (url.endsWith("/poc-state")) {
         return jsonResponse(pocState);
+      }
+      if (url.endsWith("/reviews")) {
+        return jsonResponse(reviewsPayload);
+      }
+      if (url.endsWith("/reviews/sdtm_spec_sample_ae_001_mapping_v1_001/decisions")) {
+        const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+        return jsonResponse({
+          review_id: body.review_id,
+          decision_receipt_id: "sdtm_spec_sample_ae_001_mapping_v1_001_decision",
+          written: true,
+          idempotency_key: "ui-review-test-key",
+        }, 201);
       }
       if (url.endsWith("/poc-runs/run-poc-test/resume")) {
         return jsonResponse({
@@ -132,6 +188,7 @@ describe("Clinical POC Workbench shell", () => {
     expect(screen.getByText("p9-poc-test-only")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "MappingSpec" })).toBeInTheDocument();
     expect(screen.getByText("run_blocked_review")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "sdtm_spec_sample_ae_001_mapping_v1_001" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Run POC" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Resume" })).toBeEnabled();
   });
@@ -148,6 +205,29 @@ describe("Clinical POC Workbench shell", () => {
         expect.objectContaining({ method: "POST" }),
       );
     });
+  });
+
+  it("renders blocking review packet and submits a DecisionReceipt", async () => {
+    render(<App />);
+
+    expect(await screen.findByText("确认 AETERM 映射")).toBeInTheDocument();
+    const submit = screen.getByRole("button", { name: "Submit DecisionReceipt" });
+    expect(submit).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Approve all required findings" }));
+    expect(submit).toBeEnabled();
+    fireEvent.click(submit);
+
+    await waitFor(() => {
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "/api/v1/studies/SAMPLE-AE-001/reviews/sdtm_spec_sample_ae_001_mapping_v1_001/decisions",
+        expect.objectContaining({
+          method: "POST",
+          body: expect.stringContaining('"decision":"approved"'),
+        }),
+      );
+    });
+    expect(await screen.findByText(/DecisionReceipt 已写入/)).toBeInTheDocument();
   });
 });
 

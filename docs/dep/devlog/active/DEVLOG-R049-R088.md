@@ -478,3 +478,41 @@
 - `clinical-workflow/tests/study_console/test_workbench_static.py`
 - `start-study-console.ps1`
 - `docs/dep/`（本轮提交）
+
+---
+
+### R061 [18:45] [P0-study-console-react-poc-workbench] P4: 实现 Workbench 内嵌 Review Gate 与 Resume 主交互
+
+#### Done
+
+- 新增 Workbench Review 类型和 API client：`GET /reviews`、`POST /reviews/{review_id}/decisions`。
+- Active Task 在当前 `active_step.kind=review` 时嵌入 ReviewDecisionForm，显示 review_id、packet hash、finding、evidence refs 和 agent summary。
+- Review form 支持逐条 `approved` / `rejected` / `modified`，并提供 `Approve all required findings` 快捷操作。
+- 前端验证缺失 decision、modified 缺少 modified_value、rejected 缺少 rejection_reason 或 human_correction 的场景；验证失败时不能提交。
+- 提交后只调用正式 Review Decision API 写 DecisionReceipt；Workbench 不写 ConfirmationReceipt。
+- DecisionReceipt 写入成功后刷新 POC 状态并保留成功提示，用户可继续点击 Resume。
+
+#### Issues / Blockers
+
+- Vitest 暴露提交成功后父级刷新会清空成功提示；已增加 `load({ preserveMessage: true })` 保留提示。
+- P4 仍不实现 artifact preview；artifact 预览和完整 smoke 留给 P5。
+
+#### Validation
+
+- `npm test` in `clinical-workflow/src/study_console_react`（3 passed）。
+- `npm run build` in `clinical-workflow/src/study_console_react`（success）。
+- `python -m pytest clinical-workflow/tests/study_console/test_workbench_static.py clinical-workflow/tests/application_api/test_poc_runner_flow.py clinical-workflow/tests/application_api/test_poc_runner_contract.py -q`（13 passed）。
+- `python -m ruff check clinical-workflow/src/application_api clinical-workflow/tests/study_console/test_workbench_static.py`（success）。
+
+#### Next
+
+1. P5 实现 Artifact Preview：JSON/CSV/TXT/YAML 安全预览。
+2. P5 完成 event/evidence log 与 artifact refs 联动。
+3. P5 增加用户 smoke 指南和最终文档同步；P0 完成后再回到 P9.1/P6 用户实际运行确认。
+
+#### Files Changed / Commits
+
+- `clinical-workflow/src/study_console_react/src/ReviewDecisionForm.tsx`
+- `clinical-workflow/src/study_console_react/src/App.tsx`, `api.ts`, `types.ts`, `styles.css`, `App.test.tsx`
+- `clinical-workflow/src/study_console_workbench_static/`
+- `docs/dep/`（本轮提交）

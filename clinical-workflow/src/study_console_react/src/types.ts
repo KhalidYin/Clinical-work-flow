@@ -107,3 +107,75 @@ export interface PocRunResponse {
   state_endpoint: string;
   message: string;
 }
+
+export type ReviewDecisionState = "pending" | "decided" | "confirmed" | "rejected" | "stale" | "invalid";
+
+export type FindingDecisionValue = "approved" | "rejected" | "modified";
+
+export type RejectionReason =
+  | "wrong_domain_assignment"
+  | "incorrect_variable_mapping"
+  | "incorrect_derivation"
+  | "wrong_ct_value"
+  | "missing_variable"
+  | "incorrect_population"
+  | "incorrect_method"
+  | "insufficient_evidence"
+  | "other";
+
+export interface ReviewFindingSummary {
+  finding_id: string;
+  category: string;
+  severity: string;
+  location: string;
+  title: string;
+  current_value: string;
+  proposed_value: string;
+  rationale: string;
+  evidence_refs: string[];
+  auto_approved: boolean;
+}
+
+export interface ReviewSummary {
+  review_id: string;
+  review_type: string;
+  urgency: "normal" | "blocking";
+  decision_state: ReviewDecisionState;
+  finding_count: number;
+  packet_sha256: string;
+  confirmation_sha256?: string | null;
+  agent_summary?: string | null;
+  source_documents: string[];
+  created_at?: string | null;
+  findings: ReviewFindingSummary[];
+}
+
+export interface ReviewsResponse {
+  reviews: ReviewSummary[];
+  partial_errors: Array<Record<string, unknown>>;
+}
+
+export interface FindingDecisionPayload {
+  finding_id: string;
+  decision: FindingDecisionValue;
+  modified_value?: string;
+  rejection_reason?: RejectionReason;
+  human_correction?: string;
+  reference?: string;
+  comment?: string | null;
+}
+
+export interface ReviewDecisionRequest {
+  review_id: string;
+  packet_sha256: string;
+  reviewer: string;
+  decisions: FindingDecisionPayload[];
+  general_notes?: string;
+}
+
+export interface ReviewDecisionAccepted {
+  review_id: string;
+  decision_receipt_id: string;
+  written: boolean;
+  idempotency_key: string;
+}

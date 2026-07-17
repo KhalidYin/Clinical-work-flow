@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { getPocState, getStudies, resumePocRun, startPocRun } from "./api";
+import { ReviewDecisionForm } from "./ReviewDecisionForm";
 import type { PocNextAction, PocState, PocStep, StudySummary } from "./types";
 
 type LoadState = "idle" | "loading" | "ready" | "error";
@@ -15,9 +16,11 @@ export function App() {
   const [loadState, setLoadState] = useState<LoadState>("idle");
   const [message, setMessage] = useState("");
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (options?: { preserveMessage?: boolean }) => {
     setLoadState("loading");
-    setMessage("");
+    if (!options?.preserveMessage) {
+      setMessage("");
+    }
     try {
       const studiesPayload = await getStudies();
       const nextStudies = studiesPayload.studies;
@@ -126,7 +129,15 @@ export function App() {
           steps={pocState?.steps ?? []}
           onSelectStep={setSelectedStepId}
         />
-        <ActiveTaskPanel activeStep={pocState?.active_step ?? null} selectedStep={selectedStep} />
+        <ActiveTaskPanel
+          activeStep={pocState?.active_step ?? null}
+          selectedStep={selectedStep}
+          studyId={studyId}
+          onDecisionSubmitted={(nextMessage) => {
+            setMessage(nextMessage);
+            void load({ preserveMessage: true });
+          }}
+        />
       </section>
 
       <EventLog events={pocState?.events ?? []} health={pocState?.health ?? []} />
@@ -298,12 +309,17 @@ function WorkflowTimeline({
 
 function ActiveTaskPanel({
   activeStep,
+  onDecisionSubmitted,
   selectedStep,
+  studyId,
 }: {
   activeStep: PocState["active_step"];
+  onDecisionSubmitted: (message: string) => void;
   selectedStep: PocStep | null;
+  studyId: string;
 }) {
   const display = selectedStep ?? activeStep;
+  const reviewId = activeStep?.review_id ?? display?.review_id ?? null;
   return (
     <section className="panel active-task" aria-labelledby="active-task-title">
       <div className="panel-heading">
@@ -324,6 +340,13 @@ function ActiveTaskPanel({
             <p className="notice">{display.next_instruction}</p>
           ) : null}
           <ArtifactRefs refs={display.artifact_refs ?? []} />
+          {activeStep?.kind === "review" && reviewId ? (
+            <ReviewDecisionForm
+              reviewId={reviewId}
+              studyId={studyId}
+              onSubmitted={onDecisionSubmitted}
+            />
+          ) : null}
         </article>
       ) : (
         <div className="empty-state">当前没有 active task。</div>

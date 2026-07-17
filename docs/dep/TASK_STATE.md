@@ -1,8 +1,8 @@
 # 当前任务状态
 
 - 计划：`P0-study-console-react-poc-workbench.md`
-- 当前阶段：P4 — Review Gate 与 Resume 主交互
-- 当前目标：在 React Workbench 的 Active Task 中展示当前 blocking ReviewPacket，提交正式 DecisionReceipt，并通过 Resume 推进到后续 POC runner 状态。
+- 当前阶段：P5 — Artifact / Evidence Preview 与验收
+- 当前目标：在 Workbench 中展示 artifact preview 和 event/evidence log，补 smoke/用户验收说明，并同步主文档。
 - 已确认入口：最终用户实测从 `start-study-console.ps1` 进入；P2 只提供低层 parser 与隔离 Smoke，不实现 Console Runtime bridge。
 - 已确认来源：`clinical-studies/SAMPLE-AE-001/input/edc/ae09jun2025.sas7bdat`，大小 19,667,968 bytes，SHA-256 `2a6d72e9e5fa4bb8e3cc14b0c412fce3c37e519f3ab9105cdcff33ba031e8749`。
 - 当前事实：P5 已完成。真实 `SAMPLE-AE-001` 的 reusable-rule DecisionReceipt 已全部 approved，已生成 `ae-rule-governance-approved.json`、测试用 Wiki card、release、snapshot 和 clean-room reuse context。
@@ -12,5 +12,6 @@
 - 当前事实：`start-study-console.ps1` 已增加预检、`-CheckOnly`、`-NoBrowser` 和端口复用提示；脚本常驻运行属于预期行为。
 - 当前事实：用户确认当前 Console 不符合 work-to-end POC 工作流习惯；已批准轻量 React Workbench + 最小 POC Runner 方向，登记为 `docs/dep/plans/backlog/P0-study-console-react-poc-workbench.md`。
 - 当前事实：P3 已完成 React + Vite + TypeScript Workbench shell，`start-study-console.ps1` 默认打开 `/workbench/`；旧 `/console/` 保留为 legacy fallback。
+- 当前事实：P4 已完成 Active Task 内嵌 blocking ReviewPacket、Approve/Reject/Modified DecisionReceipt 提交和 Resume 主交互；Workbench 不写 ConfirmationReceipt。
 - 边界：P0 只修复 `SAMPLE-AE-001` 单机 POC work-to-end 前端和最小 runner；不得进入多 Study、内网协作、RBAC、WebSocket 或生产部署。
-- 下一 Gate：完成 P4 Review Gate + Resume 主交互并提交；P0 全部完成后才回到 P9.1/P6 用户实际运行确认。
+- 下一 Gate：完成 P5 Artifact/Evidence preview、smoke 和文档同步；P0 全部完成后才回到 P9.1/P6 用户实际运行确认。

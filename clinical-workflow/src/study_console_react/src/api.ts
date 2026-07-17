@@ -1,4 +1,11 @@
-import type { PocRunResponse, PocState, StudiesResponse } from "./types";
+import type {
+  PocRunResponse,
+  PocState,
+  ReviewDecisionAccepted,
+  ReviewDecisionRequest,
+  ReviewsResponse,
+  StudiesResponse,
+} from "./types";
 
 async function parseResponse<T>(response: Response): Promise<T> {
   const payload = (await response.json().catch(() => ({}))) as T & {
@@ -52,6 +59,35 @@ export async function resumePocRun(studyId: string, runId: string): Promise<PocR
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ reason: "review_decision_available" }),
+      },
+    ),
+  );
+}
+
+export async function getReviews(studyId: string): Promise<ReviewsResponse> {
+  return parseResponse<ReviewsResponse>(
+    await fetch(`/api/v1/studies/${encodeURIComponent(studyId)}/reviews`, {
+      headers: { Accept: "application/json" },
+    }),
+  );
+}
+
+export async function submitReviewDecision(
+  studyId: string,
+  reviewId: string,
+  payload: ReviewDecisionRequest,
+): Promise<ReviewDecisionAccepted> {
+  return parseResponse<ReviewDecisionAccepted>(
+    await fetch(
+      `/api/v1/studies/${encodeURIComponent(studyId)}/reviews/${encodeURIComponent(reviewId)}/decisions`,
+      {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "Idempotency-Key": `ui-review-${Date.now()}-${reviewId}`,
+        },
+        body: JSON.stringify(payload),
       },
     ),
   );
