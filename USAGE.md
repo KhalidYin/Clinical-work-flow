@@ -155,36 +155,52 @@ P8 提供本地 Application API 和 legacy 静态 Study Console。P0 在同一 A
 
 Workbench 是当前最小 POC 的 work-to-end 前端。它只服务 `SAMPLE-AE-001` 的 SDTM AE Minimal POC，不是多 Study 平台，也不是生产部署入口。页面只消费 Application API payload：
 
-- `Run POC` 调用 `POST /api/v1/studies/{study_id}/poc-runs`，runner 会真实推进到 `blocked_review`、`blocked_error` 或 `done`，不是只写 request 文件；
-- Active Task 展示当前阻断步骤、blocking reason、ReviewPacket 或 artifact preview；
+- `Run POC` 调用 `POST /api/v1/studies/{study_id}/poc-runs`，runner 会真实推进到 `blocked` 或 `done`，并用 `blocker.kind` 区分阻断类型，不是只写 request 文件；
+- compact Run Bar 展示 Input readiness、当前状态、结构化 blocker 和唯一可用主动作；
+- 横向 Stage Rail 只显示 Runner ledger 状态，点击阶段后由主工作区承接详情；
+- Main Workspace 在“当前任务 / 输入与证据 / 人工审核 / 产物预览”之间切换；
 - Review Gate 内嵌 blocking ReviewPacket，人工提交正式 DecisionReceipt；Workbench 不写 ConfirmationReceipt、不归档、不提升 canonical；
 - `Resume` 调用 `POST /api/v1/studies/{study_id}/poc-runs/{run_id}/resume`，由后端继续推进到下一 gate、draft/canonical 或错误；
+- input/system 阻断修复后使用 `Retry current step`，普通 Run 不复用 blocked run；
 - Artifact preview 只通过 `GET /artifacts/{artifact_id}` 显示登记 artifact 的 relative path、hash 和 JSON/CSV/TXT/YAML 安全预览，不返回绝对路径；
 - Event/Evidence log 只显示 POC runner/API 返回的事件，不在浏览器推断状态。
 
 当前 Workbench 使用的 Wiki 规则仍声明 `p9-poc-test-only`，仅用于 P9.1 单机 POC / 测试验证，不是生产正式知识，不得作为真实 Study 自动化的独立执行依据。
 
-只读 smoke 检查：
+只读 API preflight：
 
 ```powershell
 .\scripts\smoke-sample-ae-workbench.ps1
 ```
 
-该脚本会启动或复用 loopback Application API，检查 `/workbench/`、`GET /studies` 和 `GET /poc-state`，不会点击 Run，也不会修改 Study。若希望检查后保留服务：
+该脚本会启动或复用 loopback Application API，检查 `/workbench/`、`GET /studies` 和 `GET /poc-state`。它不会启动浏览器、不会点击 Run、不会写入 Study，不能作为页面流程验收。若希望检查后保留服务：
 
 ```powershell
 .\scripts\smoke-sample-ae-workbench.ps1 -KeepServer
 ```
 
+自动浏览器 E2E（仅本地开发验收，需要 `agent-browser`）：
+
+```powershell
+.\scripts\e2e-sample-ae-workbench.ps1
+.\scripts\e2e-sample-ae-workbench.ps1 -Headed -KeepArtifacts
+```
+
+E2E 会在 `.tmp/workbench-e2e/` 创建两个可丢弃 Study，真实点击 Run、输入证据、两次 Review/
+DecisionReceipt、Resume、canonical artifact，并验证 source hash blocker 修复后的 Retry。默认成功后清理；
+失败或 `-KeepArtifacts` 时保留目录供诊断。它不会操作真实 `SAMPLE-AE-001`，也不是监管验证。
+
 人工最小验证流程：
 
 1. 运行 `.\start-study-console.ps1`，打开 `http://127.0.0.1:8788/workbench/`；
 2. 确认 Header 显示 `SAMPLE-AE-001`、`sdtm_ae_dataset` 和 `p9-poc-test-only`；
-3. 点击 `Run POC`，观察 Timeline 推进到 Review Gate、done 或 blocked_error；
-4. 若停在 Review Gate，在 Active Task 中审核 finding，提交 DecisionReceipt；
-5. 点击 `Resume`，观察后续 codegen/draft/program review/canonical 或失败原因；
-6. 点击 artifact ref，确认预览显示 relative path、hash 和 preview 内容；
-7. 失败时以 Active Task 的 blocking reason 为准，不通过聊天消息确认工作流状态。
+3. 点击 `Run POC`，确认 Input Check 报告登记 source、hash、parser、行列数、metadata/profile 和目标依赖；
+4. 观察横向 Stage Rail 与 Main Workspace 指向同一 active/blocked 阶段；
+5. 若进入 Review，在“人工审核”中逐项核对 evidence，提交 DecisionReceipt 后点击 `Resume`；
+6. 若为 input/system blocker，先修复页面指出的原因，再点击 `Retry current step`，不要再次普通 Run；
+7. 在后续 Program Review 重复审核与 Resume，直到 Canonical AE；
+8. 在“产物预览”确认 `output/sdtm/datasets/ae.csv` 的 relative path、hash 和 CSV preview；
+9. 失败时以 blocker 的 stage/check/影响/证据/recovery action 为准，不通过聊天消息替代工作流状态。
 
 Console 的 Review Inbox 采用队列/详情布局：左侧只显示 ReviewPacket 摘要与状态筛选，右侧显示选中 packet 的详情；finding 默认折叠，避免把完整审阅流在长页面中全部铺开。正式 human-loop 仍以 ReviewPacket → DecisionReceipt 为准，Console 只写 DecisionReceipt，不写 ConfirmationReceipt。
 
@@ -253,6 +269,7 @@ npm test
 npm run build
 Set-Location ..\..\..
 .\scripts\smoke-sample-ae-workbench.ps1
+.\scripts\e2e-sample-ae-workbench.ps1
 
 Set-Location .\clinical-llm-wiki
 ..\.venv\Scripts\python -m pytest -q

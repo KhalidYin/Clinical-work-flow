@@ -398,6 +398,7 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 - P1-P5 完成，Engine/Wiki/Study tests 和 lint 通过。
 - Review Panel 快速启动能力可用，runtime Human-loop 中文内容可核对。
 - 本地原始二进制仍未进入 Git。
+- P0 Workbench 状态/阻断修正与 disposable browser E2E 已完成；真实 Study UAT 已解锁但尚未由用户确认。
 
 ### 产出
 
@@ -452,7 +453,8 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 | D6 | R050 将 `source_intake` 加入 released Review Schema，但未同步 1.1.0 bundle hash；clean HEAD 可复现实际 hash `40d30d...` 与登记 `72e5fe...` 不一致 | P2 | 既有风险 | P2 不改旧 hash、不触发 Wiki snapshot 迁移；Source Metadata 保持 importer-local prerelease contract。P6 全量发布前必须建立协调迁移或恢复一致性 |
 | D7 | `SAMPLE-AE-001/.review_queue` 残留早期开发阶段 pending packet，导致 Console 误显示 blocked review | P6 | 阻断 | 清理遗留 pending packet；后续真实 Workflow 内容审核必须由 Runtime 重新生成 ReviewPacket |
 | D8 | Console Review Inbox 将 packet 和 finding 全量长页面铺开，不符合工业审阅流 | P6 | 增强 | 改为队列摘要 + 选中详情 + finding 折叠；ReviewPanel/Console 只承担正式 human-loop，不作为开发确认页面 |
-| D9 | 当前 Console 与最小 POC runner 脱节，`Submit Request` 无后续执行反馈，无法支撑用户 work-to-end 验收 | P6 | 阻断 | 新增 `P0-study-console-react-poc-workbench.md`；完成前不进行 P9.1/P6 用户验收 |
+| D9 | 当前 Console 与最小 POC runner 脱节，`Submit Request` 无后续执行反馈，无法支撑用户 work-to-end 验收 | P6 | 阻断 | 已由 `P0-study-console-react-poc-workbench.md` 建立 `/workbench/` 与同步 runner façade |
+| D10 | 首版 Workbench 真实页面仍存在 step 状态矛盾、阻断证据不足和三栏挤压 | P6 | 阻断 | `P0-study-workbench-flow-correction.md` 已完成 Runner ledger、Input Check、结构化 blocker、单一主工作区和 disposable browser E2E；下一 Gate 为用户真实 Study UAT |
 
 ## 关键决策记录
 
@@ -477,3 +479,4 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 | 2026-07-16 | SPEC-02/09/21、Study README、memory | P3 Minimum Information、raw-only、局部阻断和 Stage 非完成语义 |
 | 2026-07-17 | SPEC-15/21、TASK_STATE、memory | P5 规则治理候选、Study Review 待批、Wiki 发布前置和 clean-room reuse 测试边界 |
 | 2026-07-17 | SPEC-15/21、TASK_STATE、memory | P5 approved candidate、测试用 Wiki release/snapshot 和 clean-room reuse 完成 |
+| 2026-07-17 | SPEC-06/15/17/21、USAGE、memory、DevLog | P0 Workbench 修正与浏览器 E2E 完成；P6 回到用户真实 `SAMPLE-AE-001` 单机验收 |

@@ -590,3 +590,16 @@ P0 Workbench 不改变代码生成边界。浏览器点击 `Run POC` 或 `Resume
 runner 仍必须等 MappingSpec/Program Review 的 DecisionReceipt 可用后，才调用 P9 受控函数生成
 program manifest、Python/R/SAS 文件和 Python reference draft。Workbench 只能预览这些已登记
 artifact，不能直接生成、编辑或执行程序文本。
+
+### 11.1 P0 执行前证据与失败边界
+
+代码生成前必须完成 target-scoped Input Check，并把 source hash、parser、行列数、SAS
+label/format/value-label availability 和关键变量 missing profile 写入 run ledger/evidence。
+缺少 Protocol/SAP/CRF 不阻断当前 raw-only AE target；缺少登记 AE source、hash 漂移、parser
+不可用或格式不受支持则在 `input-check` 步骤 fail closed。
+
+生成或 reference execution 后的确定性数据问题必须形成结构化 validation blocker/ReviewPacket，
+不得只返回 `blocked_error` 或通用 codegen exception。例如空 `AETERM` 必须报告受影响行数、变量、
+validation artifact 和恢复动作，且不得由生成器自动过滤。Program Review 继续引用 MappingSpec hash、
+program manifest、Python/R/SAS 文件 hash、reference output 和 validation evidence；批准后才允许推进
+canonical AE。

@@ -464,9 +464,29 @@ P8-P5 仍不实现 Web-triggered Runtime execution bridge。`POST /runs` 产生�
 P0 在 Application API 上增加 `/workbench/` 和 POC runner façade，用于 `SAMPLE-AE-001` 单机 SDTM AE Minimal POC。它是 bounded façade，不是新的 Runtime：
 
 - 只调用已存在的 P9 受控函数和 Review Protocol；
-- 只推进到下一可观察状态：blocked_review、blocked_error 或 done；
+- 只推进到下一可观察状态：`blocked` 或 `done`；阻断差异由 `blocker.kind` 表达；
 - 不执行任意命令、不执行 SAS、不引入后台 worker/WebSocket/数据库；
 - 状态来源仍是 Study 文件、ReviewQueue、`.application_api/poc_runs/`、POC events 和登记 artifact；
 - 浏览器只消费 API payload，不直接访问文件系统或推断 pipeline。
 
 该 façade 的长期作用是验证“代码平台/浏览器作为 AI workflow 前端”的最小可用形态。若未来要进入多 Study 或内网协作，必须在 P9.2 单独设计权限、锁、审计和部署边界。
+
+## 16. P0 Workbench 状态权威与可观察阻断
+
+P0 修正后，POC runner 持久化 schema v2 step ledger；`poc-state.steps[]`、`active_step`、
+`blocker` 和 `next_actions[]` 是 Workbench 的状态权威。前端和 Application API 不再根据
+artifact 是否存在推断步骤完成，也不把错误附加到“第一个 pending step”。
+
+- 公开 run state 只使用 `idle/running/blocked/done`；输入、验证、审核和系统差异由
+  `blocker.kind` 表达。
+- Input Check 在执行前报告登记文件、hash、parser、行列数、SAS metadata 可用性、关键变量
+  profile 与目标依赖；当前 raw-only SDTM AE 目标只要求 AE source，Protocol/SAP/CRF 为
+  `not_required`。
+- 普通 `Run POC` 不复用 blocked run；恢复动作只能来自 `next_actions[]`，并明确区分
+  `Retry current step`、`Review` 和 `Resume`。
+- Workbench 采用 compact Run Bar、横向 Stage Rail 和单一 Main Workspace；Review、输入证据和
+  artifact preview 是主工作区子视图，Activity 默认折叠。
+
+自动验收分三层：API preflight 只证明服务和 payload 可达；React 测试证明组件行为；
+`scripts/e2e-sample-ae-workbench.ps1` 在可丢弃 StudiesRoot 中用真实浏览器点击完整流程。
+三者都不替代用户对真实 `SAMPLE-AE-001` 的单机 UAT，也不构成监管验证。

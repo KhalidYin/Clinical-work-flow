@@ -1,6 +1,6 @@
 ---
 phase_index: 0
-status: in-progress
+status: complete
 created: 2026-07-17
 updated: 2026-07-17
 priority: 1
@@ -126,16 +126,16 @@ syncs_to:
 
 ## 视觉与行为验收清单
 
-- [ ] `[UI-01][UI-02]` 首屏先显示输入就绪度、总体状态、阻断摘要和唯一主操作，测试用 Wiki 声明始终可见。
-- [ ] `[UI-02]` idle/running/blocked/done 的 Run、Retry、Review 和 Refresh 动作符合后端 `next_actions[]`；blocked 状态不得静默复用失败 run。
-- [ ] `[UI-03]` 阶段条横向展示，active/blocked 定位准确；不得出现 `Active Task=Codegen`、`Source Intake=blocked` 的矛盾。
-- [ ] `[UI-04]` 主工作区占主要宽度，默认展示当前任务；blocker 明确阶段、检查、数量、影响、证据和恢复动作。
-- [ ] `[UI-05]` Review finding 不长页面全量铺开；DecisionReceipt 提交、Retry/Resume 和 ConfirmationReceipt 权威边界保持不变。
-- [ ] `[UI-06]` Input Check 能区分文件可用、parser 可用、metadata 警告和目标依赖；缺少 Protocol/SAP/CRF 不阻断 raw-only POC。
-- [ ] `[UI-07]` Event/Evidence 默认折叠；展开后只显示选定 run/step 的可追溯事件。
-- [ ] `[UI-01]` 至 `[UI-07]` 覆盖默认、加载、空数据、错误、部分数据和窄屏；不适用状态必须在测试中说明理由。
-- [ ] 所有设计偏差均已记录且为 `approved`。
-- [ ] React 行为测试覆盖核心操作结果；真实浏览器 E2E 必须点击 Run、Review、Retry/Resume 和 Artifact Preview，不能只检查标题或 HTTP 200。
+- [x] `[UI-01][UI-02]` 首屏先显示输入就绪度、总体状态、阻断摘要和唯一主操作，测试用 Wiki 声明始终可见。
+- [x] `[UI-02]` idle/running/blocked/done 的 Run、Retry、Review 和 Refresh 动作符合后端 `next_actions[]`；blocked 状态不得静默复用失败 run。
+- [x] `[UI-03]` 阶段条横向展示，active/blocked 定位准确；不得出现 `Active Task=Codegen`、`Source Intake=blocked` 的矛盾。
+- [x] `[UI-04]` 主工作区占主要宽度，默认展示当前任务；blocker 明确阶段、检查、数量、影响、证据和恢复动作。
+- [x] `[UI-05]` Review finding 不长页面全量铺开；DecisionReceipt 提交、Retry/Resume 和 ConfirmationReceipt 权威边界保持不变。
+- [x] `[UI-06]` Input Check 能区分文件可用、parser 可用、metadata 警告和目标依赖；缺少 Protocol/SAP/CRF 不阻断 raw-only POC。
+- [x] `[UI-07]` Event/Evidence 默认折叠；展开后只显示选定 run/step 的可追溯事件。
+- [x] `[UI-01]` 至 `[UI-07]` 覆盖默认、加载、空数据、错误、部分数据和窄屏；不适用状态必须在测试中说明理由。
+- [x] 所有设计偏差均已记录且为 `approved`。
+- [x] React 行为测试覆盖核心操作结果；真实浏览器 E2E 必须点击 Run、Review、Retry/Resume 和 Artifact Preview，不能只检查标题或 HTTP 200。
 
 ---
 
@@ -146,7 +146,7 @@ syncs_to:
 | P1 | 冻结 Runner step ledger、Input Check 与结构化 blocker 合同 | 2-3 | 已完成旧 P0 | completed |
 | P2 | 实现 Input Check、步骤状态权威和阻断/Retry 流程 | 2-4 | P1 | completed |
 | P3 | 重构 UI-02、横向 UI-03 和主工作区 UI-04 | 2-3 | P1/P2 | completed |
-| P4 | 完成真实浏览器 E2E、文档同步和用户 UAT 前置验收 | 2-3 | P2/P3 | in-progress |
+| P4 | 完成真实浏览器 E2E、文档同步和用户 UAT 前置验收 | 2-3 | P2/P3 | completed |
 
 > 提交规则：每个 Phase 完成 Gate 后单独提交一次代码；不得把两个 Phase 合并成一个提交。
 
@@ -321,13 +321,13 @@ syncs_to:
 
 ### 完成标准
 
-- [ ] API preflight smoke 与 browser E2E 名称、输出和文档职责明确区分。
-- [ ] 浏览器 E2E 实际点击 `[UI-02]` Run/Retry、`[UI-03]` step、`[UI-05]` Review submit 和 `[UI-06]` Artifact Preview。
-- [ ] E2E 断言页面显示的 active/blocked stage 与 API ledger 一致，不只检查标题或 HTTP 200。
-- [ ] E2E 覆盖成功路径、validation/review blocker 和 system/input blocker 至少各一个 fixture。
-- [ ] E2E 未修改用户真实 Study；测试产生的运行状态可定位并可恢复。
-- [ ] `06/15/17/21`、`USAGE.md`、PLAN、DevLog 和 memory 口径一致。
-- [ ] 完成 P4 后才向用户重新发起 `SAMPLE-AE-001` 本机 UAT；用户明确确认前 P9.1/P6 不得完成。
+- [x] API preflight smoke 与 browser E2E 名称、输出和文档职责明确区分。
+- [x] 浏览器 E2E 实际点击 `[UI-02]` Run/Retry、`[UI-03]` step、`[UI-05]` Review submit 和 `[UI-06]` Artifact Preview。
+- [x] E2E 断言页面显示的 active/blocked stage 与 API ledger 一致，不只检查标题或 HTTP 200。
+- [x] E2E 覆盖成功路径、validation/review blocker 和 system/input blocker 至少各一个 fixture。
+- [x] E2E 未修改用户真实 Study；测试产生的运行状态可定位并可恢复。
+- [x] `06/15/17/21`、`USAGE.md`、PLAN、DevLog 和 memory 口径一致。
+- [x] 完成 P4 后才向用户重新发起 `SAMPLE-AE-001` 本机 UAT；用户明确确认前 P9.1/P6 不得完成。
 
 ### 边界（本 Phase 明确不做）
 
@@ -369,6 +369,8 @@ syncs_to:
 | D5 | 旧 smoke 未操作真实页面却被用于完成 P0 Gate | 规划 | 阻断 | P4 区分 API preflight 与真实浏览器 E2E，重新执行 UI Gate |
 | D6 | 三栏布局和长 Event Log 挤压审核工作区 | 规划 | 阻断 | P3 落地 compact Run Bar、horizontal rail、main workspace 和 activity drawer |
 | D7 | 同一 recovery action 同时出现在 Run Bar 与 blocker banner | P3 | UX | 收敛为 Run Bar 唯一动作入口；blocker banner 只解释原因、影响与证据 |
+| D8 | browser E2E 在长 Input 页面中语义点击视口外 Review 按钮时返回成功但未触发事件 | P4 | 测试 | 先滚动实际操作区进入视口，再执行真实点击；未使用 DOM 直接触发业务事件 |
+| D9 | E2E 断言使用旧 canonical 路径 `output/sdtm/ae.csv` | P4 | 测试 | 按已登记 artifact 合同修正为 `output/sdtm/datasets/ae.csv` |
 
 ## 关键决策记录
 
@@ -387,3 +389,4 @@ syncs_to:
 | 日期 | 已同步到 | 说明 |
 |------|----------|------|
 | 2026-07-17 | PLAN.md | 登记为 P9.1/P6 用户 UAT 的 P0 前置阻断计划；完成前暂停验收 |
+| 2026-07-17 | SPEC-06/15/17/21、USAGE、memory、DevLog | 同步 Runner ledger、Input Check、结构化 blocker、浏览器 E2E 与用户 UAT 边界；P0 完成但 P9.1/P6 仍待用户确认 |

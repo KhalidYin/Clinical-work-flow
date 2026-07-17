@@ -1186,7 +1186,7 @@ Study→Wiki→snapshot→clean-room reuse 的机制，不等同于生产正式�
 
 ## 15. P0 Workbench Review Gate
 
-P0 `/workbench/` 在 Active Task 中内嵌当前 blocking ReviewPacket，但仍然只作为 Review Protocol 客户端：
+P0 `/workbench/` 在 Main Workspace 的人工审核子视图中内嵌当前 blocking ReviewPacket，但仍然只作为 Review Protocol 客户端：
 
 - 读取来源为 `GET /api/v1/studies/{study_id}/reviews` 的 sanitized ReviewPacket projection；
 - 写入只走 `POST /api/v1/studies/{study_id}/reviews/{review_id}/decisions`；
@@ -1195,3 +1195,20 @@ P0 `/workbench/` 在 Active Task 中内嵌当前 blocking ReviewPacket，但仍�
 - approved/rejected/modified 的后续语义由 Runtime/Agent 或 POC runner 消费 DecisionReceipt 后决定。
 
 因此 Workbench、legacy Study Console、根 Review Panel 和 VSCode Review Panel 是多个客户端入口，不是多套审核协议。若页面显示 DecisionReceipt 已写入但产物未提升，这是预期状态；必须点击 Resume 或由 Runtime 继续消费 decision。
+
+### 15.1 Validation blocker、Retry 与 Resume
+
+POC runner 不再把 deterministic validation finding 包装成通用 codegen exception。需要人类
+判断时，它写入新的 blocking ReviewPacket，并在 `blocker` 中记录 stage、check code、影响变量、
+数量和 evidence refs；证据变化必须产生新的 review ID，旧 DecisionReceipt 不得被静默复用。
+
+Workbench 的 Review 子视图一次聚焦一个 finding，并在提交区汇总必审项。提交成功只表示
+DecisionReceipt 已写入：
+
+1. `Review` 只打开当前 blocking packet，不推进步骤；
+2. `Resume` 只在当前 packet 的 DecisionReceipt 可用时消费决定；
+3. `Retry current step` 用于修复 input/system 类可恢复阻断，不代替人工审核；
+4. ConfirmationReceipt、rework 和 canonical promotion 仍由 runner/Runtime 执行，不由浏览器直接写入。
+
+浏览器 E2E 使用临时 Study 中的测试 DecisionReceipt 验证该协议；真实 Study 的决定必须由用户在
+实际 human-loop 中提交，自动测试不得代替。

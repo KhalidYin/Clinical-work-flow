@@ -700,3 +700,43 @@
 - `clinical-workflow/src/study_console_react/src/`
 - `clinical-workflow/src/study_console_workbench_static/`
 - `docs/dep/PLAN.md`, `docs/dep/plans/ongoing/P0-study-workbench-flow-correction.md`, `docs/dep/devlog/`（本轮提交）
+
+---
+
+### R067 [21:10] [P0-study-workbench-flow-correction] P4: 完成 disposable browser E2E 并解锁用户 UAT
+
+#### Done
+
+- 将 `smoke-sample-ae-workbench.ps1` 明确收敛为只读 API preflight；输出声明不执行浏览器动作，不写 Study。
+- 新增 `e2e-sample-ae-workbench.ps1`，在 `.tmp/workbench-e2e/` 创建可丢弃 StudiesRoot，不复用或修改真实 `SAMPLE-AE-001`。
+- 浏览器完整链实际点击 Run、Input Evidence、Mapping Review、DecisionReceipt、Resume、Program Review、Resume 和 Canonical Artifact。
+- 恢复链实际制造 source hash blocker，修复 inventory 后点击 Retry current step，并确认只恢复到 Mapping Review。
+- E2E 成功时清理本次临时 Study；失败或 `-KeepArtifacts` 时保留可定位目录。`agent-browser` 仅是本地开发验收依赖。
+- 同步 SPEC-06/15/17/21、USAGE、P9.1/P6、memory 和计划口径；P0 归档，真实 Study UAT 重新解锁但仍需用户明确确认。
+
+#### Issues / Blockers
+
+- E2E 初次卡在 Review 的根因是长 Input 页面使顶部操作区离开视口；`agent-browser` 语义点击返回成功但未触发 React 事件。脚本现先滚动实际操作区，再执行真实点击，没有用 DOM 直接触发业务事件。
+- 最后 artifact 断言曾使用旧路径 `output/sdtm/ae.csv`；按注册合同修正为 `output/sdtm/datasets/ae.csv`。
+- 失败诊断目录仍可能留在 ignored `.tmp/workbench-e2e/`；不影响仓库或真实 Study，可按路径核验后清理。
+- P9.1/P6 仍被用户真实单机 UAT 阻断；自动 E2E 不替代用户审核，也不授权 P9.2。
+
+#### Validation
+
+- `e2e-sample-ae-workbench.ps1 -Port 8792`（Browser E2E OK；完整链和 input blocker recovery 均通过）。
+- `smoke-sample-ae-workbench.ps1 -Port 8794`（API preflight OK；明确 no browser actions；真实 Study 只读）。
+- React `npm test`（8 passed）与 `npm run build`（success）。
+- Python targeted regression（74 passed）；Workbench static contract（4 passed）；`ruff`（通过）。
+- PowerShell 两个脚本 parse（通过）；`git diff --check`（通过）。
+
+#### Next
+
+1. 用户运行 `start-study-console.ps1`，按 USAGE 在真实 `SAMPLE-AE-001` 完成 Input Check、Review/Resume 与 artifact 核对。
+2. 用户明确确认“已跑通”后，关闭 P9.1/P6；在此之前不得完成 P6 或解锁 P9.2。
+
+#### Files Changed / Commits
+
+- `scripts/smoke-sample-ae-workbench.ps1`, `scripts/e2e-sample-ae-workbench.ps1`
+- `clinical-workflow/tests/study_console/test_workbench_static.py`
+- `USAGE.md`, `docs/specs/06-AI-Architecture.md`, `15-Review-Protocol.md`, `17-Code-Generation.md`, `21-Knowledge-Workflow-Integration.md`
+- `docs/main/memory/`, `docs/dep/`（本轮提交）

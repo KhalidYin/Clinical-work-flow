@@ -3,6 +3,9 @@ param(
     [switch]$KeepServer
 )
 
+# API preflight only. This script does not operate the browser and is not a
+# work-to-end UI acceptance test. Use e2e-sample-ae-workbench.ps1 for that.
+
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
@@ -99,7 +102,7 @@ try {
         throw "Unexpected POC target_artifact: $($state.target_artifact)"
     }
 
-    Write-Host "Smoke OK"
+    Write-Host "API preflight OK (no browser actions were executed)"
     Write-Host "Workbench: $baseUrl/workbench/"
     Write-Host "Study: $($state.study_id)"
     Write-Host "Run state: $($state.run_state)"
@@ -107,7 +110,7 @@ try {
 } finally {
     if ($startedProcess -and -not $KeepServer) {
         Stop-Process -Id $startedProcess.Id -Force -ErrorAction SilentlyContinue
-        Write-Host "Stopped smoke Application API process $($startedProcess.Id)"
+        Write-Host "Stopped API preflight process $($startedProcess.Id)"
     } elseif ($startedProcess -and $KeepServer) {
         Write-Host "Kept Application API running at $baseUrl with PID $($startedProcess.Id)"
     }

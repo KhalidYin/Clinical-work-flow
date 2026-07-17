@@ -8,7 +8,6 @@ updated: 2026-07-17
 
 | # | 子计划 | 文件 | 当前 Phase | 状态 |
 |---|--------|------|------------|------|
-| P0 | Study Workbench 流程与阻断可观测性修正 | [P0-study-workbench-flow-correction.md](plans/ongoing/P0-study-workbench-flow-correction.md) | P4 真实浏览器 E2E、文档同步与 UAT 前置验收 | in-progress |
 | P9.1 | Metadata-driven SDTM AE 最小信息单机 POC | [P9-metadata-driven-sdtm-ae-minimal-poc.md](plans/ongoing/P9-metadata-driven-sdtm-ae-minimal-poc.md) | P6 单机快速启动、回归、人工验收与旧 P9 解锁 | in-progress |
 
 ## 待开始
@@ -21,7 +20,7 @@ updated: 2026-07-17
 
 P8 已完成本地单机 Application API + Study Console 基线。当前先执行 P9.1，以本地 SAS7BDAT、Minimum Information Planner、Wiki 辅助 MappingSpec、三语言程序产物和知识复用完成真实单机 POC。自动测试通过不能解锁 P9.2；只有用户明确确认本机跑通后，才可重新确认“内网协作/多用户/Runtime bridge”范围。
 
-2026-07-17 真实浏览器检查发现已完成的首版 React Workbench 仍存在 step 状态矛盾、blocked run 被普通 Run 重复复用、Input Check/验证证据不足和三栏挤压 Review 工作区等问题。新增 P0 `Study Workbench 流程与阻断可观测性修正` 作为 P9.1/P6 用户 UAT 的前置阻断；P9.1 继续保持 in-progress，但该 P0 完成真实浏览器 E2E 前不得再次要求用户验收或解锁 P9.2。
+2026-07-17 P0 `Study Workbench 流程与阻断可观测性修正` 已完成：Runner ledger、Input Check、结构化 blocker、Run/Retry 语义、单一主工作区和可丢弃 Study 浏览器 E2E 均已通过。P9.1/P6 现在回到用户真实 `SAMPLE-AE-001` 单机 UAT；用户明确确认前仍保持 in-progress，不能解锁 P9.2。
 
 ## 最近完成
 
@@ -29,9 +28,9 @@ P8 已完成本地单机 Application API + Study Console 基线。当前先执�
 
 | 日期 | 子计划 | 文件 | 已同步到 |
 |------|--------|------|----------|
+| 2026-07-17 | Study Workbench 流程与阻断可观测性修正 | [P0-study-workbench-flow-correction.md](plans/complete/P0-study-workbench-flow-correction.md) | SPEC-06/15/17/21、USAGE、memory、DevLog、P9.1/P6 |
 | 2026-07-17 | Study Console React POC Workbench | [P0-study-console-react-poc-workbench.md](plans/complete/P0-study-console-react-poc-workbench.md) | SPEC-06/15/17/20/21、USAGE、DevLog、TASK_STATE |
 | 2026-07-16 | Workflow Application API 与本地 Study Console | [P8-workflow-api-study-console.md](plans/complete/P8-workflow-api-study-console.md) | SPEC-06/15/16/20/21、USAGE、DEPLOY、项目记忆 |
-| 2026-07-16 | AE 数据集知识驱动执行闭环 | [P7-safety-analysis-vertical-workflow.md](plans/complete/P7-safety-analysis-vertical-workflow.md) | SPEC-02/09/15/17/21、USAGE、项目记忆、P7 Review 记录 |
 
 ## 延后
 

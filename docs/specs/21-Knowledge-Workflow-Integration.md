@@ -303,9 +303,9 @@ Runtime-context 必须默认 approved-only，支持结构化 filters + SQLite FT
 P9.1 为 `SAMPLE-AE-001` 增加一个受限的本地 Workbench/Runner façade，用于完成 SDTM AE 最小 POC 的浏览器端 work-to-end 验收。该 façade 的权威边界如下：
 
 - `GET /api/v1/studies/{study_id}/poc-state` 是 React Workbench 的唯一状态入口；前端不得从文件名、绝对路径、旧 Console 文本或本地目录结构推断 run state。
-- `POST /api/v1/studies/{study_id}/poc-runs` 的语义是“执行到下一可观察状态”：`running`、`blocked_review`、`blocked_error` 或 `done`，不得仅写 durable request 后停止。
+- `POST /api/v1/studies/{study_id}/poc-runs` 的语义是“执行到下一可观察状态”：`running`、`blocked` 或 `done`；阻断差异由 `blocker.kind` 表达，不得仅写 durable request 后停止。
 - `POST /api/v1/studies/{study_id}/poc-runs/{run_id}/resume` 只能在 Review Gate 或可恢复错误后继续执行；Review Gate 必须已有正式 DecisionReceipt。
-- POC payload 必须显式提供 Study Header、Timeline、Active Task、Next Actions、Health、Event/Evidence Log 和 Artifact refs 所需字段；前端展示值必须来自 payload。
+- POC payload 必须显式提供 Study Header、step ledger、Main Workspace、Next Actions、Input Check、Event/Evidence 和 Artifact refs 所需字段；前端展示值必须来自 payload。
 - 该 façade 只服务 `sdtm_ae_dataset` 单机测试链路，不是通用十阶段 Runtime bridge，不授权多 Study、多人协作、WebSocket、任意命令执行、SAS 执行或生产 GxP 部署。
 - P9.1 可引用 `p9-poc-test-only` Wiki release 作为测试用知识上下文，但不得将其提升为真实 Study 自动化的生产知识依据。
 
@@ -764,11 +764,11 @@ POC Runner façade
 Source metadata / MinInfo / Mapping Review / Program Review / Canonical
 ```
 
-该 façade 不是通用 Runtime bridge：不授权多 Study、RBAC、内网共享、WebSocket、云端部署或任意命令执行。`Run POC` 的语义是“执行到下一可观察状态”，状态只能是 `running`、`blocked_review`、`blocked_error` 或 `done`；不能只写 request 文件后无反馈。
+该 façade 不是通用 Runtime bridge：不授权多 Study、RBAC、内网共享、WebSocket、云端部署或任意命令执行。`Run POC` 的语义是“执行到下一可观察状态”，公开状态只能是 `running`、`blocked` 或 `done`；阻断原因由 `blocker.kind` 表达，不能只写 request 文件后无反馈。
 
 Workbench 的 human-loop 直接复用 Review Protocol：
 
-1. Active Task 展示当前 blocking ReviewPacket；
+1. Main Workspace 的人工审核子视图展示当前 blocking ReviewPacket；
 2. 人工为所有非 `auto_approved` finding 选择 approved/rejected/modified；
 3. Workbench 调用 `POST /reviews/{review_id}/decisions` 写正式 DecisionReceipt；
 4. Workbench 不写 ConfirmationReceipt、不归档、不提升 canonical；
@@ -777,3 +777,37 @@ Workbench 的 human-loop 直接复用 Review Protocol：
 Artifact preview 只读取 Application API 返回的登记 artifact detail，显示 relative path、SHA-256 和安全 preview。浏览器不能读取本地文件系统、不能访问未登记路径、不能把 draft 当 canonical，也不能基于文件名推断 workflow state。
 
 P9.1 Workbench 当前使用的 Wiki release/snapshot 标记为 `p9-poc-test-only`。它只证明 Study→Wiki→snapshot→clean-room reuse 与 Workbench human-loop 的机制，不等同于生产正式知识批准。
+
+---
+
+## 29. P0 Workbench 流程修正与浏览器验收基线
+
+P0 后续修正把 Workbench 从 artifact 推断页面收敛为 Runner ledger 投影：
+
+```text
+registered source
+  → Input Check（文件/hash/parser/metadata/profile/target dependency）
+  → Minimum Information（raw-only AE：Protocol/SAP/CRF not_required）
+  → p9-poc-test-only Wiki context
+  → Mapping Review
+  → Program / Python reference execution
+  → Validation / Program Review
+  → Canonical AE
+```
+
+`GET /poc-state` 返回 schema v2 ledger、结构化 blocker、Input Check 和受控 next actions。
+Workbench 只按这些字段渲染 compact Run Bar、横向 Stage Rail 与单一 Main Workspace；artifact scan
+只提供安全 preview ref，不决定 step state。普通 Run 不复用 blocked run；修复输入后使用 Retry，
+提交 DecisionReceipt 后使用 Resume。
+
+知识边界不变：当前链路只能消费锁定的 `p9-poc-test-only` snapshot，证明知识引用和 clean-room
+reuse 机制，不宣称生产知识充分性。知识卡提供规则/约束/evidence，MappingSpec 与执行事实仍写入
+Study；程序层只解释已批准结构化 MappingSpec，不从 Wiki 执行任意脚本。
+
+验收边界分开记录：
+
+- `smoke-sample-ae-workbench.ps1` 是只读 API preflight，不启动浏览器、不写 Study；
+- `e2e-sample-ae-workbench.ps1` 创建可丢弃 StudiesRoot，真实点击 Run、Input、Review、Resume、
+  Retry 和 Artifact，覆盖双 Review Gate 与 input hash blocker 恢复；
+- 真实 `SAMPLE-AE-001` 的审核和 UAT 仍由用户执行，P9.1/P6 在用户明确确认前保持进行中；
+- 自动 E2E 是本地开发验收，不是 GxP/监管验证，也不授权 P9.2。
