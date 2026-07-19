@@ -1,5 +1,5 @@
 ---
-updated: 2026-07-17
+updated: 2026-07-19
 ---
 
 # 项目计划
@@ -15,12 +15,15 @@ updated: 2026-07-17
 | # | 子计划 | 文件 | 预估轮次 | 依赖 |
 |---|--------|------|----------|------|
 | P9.2 | 多 Study 内网协作与受控部署 | [P9-multi-study-intranet-collaboration.md](plans/backlog/P9-multi-study-intranet-collaboration.md) | 20-32（执行前重估） | P9.1 完成并由用户确认；随后重新确认部署授权 |
+| P10 | 通用原子知识单元与检索模块化（待专项评审） | [P10-general-knowledge-unit-retrieval.md](plans/backlog/P10-general-knowledge-unit-retrieval.md) | 16-24（评审后重估） | P9.1 完成并冻结现有 Snapshot/合同基线 |
 
 > 当前执行视野只展开 P6 → P8：P6 先建立 SDTMIG 3.4 Core/Events/AE 知识解析质量基线；P7 再用“生成 SDTM AE”证明 Wiki + LLM + Workflow 的实际执行价值；P8 在此基础上完成本地 Application API + Study Console。后续知识按同一质量 Gate 随实际 Workflow 缺口增量摄取。
 
 P8 已完成本地单机 Application API + Study Console 基线。当前先执行 P9.1，以本地 SAS7BDAT、Minimum Information Planner、Wiki 辅助 MappingSpec、三语言程序产物和知识复用完成真实单机 POC。自动测试通过不能解锁 P9.2；只有用户明确确认本机跑通后，才可重新确认“内网协作/多用户/Runtime bridge”范围。
 
 2026-07-17 P0 `Study Workbench 流程与阻断可观测性修正` 已完成：Runner ledger、Input Check、结构化 blocker、Run/Retry 语义、单一主工作区和可丢弃 Study 浏览器 E2E 均已通过。P9.1/P6 现在回到用户真实 `SAMPLE-AE-001` 单机 UAT；用户明确确认前仍保持 in-progress，不能解锁 P9.2。
+
+P10 是待专项评审的知识架构 backlog：保留 Obsidian 主题卡与 Vault 顶层结构，将现有 SDTMIG 3.4 专用 statement/relation/query 能力通用化为 Package Registry、statement-level FTS 和 scope-aware Runtime Context。它不扩大当前 approved knowledge，也不在评审前进入 Development。P9.1 完成后的 P9.2/P10 实际优先级由用户另行确认。
 
 ## 最近完成
 
