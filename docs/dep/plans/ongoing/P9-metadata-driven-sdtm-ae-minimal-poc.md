@@ -2,7 +2,7 @@
 phase_index: 9
 status: in-progress
 created: 2026-07-16
-updated: 2026-07-16
+updated: 2026-07-20
 priority: 1
 estimated_rounds: 14-22
 depends_on:
@@ -311,7 +311,7 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 - [x] Python、R、SAS 代码均引用相同 MappingSpec ID/hash、source hash、rule refs 和 target standard。
 - [x] Python reference execution 只读取已批准 MappingSpec 和已登记来源，输出终端可查看 CSV。
 - [x] R/SAS 作为显式代码产物进入 program manifest；SAS 不执行，R 首版不承担 canonical reference result。
-- [x] Review rejected、evidence 断链、hash 漂移、unknown operation、blocking validation 或 missing required input 均不产生 canonical AE。
+- [x] Review rejected、evidence 断链、hash 漂移、unknown operation、strong-blocking validation 或 missing required input 均不产生 canonical AE；AETERM 空值保留原行并进入 Program Review 后审。
 - [x] Review Panel/Study Console 能展示中文 runtime findings；DecisionReceipt/ConfirmationReceipt 后才 promotion。
 - [x] 端到端正向、raw-only、review pause/reject、tamper 和 gap preservation 测试通过，并单独提交。
 
@@ -413,6 +413,7 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 - [ ] 用户可核对 SAS7BDAT metadata、Minimum Information Plan、Wiki citations、MappingSpec、三语言程序、draft/canonical AE CSV、provenance 和 reuse query。
 - [ ] 删除 derived/output 后可从登记的 raw source 和 locked knowledge 重建等价结果；hash 差异有解释。
 - [ ] 失败诊断覆盖依赖缺失、source hash 漂移、metadata 不足、Wiki 不可用、Review pending/rejected 和代码执行失败。
+- [x] AE validation 使用 fail-closed 两级处置：结构/追溯问题强阻断；AETERM 空值保留 1066 行并将 128 条 finding 延后到 Program Review。
 - [ ] 全量回归通过，相关 docs/USAGE/memory/devlog 同步，工作区只保留明确授权的文件。
 - [ ] **用户在自己的单机环境明确确认“已跑通”。在该确认之前，本 Phase 保持 pending/in-progress，本计划不得移入 complete。**
 - [ ] **只有上述用户确认记录完成后，原 `P9-multi-study-intranet-collaboration.md` 的依赖才视为满足。**
@@ -455,6 +456,7 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 | D8 | Console Review Inbox 将 packet 和 finding 全量长页面铺开，不符合工业审阅流 | P6 | 增强 | 改为队列摘要 + 选中详情 + finding 折叠；ReviewPanel/Console 只承担正式 human-loop，不作为开发确认页面 |
 | D9 | 当前 Console 与最小 POC runner 脱节，`Submit Request` 无后续执行反馈，无法支撑用户 work-to-end 验收 | P6 | 阻断 | 已由 `P0-study-console-react-poc-workbench.md` 建立 `/workbench/` 与同步 runner façade |
 | D10 | 首版 Workbench 真实页面仍存在 step 状态矛盾、阻断证据不足和三栏挤压 | P6 | 阻断 | `P0-study-workbench-flow-correction.md` 已完成 Runner ledger、Input Check、结构化 blocker、单一主工作区和 disposable browser E2E；下一 Gate 为用户真实 Study UAT |
+| D11 | AE reference validator 把 128/1066 条 AETERM 空值与结构/追溯错误统一列为 blocking，导致程序链提前停止 | P6 | 阻断 | 引入 fail-closed 两级 validation policy；AETERM 空值作为首个 deferred-review 规则保留全量记录并合并到 Program Review，结构错误仍即时阻断 |
 
 ## 关键决策记录
 
@@ -470,6 +472,7 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 | 2026-07-16 | producible variable 语义 | 已映射 / 可进入 Mapping 候选 | 可进入 Mapping 候选 | Planner 只分类证据；未解析 value labels 等风险必须同时保留 gap/review |
 | 2026-07-17 | P5 reusable-rule review 类型 | 新增枚举 / 复用现有 `sap_review` / 跳过 Review | 暂复用 `sap_review` | 新增枚举会触发 shared bundle 与 Wiki snapshot 迁移；当前 packet 通过标题、finding 和 evidence 表达规则治理语义，不代表 SAP 内容 |
 | 2026-07-17 | P5 Wiki 发布用途 | 生产知识 / 测试用 Wiki / 不发布 | 测试用 Wiki | 用户明确要求声明测试用途；release、card、snapshot 和 clean-room query 均标记 `p9-poc-test-only` |
+| 2026-07-20 | AE validation 边界 | 所有 finding 阻断 / 全部仅告警 / 默认强阻断 + 明确后审清单 | 默认强阻断 + 明确后审清单 | 防止内容质量问题阻断程序开发，同时禁止操作人员任意降级结构和追溯风险；首项仅 AETERM 空值 |
 
 ## 同步记录
 
@@ -480,3 +483,4 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 | 2026-07-17 | SPEC-15/21、TASK_STATE、memory | P5 规则治理候选、Study Review 待批、Wiki 发布前置和 clean-room reuse 测试边界 |
 | 2026-07-17 | SPEC-15/21、TASK_STATE、memory | P5 approved candidate、测试用 Wiki release/snapshot 和 clean-room reuse 完成 |
 | 2026-07-17 | SPEC-06/15/17/21、USAGE、memory、DevLog | P0 Workbench 修正与浏览器 E2E 完成；P6 回到用户真实 `SAMPLE-AE-001` 单机验收 |
+| 2026-07-20 | SPEC-15/17/21、USAGE、memory | P6 AE validation 两级边界：默认强阻断，AETERM 空值保留全量行并进入 Program Review 后审 |

@@ -120,13 +120,48 @@ def _program_review_packet(
             rationale="POC canonical 表示本轮受控产物，不代表缺口已解决或完整申报合规。",
             evidence_refs=[TRACEABILITY_PATH, gap["gap_id"]],
         ))
+    for summary_index, summary in enumerate(execution.get("deferred_review_summary") or []):
+        finding_index = len(findings) + 1
+        variable = str(summary.get("variable") or "dataset")
+        count = int(summary.get("count", 0))
+        row_count = int(summary.get("row_count", execution["row_count"]))
+        check_code = str(summary.get("check_code") or "validation")
+        findings.append(ReviewFinding(
+            id=f"F-{finding_index:03d}",
+            category=FindingCategory.COMPLIANCE,
+            severity=Severity.WARNING,
+            location=f"{VALIDATION_PATH}#deferred_review_summary/{summary_index}",
+            title=f"后审 AE 数据问题：{variable}",
+            current_value=(
+                f"检查 {check_code} 发现 {count}/{row_count} 条记录受影响；"
+                "reference adapter 已保留全部记录"
+            ),
+            proposed_value=(
+                "本轮不自动过滤或补值；保留问题及行级 finding，供数据修复与后续 QC 跟踪。"
+            ),
+            rationale=(
+                "该 finding 影响数据内容质量，但不破坏本轮程序执行、行级保留或证据追溯，"
+                "因此按受控策略延后到 Program Review。"
+            ),
+            evidence_refs=[
+                VALIDATION_PATH,
+                EXECUTION_LOG_PATH,
+                *[str(item) for item in summary.get("finding_ids", [])[:20]],
+            ],
+        ))
+    deferred_count = sum(
+        int(item.get("count", 0))
+        for item in execution.get("deferred_review_summary") or []
+    )
     return ReviewPacket(
         review_id=PROGRAM_REVIEW_ID,
         review_type=ReviewType.SDTM_SPEC,
         source_documents=[MAPPING_APPROVED_PATH, PROGRAM_MANIFEST_PATH, DRAFT_DATASET_PATH,
-                          PROVENANCE_PATH, TRACEABILITY_PATH],
+                          VALIDATION_PATH, EXECUTION_LOG_PATH, PROVENANCE_PATH,
+                          TRACEABILITY_PATH],
         agent_summary=(
             "已完成批准 MappingSpec 的三语言程序生成和 Python reference execution。"
+            f"验证中有 {deferred_count} 项可后审数据问题，未触发程序执行阻断。"
             "请审核 draft、验证结果及显式缺口；全部批准后才会提升 canonical。"
         ),
         findings=findings,

@@ -221,6 +221,8 @@ class PocRunner:
 
             self._start_step(run, "program-execution", "生成程序并运行注册的 Python reference adapter。")
             result = run_after_mapping_approval(self.study_dir)
+            deferred_summary = list(result.get("deferred_review_summary") or [])
+            deferred_count = sum(int(item.get("count", 0)) for item in deferred_summary)
             self._complete_step(
                 run,
                 "program-execution",
@@ -230,10 +232,17 @@ class PocRunner:
                         check_id="registered-reference-execution",
                         state=(
                             PocCheckState.WARNING
-                            if result.get("status") == "validation_review_required"
+                            if (
+                                result.get("status") == "validation_review_required"
+                                or deferred_summary
+                            )
                             else PocCheckState.PASS
                         ),
-                        summary=str(result.get("status")),
+                        summary=(
+                            f"{result.get('status')}; {deferred_count} 项数据问题延后审核"
+                            if deferred_summary
+                            else str(result.get("status"))
+                        ),
                         evidence_refs=[str(result.get("validation_path") or VALIDATION_PATH)],
                     )
                 ],

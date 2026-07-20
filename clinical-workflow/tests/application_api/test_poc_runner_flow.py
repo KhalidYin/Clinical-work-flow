@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import csv
 import json
 from pathlib import Path
 import shutil
@@ -313,7 +314,7 @@ def test_input_retry_rechecks_current_step_without_new_run(tmp_path: Path) -> No
     assert state["input_check"]["summary"]["required_ready"] == 1
 
 
-def test_sas7bdat_input_check_exposes_native_metadata_and_profiles(tmp_path: Path) -> None:
+def test_sas7bdat_aeterm_gaps_continue_to_program_review(tmp_path: Path) -> None:
     source_fixture = ROOT.parent / "clinical-studies/SAMPLE-AE-001/input/edc/ae09jun2025.sas7bdat"
     if not source_fixture.exists():
         pytest.skip("local SAS7BDAT POC fixture is unavailable")
@@ -347,8 +348,31 @@ def test_sas7bdat_input_check_exposes_native_metadata_and_profiles(tmp_path: Pat
     assert profiles["AETERM"]["label"]
     assert profiles["AETERM"]["missing_count"] == 128
 
+    started = response.json()
+    _decide_all(study, MAPPING_REVIEW_ID)
+    resumed = client.post(
+        f"/api/v1/studies/SAMPLE-AE-001/poc-runs/{started['run_id']}/resume",
+        json={"reason": "review_decision_available", "review_id": MAPPING_REVIEW_ID},
+    )
+    assert resumed.status_code == 202
+    state = client.get("/api/v1/studies/SAMPLE-AE-001/poc-state").json()
+    assert state["blocker"]["kind"] == "review"
+    assert state["blocker"]["review_id"] == PROGRAM_REVIEW_ID
+    validation = json.loads(
+        (study / "output/sdtm/validation/ae-reference-validation.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert validation["blocking_findings"] == []
+    assert validation["deferred_review_summary"][0]["variable"] == "AETERM"
+    assert validation["deferred_review_summary"][0]["count"] == 128
+    with (study / "output/sdtm/drafts/ae.csv").open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle))
+    assert len(rows) == 1066
+    assert sum(1 for row in rows if not row["AETERM"]) == 128
 
-def test_validation_finding_becomes_evidence_addressed_human_loop(tmp_path: Path) -> None:
+
+def test_aeterm_missing_is_deferred_to_program_review_without_filtering(tmp_path: Path) -> None:
     container = _study_container(tmp_path)
     study = container / "SAMPLE-AE-001"
     source = study / "input/edc/ae.csv"
@@ -378,15 +402,92 @@ def test_validation_finding_becomes_evidence_addressed_human_loop(tmp_path: Path
     assert resumed.status_code == 202
     state = client.get("/api/v1/studies/SAMPLE-AE-001/poc-state").json()
     blocker = state["blocker"]
+    assert blocker["kind"] == "review"
+    assert blocker["stage_id"] == "validation-review"
+    assert blocker["review_id"] == PROGRAM_REVIEW_ID
+    packet = ReviewQueue(study).load_packet(PROGRAM_REVIEW_ID)
+    assert packet is not None
+    deferred = [finding for finding in packet.findings if "AETERM" in finding.title]
+    assert len(deferred) == 1
+    assert "1/2" in deferred[0].current_value
+    assert not (study / CANONICAL_DATASET_PATH).exists()
+    draft_path = study / "output/sdtm/drafts/ae.csv"
+    assert draft_path.exists()
+    with draft_path.open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle))
+    assert len(rows) == 2
+    assert rows[1]["AETERM"] == ""
+
+    validation_path = study / "output/sdtm/validation/ae-reference-validation.json"
+    validation = json.loads(validation_path.read_text(encoding="utf-8"))
+    assert validation["blocking_findings"] == []
+    assert validation["execution_allowed"] is True
+    assert validation["deferred_review_summary"][0]["variable"] == "AETERM"
+    assert validation["deferred_review_summary"][0]["count"] == 1
+    program_step = next(item for item in state["steps"] if item["step_id"] == "program-execution")
+    assert program_step["checks"][0]["state"] == "warning"
+
+    _decide_all(study, PROGRAM_REVIEW_ID)
+    promoted = client.post(
+        f"/api/v1/studies/SAMPLE-AE-001/poc-runs/{started['run_id']}/resume",
+        json={"reason": "review_decision_available", "review_id": PROGRAM_REVIEW_ID},
+    )
+    assert promoted.status_code == 202
+    promoted_state = client.get("/api/v1/studies/SAMPLE-AE-001/poc-state").json()
+    assert promoted_state["run_state"] == "done"
+    with (study / CANONICAL_DATASET_PATH).open(newline="", encoding="utf-8") as handle:
+        canonical_rows = list(csv.DictReader(handle))
+    assert len(canonical_rows) == 2
+    assert canonical_rows[1]["AETERM"] == ""
+    canonical_trace = json.loads(
+        (study / "output/sdtm/traceability/ae-canonical-traceability.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert canonical_trace["deferred_review_summary"][0]["variable"] == "AETERM"
+
+
+def test_structural_validation_finding_remains_evidence_addressed_blocker(
+    tmp_path: Path,
+) -> None:
+    container = _study_container(tmp_path)
+    study = container / "SAMPLE-AE-001"
+    source = study / "input/edc/ae.csv"
+    source.write_text(
+        source.read_text(encoding="utf-8").replace(
+            "SAMPLE-AE-001,S001,2,Nausea,",
+            "SAMPLE-AE-001,,2,Nausea,",
+        ),
+        encoding="utf-8",
+    )
+    inventory_path = study / "source-inventory.yaml"
+    inventory = yaml.safe_load(inventory_path.read_text(encoding="utf-8"))
+    inventory["sources"][0]["sha256"] = _sha256(source)
+    inventory_path.write_text(yaml.safe_dump(inventory, sort_keys=False), encoding="utf-8")
+    client = _client(container)
+    started = client.post(
+        "/api/v1/studies/SAMPLE-AE-001/poc-runs",
+        json={"target_artifact": "sdtm_ae_dataset", "intent": "验证 AE 结构阻断"},
+    ).json()
+    _decide_all(study, MAPPING_REVIEW_ID)
+
+    resumed = client.post(
+        f"/api/v1/studies/SAMPLE-AE-001/poc-runs/{started['run_id']}/resume",
+        json={"reason": "review_decision_available", "review_id": MAPPING_REVIEW_ID},
+    )
+
+    assert resumed.status_code == 202
+    state = client.get("/api/v1/studies/SAMPLE-AE-001/poc-state").json()
+    blocker = state["blocker"]
     assert blocker["kind"] == "validation"
     assert blocker["stage_id"] == "validation-review"
-    assert blocker["affected_variables"] == ["AETERM"]
-    assert "1/2" in blocker["summary"]
+    assert blocker["affected_variables"] == ["AESEQ", "USUBJID"]
+    assert "/2" in blocker["summary"]
     assert "output/sdtm/validation/ae-reference-validation.json" in blocker["evidence_refs"]
     review_id = blocker["review_id"]
     packet = ReviewQueue(study).load_packet(review_id)
     assert packet is not None
-    assert "1/2" in packet.findings[0].current_value
+    assert any("/2" in finding.current_value for finding in packet.findings)
     assert not (study / CANONICAL_DATASET_PATH).exists()
     assert not (study / "output/sdtm/drafts/ae.csv").exists()
 

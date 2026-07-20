@@ -740,3 +740,43 @@
 - `clinical-workflow/tests/study_console/test_workbench_static.py`
 - `USAGE.md`, `docs/specs/06-AI-Architecture.md`, `15-Review-Protocol.md`, `17-Code-Generation.md`, `21-Knowledge-Workflow-Integration.md`
 - `docs/main/memory/`, `docs/dep/`（本轮提交）
+
+---
+
+### R068 [14:25] [P9-metadata-driven-sdtm-ae-minimal-poc] P6: 修正 AE validation 强阻断与后审边界
+
+#### Done
+
+- 定位真实 POC 的 128/1066 AETERM 阻断根因：`_validate_rows()` 将所有确定性 finding 无差别写入 `blocking_findings`。
+- 新增 fail-closed validation policy：默认 `strong_blocking`，当前仅 `required_value_empty + AETERM` 明确列为 `deferred_review`。
+- AETERM 空值不被过滤或补值，全部 1066 行继续写入 Python draft；128 条行级 finding、summary、policy ID 同步进入 validation、execution log、provenance、traceability 和 Program Review。
+- 缺少受试者身份导致 USUBJID/AESEQ 无法形成时仍生成强 validation blocker；人工决定不能覆盖确定性重验。
+- Runner 的 Program / Execution check 对 deferred finding 显示 warning，随后进入既有 Program Review，而不是创建独立即时 validation blocker。
+- 补齐 MCP runtime 已直接导入但 `pyproject.toml` 未声明的 `requests>=2.31`，并安装到根目录 `.venv`。
+- 同步 SPEC-15/17/21、USAGE、P9.1/P6 计划和 Workbench 项目记忆；P9.1/P6 仍等待用户真实页面验收，不解锁 P9.2。
+
+#### Issues / Blockers
+
+- 首次全量回归在 collection 阶段因 `.venv` 缺 `requests` 失败；根因是依赖声明遗漏，已补充并通过 `pip check`。
+- 补依赖后的首次全量回归为 302 passed / 2 failed：一项是已登记 D6 的 contract bundle hash lock（实际 `40d30d...`，登记 `72e5fe...`）；另一项 missing-source 用例出现一次 `PermissionError`，隔离重跑通过，随后排除既有 hash 用例的 303 项全部通过，未复现。
+- 尝试用复合 PowerShell 命令复制并清理真实 blocked Study 副本时，被命令安全策略在 CreateProcess 前拒绝，未执行也未修改 Study；真实 SAS7BDAT 1066/128 恢复语义已由可丢弃 Study 集成测试覆盖。
+
+#### Validation
+
+- `pytest tests/application_api/test_poc_runner_flow.py tests/test_p9_sample_ae_poc.py -q`（16 passed；包含真实 SAS7BDAT 1066 行、128 条 AETERM 后审）。
+- `pytest tests -q -k "not shared_contract_bundle_is_complete_and_hash_locked"`（303 passed，1 deselected）。
+- missing-source 隔离重跑（1 passed）。
+- `ruff check`（通过）；`pip check`（无 broken requirements）；`git diff --check`（通过）。
+
+#### Next
+
+1. 用户重启 Study Console，在当前 validation decision 已存在的 run 上点击 `Retry current step`。
+2. 预期 active blocker 变为 Program Review；核对 draft 保留 1066 行、AETERM warning 为 128 条，再提交 Program Review 并 Resume。
+3. 用户明确确认真实 Study 跑通后再关闭 P9.1/P6；contract bundle D6 继续按协调迁移处理，不混入本轮。
+
+#### Files Changed / Commits
+
+- `clinical-workflow/src/codegen/ae_programs.py`, `src/agents/ae_metadata_workflow.py`, `src/application_api/poc_runner.py`
+- `clinical-workflow/tests/application_api/test_poc_runner_flow.py`, `clinical-workflow/pyproject.toml`
+- `USAGE.md`, `docs/specs/15-Review-Protocol.md`, `17-Code-Generation.md`, `21-Knowledge-Workflow-Integration.md`
+- `docs/main/memory/p9-workbench-flow-baseline.md`, `docs/dep/`（本轮提交）

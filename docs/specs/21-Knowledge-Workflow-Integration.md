@@ -800,6 +800,12 @@ Workbench 只按这些字段渲染 compact Run Bar、横向 Stage Rail 与单一
 只提供安全 preview ref，不决定 step state。普通 Run 不复用 blocked run；修复输入后使用 Retry，
 提交 DecisionReceipt 后使用 Resume。
 
+Validation / Review 阶段使用显式的两级边界，而不是“发现数据问题即整步停止”：默认
+`strong_blocking` 处理会破坏结构、行数守恒、身份或追溯完整性的 finding，必须审核修复路径并在
+Retry 后重新验证通过；policy 明确允许的 `deferred_review` finding 保留完整行和 evidence，继续程序/
+draft 生成并进入后续 Program Review。当前仅 `AETERM` 空值采用后审路径，不做自动过滤、补值或合规
+通过推断。
+
 知识边界不变：当前链路只能消费锁定的 `p9-poc-test-only` snapshot，证明知识引用和 clean-room
 reuse 机制，不宣称生产知识充分性。知识卡提供规则/约束/evidence，MappingSpec 与执行事实仍写入
 Study；程序层只解释已批准结构化 MappingSpec，不从 Wiki 执行任意脚本。

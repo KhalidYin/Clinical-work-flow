@@ -36,6 +36,12 @@ VALIDATION_PATH = "output/sdtm/validation/ae-reference-validation.json"
 EXECUTION_LOG_PATH = "output/sdtm/logs/ae-reference-execution.json"
 PROVENANCE_PATH = "output/sdtm/drafts/ae.csv.provenance.json"
 TRACEABILITY_PATH = "output/sdtm/traceability/ae-draft-traceability.json"
+VALIDATION_POLICY_ID = "p9-ae-reference-validation-boundary-v2"
+
+# Fail closed by default. Entries here are data-quality findings that do not
+# prevent deterministic program execution; they remain visible for later
+# Program Review and are never filtered or imputed by the adapter.
+DEFERRED_REVIEW_RULES = frozenset({("required_value_empty", "AETERM")})
 
 ALLOWED_OPERATIONS = {
     "constant", "concat", "sequence_by_group", "copy_trim", "partial_date_iso"
@@ -297,10 +303,11 @@ def _execute_mapping(data: Any, spec: Mapping[str, Any]) -> tuple[list[str], lis
                 ) if source_value else ""
             elif operation == "sequence_by_group":
                 group = _text(source_row[mapping["parameters"]["group"]])
-                if not group:
-                    raise AEMetadataPOCError("Cannot derive AESEQ without subject identity")
-                sequence[group] = sequence.get(group, 0) + 1
-                value = str(sequence[group])
+                if group:
+                    sequence[group] = sequence.get(group, 0) + 1
+                    value = str(sequence[group])
+                else:
+                    value = ""
             elif operation == "copy_trim":
                 value = _text(source_row[sources[0]])
             else:
@@ -360,31 +367,58 @@ def _validate_rows(columns: list[str], rows: list[dict[str, str]], expected_rows
                     "affected_variables": [variable],
                     "message": "Date is not ISO 8601 partial/full shape",
                 })
-    grouped: dict[tuple[str, str], dict[str, Any]] = {}
     for finding in findings:
-        variables = finding.get("affected_variables") or ["dataset"]
-        for variable in variables:
-            key = (str(finding.get("check_code", "validation")), str(variable))
-            item = grouped.setdefault(
-                key,
-                {
-                    "check_code": key[0],
-                    "variable": key[1],
-                    "count": 0,
-                    "row_count": len(rows),
-                    "finding_ids": [],
-                },
-            )
-            item["count"] += 1
-            item["finding_ids"].append(finding["finding_id"])
+        key = (str(finding.get("check_code", "validation")), str(finding.get("variable", "")))
+        finding["disposition"] = (
+            "deferred_review" if key in DEFERRED_REVIEW_RULES else "strong_blocking"
+        )
+
+    def grouped_summary(selected: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        grouped: dict[tuple[str, str], dict[str, Any]] = {}
+        for finding in selected:
+            variables = finding.get("affected_variables") or ["dataset"]
+            for variable in variables:
+                key = (str(finding.get("check_code", "validation")), str(variable))
+                item = grouped.setdefault(
+                    key,
+                    {
+                        "check_code": key[0],
+                        "variable": key[1],
+                        "count": 0,
+                        "row_count": len(rows),
+                        "finding_ids": [],
+                        "disposition": str(finding["disposition"]),
+                    },
+                )
+                item["count"] += 1
+                item["finding_ids"].append(finding["finding_id"])
+        return list(grouped.values())
+
+    blocking_findings = [
+        finding for finding in findings if finding["disposition"] == "strong_blocking"
+    ]
+    deferred_findings = [
+        finding for finding in findings if finding["disposition"] == "deferred_review"
+    ]
     return {
         "validation_id": "ae-reference-validation-sample-ae-001-v1",
+        "validation_policy": {
+            "policy_id": VALIDATION_POLICY_ID,
+            "default_disposition": "strong_blocking",
+            "deferred_review_rules": [
+                {"check_code": check_code, "variable": variable}
+                for check_code, variable in sorted(DEFERRED_REVIEW_RULES)
+            ],
+        },
         "passed": not findings,
+        "execution_allowed": not blocking_findings,
         "observed_row_count": len(rows),
         "expected_row_count": expected_rows,
         "checks": ["row_count", "required_values", "unique_key", "iso_partial_date_shape"],
-        "blocking_findings": findings,
-        "blocking_summary": list(grouped.values()),
+        "blocking_findings": blocking_findings,
+        "blocking_summary": grouped_summary(blocking_findings),
+        "deferred_review_findings": deferred_findings,
+        "deferred_review_summary": grouped_summary(deferred_findings),
         "full_sdtmig_conformance_claimed": False,
         "canonical_output_allowed": False,
     }
@@ -454,6 +488,8 @@ def run_python_reference(study_dir: str | Path) -> dict[str, Any]:
         "draft_dataset_sha256": draft_sha,
         "rule_evidence": rule_evidence,
         "explicit_gaps": spec["explicit_gaps"],
+        "validation_policy_id": VALIDATION_POLICY_ID,
+        "deferred_review_summary": validation["deferred_review_summary"],
         "canonical_dataset_path": None,
     }
     traceability_path = _write_json(study / TRACEABILITY_PATH, traceability)
@@ -469,9 +505,16 @@ def run_python_reference(study_dir: str | Path) -> dict[str, Any]:
     }
     _write_json(study / PROVENANCE_PATH, provenance)
     _write_json(study / EXECUTION_LOG_PATH, {
-        "status": "draft_written", "adapter_id": ADAPTER_ID, "executed_at": timestamp,
+        "status": (
+            "draft_written_with_review_findings"
+            if validation["deferred_review_findings"]
+            else "draft_written"
+        ),
+        "adapter_id": ADAPTER_ID, "executed_at": timestamp,
         "row_count": len(rows), "column_count": len(columns),
         "draft_dataset_path": DRAFT_DATASET_PATH, "draft_dataset_sha256": draft_sha,
+        "deferred_review_findings": validation["deferred_review_findings"],
+        "deferred_review_summary": validation["deferred_review_summary"],
         "canonical_dataset_path": None,
     })
     return {
@@ -481,6 +524,8 @@ def run_python_reference(study_dir: str | Path) -> dict[str, Any]:
         "row_count": len(rows),
         "column_count": len(columns),
         "validation_path": VALIDATION_PATH,
+        "deferred_review_findings": validation["deferred_review_findings"],
+        "deferred_review_summary": validation["deferred_review_summary"],
         "provenance_path": PROVENANCE_PATH,
         "traceability_path": TRACEABILITY_PATH,
     }

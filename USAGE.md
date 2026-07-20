@@ -162,6 +162,8 @@ Workbench 是当前最小 POC 的 work-to-end 前端。它只服务 `SAMPLE-AE-0
 - Review Gate 内嵌 blocking ReviewPacket，人工提交正式 DecisionReceipt；Workbench 不写 ConfirmationReceipt、不归档、不提升 canonical；
 - `Resume` 调用 `POST /api/v1/studies/{study_id}/poc-runs/{run_id}/resume`，由后端继续推进到下一 gate、draft/canonical 或错误；
 - input/system 阻断修复后使用 `Retry current step`，普通 Run 不复用 blocked run；
+- validation 默认强阻断；只有受控 policy 明确列出的数据质量问题可延后到 Program Review。当前
+  `AETERM` 空值会显示数量和行级证据，但保留全部记录并继续生成程序/draft，不自动过滤或补值；
 - Artifact preview 只通过 `GET /artifacts/{artifact_id}` 显示登记 artifact 的 relative path、hash 和 JSON/CSV/TXT/YAML 安全预览，不返回绝对路径；
 - Event/Evidence log 只显示 POC runner/API 返回的事件，不在浏览器推断状态。
 
@@ -197,7 +199,8 @@ DecisionReceipt、Resume、canonical artifact，并验证 source hash blocker �
 3. 点击 `Run POC`，确认 Input Check 报告登记 source、hash、parser、行列数、metadata/profile 和目标依赖；
 4. 观察横向 Stage Rail 与 Main Workspace 指向同一 active/blocked 阶段；
 5. 若进入 Review，在“人工审核”中逐项核对 evidence，提交 DecisionReceipt 后点击 `Resume`；
-6. 若为 input/system blocker，先修复页面指出的原因，再点击 `Retry current step`，不要再次普通 Run；
+6. 若为 input/system/strong-validation blocker，先修复页面指出的原因，再点击 `Retry current step`，
+   不要再次普通 Run；AETERM 空值应作为 Program Review warning 出现，不再单独阻断执行；
 7. 在后续 Program Review 重复审核与 Resume，直到 Canonical AE；
 8. 在“产物预览”确认 `output/sdtm/datasets/ae.csv` 的 relative path、hash 和 CSV preview；
 9. 失败时以 blocker 的 stage/check/影响/证据/recovery action 为准，不通过聊天消息替代工作流状态。

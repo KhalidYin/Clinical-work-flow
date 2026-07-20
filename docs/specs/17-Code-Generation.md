@@ -598,8 +598,16 @@ label/format/value-label availability 和关键变量 missing profile 写入 run
 缺少 Protocol/SAP/CRF 不阻断当前 raw-only AE target；缺少登记 AE source、hash 漂移、parser
 不可用或格式不受支持则在 `input-check` 步骤 fail closed。
 
-生成或 reference execution 后的确定性数据问题必须形成结构化 validation blocker/ReviewPacket，
-不得只返回 `blocked_error` 或通用 codegen exception。例如空 `AETERM` 必须报告受影响行数、变量、
-validation artifact 和恢复动作，且不得由生成器自动过滤。Program Review 继续引用 MappingSpec hash、
-program manifest、Python/R/SAS 文件 hash、reference output 和 validation evidence；批准后才允许推进
-canonical AE。
+生成或 reference execution 后的确定性 finding 必须先按受控 validation policy 分类，不能把所有
+数据问题等同为执行阻断，也不能只返回 `blocked_error` 或通用 codegen exception：
+
+- 默认处置为 `strong_blocking`。缺少结构字段、行数不守恒、受试者/记录身份无法形成、主键重复等
+  会破坏执行或追溯完整性的 finding，必须形成 blocking ReviewPacket；即使人工批准修复路径，Retry
+  后仍须由确定性验证实际通过，DecisionReceipt 不能覆盖验证结果。
+- 只有 policy 明确列出的数据质量 finding 才可标记为 `deferred_review`。当前首项是
+  `required_value_empty + AETERM`：报告受影响行数、变量和行级 evidence，但保留全部原记录，继续生成
+  程序和 Python draft，并合并到后续 Program Review；不得过滤、补值或把 warning 当成已修复。
+- validation artifact 同时记录 policy ID、`execution_allowed`、两类 finding/summary；执行日志、provenance
+  和 traceability 必须保留 deferred summary。Program Review 继续引用 MappingSpec hash、program
+  manifest、Python/R/SAS 文件 hash、reference output 和 validation evidence；批准后才允许推进
+  canonical AE。

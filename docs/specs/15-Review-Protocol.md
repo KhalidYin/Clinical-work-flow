@@ -1198,16 +1198,21 @@ P0 `/workbench/` 在 Main Workspace 的人工审核子视图中内嵌当前 bloc
 
 ### 15.1 Validation blocker、Retry 与 Resume
 
-POC runner 不再把 deterministic validation finding 包装成通用 codegen exception。需要人类
-判断时，它写入新的 blocking ReviewPacket，并在 `blocker` 中记录 stage、check code、影响变量、
-数量和 evidence refs；证据变化必须产生新的 review ID，旧 DecisionReceipt 不得被静默复用。
+POC runner 不再把 deterministic validation finding 包装成通用 codegen exception，也不再把所有
+finding 一律升级为即时 blocker。validation policy 默认 fail closed，并明确两条处置路径：
+
+1. `strong_blocking`：写入新的 blocking ReviewPacket，在 `blocker` 中记录 stage、check code、影响变量、
+   数量和 evidence refs；证据变化必须产生新的 review ID，旧 DecisionReceipt 不得被静默复用。人工
+   决定只批准修复路径，Retry 后仍须重新验证通过。
+2. `deferred_review`：不中断程序和 draft 生成，不创建独立即时 validation blocker；finding、汇总和
+   行级证据并入既有 Program Review。当前只允许 AETERM 空值采用该路径，且不得过滤或补值。
 
 Workbench 的 Review 子视图一次聚焦一个 finding，并在提交区汇总必审项。提交成功只表示
 DecisionReceipt 已写入：
 
 1. `Review` 只打开当前 blocking packet，不推进步骤；
 2. `Resume` 只在当前 packet 的 DecisionReceipt 可用时消费决定；
-3. `Retry current step` 用于修复 input/system 类可恢复阻断，不代替人工审核；
+3. `Retry current step` 用于修复 input/system/strong-validation 类可恢复阻断，不代替人工审核或确定性重验；
 4. ConfirmationReceipt、rework 和 canonical promotion 仍由 runner/Runtime 执行，不由浏览器直接写入。
 
 浏览器 E2E 使用临时 Study 中的测试 DecisionReceipt 验证该协议；真实 Study 的决定必须由用户在
