@@ -1,0 +1,49 @@
+{
+  "applied_at": "2026-07-20T06:32:36.380279+00:00",
+  "generated_by": "P9 Metadata-driven AE Runtime",
+  "results": [
+    {
+      "actual_value": "canonical AE promoted",
+      "application_status": "applied",
+      "finding_id": "F-001",
+      "original_decision": "approved"
+    },
+    {
+      "actual_value": "canonical AE promoted",
+      "application_status": "applied",
+      "finding_id": "F-002",
+      "original_decision": "approved"
+    },
+    {
+      "actual_value": "canonical AE promoted",
+      "application_status": "applied",
+      "finding_id": "F-003",
+      "original_decision": "approved"
+    },
+    {
+      "actual_value": "canonical AE promoted",
+      "application_status": "applied",
+      "finding_id": "F-004",
+      "original_decision": "approved"
+    },
+    {
+      "actual_value": "canonical AE promoted",
+      "application_status": "applied",
+      "finding_id": "F-005",
+      "original_decision": "approved"
+    },
+    {
+      "actual_value": "canonical AE promoted",
+      "application_status": "applied",
+      "finding_id": "F-006",
+      "original_decision": "approved"
+    }
+  ],
+  "review_id": "sdtm_spec_sample_ae_001_program_v1_001",
+  "summary": {
+    "adjusted": 0,
+    "applied": 6,
+    "failed": 0,
+    "total": 6
+  }
+}

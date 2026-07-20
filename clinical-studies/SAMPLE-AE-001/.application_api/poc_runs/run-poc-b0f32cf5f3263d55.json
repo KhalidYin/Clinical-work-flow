@@ -1,30 +1,9 @@
 {
-  "blocker": {
-    "affected_artifacts": [
-      "output/sdtm/drafts/ae.csv",
-      "output/sdtm/datasets/ae.csv"
-    ],
-    "affected_variables": [
-      "AETERM"
-    ],
-    "code": "ae_reference_validation_failed",
-    "detail": "不得自动过滤或补值。请审核验证 finding，修复源数据或建立新的受控 MappingSpec 后再 Retry current step。",
-    "evidence_refs": [
-      "output/sdtm/validation/ae-reference-validation.json",
-      "output/sdtm/logs/ae-reference-execution.json",
-      ".review_queue/sdtm_spec_sample_ae_001_validation_dcd621a93681_v1_001.json"
-    ],
-    "kind": "validation",
-    "recovery_action": "submit_review_decision",
-    "retryable": true,
-    "review_id": "sdtm_spec_sample_ae_001_validation_dcd621a93681_v1_001",
-    "stage_id": "validation-review",
-    "summary": "AE reference validation blocked: 128/1066 项记录问题"
-  },
-  "blocking_reason": "AE reference validation blocked: 128/1066 项记录问题",
-  "blocking_review_id": "sdtm_spec_sample_ae_001_validation_dcd621a93681_v1_001",
+  "blocker": null,
+  "blocking_reason": null,
+  "blocking_review_id": null,
   "created_at": "2026-07-17T05:36:58.709180+00:00",
-  "current_step": "validation-review",
+  "current_step": "canonical-ae",
   "input_check": {
     "checked_at": "2026-07-17T09:22:17.853703+00:00",
     "checks": [
@@ -228,9 +207,16 @@
     ]
   },
   "intent": "生成 SAMPLE-AE-001 SDTM AE 最小 POC",
-  "resume_count": 6,
+  "result": {
+    "canonical_dataset_path": "output/sdtm/datasets/ae.csv",
+    "canonical_dataset_sha256": "674872e15a2f532888c0dc37b124bc037401b8764fc9432d0dccf6a24f27ad28",
+    "canonical_traceability_path": "output/sdtm/traceability/ae-canonical-traceability.json",
+    "confirmation_receipt_path": ".review_queue/sdtm_spec_sample_ae_001_program_v1_001_confirmation.json",
+    "status": "canonical_written"
+  },
+  "resume_count": 9,
   "run_id": "run-poc-b0f32cf5f3263d55",
-  "run_state": "blocked",
+  "run_state": "done",
   "schema_version": "2.0",
   "steps": [
     {
@@ -459,8 +445,17 @@
       "title": "Program / Execution"
     },
     {
-      "artifact_refs": [],
-      "blocking_reason": "AE reference validation blocked: 128/1066 项记录问题",
+      "artifact_refs": [
+        {
+          "artifact_id": "poc-8c95e17ac09d5ed5",
+          "kind": "json",
+          "label": "sdtm_spec_sample_ae_001_program_v1_001_confirmation.json",
+          "preview_available": true,
+          "relative_path": ".review_queue/sdtm_spec_sample_ae_001_program_v1_001_confirmation.json",
+          "sha256": "9fc2a2be26e5a8de504cc924ba9f1017c122e4eb4eedaf61cd96c4cb735d13b6"
+        }
+      ],
+      "blocking_reason": null,
       "checks": [
         {
           "affected_variables": [
@@ -497,34 +492,43 @@
           "summary": "AETERM: 128/1066 条记录"
         }
       ],
-      "completed_at": null,
+      "completed_at": "2026-07-20T06:32:36.397401+00:00",
       "evidence_refs": [],
-      "kind": "review",
+      "kind": "artifact",
       "ordinal": 6,
-      "review_id": "sdtm_spec_sample_ae_001_validation_dcd621a93681_v1_001",
-      "started_at": null,
-      "state": "blocked",
+      "review_id": null,
+      "started_at": "2026-07-20T06:32:36.360036+00:00",
+      "state": "done",
       "step_id": "validation-review",
-      "summary": "AE reference validation blocked: 128/1066 项记录问题",
+      "summary": "Program Review DecisionReceipt 已应用。",
       "title": "Validation / Review"
     },
     {
-      "artifact_refs": [],
+      "artifact_refs": [
+        {
+          "artifact_id": "poc-19d6bbed1b154c48",
+          "kind": "csv",
+          "label": "ae.csv",
+          "preview_available": true,
+          "relative_path": "output/sdtm/datasets/ae.csv",
+          "sha256": "674872e15a2f532888c0dc37b124bc037401b8764fc9432d0dccf6a24f27ad28"
+        }
+      ],
       "blocking_reason": null,
       "checks": [],
-      "completed_at": null,
+      "completed_at": "2026-07-20T06:32:36.400211+00:00",
       "evidence_refs": [],
-      "kind": "instruction",
+      "kind": "complete",
       "ordinal": 7,
       "review_id": null,
       "started_at": null,
-      "state": "pending",
+      "state": "done",
       "step_id": "canonical-ae",
-      "summary": "等待 Runner 执行。",
+      "summary": "Canonical AE 已写入并保持受控 POC 范围声明。",
       "title": "Canonical AE"
     }
   ],
   "study_id": "SAMPLE-AE-001",
   "target_artifact": "sdtm_ae_dataset",
-  "updated_at": "2026-07-17T09:29:19.745702+00:00"
+  "updated_at": "2026-07-20T06:32:36.401187+00:00"
 }

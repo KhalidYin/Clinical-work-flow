@@ -1,0 +1,31 @@
+{
+  "review_id": "sdtm_spec_sample_ae_001_program_v1_001",
+  "reviewer": "中文审核人",
+  "timestamp": "2026-07-20T06:32:33.585219+00:00",
+  "decisions": [
+    {
+      "finding_id": "F-001",
+      "decision": "approved"
+    },
+    {
+      "finding_id": "F-002",
+      "decision": "approved"
+    },
+    {
+      "finding_id": "F-003",
+      "decision": "approved"
+    },
+    {
+      "finding_id": "F-004",
+      "decision": "approved"
+    },
+    {
+      "finding_id": "F-005",
+      "decision": "approved"
+    },
+    {
+      "finding_id": "F-006",
+      "decision": "approved"
+    }
+  ]
+}

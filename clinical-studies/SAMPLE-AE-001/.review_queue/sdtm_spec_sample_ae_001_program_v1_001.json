@@ -1,0 +1,131 @@
+{
+  "review_id": "sdtm_spec_sample_ae_001_program_v1_001",
+  "review_type": "sdtm_spec",
+  "source_documents": [
+    "work/mapping/ae-mapping-spec-approved.json",
+    "programs/edc_to_sdtm/program-manifest.json",
+    "output/sdtm/drafts/ae.csv",
+    "output/sdtm/validation/ae-reference-validation.json",
+    "output/sdtm/logs/ae-reference-execution.json",
+    "output/sdtm/drafts/ae.csv.provenance.json",
+    "output/sdtm/traceability/ae-draft-traceability.json"
+  ],
+  "agent_summary": "已完成批准 MappingSpec 的三语言程序生成和 Python reference execution。验证中有 128 项可后审数据问题，未触发程序执行阻断。请审核 draft、验证结果及显式缺口；全部批准后才会提升 canonical。",
+  "findings": [
+    {
+      "id": "F-001",
+      "category": "compliance",
+      "severity": "warning",
+      "location": "output/sdtm/drafts/ae.csv",
+      "title": "确认 Python reference AE draft 可提升为 POC canonical",
+      "current_value": "draft 已写入，共 1066 行、10 列；完整 SDTMIG conformity 未声明",
+      "proposed_value": "批准在 POC 范围内提升为 canonical CSV",
+      "rationale": "draft 由已批准 MappingSpec 和登记的 SAS7BDAT 经注册 Python adapter 生成，validation、provenance、traceability 均已落盘。",
+      "evidence_refs": [
+        "output/sdtm/drafts/ae.csv",
+        "output/sdtm/drafts/ae.csv.provenance.json",
+        "output/sdtm/traceability/ae-draft-traceability.json"
+      ],
+      "auto_approved": false
+    },
+    {
+      "id": "F-002",
+      "category": "mapping",
+      "severity": "warning",
+      "location": "programs/edc_to_sdtm/program-manifest.json",
+      "title": "确认三语言程序共享同一 MappingSpec",
+      "current_value": "已生成 python, r, sas；仅 Python 作为本轮 reference adapter 执行",
+      "proposed_value": "接受 R/SAS 为待独立 QC/运行环境确认的代码产物",
+      "rationale": "三种语言共享 MappingSpec ID/hash、source hash、rule refs 和 SDTMIG 3.4 锁。",
+      "evidence_refs": [
+        "programs/edc_to_sdtm/program-manifest.json",
+        "work/mapping/ae-mapping-spec-approved.json"
+      ],
+      "auto_approved": false
+    },
+    {
+      "id": "F-003",
+      "category": "terminology",
+      "severity": "warning",
+      "location": "AE:AESEV,AESER,AEREL,AEACN,AEOUT",
+      "title": "确认 canonical 继续保留缺口：gap-controlled-value-labels",
+      "current_value": "SAS catalog/value-label mapping unavailable; controlled fields are not mapped",
+      "proposed_value": "不补齐该范围，保留在 canonical traceability",
+      "rationale": "POC canonical 表示本轮受控产物，不代表缺口已解决或完整申报合规。",
+      "evidence_refs": [
+        "output/sdtm/traceability/ae-draft-traceability.json",
+        "gap-controlled-value-labels"
+      ],
+      "auto_approved": false
+    },
+    {
+      "id": "F-004",
+      "category": "compliance",
+      "severity": "warning",
+      "location": "AE:AESTDY,AEENDY",
+      "title": "确认 canonical 继续保留缺口：gap-reference-date-identity-no-overlap",
+      "current_value": "Reference-date source cannot join to Source.Subject; study-day fields are omitted",
+      "proposed_value": "不补齐该范围，保留在 canonical traceability",
+      "rationale": "POC canonical 表示本轮受控产物，不代表缺口已解决或完整申报合规。",
+      "evidence_refs": [
+        "output/sdtm/traceability/ae-draft-traceability.json",
+        "gap-reference-date-identity-no-overlap"
+      ],
+      "auto_approved": false
+    },
+    {
+      "id": "F-005",
+      "category": "compliance",
+      "severity": "warning",
+      "location": "AE:AE",
+      "title": "确认 canonical 继续保留缺口：gap-full-sdtmig-conformance-not-claimed",
+      "current_value": "This POC validates a bounded AE subset, not complete SDTMIG conformance",
+      "proposed_value": "不补齐该范围，保留在 canonical traceability",
+      "rationale": "POC canonical 表示本轮受控产物，不代表缺口已解决或完整申报合规。",
+      "evidence_refs": [
+        "output/sdtm/traceability/ae-draft-traceability.json",
+        "gap-full-sdtmig-conformance-not-claimed"
+      ],
+      "auto_approved": false
+    },
+    {
+      "id": "F-006",
+      "category": "compliance",
+      "severity": "warning",
+      "location": "output/sdtm/validation/ae-reference-validation.json#deferred_review_summary/0",
+      "title": "后审 AE 数据问题：AETERM",
+      "current_value": "检查 required_value_empty 发现 128/1066 条记录受影响；reference adapter 已保留全部记录",
+      "proposed_value": "本轮不自动过滤或补值；保留问题及行级 finding，供数据修复与后续 QC 跟踪。",
+      "rationale": "该 finding 影响数据内容质量，但不破坏本轮程序执行、行级保留或证据追溯，因此按受控策略延后到 Program Review。",
+      "evidence_refs": [
+        "output/sdtm/validation/ae-reference-validation.json",
+        "output/sdtm/logs/ae-reference-execution.json",
+        "VAL-AE-REQ-1-AETERM",
+        "VAL-AE-REQ-2-AETERM",
+        "VAL-AE-REQ-3-AETERM",
+        "VAL-AE-REQ-4-AETERM",
+        "VAL-AE-REQ-5-AETERM",
+        "VAL-AE-REQ-6-AETERM",
+        "VAL-AE-REQ-7-AETERM",
+        "VAL-AE-REQ-8-AETERM",
+        "VAL-AE-REQ-43-AETERM",
+        "VAL-AE-REQ-44-AETERM",
+        "VAL-AE-REQ-57-AETERM",
+        "VAL-AE-REQ-58-AETERM",
+        "VAL-AE-REQ-59-AETERM",
+        "VAL-AE-REQ-60-AETERM",
+        "VAL-AE-REQ-123-AETERM",
+        "VAL-AE-REQ-124-AETERM",
+        "VAL-AE-REQ-151-AETERM",
+        "VAL-AE-REQ-152-AETERM",
+        "VAL-AE-REQ-164-AETERM",
+        "VAL-AE-REQ-165-AETERM"
+      ],
+      "auto_approved": false
+    }
+  ],
+  "urgency": "blocking",
+  "created_at": "2026-07-20T06:31:29.388045+00:00",
+  "generated_by": "P9 Metadata-driven AE Runtime",
+  "auto_approved_count": 0
+}
