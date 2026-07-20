@@ -623,7 +623,7 @@ components:
     PocStep:
       type: object
       additionalProperties: false
-      required: [step_id, ordinal, title, state, kind, summary, checks, artifact_refs, evidence_refs]
+      required: [step_id, ordinal, title, state, kind, summary, checks, input_refs, artifact_refs, evidence_refs]
       properties:
         step_id:
           type: string
@@ -654,6 +654,10 @@ components:
           type: [string, "null"]
         review_id:
           type: [string, "null"]
+        input_refs:
+          type: array
+          items:
+            type: string
         artifact_refs:
           type: array
           items:

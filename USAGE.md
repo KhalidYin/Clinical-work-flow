@@ -164,7 +164,12 @@ Workbench 是当前最小 POC 的 work-to-end 前端。它只服务 `SAMPLE-AE-0
 - input/system 阻断修复后使用 `Retry current step`，普通 Run 不复用 blocked run；
 - validation 默认强阻断；只有受控 policy 明确列出的数据质量问题可延后到 Program Review。当前
   `AETERM` 空值会显示数量和行级证据，但保留全部记录并继续生成程序/draft，不自动过滤或补值；
-- Artifact preview 只通过 `GET /artifacts/{artifact_id}` 显示登记 artifact 的 relative path、hash 和 JSON/CSV/TXT/YAML 安全预览，不返回绝对路径；
+- “输入与证据”按当前选中阶段显示：输入是该阶段消费的上游对象，证据是解释/验证当前决定的引用，
+  产物是该阶段新建的输出；完整 SAS7BDAT profile 只在 Input Check 展示，不会复制到 Wiki/Mapping 阶段；
+- Wiki Context 产物为 `work/knowledge/ae-wiki-context.json`，必须显示 `p9-poc-test-only`、snapshot/release、
+  5 条精确 rule ID、statement、source 与 locator；MappingSpec 预览必须显示 source→target、operation、
+  parameters、rule refs、source metadata provenance 和未闭合 gap；
+- Artifact preview 只通过 `GET /artifacts/{artifact_id}` 显示登记 artifact 的 relative path、hash 和 JSON/CSV/YAML/受控文本（含 SAS/R/Python/log）安全预览，不返回绝对路径；
 - Event/Evidence log 只显示 POC runner/API 返回的事件，不在浏览器推断状态。
 
 当前 Workbench 使用的 Wiki 规则仍声明 `p9-poc-test-only`，仅用于 P9.1 单机 POC / 测试验证，不是生产正式知识，不得作为真实 Study 自动化的独立执行依据。
@@ -197,13 +202,18 @@ DecisionReceipt、Resume、canonical artifact，并验证 source hash blocker �
 1. 运行 `.\start-study-console.ps1`，打开 `http://127.0.0.1:8788/workbench/`；
 2. 确认 Header 显示 `SAMPLE-AE-001`、`sdtm_ae_dataset` 和 `p9-poc-test-only`；
 3. 点击 `Run POC`，确认 Input Check 报告登记 source、hash、parser、行列数、metadata/profile 和目标依赖；
-4. 观察横向 Stage Rail 与 Main Workspace 指向同一 active/blocked 阶段；
-5. 若进入 Review，在“人工审核”中逐项核对 evidence，提交 DecisionReceipt 后点击 `Resume`；
-6. 若为 input/system/strong-validation blocker，先修复页面指出的原因，再点击 `Retry current step`，
+4. 观察横向 Stage Rail 与 Main Workspace 指向同一 active/blocked 阶段；逐阶段切换“输入与证据”，
+   确认没有把全局 Input Check profile 重复成 Wiki/Mapping 输入；
+5. 在 Wiki Context 预览核对测试用途、5 条规则和 source locator；在 MappingSpec 预览核对映射决策、
+   rule refs、source provenance 与 gap，而不是只看到原始数据摘要；
+6. 若进入 Review，在“人工审核”中逐项核对 evidence，提交 DecisionReceipt 后点击 `Resume`；
+7. 若为 input/system/strong-validation blocker，先修复页面指出的原因，再点击 `Retry current step`，
    不要再次普通 Run；AETERM 空值应作为 Program Review warning 出现，不再单独阻断执行；
-7. 在后续 Program Review 重复审核与 Resume，直到 Canonical AE；
-8. 在“产物预览”确认 `output/sdtm/datasets/ae.csv` 的 relative path、hash 和 CSV preview；
-9. 失败时以 blocker 的 stage/check/影响/证据/recovery action 为准，不通过聊天消息替代工作流状态。
+8. 在后续 Program Review 重复审核与 Resume，直到 Canonical AE；已完成 Validation Review 不应同时保留
+   AETERM `fail`，但原始 validation/行级 evidence 仍应存在；
+9. 在“产物预览”确认各阶段只登记自己的产物，并最终核对 `output/sdtm/datasets/ae.csv` 的 relative
+   path、hash、CSV preview 和 canonical trace；
+10. 失败时以 blocker 的 stage/check/影响/证据/recovery action 为准，不通过聊天消息替代工作流状态。
 
 Console 的 Review Inbox 采用队列/详情布局：左侧只显示 ReviewPacket 摘要与状态筛选，右侧显示选中 packet 的详情；finding 默认折叠，避免把完整审阅流在长页面中全部铺开。正式 human-loop 仍以 ReviewPacket → DecisionReceipt 为准，Console 只写 DecisionReceipt，不写 ConfirmationReceipt。
 

@@ -12,11 +12,17 @@ import yaml
 
 from src.agents.ae_metadata_poc import (
     MAPPING_APPROVED_PATH,
+    MAPPING_CANDIDATE_PATH,
+    MAPPING_CONTEXT_PATH,
     MAPPING_REVIEW_ID,
+    REQUIRED_RULE_IDS,
+    WIKI_CONTEXT_PATH,
     prepare_metadata_mapping_review,
+    write_metadata_wiki_context,
 )
 from src.agents.ae_metadata_workflow import (
     CANONICAL_DATASET_PATH,
+    CANONICAL_TRACEABILITY_PATH,
     PROGRAM_REVIEW_ID,
     apply_program_review,
     ensure_approved_mapping,
@@ -54,6 +60,8 @@ from src.codegen.ae_programs import (
     DRAFT_DATASET_PATH,
     EXECUTION_LOG_PATH,
     PROGRAM_MANIFEST_PATH,
+    PROVENANCE_PATH,
+    TRACEABILITY_PATH,
     VALIDATION_PATH,
 )
 from src.mcp_tools.edc_importer import (
@@ -87,6 +95,8 @@ KEY_PROFILE_VARIABLES = (
     "AESTDAT",
     "AEENDAT",
 )
+
+MAPPING_INPUT_REFS = [SOURCE_METADATA_PATH, MINIMUM_INFORMATION_PATH, WIKI_CONTEXT_PATH]
 
 
 class PocRunnerError(RuntimeError):
@@ -210,12 +220,20 @@ class PocRunner:
                         run,
                         "program-execution",
                         "程序与 Python draft 已生成，等待独立审核。",
+                        input_refs=self._program_input_refs(),
+                        evidence_refs=[MAPPING_APPROVED_PATH],
+                        artifact_paths=self._program_artifact_paths(),
                     )
                 self._block_review(
                     run,
                     "validation-review",
                     PROGRAM_REVIEW_ID,
                     "等待三语言程序和 Python draft 人工审核",
+                    input_refs=self._validation_review_input_refs(),
+                    evidence_refs=[
+                        VALIDATION_PATH,
+                        f".review_queue/{PROGRAM_REVIEW_ID}.json",
+                    ],
                 )
                 return
 
@@ -246,7 +264,9 @@ class PocRunner:
                         evidence_refs=[str(result.get("validation_path") or VALIDATION_PATH)],
                     )
                 ],
-                artifact_paths=[PROGRAM_MANIFEST_PATH, VALIDATION_PATH],
+                input_refs=self._program_input_refs(),
+                evidence_refs=[MAPPING_APPROVED_PATH, VALIDATION_PATH],
+                artifact_paths=self._program_artifact_paths(),
             )
             if result.get("status") == "validation_review_required":
                 self._block_validation(run, result)
@@ -256,6 +276,11 @@ class PocRunner:
                 "validation-review",
                 PROGRAM_REVIEW_ID,
                 "等待三语言程序和 Python draft 人工审核",
+                input_refs=self._validation_review_input_refs(),
+                evidence_refs=[
+                    VALIDATION_PATH,
+                    f".review_queue/{PROGRAM_REVIEW_ID}.json",
+                ],
             )
         except Exception as exc:  # noqa: BLE001 - unexpected faults become one visible blocker
             self._block_system(run, exc)
@@ -292,7 +317,21 @@ class PocRunner:
                 "input-check",
                 input_check.summary.message,
                 checks=input_check.checks,
-                artifact_paths=[INPUT_CHECK_PATH, SOURCE_METADATA_PATH, SOURCE_PROFILE_PATH],
+                input_refs=[
+                    "source-inventory.yaml",
+                    str(parsed.source_metadata["source"]["relative_path"]),
+                ],
+                evidence_refs=[
+                    SOURCE_VALIDATION_PATH,
+                    SOURCE_METADATA_PATH,
+                    SOURCE_PROFILE_PATH,
+                ],
+                artifact_paths=[
+                    INPUT_CHECK_PATH,
+                    SOURCE_METADATA_PATH,
+                    SOURCE_PROFILE_PATH,
+                    SOURCE_VALIDATION_PATH,
+                ],
             )
             return True
         except Exception as exc:  # noqa: BLE001 - classify input boundary failures below
@@ -537,26 +576,44 @@ class PocRunner:
                     evidence_refs=[MINIMUM_INFORMATION_PATH, INPUT_CHECK_PATH],
                 )
             ],
+            input_refs=[INPUT_CHECK_PATH, SOURCE_METADATA_PATH, "project.yaml"],
+            evidence_refs=[INPUT_CHECK_PATH, SOURCE_METADATA_PATH],
             artifact_paths=[MINIMUM_INFORMATION_PATH],
         )
 
     def _ensure_wiki_context(self, run: dict[str, Any]) -> None:
-        self._start_step(run, "wiki-context", "确认测试用 Wiki snapshot 可供 Mapping 查询。")
+        self._start_step(run, "wiki-context", "锁定并投影本次 Mapping 实际采用的 Wiki 规则。")
         snapshot_path = self.wiki_dir / POC_SNAPSHOT_PATH
         if not snapshot_path.exists():
             raise PocRunnerError(f"POC test-only Wiki snapshot is missing: {POC_SNAPSHOT_PATH}")
+        context = write_metadata_wiki_context(self.study_dir, self.wiki_dir)
+        rules = list(context.get("rules") or [])
+        locator_refs = [
+            f"{rule['source_id']}:{locator['locator_id']}"
+            for rule in rules
+            for locator in rule.get("locators", [])
+        ]
         self._complete_step(
             run,
             "wiki-context",
-            "测试用 Wiki snapshot 已锁定；不声明为生产正式知识。",
+            f"已锁定 {len(rules)} 条 SDTMIG 3.4 规则；仅限 P9 POC 测试，不具备生产资格。",
             checks=[
                 PocStepCheck(
                     check_id="poc-test-wiki-snapshot",
                     state=PocCheckState.PASS,
-                    summary="p9-poc-test-only snapshot 可用。",
-                    evidence_refs=[f"clinical-llm-wiki/{POC_SNAPSHOT_PATH}"],
+                    summary=f"p9-poc-test-only snapshot 可用并关闭 {len(rules)} 条规则引用。",
+                    detail="；".join(str(rule["rule_id"]) for rule in rules),
+                    observed=len(rules),
+                    expected=len(REQUIRED_RULE_IDS),
+                    evidence_refs=[
+                        f"clinical-llm-wiki/{POC_SNAPSHOT_PATH}",
+                        *locator_refs,
+                    ],
                 )
             ],
+            input_refs=[MINIMUM_INFORMATION_PATH, f"clinical-llm-wiki/{POC_SNAPSHOT_PATH}"],
+            evidence_refs=[WIKI_CONTEXT_PATH, *locator_refs],
+            artifact_paths=[WIKI_CONTEXT_PATH],
         )
 
     def _ensure_mapping_approval(self, run: dict[str, Any]) -> bool:
@@ -567,7 +624,12 @@ class PocRunner:
                 run,
                 "mapping-spec",
                 "复用已验证的 approved MappingSpec。",
-                artifact_paths=[MAPPING_APPROVED_PATH],
+                input_refs=MAPPING_INPUT_REFS,
+                evidence_refs=[
+                    MAPPING_CONTEXT_PATH,
+                    f".review_queue/{MAPPING_REVIEW_ID}_decision.json",
+                ],
+                artifact_paths=[MAPPING_CONTEXT_PATH, MAPPING_APPROVED_PATH],
             )
             return True
         if not self._has_decision(MAPPING_REVIEW_ID):
@@ -584,6 +646,13 @@ class PocRunner:
                 "mapping-spec",
                 MAPPING_REVIEW_ID,
                 "等待 AE MappingSpec 人工审核",
+                input_refs=MAPPING_INPUT_REFS,
+                evidence_refs=[
+                    MAPPING_CONTEXT_PATH,
+                    MAPPING_CANDIDATE_PATH,
+                    f".review_queue/{MAPPING_REVIEW_ID}.json",
+                ],
+                artifact_paths=[MAPPING_CONTEXT_PATH, MAPPING_CANDIDATE_PATH],
             )
             return False
         ensure_approved_mapping(self.study_dir)
@@ -591,7 +660,12 @@ class PocRunner:
             run,
             "mapping-spec",
             "DecisionReceipt 已应用并生成 approved MappingSpec。",
-            artifact_paths=[MAPPING_APPROVED_PATH],
+            input_refs=MAPPING_INPUT_REFS,
+            evidence_refs=[
+                MAPPING_CONTEXT_PATH,
+                f".review_queue/{MAPPING_REVIEW_ID}_decision.json",
+            ],
+            artifact_paths=[MAPPING_CONTEXT_PATH, MAPPING_APPROVED_PATH],
         )
         return True
 
@@ -614,6 +688,11 @@ class PocRunner:
             "validation-review",
             PROGRAM_REVIEW_ID,
             "验证已通过，等待三语言程序和 Python draft 人工审核",
+            input_refs=self._validation_review_input_refs(),
+            evidence_refs=[
+                VALIDATION_PATH,
+                f".review_queue/{PROGRAM_REVIEW_ID}.json",
+            ],
         )
 
     def _apply_program_review(self, run: dict[str, Any]) -> None:
@@ -638,9 +717,108 @@ class PocRunner:
             run,
             "validation-review",
             "Program Review DecisionReceipt 已应用。",
+            checks=self._completed_program_review_checks(),
+            input_refs=self._validation_review_input_refs(),
+            evidence_refs=[
+                VALIDATION_PATH,
+                f".review_queue/{PROGRAM_REVIEW_ID}.json",
+                f".review_queue/{PROGRAM_REVIEW_ID}_decision.json",
+            ],
             artifact_paths=[f".review_queue/{PROGRAM_REVIEW_ID}_confirmation.json"],
         )
         self._complete_run(run, result)
+
+    def _program_input_refs(self) -> list[str]:
+        refs = [MAPPING_APPROVED_PATH]
+        spec_path = self.study_dir / MAPPING_APPROVED_PATH
+        if spec_path.exists():
+            source = _read_json(spec_path).get("source", {})
+            source_path = source.get("relative_path") if isinstance(source, Mapping) else None
+            if source_path:
+                refs.append(str(source_path))
+        return refs
+
+    def _program_artifact_paths(self) -> list[str]:
+        paths = [
+            PROGRAM_MANIFEST_PATH,
+            DRAFT_DATASET_PATH,
+            VALIDATION_PATH,
+            EXECUTION_LOG_PATH,
+            PROVENANCE_PATH,
+            TRACEABILITY_PATH,
+        ]
+        manifest_path = self.study_dir / PROGRAM_MANIFEST_PATH
+        if manifest_path.exists():
+            manifest = _read_json(manifest_path)
+            paths.extend(
+                str(program["path"])
+                for program in manifest.get("programs", [])
+                if isinstance(program, Mapping) and program.get("path")
+            )
+        return list(dict.fromkeys(paths))
+
+    def _validation_review_input_refs(self) -> list[str]:
+        return [
+            MAPPING_APPROVED_PATH,
+            PROGRAM_MANIFEST_PATH,
+            DRAFT_DATASET_PATH,
+            VALIDATION_PATH,
+            PROVENANCE_PATH,
+            TRACEABILITY_PATH,
+        ]
+
+    def _completed_program_review_checks(self) -> list[PocStepCheck]:
+        validation_path = self.study_dir / VALIDATION_PATH
+        if not validation_path.exists():
+            return [
+                PocStepCheck(
+                    check_id="program-review-applied",
+                    state=PocCheckState.PASS,
+                    summary="Program Review 已应用；无独立 validation artifact。",
+                    evidence_refs=[f".review_queue/{PROGRAM_REVIEW_ID}_decision.json"],
+                )
+            ]
+        validation = _read_json(validation_path)
+        if validation.get("blocking_summary"):
+            raise PocRunnerError(
+                "Program Review cannot complete while strong-blocking validation remains"
+            )
+        deferred = list(validation.get("deferred_review_summary") or [])
+        if not deferred:
+            return [
+                PocStepCheck(
+                    check_id="program-review-applied",
+                    state=PocCheckState.PASS,
+                    summary="Validation 无未处置 finding；Program Review 已应用。",
+                    evidence_refs=[
+                        VALIDATION_PATH,
+                        f".review_queue/{PROGRAM_REVIEW_ID}_decision.json",
+                    ],
+                )
+            ]
+        return [
+            PocStepCheck(
+                check_id=f"{item.get('check_code', 'validation')}-deferred-reviewed",
+                state=PocCheckState.WARNING,
+                summary=(
+                    f"{item.get('variable', 'dataset')}: "
+                    f"{int(item.get('count', 0))}/{int(item.get('row_count', 0))} "
+                    "项数据问题已后审接受，原记录保持不变。"
+                ),
+                detail="处置结果为 deferred_review；不表示数据质量检查通过。",
+                observed=int(item.get("count", 0)),
+                expected=0,
+                affected_variables=(
+                    [str(item["variable"])] if item.get("variable") else []
+                ),
+                evidence_refs=[
+                    VALIDATION_PATH,
+                    f".review_queue/{PROGRAM_REVIEW_ID}_decision.json",
+                    *list(item.get("finding_ids") or [])[:20],
+                ],
+            )
+            for item in deferred
+        ]
 
     def _block_validation(self, run: dict[str, Any], result: Mapping[str, Any]) -> None:
         summaries = list(result.get("blocking_summary") or [])
@@ -684,9 +862,26 @@ class PocRunner:
                 retryable=True,
             ),
             checks=checks,
+            input_refs=self._validation_review_input_refs(),
+            evidence_refs=[
+                VALIDATION_PATH,
+                EXECUTION_LOG_PATH,
+                str(result["review_packet_path"]),
+            ],
+            artifact_paths=[VALIDATION_PATH, str(result["review_packet_path"])],
         )
 
-    def _block_review(self, run: dict[str, Any], step_id: str, review_id: str, reason: str) -> None:
+    def _block_review(
+        self,
+        run: dict[str, Any],
+        step_id: str,
+        review_id: str,
+        reason: str,
+        *,
+        input_refs: list[str] | None = None,
+        evidence_refs: list[str] | None = None,
+        artifact_paths: list[str] | None = None,
+    ) -> None:
         self._block(
             run,
             PocBlocker(
@@ -699,6 +894,9 @@ class PocRunner:
                 recovery_action=PocRecoveryAction.SUBMIT_REVIEW_DECISION,
                 review_id=review_id,
             ),
+            input_refs=input_refs,
+            evidence_refs=evidence_refs,
+            artifact_paths=artifact_paths,
         )
 
     def _block_system(self, run: dict[str, Any], exc: Exception) -> None:
@@ -722,7 +920,11 @@ class PocRunner:
         blocker: PocBlocker,
         *,
         checks: list[PocStepCheck] | None = None,
+        input_refs: list[str] | None = None,
+        evidence_refs: list[str] | None = None,
+        artifact_paths: list[str] | None = None,
     ) -> None:
+        refs = [_artifact_ref(self.study_dir, path) for path in artifact_paths or []]
         self._set_step_state(
             run,
             blocker.stage_id,
@@ -734,6 +936,9 @@ class PocRunner:
             ),
             summary=blocker.summary,
             checks=checks,
+            input_refs=input_refs,
+            evidence_refs=evidence_refs or blocker.evidence_refs,
+            artifact_refs=[item for item in refs if item is not None],
             blocking_reason=blocker.summary,
             review_id=blocker.review_id,
         )
@@ -779,6 +984,8 @@ class PocRunner:
         summary: str,
         *,
         checks: list[PocStepCheck] | None = None,
+        input_refs: list[str] | None = None,
+        evidence_refs: list[str] | None = None,
         artifact_paths: list[str] | None = None,
     ) -> None:
         refs = [_artifact_ref(self.study_dir, path) for path in artifact_paths or []]
@@ -790,6 +997,8 @@ class PocRunner:
             summary=summary,
             completed_at=_utc_now(),
             checks=checks,
+            input_refs=input_refs,
+            evidence_refs=evidence_refs,
             artifact_refs=[item for item in refs if item is not None],
             blocking_reason=None,
             review_id=None,
@@ -816,6 +1025,12 @@ class PocRunner:
         )
 
     def _complete_run(self, run: dict[str, Any], result: Mapping[str, Any]) -> None:
+        canonical_artifacts = [CANONICAL_DATASET_PATH]
+        trace_path = str(
+            result.get("canonical_traceability_path") or CANONICAL_TRACEABILITY_PATH
+        )
+        if (self.study_dir / trace_path).exists():
+            canonical_artifacts.append(trace_path)
         self._set_step_state(
             run,
             "canonical-ae",
@@ -823,9 +1038,20 @@ class PocRunner:
             kind=PocStepKind.COMPLETE,
             summary="Canonical AE 已写入并保持受控 POC 范围声明。",
             completed_at=_utc_now(),
+            input_refs=[
+                DRAFT_DATASET_PATH,
+                f".review_queue/{PROGRAM_REVIEW_ID}_confirmation.json",
+            ],
+            evidence_refs=[
+                PROVENANCE_PATH,
+                TRACEABILITY_PATH,
+                f".review_queue/{PROGRAM_REVIEW_ID}_decision.json",
+            ],
             artifact_refs=[
                 item
-                for item in [_artifact_ref(self.study_dir, CANONICAL_DATASET_PATH)]
+                for item in [
+                    _artifact_ref(self.study_dir, path) for path in canonical_artifacts
+                ]
                 if item is not None
             ],
         )
@@ -1097,6 +1323,10 @@ def _artifact_ref(study_dir: Path, relative_path: str) -> PocArtifactRef | None:
         ".json": PocArtifactKind.JSON,
         ".csv": PocArtifactKind.CSV,
         ".txt": PocArtifactKind.TEXT,
+        ".py": PocArtifactKind.TEXT,
+        ".r": PocArtifactKind.TEXT,
+        ".sas": PocArtifactKind.TEXT,
+        ".log": PocArtifactKind.TEXT,
         ".yaml": PocArtifactKind.YAML,
         ".yml": PocArtifactKind.YAML,
     }.get(suffix, PocArtifactKind.UNKNOWN)

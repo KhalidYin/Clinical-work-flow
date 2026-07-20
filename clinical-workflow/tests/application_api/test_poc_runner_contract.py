@@ -341,3 +341,46 @@ def test_poc_run_routes_normalize_legacy_runner_response(tmp_path: Path) -> None
     assert run.json()["run_state"] == "blocked"
     assert run.json()["legacy_run_state"] is None
     assert run.json()["blocker"]["kind"] == "input"
+
+
+def test_completed_review_projects_legacy_aeterm_fail_as_deferred_warning(
+    tmp_path: Path,
+) -> None:
+    container = _minimal_container(tmp_path)
+    study = container / STUDY_ID
+    runs = study / ".application_api" / "poc_runs"
+    runs.mkdir(parents=True)
+    payload = _minimal_state(PocRunState.DONE).model_dump(mode="json")
+    payload.update(
+        {
+            "run_id": "run-poc-completed-review",
+            "schema_version": "2.0",
+            "updated_at": "2026-07-20T08:00:00Z",
+            "current_step": "canonical-ae",
+        }
+    )
+    validation_step = next(
+        step for step in payload["steps"] if step["step_id"] == "validation-review"
+    )
+    validation_step["state"] = "done"
+    validation_step["checks"] = [
+        {
+            "check_id": "required_value_empty",
+            "state": "fail",
+            "summary": "AETERM: 128/1066 条记录",
+            "affected_variables": ["AETERM"],
+            "evidence_refs": ["output/sdtm/validation/ae-reference-validation.json"],
+        }
+    ]
+    (runs / "run-poc-completed-review.json").write_text(
+        json.dumps(payload), encoding="utf-8"
+    )
+
+    state = _client(container).get(f"/api/v1/studies/{STUDY_ID}/poc-state").json()
+    projected = next(
+        step for step in state["steps"] if step["step_id"] == "validation-review"
+    )
+
+    assert projected["state"] == "done"
+    assert projected["checks"][0]["state"] == "warning"
+    assert "后审处置" in projected["checks"][0]["summary"]

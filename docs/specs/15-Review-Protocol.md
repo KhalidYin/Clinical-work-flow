@@ -1217,3 +1217,21 @@ DecisionReceipt 已写入：
 
 浏览器 E2E 使用临时 Study 中的测试 DecisionReceipt 验证该协议；真实 Study 的决定必须由用户在
 实际 human-loop 中提交，自动测试不得代替。
+
+### 15.2 POC 各阶段人工边界
+
+Workbench 可在每个阶段显示审核边界说明，但只在既有 ReviewPacket 出现时开放决定提交：
+
+| 阶段 | 默认人工边界 |
+|------|--------------|
+| Input Check | 不审核业务取舍；只修复 source/hash/parser/结构问题后 Retry |
+| Minimum Information | 仅当前置信度不足或存在前置条件冲突时升级，不新增固定 Gate |
+| Wiki Context | 只核对锁定 snapshot、测试用途、规则原文与 locator；当前 POC 不在此批准生产知识 |
+| Mapping | 必审 source→target、operation/parameters、rule refs、gap 和 Study 特例 |
+| Program | 程序执行后必审程序、draft、traceability 及合并的 deferred findings |
+| Validation Review | strong blocker 修复后必须确定性重验；Program DecisionReceipt 由 runner 消费并形成 ConfirmationReceipt |
+| Canonical AE | 不新增审核；只允许从已确认 draft 提升并核对 hash/trace |
+
+Input、Evidence、Artifact 的存在都不能单独触发 Human-loop。已完成的 Validation Review 如果只有经
+Program Review 接受的 `AETERM` deferred finding，ledger 投影必须显示 `warning`，不得保留历史
+`fail` 造成“阶段 done 但 check fail”的矛盾；原 validation 和行级 finding 仍作为不可篡改证据保留。

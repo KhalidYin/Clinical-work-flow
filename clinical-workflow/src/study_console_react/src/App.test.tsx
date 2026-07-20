@@ -144,6 +144,7 @@ const basePocState: PocState = {
           evidence_refs: ["input/raw/ae.sas7bdat"],
         },
       ],
+      input_refs: ["source-inventory.yaml", "input/raw/ae.sas7bdat"],
       artifact_refs: [],
       evidence_refs: ["input/raw/ae.sas7bdat"],
     },
@@ -165,6 +166,7 @@ const basePocState: PocState = {
       ],
       blocking_reason: "pending review",
       review_id: REVIEW_ID,
+      input_refs: ["work/derived/edc/source-metadata.json", "work/knowledge/ae-wiki-context.json"],
       artifact_refs: [mappingArtifact()],
       evidence_refs: [`.review_queue/${REVIEW_ID}.json`],
     },
@@ -307,7 +309,34 @@ describe("Clinical POC Workbench shell", () => {
             relative_path: "SAMPLE-AE-001/work/mapping/ae-mapping-spec-candidate.json",
             sha256: "c".repeat(64),
           },
-          preview: { kind: "json", value: { domain: "AE", mapping_count: 5 } },
+          preview: {
+            kind: "json",
+            value: {
+              spec_id: "ae-mapping-spec-sample-ae-001-v1",
+              status: "candidate",
+              target_dataset: "AE",
+              source: { relative_path: "input/raw/ae.sas7bdat", sha256: "a".repeat(64) },
+              knowledge: { snapshot_id: "snapshot-sdtmig34-core-events-ae-v1" },
+              mappings: [
+                {
+                  mapping_id: "map-aeterm",
+                  target_variable: "AETERM",
+                  source_variables: ["AETERM"],
+                  operation: "copy_trim",
+                  parameters: {},
+                  rule_refs: ["proposal-sdtmig34-gold-aeterm-required-v1"],
+                  review_status: "review_required",
+                },
+              ],
+              explicit_gaps: [
+                {
+                  gap_id: "gap-controlled-value-labels",
+                  affects_variables: ["AESEV"],
+                  description: "Value labels unavailable",
+                },
+              ],
+            },
+          },
         });
       }
       if (url.endsWith(`/reviews/${REVIEW_ID}/decisions`)) {
@@ -368,6 +397,20 @@ describe("Clinical POC Workbench shell", () => {
     expect(screen.getByText("128")).toBeInTheDocument();
     expect(screen.getAllByText("not_required")).toHaveLength(6);
     expect(window.location.hash).toBe("#step=input-check&view=input");
+  });
+
+  it("shows selected-stage inputs and evidence without repeating the global input profile", async () => {
+    render(<App />);
+
+    await screen.findByRole("heading", { name: REVIEW_ID });
+    fireEvent.click(screen.getByRole("button", { name: /MappingSpec/ }));
+    fireEvent.click(screen.getByRole("tab", { name: "输入与证据" }));
+
+    expect(screen.getByRole("heading", { name: "本阶段输入" })).toBeInTheDocument();
+    expect(screen.getByText("work/knowledge/ae-wiki-context.json")).toBeInTheDocument();
+    expect(screen.getAllByText(`.review_queue/${REVIEW_ID}.json`)).toHaveLength(2);
+    expect(screen.queryByText("1066 × 73")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "必须审核" })).toBeInTheDocument();
   });
 
   it("renders one finding workspace at a time and submits a DecisionReceipt", async () => {
@@ -464,7 +507,10 @@ describe("Clinical POC Workbench shell", () => {
     fireEvent.click(screen.getByRole("tab", { name: "产物预览" }));
 
     expect(await screen.findByRole("heading", { name: "work/mapping/ae-mapping-spec-candidate.json" })).toBeInTheDocument();
-    expect(await screen.findByText(/"domain": "AE"/)).toBeInTheDocument();
+    expect(await screen.findByText("Mapping 决策")).toBeInTheDocument();
+    expect(screen.getByText("copy_trim")).toBeInTheDocument();
+    expect(screen.getByText("proposal-sdtmig34-gold-aeterm-required-v1")).toBeInTheDocument();
+    expect(screen.getByText("gap-controlled-value-labels")).toBeInTheDocument();
     expect(screen.getByText("SAMPLE-AE-001/work/mapping/ae-mapping-spec-candidate.json")).toBeInTheDocument();
   });
 

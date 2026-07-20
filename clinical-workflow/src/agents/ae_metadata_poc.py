@@ -39,6 +39,7 @@ from src.runtime.review_protocol import (
 MAPPING_SCHEMA_PATH = Path(__file__).resolve().parent / "contracts" / (
     "ae-metadata-mapping-spec.schema.json"
 )
+WIKI_CONTEXT_PATH = "work/knowledge/ae-wiki-context.json"
 MAPPING_CONTEXT_PATH = "work/mapping/ae-mapping-context.json"
 MAPPING_CANDIDATE_PATH = "work/mapping/ae-mapping-spec-candidate.json"
 MAPPING_APPROVED_PATH = "work/mapping/ae-mapping-spec-approved.json"
@@ -209,6 +210,84 @@ def _reference_join_evidence(study: Path, source_data: Any) -> dict[str, Any]:
     }
 
 
+def build_metadata_wiki_context(
+    wiki_dir: str | Path,
+    *,
+    generated_at: str | None = None,
+) -> dict[str, Any]:
+    """Build the Study-local projection of the exact test-only Wiki evidence used by P9."""
+    wiki = Path(wiki_dir).resolve()
+    snapshot_path = wiki / "snapshots/snapshot-sdtmig34-core-events-ae-v1.json"
+    release_path = wiki / (
+        "sources/packages/src-cdisc-sdtmig-3-4/approved-proposal-release.json"
+    )
+    snapshot = _read_json(snapshot_path)
+    snapshot_content_sha = sha256_canonical_json({
+        "schema_bundle": snapshot.get("schema_bundle"),
+        "items": snapshot.get("items"),
+    })
+    if snapshot.get("sha256") != snapshot_content_sha:
+        raise AEMetadataPOCError("Knowledge snapshot content hash drifted")
+    if snapshot.get("snapshot_id") != "snapshot-sdtmig34-core-events-ae-v1":
+        raise AEMetadataPOCError("Unexpected knowledge snapshot identity")
+    release = _read_json(release_path)
+    context = {
+        "schema_version": "1.0.0",
+        "context_id": "ae-wiki-context-sdtmig34-poc-v1",
+        "generated_at": generated_at or datetime.now(timezone.utc).isoformat(),
+        "scope": "p9-poc-test-only",
+        "production_eligible": False,
+        "target": {
+            "stage": "SDTM",
+            "domain": "AE",
+            "artifact": "sdtm_ae_dataset",
+            "standard": {"name": "SDTMIG", "version": "3.4"},
+        },
+        "snapshot": {
+            "snapshot_id": snapshot["snapshot_id"],
+            "version": snapshot["version"],
+            "sha256": snapshot["sha256"],
+            "relative_path": "clinical-llm-wiki/snapshots/"
+            "snapshot-sdtmig34-core-events-ae-v1.json",
+        },
+        "release": {
+            "release_id": release["release_id"],
+            "sha256": _sha256_file(release_path),
+            "source_id": release["source_id"],
+            "source_version": "SDTMIG 3.4",
+        },
+        "rules": _rule_evidence(snapshot, release, REQUIRED_RULE_IDS),
+    }
+    context["context_sha256"] = sha256_canonical_json(context)
+    return context
+
+
+def write_metadata_wiki_context(
+    study_dir: str | Path,
+    wiki_dir: str | Path,
+    *,
+    generated_at: str | None = None,
+) -> dict[str, Any]:
+    """Persist the exact Wiki query result as a bounded Study work artifact."""
+    study = Path(study_dir).resolve()
+    context_path = study / WIKI_CONTEXT_PATH
+    candidate = build_metadata_wiki_context(wiki_dir, generated_at=generated_at)
+    if context_path.exists():
+        existing = _read_json(context_path)
+        if existing.get("context_sha256") != _content_hash(
+            existing, "context_sha256"
+        ):
+            raise AEMetadataPOCError("Study-local Wiki context content hash drifted")
+        locked_fields = ("scope", "production_eligible", "target", "snapshot", "release", "rules")
+        if any(existing.get(field) != candidate.get(field) for field in locked_fields):
+            raise AEMetadataPOCError(
+                "Study-local Wiki context no longer matches the locked Wiki evidence"
+            )
+        return existing
+    _write_json(context_path, candidate)
+    return candidate
+
+
 def build_metadata_mapping_context(
     study_dir: str | Path,
     wiki_dir: str | Path,
@@ -240,21 +319,11 @@ def build_metadata_mapping_context(
     if parsed.source_metadata["artifact_id"] != metadata["artifact_id"]:
         raise AEMetadataPOCError("Reparsed source identity differs from Source Metadata")
 
-    snapshot_path = wiki / "snapshots/snapshot-sdtmig34-core-events-ae-v1.json"
-    release_path = wiki / (
-        "sources/packages/src-cdisc-sdtmig-3-4/approved-proposal-release.json"
+    wiki_context = write_metadata_wiki_context(
+        study, wiki, generated_at=generated_at
     )
-    snapshot = _read_json(snapshot_path)
-    snapshot_content_sha = sha256_canonical_json({
-        "schema_bundle": snapshot.get("schema_bundle"),
-        "items": snapshot.get("items"),
-    })
-    if snapshot.get("sha256") != snapshot_content_sha:
-        raise AEMetadataPOCError("Knowledge snapshot content hash drifted")
-    if snapshot.get("snapshot_id") != "snapshot-sdtmig34-core-events-ae-v1":
-        raise AEMetadataPOCError("Unexpected knowledge snapshot identity")
-    release = _read_json(release_path)
-    rules = _rule_evidence(snapshot, release, REQUIRED_RULE_IDS)
+    if wiki_context.get("scope") != "p9-poc-test-only":
+        raise AEMetadataPOCError("Unexpected Wiki context scope")
 
     project = yaml.safe_load((study / "project.yaml").read_text(encoding="utf-8"))
     if project.get("study_id") != plan["study_id"]:
@@ -295,12 +364,16 @@ def build_metadata_mapping_context(
             "explicit_gaps": plan["explicit_gaps"],
         },
         "knowledge": {
-            "snapshot_id": snapshot["snapshot_id"],
-            "snapshot_version": snapshot["version"],
-            "snapshot_sha256": snapshot["sha256"],
-            "release_id": release["release_id"],
-            "release_sha256": _sha256_file(release_path),
-            "rules": rules,
+            "context_id": wiki_context["context_id"],
+            "context_sha256": wiki_context["context_sha256"],
+            "context_path": WIKI_CONTEXT_PATH,
+            "scope": wiki_context["scope"],
+            "snapshot_id": wiki_context["snapshot"]["snapshot_id"],
+            "snapshot_version": wiki_context["snapshot"]["version"],
+            "snapshot_sha256": wiki_context["snapshot"]["sha256"],
+            "release_id": wiki_context["release"]["release_id"],
+            "release_sha256": wiki_context["release"]["sha256"],
+            "rules": wiki_context["rules"],
         },
         "reference_join": _reference_join_evidence(study, parsed.data),
         "allowed_operations": [

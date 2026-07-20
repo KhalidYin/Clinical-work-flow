@@ -133,6 +133,37 @@ def test_poc_runner_reaches_mapping_program_review_and_canonical(tmp_path: Path)
     assert state.active_step.review_id == MAPPING_REVIEW_ID
     assert state.blocker is not None
     assert state.blocker.kind.value == "review"
+    wiki_step = next(step for step in state.steps if step.step_id == "wiki-context")
+    mapping_step = next(step for step in state.steps if step.step_id == "mapping-spec")
+    assert wiki_step.input_refs == [
+        "work/derived/plans/minimum-information-sdtm-ae.json",
+        "clinical-llm-wiki/snapshots/snapshot-sdtmig34-core-events-ae-v1.json",
+    ]
+    assert {ref.relative_path for ref in wiki_step.artifact_refs} == {
+        "work/knowledge/ae-wiki-context.json"
+    }
+    wiki_ref = wiki_step.artifact_refs[0]
+    wiki_detail = client.get(
+        f"/api/v1/studies/SAMPLE-AE-001/artifacts/{wiki_ref.artifact_id}"
+    )
+    assert wiki_detail.status_code == 200
+    assert wiki_detail.json()["preview"]["value"]["scope"] == "p9-poc-test-only"
+    assert len(wiki_detail.json()["preview"]["value"]["rules"]) == 5
+    assert "work/knowledge/ae-wiki-context.json" in mapping_step.input_refs
+    assert {ref.relative_path for ref in mapping_step.artifact_refs} >= {
+        "work/mapping/ae-mapping-context.json",
+        "work/mapping/ae-mapping-spec-candidate.json",
+    }
+    candidate_ref = next(
+        ref
+        for ref in mapping_step.artifact_refs
+        if ref.relative_path == "work/mapping/ae-mapping-spec-candidate.json"
+    )
+    candidate_detail = client.get(
+        f"/api/v1/studies/SAMPLE-AE-001/artifacts/{candidate_ref.artifact_id}"
+    )
+    assert candidate_detail.status_code == 200
+    assert candidate_detail.json()["preview"]["value"]["target_dataset"] == "AE"
     assert {event.event_type for event in state.events} >= {
         "run_started",
         "mapping_review_written",
@@ -150,6 +181,35 @@ def test_poc_runner_reaches_mapping_program_review_and_canonical(tmp_path: Path)
     assert (study / ".review_queue" / f"{PROGRAM_REVIEW_ID}.json").exists()
     assert (study / "programs/edc_to_sdtm/program-manifest.json").exists()
     assert (study / "output/sdtm/drafts/ae.csv").exists()
+    after_mapping_state = PocState.model_validate(
+        client.get("/api/v1/studies/SAMPLE-AE-001/poc-state").json()
+    )
+    program_step = next(
+        step for step in after_mapping_state.steps if step.step_id == "program-execution"
+    )
+    assert {ref.relative_path for ref in program_step.artifact_refs} >= {
+        "programs/edc_to_sdtm/python/build_ae.py",
+        "programs/edc_to_sdtm/r/build_ae.R",
+        "programs/edc_to_sdtm/sas/build_ae.sas",
+        "output/sdtm/drafts/ae.csv",
+        "output/sdtm/logs/ae-reference-execution.json",
+        "output/sdtm/traceability/ae-draft-traceability.json",
+    }
+    assert all(
+        ref.preview_available
+        for ref in program_step.artifact_refs
+        if ref.relative_path.startswith("programs/edc_to_sdtm/")
+    )
+    sas_ref = next(
+        ref
+        for ref in program_step.artifact_refs
+        if ref.relative_path == "programs/edc_to_sdtm/sas/build_ae.sas"
+    )
+    sas_detail = client.get(
+        f"/api/v1/studies/SAMPLE-AE-001/artifacts/{sas_ref.artifact_id}"
+    )
+    assert sas_detail.status_code == 200
+    assert sas_detail.json()["preview"]["kind"] == "text"
 
     _decide_all(study, PROGRAM_REVIEW_ID)
     after_program = client.post(
@@ -162,6 +222,17 @@ def test_poc_runner_reaches_mapping_program_review_and_canonical(tmp_path: Path)
     assert (study / CANONICAL_DATASET_PATH).exists()
     done_state = client.get("/api/v1/studies/SAMPLE-AE-001/poc-state").json()
     assert done_state["run_state"] == "done"
+    validation_step = next(
+        step for step in done_state["steps"] if step["step_id"] == "validation-review"
+    )
+    assert all(check["state"] != "fail" for check in validation_step["checks"])
+    canonical_step = next(
+        step for step in done_state["steps"] if step["step_id"] == "canonical-ae"
+    )
+    assert {ref["relative_path"] for ref in canonical_step["artifact_refs"]} >= {
+        "output/sdtm/datasets/ae.csv",
+        "output/sdtm/traceability/ae-canonical-traceability.json",
+    }
     assert any(event["event_type"] == "run_done" for event in done_state["events"])
 
 

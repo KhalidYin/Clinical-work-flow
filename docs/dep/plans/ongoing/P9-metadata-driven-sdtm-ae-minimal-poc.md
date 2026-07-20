@@ -399,6 +399,7 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 - Review Panel 快速启动能力可用，runtime Human-loop 中文内容可核对。
 - 本地原始二进制仍未进入 Git。
 - P0 Workbench 状态/阻断修正与 disposable browser E2E 已完成；真实 Study UAT 已解锁但尚未由用户确认。
+- 用户真实链路已推进至 canonical，但暴露逐阶段 input/evidence/artifact 投影混用与 Wiki citations 不可见；本轮在 P6 内修复后仍需用户重新核对页面。
 
 ### 产出
 
@@ -457,6 +458,7 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 | D9 | 当前 Console 与最小 POC runner 脱节，`Submit Request` 无后续执行反馈，无法支撑用户 work-to-end 验收 | P6 | 阻断 | 已由 `P0-study-console-react-poc-workbench.md` 建立 `/workbench/` 与同步 runner façade |
 | D10 | 首版 Workbench 真实页面仍存在 step 状态矛盾、阻断证据不足和三栏挤压 | P6 | 阻断 | `P0-study-workbench-flow-correction.md` 已完成 Runner ledger、Input Check、结构化 blocker、单一主工作区和 disposable browser E2E；下一 Gate 为用户真实 Study UAT |
 | D11 | AE reference validator 把 128/1066 条 AETERM 空值与结构/追溯错误统一列为 blocking，导致程序链提前停止 | P6 | 阻断 | 引入 fail-closed 两级 validation policy；AETERM 空值作为首个 deferred-review 规则保留全量记录并合并到 Program Review，结构错误仍即时阻断 |
+| D12 | Workbench 将全局 Input Check 当成每个阶段的“输入与证据”，Wiki Context 没有独立产物，MappingSpec 只呈现 raw input 摘要，已完成 Validation Review 仍残留 AETERM fail | P6 | 阻断 | 增加 `PocStep.input_refs` 和 Study-local Wiki Context；逐阶段登记 input/evidence/artifact，Wiki/Mapping 使用结构化预览，completed deferred finding 投影为 warning 且保留原始证据 |
 
 ## 关键决策记录
 
@@ -473,6 +475,7 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 | 2026-07-17 | P5 reusable-rule review 类型 | 新增枚举 / 复用现有 `sap_review` / 跳过 Review | 暂复用 `sap_review` | 新增枚举会触发 shared bundle 与 Wiki snapshot 迁移；当前 packet 通过标题、finding 和 evidence 表达规则治理语义，不代表 SAP 内容 |
 | 2026-07-17 | P5 Wiki 发布用途 | 生产知识 / 测试用 Wiki / 不发布 | 测试用 Wiki | 用户明确要求声明测试用途；release、card、snapshot 和 clean-room query 均标记 `p9-poc-test-only` |
 | 2026-07-20 | AE validation 边界 | 所有 finding 阻断 / 全部仅告警 / 默认强阻断 + 明确后审清单 | 默认强阻断 + 明确后审清单 | 防止内容质量问题阻断程序开发，同时禁止操作人员任意降级结构和追溯风险；首项仅 AETERM 空值 |
+| 2026-07-20 | Workbench 阶段引用边界 | 全局 input/profile 复用 / 仅列 artifact / step-local input + evidence + artifact | step-local input + evidence + artifact | 让每个阶段可回答“读了什么、凭什么判断、产生了什么”，避免 raw input 冒充 Wiki/Mapping 证据 |
 
 ## 同步记录
 
@@ -484,3 +487,4 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 | 2026-07-17 | SPEC-15/21、TASK_STATE、memory | P5 approved candidate、测试用 Wiki release/snapshot 和 clean-room reuse 完成 |
 | 2026-07-17 | SPEC-06/15/17/21、USAGE、memory、DevLog | P0 Workbench 修正与浏览器 E2E 完成；P6 回到用户真实 `SAMPLE-AE-001` 单机验收 |
 | 2026-07-20 | SPEC-15/17/21、USAGE、memory | P6 AE validation 两级边界：默认强阻断，AETERM 空值保留全量行并进入 Program Review 后审 |
+| 2026-07-20 | SPEC-15/21、USAGE、memory | P6 阶段引用与产物边界：Study-local Wiki Context、MappingSpec 结构化预览、step-local input/evidence/artifact 和 stale fail 修复 |

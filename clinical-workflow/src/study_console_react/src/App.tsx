@@ -430,7 +430,9 @@ function MainWorkspace({
 
       <div className="workspace-body" role="tabpanel">
         {view === "task" ? <TaskView step={selectedStep} activeStep={pocState?.active_step ?? null} /> : null}
-        {view === "input" ? <InputEvidence inputCheck={pocState?.input_check ?? null} /> : null}
+        {view === "input" ? (
+          <InputEvidence step={selectedStep} inputCheck={pocState?.input_check ?? null} />
+        ) : null}
         {view === "review" && reviewId ? (
           <ReviewDecisionForm reviewId={reviewId} studyId={studyId} onSubmitted={onDecisionSubmitted} />
         ) : null}
@@ -523,7 +525,19 @@ function CheckList({ checks }: { checks: PocStepCheck[] }) {
   );
 }
 
-function InputEvidence({ inputCheck }: { inputCheck: PocState["input_check"] | null }) {
+function InputEvidence({
+  step,
+  inputCheck,
+}: {
+  step: PocStep | null;
+  inputCheck: PocState["input_check"] | null;
+}) {
+  if (!step) {
+    return <div className="empty-state">请选择一个阶段查看输入与证据。</div>;
+  }
+  if (step.step_id !== "input-check") {
+    return <StageEvidence step={step} />;
+  }
   if (!inputCheck) {
     return <div className="empty-state">Input Check 尚未生成。</div>;
   }
@@ -591,7 +605,107 @@ function InputEvidence({ inputCheck }: { inputCheck: PocState["input_check"] | n
           </div>
         ) : <div className="empty-state">关键变量 profile 尚不可用。</div>}
       </section>
+      <StageBoundary step={step} />
     </div>
+  );
+}
+
+const REVIEW_BOUNDARIES: Record<string, { mode: string; content: string }> = {
+  "input-check": {
+    mode: "通常不审核",
+    content: "文件、hash、parser 与 metadata 可用性由确定性检查负责；只有来源授权或版本范围有争议时进入人工处理。",
+  },
+  "minimum-information": {
+    mode: "条件触发",
+    content: "只审核目标、身份来源或条件依赖的业务歧义；缺少 required input 不能通过人工批准绕过。",
+  },
+  "wiki-context": {
+    mode: "条件触发",
+    content: "已批准且锁定的测试知识自动加载；规则冲突、locator 断链或适用范围不明确时才暂停审核。",
+  },
+  "mapping-spec": {
+    mode: "必须审核",
+    content: "审核 Source→Target、受控 operation、Wiki rule refs、显式 gap 和本次 POC 范围；不审核原始数据是否无缺陷。",
+  },
+  "program-execution": {
+    mode: "执行后审核",
+    content: "程序生成与注册 adapter 执行是机器动作；其程序、日志、draft、验证和追溯进入下一阶段审核。",
+  },
+  "validation-review": {
+    mode: "必须审核",
+    content: "人工决定 program promotion 和 deferred finding；strong-blocking finding 必须修复并重验，不能靠批准覆盖。",
+  },
+  "canonical-ae": {
+    mode: "不新增审核",
+    content: "已有 DecisionReceipt 后按 hash 机械晋升；Canonical 阶段只确认产物和最终 traceability。",
+  },
+};
+
+function StageEvidence({ step }: { step: PocStep }) {
+  const checkEvidence = step.checks.flatMap((check) => check.evidence_refs);
+  const evidenceRefs = Array.from(new Set([...step.evidence_refs, ...checkEvidence]));
+  return (
+    <div className="stage-evidence">
+      <section>
+        <p className="eyebrow">Selected-stage boundary</p>
+        <h3>{step.title} 的输入与决策证据</h3>
+        <p className="help-text">这里不重复展示全局数据 profile；原始数据详情只属于 Input Check。</p>
+      </section>
+      <ReferenceSection title="本阶段输入" refs={step.input_refs} empty="该阶段尚未登记输入引用。" />
+      <ReferenceSection title="决策与检查证据" refs={evidenceRefs} empty="该阶段尚未登记决策证据。" />
+      <section>
+        <h3>本阶段产物</h3>
+        {step.artifact_refs.length ? (
+          <div className="reference-grid">
+            {step.artifact_refs.map((ref) => (
+              <article key={ref.artifact_id}>
+                <span>{ref.kind}</span>
+                <strong>{ref.label}</strong>
+                <code>{ref.relative_path}</code>
+              </article>
+            ))}
+          </div>
+        ) : <div className="empty-state">该阶段尚未产生受控产物。</div>}
+      </section>
+      <StageBoundary step={step} />
+    </div>
+  );
+}
+
+function ReferenceSection({
+  title,
+  refs,
+  empty,
+}: {
+  title: string;
+  refs: string[];
+  empty: string;
+}) {
+  return (
+    <section>
+      <h3>{title}</h3>
+      {refs.length ? (
+        <div className="reference-grid">
+          {refs.map((ref) => <code key={ref}>{ref}</code>)}
+        </div>
+      ) : <div className="empty-state">{empty}</div>}
+    </section>
+  );
+}
+
+function StageBoundary({ step }: { step: PocStep }) {
+  const boundary = REVIEW_BOUNDARIES[step.step_id] ?? {
+    mode: "未定义",
+    content: "该阶段尚未声明人工审核边界。",
+  };
+  return (
+    <section className="review-boundary">
+      <div>
+        <p className="eyebrow">Human-loop boundary</p>
+        <h3>{boundary.mode}</h3>
+      </div>
+      <p>{boundary.content}</p>
+    </section>
   );
 }
 

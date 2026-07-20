@@ -222,6 +222,7 @@ class PocStep(StrictModel):
     checks: list[PocStepCheck] = Field(default_factory=list)
     blocking_reason: str | None = None
     review_id: str | None = None
+    input_refs: list[str] = Field(default_factory=list)
     artifact_refs: list[PocArtifactRef] = Field(default_factory=list)
     evidence_refs: list[str] = Field(default_factory=list)
 

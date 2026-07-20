@@ -8,9 +8,12 @@ from src.agents.ae_metadata_poc import (
     AEMetadataPOCError,
     MAPPING_APPROVED_PATH,
     MAPPING_CANDIDATE_PATH,
+    MAPPING_CONTEXT_PATH,
     MAPPING_REVIEW_ID,
+    WIKI_CONTEXT_PATH,
     prepare_metadata_mapping_review,
     validate_mapping_spec,
+    write_metadata_wiki_context,
 )
 from src.agents.ae_metadata_workflow import (
     CANONICAL_DATASET_PATH,
@@ -148,9 +151,20 @@ def test_raw_only_prepares_schema_valid_mapping_review_without_crf(tmp_path: Pat
         study, WIKI, generated_at="2026-07-16T10:02:00+00:00"
     )
     candidate = json.loads((study / MAPPING_CANDIDATE_PATH).read_text(encoding="utf-8"))
+    mapping_context = json.loads((study / MAPPING_CONTEXT_PATH).read_text(encoding="utf-8"))
+    wiki_context = json.loads((study / WIKI_CONTEXT_PATH).read_text(encoding="utf-8"))
     packet = ReviewQueue(study).load_packet(MAPPING_REVIEW_ID)
 
     assert result["status"] == "mapping_review_required"
+    assert wiki_context["scope"] == "p9-poc-test-only"
+    assert wiki_context["production_eligible"] is False
+    assert len(wiki_context["rules"]) == 5
+    assert all(rule["locators"] for rule in wiki_context["rules"])
+    assert mapping_context["knowledge"]["context_path"] == WIKI_CONTEXT_PATH
+    assert (
+        mapping_context["knowledge"]["context_sha256"]
+        == wiki_context["context_sha256"]
+    )
     assert validate_mapping_spec(candidate) == []
     assert candidate["arbitrary_commands_allowed"] is False
     assert {item["target_variable"] for item in candidate["mappings"]} >= {
@@ -163,6 +177,32 @@ def test_raw_only_prepares_schema_valid_mapping_review_without_crf(tmp_path: Pat
     assert "CRF" in packet.findings[0].rationale
     assert not (study / MAPPING_APPROVED_PATH).exists()
     assert not (study / PROGRAM_MANIFEST_PATH).exists()
+
+
+def test_study_local_wiki_context_is_idempotent_and_drift_guarded(
+    tmp_path: Path,
+) -> None:
+    study = _study(tmp_path)
+    first = write_metadata_wiki_context(
+        study,
+        WIKI,
+        generated_at="2026-07-20T00:00:00+00:00",
+    )
+    before = (study / WIKI_CONTEXT_PATH).read_bytes()
+    second = write_metadata_wiki_context(
+        study,
+        WIKI,
+        generated_at="2026-07-21T00:00:00+00:00",
+    )
+
+    assert second == first
+    assert (study / WIKI_CONTEXT_PATH).read_bytes() == before
+
+    tampered = dict(first)
+    tampered["rules"] = []
+    (study / WIKI_CONTEXT_PATH).write_text(json.dumps(tampered), encoding="utf-8")
+    with pytest.raises(AEMetadataPOCError, match="content hash drifted"):
+        write_metadata_wiki_context(study, WIKI)
 
 
 def test_mapping_hash_tamper_and_unknown_operation_fail_closed(tmp_path: Path) -> None:

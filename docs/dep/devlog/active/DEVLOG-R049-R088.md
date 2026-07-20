@@ -780,3 +780,45 @@
 - `clinical-workflow/tests/application_api/test_poc_runner_flow.py`, `clinical-workflow/pyproject.toml`
 - `USAGE.md`, `docs/specs/15-Review-Protocol.md`, `17-Code-Generation.md`, `21-Knowledge-Workflow-Integration.md`
 - `docs/main/memory/p9-workbench-flow-baseline.md`, `docs/dep/`（本轮提交）
+
+---
+
+### R069 [16:36] [P9-metadata-driven-sdtm-ae-minimal-poc] P6: 修复逐阶段证据、产物与审核边界
+
+#### Done
+
+- 为 `PocStep` 增加 `input_refs`，冻结 Input=本阶段消费对象、Evidence=决策/验证依据、Artifact=本阶段新增输出的合同；Workbench 不再把全局 Input Check profile 复制到所有阶段。
+- 新增 Study-local `work/knowledge/ae-wiki-context.json`，锁定 `p9-poc-test-only` snapshot/release、5 条精确规则、statement、source、locator 和 context SHA-256；重复执行保持幂等，漂移时 fail closed。
+- Mapping context 显式引用 Wiki Context；Wiki/Mapping Artifact Preview 分别展示测试用途与规则定位、Source→Target/operation/parameters/rule refs/provenance/gap。
+- Runner 逐阶段登记 Minimum Information、Wiki、Mapping、三语言程序、draft/validation/provenance/traceability、ConfirmationReceipt 和 canonical 产物；Application API 将受控 `work/`、`programs/` 和 `output/` 路径注册为可预览 artifact，并用登记 ID 替换 ledger 临时 ID。
+- 已完成 Validation Review 的 deferred AETERM finding 显示 warning，不再出现 done + fail；原 validation、行级 finding 和 DecisionReceipt 继续保留。
+- Workbench 明示七阶段 Human-loop 边界，不增加新审核门；测试用 Wiki 仍不具备生产资格，P9.1/P6 仍等待用户重新核对真实页面。
+
+#### Issues / Blockers
+
+- 扩展后的首次浏览器 E2E 在 15 秒 Mapping 状态等待窗口内超时；run ledger 显示停在 Minimum Information，未产生业务异常。等待窗口扩至 30 秒后不再复现。
+- 第二次 E2E 的模糊按钮名选择误选 `ae-mapping-context.json`，因此看不到 MappingSpec 结构化视图；改为阶段内确定性 artifact selector 后通过。
+- 两个失败 E2E 的目录已确认位于 `.tmp/workbench-e2e/`，但环境安全策略拒绝递归清理命令；它们被 Git 忽略，不影响提交或真实 Study。
+- 既有 D6 contract-bundle hash 漂移仍未混入本轮处理。
+
+#### Validation
+
+- `pytest test_p9_sample_ae_poc.py test_poc_runner_contract.py test_poc_runner_flow.py test_workbench_static.py -q`（45 passed）。
+- `pytest clinical-workflow/tests -q -k "not shared_contract_bundle_is_complete_and_hash_locked"`（305 passed，1 deselected）。
+- React `vitest`（10 passed）与 `npm run build`（通过）。
+- disposable browser E2E（通过）：真实点击 Input Evidence、Wiki Context、MappingSpec、双 Review/Resume、Canonical Artifact，以及 input hash blocker → Retry 恢复链。
+- `ruff check`（通过）。
+
+#### Next
+
+1. 用户重启 Study Console，重新点击 `Run POC` 并按 Stage Rail 核对各阶段 Input/Evidence/Artifact；Wiki Context 必须显示测试用途、5 条规则和 locator。
+2. MappingSpec 预览核对 Source→Target、operation/parameters、rule refs、source provenance 与 gap；Validation Review 完成态只能保留 warning，不得残留 fail。
+3. 用户明确确认后再关闭 P9.1/P6；P9.2 仍不解锁。
+
+#### Files Changed / Commits
+
+- `clinical-workflow/src/agents/ae_metadata_poc.py`, `src/application_api/`, `schemas/application/openapi.yaml`
+- `clinical-workflow/src/study_console_react/`, `src/study_console_workbench_static/`
+- `clinical-workflow/tests/`, `scripts/e2e-sample-ae-workbench.ps1`
+- `USAGE.md`, `docs/specs/15-Review-Protocol.md`, `21-Knowledge-Workflow-Integration.md`
+- `docs/main/memory/p9-workbench-flow-baseline.md`, `docs/dep/`（本轮提交）

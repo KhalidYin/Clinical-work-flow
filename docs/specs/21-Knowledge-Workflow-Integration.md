@@ -800,6 +800,26 @@ Workbench 只按这些字段渲染 compact Run Bar、横向 Stage Rail 与单一
 只提供安全 preview ref，不决定 step state。普通 Run 不复用 blocked run；修复输入后使用 Retry，
 提交 DecisionReceipt 后使用 Resume。
 
+每个 `PocStep` 的引用边界固定如下，Workbench 不再把全局 Input Check 内容复制到所有阶段：
+
+- `input_refs`：本阶段实际读取或消费的上游对象，不表示这些对象已证明当前决策正确；
+- `evidence_refs` 与 check-level evidence：本阶段用于解释、验证或审核决定的证据；
+- `artifact_refs`：本阶段新建或登记的输出，不得把输入文件重复标成产物；
+- ReviewPacket / DecisionReceipt 只有在本阶段确实经过 Human-loop 时才作为审核证据，不因存在
+  `.review_queue/` 文件而扩张为新的 Gate。
+
+当前七阶段的最小产物归属为：Input Check 消费 source inventory/raw，产出 input check、source
+metadata/profile/parser validation；
+Minimum Information 产出目标前置条件计划；Wiki Context 产出
+`work/knowledge/ae-wiki-context.json`；Mapping 产出 mapping context 与候选/获批 MappingSpec；Program
+产出 manifest、SAS/R/Python 程序、draft AE、validation、execution log、provenance 和 traceability；
+Validation Review 产出 ConfirmationReceipt；Canonical AE 产出 canonical CSV 与 canonical trace。
+
+Wiki Context 是从锁定 `p9-poc-test-only` snapshot/release 投影到当前 Study 的精确知识清单，必须逐条
+登记 rule ID、statement、source 和 locator，并用 context SHA-256 锁定。MappingSpec 引用它时，展示的
+重点是 source→target 决策、operation/parameters、rule refs、source metadata provenance 与显式 gap；
+原始数据的行列数/变量 profile 只属于 Input Check，不应冒充 Mapping 证据或产物。
+
 Validation / Review 阶段使用显式的两级边界，而不是“发现数据问题即整步停止”：默认
 `strong_blocking` 处理会破坏结构、行数守恒、身份或追溯完整性的 finding，必须审核修复路径并在
 Retry 后重新验证通过；policy 明确允许的 `deferred_review` finding 保留完整行和 evidence，继续程序/

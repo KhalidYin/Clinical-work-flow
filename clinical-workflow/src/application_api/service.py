@@ -26,6 +26,7 @@ from src.application_api.poc_models import (
     PocArtifactRef,
     PocBlocker,
     PocBlockerKind,
+    PocCheckState,
     PocDependencyRequirement,
     PocDependencyStatus,
     PocEvent,
@@ -541,6 +542,10 @@ class ApplicationApiService:
                 ".json": "json",
                 ".csv": "csv",
                 ".txt": "text",
+                ".py": "text",
+                ".r": "text",
+                ".sas": "text",
+                ".log": "text",
                 ".yaml": "yaml",
                 ".yml": "yaml",
             }.get(suffix, "unknown")
@@ -608,9 +613,30 @@ class ApplicationApiService:
             artifacts_by_step.setdefault(step_id, []).append(artifact)
         for step in steps:
             supplemental = artifacts_by_step.get(step.step_id, [])
-            known = {item.artifact_id for item in step.artifact_refs}
-            step.artifact_refs.extend(item for item in supplemental if item.artifact_id not in known)
+            registered_by_path = {item.relative_path: item for item in supplemental}
+            merged = [
+                registered_by_path.pop(item.relative_path, item)
+                for item in step.artifact_refs
+            ]
+            merged.extend(registered_by_path.values())
+            step.artifact_refs = merged
+            self._normalize_completed_review_projection(step)
         return steps
+
+    @staticmethod
+    def _normalize_completed_review_projection(step: PocStep) -> None:
+        """Project pre-boundary ledgers without a contradictory done + deferred fail state."""
+        if step.step_id != "validation-review" or step.state is not PocStepState.DONE:
+            return
+        for check in step.checks:
+            if (
+                check.state is PocCheckState.FAIL
+                and check.check_id == "required_value_empty"
+                and check.affected_variables == ["AETERM"]
+            ):
+                check.state = PocCheckState.WARNING
+                check.summary = f"{check.summary}；已按 Program Review 后审处置。"
+                check.detail = "兼容旧 ledger：原始 finding 保留，但完成态不再表示强阻断。"
 
     def _poc_active_step(
         self,
@@ -798,13 +824,19 @@ class ApplicationApiService:
         path = relative_path.replace("\\", "/")
         if "minimum-information" in path:
             return "minimum-information"
-        if path.startswith("knowledge/"):
+        if path.startswith("knowledge/") or path.startswith("work/knowledge/"):
             return "wiki-context"
         if path.startswith("work/mapping/"):
             return "mapping-spec"
         if path.startswith("programs/") or path.startswith("output/sdtm/drafts/"):
             return "program-execution"
-        if "validation" in path or ".review_queue/" in path:
+        if path.startswith("output/sdtm/traceability/ae-draft"):
+            return "program-execution"
+        if path.startswith("output/sdtm/traceability/ae-canonical"):
+            return "canonical-ae"
+        if path.startswith(".review_queue/") and "mapping" in path:
+            return "mapping-spec"
+        if "validation" in path or path.startswith(".review_queue/"):
             return "validation-review"
         if path.startswith("output/sdtm/datasets/"):
             return "canonical-ae"
@@ -1471,7 +1503,14 @@ class ApplicationApiService:
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         artifacts: list[dict[str, Any]] = []
         partial_errors: list[dict[str, Any]] = []
-        scan_roots = [record.study_dir / "output", record.study_dir / ".review_queue"]
+        scan_roots = [
+            record.study_dir / "output",
+            record.study_dir / ".review_queue",
+            record.study_dir / "work" / "knowledge",
+            record.study_dir / "work" / "mapping",
+            record.study_dir / "work" / "derived",
+            record.study_dir / "programs",
+        ]
         for scan_root in scan_roots:
             if not scan_root.exists():
                 continue
@@ -1511,7 +1550,17 @@ class ApplicationApiService:
             "display_name": relative_to_study,
             "sha256": sha256,
             "provenance_id": self._provenance_id_for(relative_to_study),
-            "preview_available": path.suffix.lower() in {".json", ".csv", ".txt", ".yaml", ".yml"},
+            "preview_available": path.suffix.lower() in {
+                ".json",
+                ".csv",
+                ".txt",
+                ".py",
+                ".r",
+                ".sas",
+                ".log",
+                ".yaml",
+                ".yml",
+            },
             "_study_relative_path": relative_to_study,
         }
 
@@ -1654,7 +1703,7 @@ class ApplicationApiService:
             with path.open(newline="", encoding="utf-8") as handle:
                 rows = list(csv.DictReader(handle))
             return {"kind": "csv", "rows": rows[:20], "row_count": len(rows)}
-        if suffix == ".txt":
+        if suffix in {".txt", ".py", ".r", ".sas", ".log"}:
             return {"kind": "text", "value": path.read_text(encoding="utf-8")[:5000]}
         return None
 
@@ -1833,12 +1882,17 @@ def _review_finding_summary(item: Mapping[str, Any]) -> dict[str, Any]:
 def _is_registered_artifact(relative_path: str) -> bool:
     if _unsafe_relative_path(relative_path):
         return False
-    if relative_path.startswith("output/") and Path(relative_path).suffix.lower() in {
-        ".csv",
-        ".json",
-        ".txt",
-        ".yaml",
-        ".yml",
+    suffix = Path(relative_path).suffix.lower()
+    if relative_path.startswith("output/") and suffix in {
+        ".csv", ".json", ".txt", ".log", ".yaml", ".yml",
+    }:
+        return True
+    if relative_path.startswith("work/") and suffix in {
+        ".json", ".csv", ".txt", ".yaml", ".yml",
+    }:
+        return True
+    if relative_path.startswith("programs/") and suffix in {
+        ".json", ".py", ".r", ".sas", ".log", ".txt", ".yaml", ".yml",
     }:
         return True
     if relative_path.startswith(".review_queue/."):
@@ -1865,6 +1919,14 @@ def _artifact_type(relative_path: str) -> str:
         return "traceability_report"
     if "/programs/" in relative_path:
         return "program_manifest"
+    if relative_path.startswith("programs/"):
+        return "program"
+    if relative_path.startswith("work/knowledge/"):
+        return "knowledge_context"
+    if relative_path.startswith("work/mapping/"):
+        return "mapping_spec"
+    if relative_path.startswith("work/derived/"):
+        return "derived_evidence"
     if "/validation/" in relative_path:
         return "validation_report"
     if relative_path.endswith(".csv") and "/sdtm/" in relative_path:
@@ -1873,7 +1935,11 @@ def _artifact_type(relative_path: str) -> str:
 
 
 def _artifact_state(record: StudyRecord, relative_path: str) -> str:
-    if "/drafts/" in relative_path:
+    if (
+        "/drafts/" in relative_path
+        or relative_path.startswith("work/")
+        or relative_path.startswith("programs/")
+    ):
         return "draft"
     if relative_path.startswith(".review_queue/") and "_rework" in relative_path:
         return "invalid"
@@ -1899,6 +1965,12 @@ def _artifact_stage(relative_path: str) -> str:
     if relative_path.startswith(".review_queue/"):
         return PipelineStage.SDTM_SPEC.value
     if relative_path.startswith("output/sdtm/"):
+        return PipelineStage.SDTM_PROGRAMMING.value
+    if relative_path.startswith(("work/knowledge/", "work/mapping/")):
+        return PipelineStage.SDTM_SPEC.value
+    if relative_path.startswith("work/derived/"):
+        return PipelineStage.PROTOCOL_ANALYSIS.value
+    if relative_path.startswith("programs/"):
         return PipelineStage.SDTM_PROGRAMMING.value
     if relative_path.startswith("output/adam/"):
         return PipelineStage.ADAM_PROGRAMMING.value

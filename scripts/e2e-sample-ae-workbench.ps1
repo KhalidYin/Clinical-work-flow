@@ -103,7 +103,7 @@ function Wait-PocState {
         [scriptblock]$Predicate,
         [string]$Description
     )
-    for ($i = 0; $i -lt 60; $i++) {
+    for ($i = 0; $i -lt 120; $i++) {
         $state = Get-PocState -StudyId $StudyId
         if (& $Predicate $state) {
             return $state
@@ -245,6 +245,16 @@ try {
     if ($mappingState.input_check.files[0].row_count -ne 2 -or $mappingState.input_check.files[0].column_count -ne 15) {
         throw "Input Evidence API did not report the expected 2 x 15 fixture shape"
     }
+    Click-WorkbenchSelector -Selector ".stage-rail li:nth-child(3) .stage-node"
+    Click-WorkbenchSelector -Selector ".workspace-tabs .workspace-tab:nth-child(4)"
+    Click-WorkbenchSelector -Selector ".artifact-ref-list li:nth-child(1) .artifact-ref-button"
+    Wait-PageText -Text "测试用 Wiki Context"
+    Wait-PageText -Text "proposal-sdtmig34-gold-aeterm-required-v1"
+    Click-WorkbenchSelector -Selector ".stage-rail li:nth-child(4) .stage-node"
+    Click-WorkbenchSelector -Selector ".workspace-tabs .workspace-tab:nth-child(4)"
+    Click-WorkbenchSelector -Selector ".artifact-ref-list li:nth-child(2) .artifact-ref-button"
+    Wait-PageText -Text "Mapping 决策"
+    Wait-PageText -Text "AETERM"
     Click-WorkbenchControl -Role button -Name "Review"
     Approve-CurrentReview
     Wait-PocState -StudyId $successStudyId -Description "mapping resume action" -Predicate {
@@ -308,7 +318,7 @@ try {
 
     $succeeded = $true
     Write-Host "Browser E2E OK"
-    Write-Host "Full flow: Run -> Input Evidence -> Mapping Review -> Resume -> Program Review -> Resume -> Canonical Artifact"
+    Write-Host "Full flow: Run -> Input Evidence -> Wiki/Mapping Artifact -> Mapping Review -> Resume -> Program Review -> Resume -> Canonical Artifact"
     Write-Host "Recovery flow: Input hash blocker -> repair -> Retry current step -> Mapping Review"
 } finally {
     & agent-browser --session $sessionName close 2>$null

@@ -78,6 +78,7 @@ export interface PocStep {
   checks: PocStepCheck[];
   blocking_reason?: string | null;
   review_id?: string | null;
+  input_refs: string[];
   artifact_refs: ArtifactRef[];
   evidence_refs: string[];
 }
