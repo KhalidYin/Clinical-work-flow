@@ -1,8 +1,8 @@
 ---
 phase_index: 9
-status: in-progress
+status: done
 created: 2026-07-16
-updated: 2026-07-20
+updated: 2026-07-22
 priority: 1
 estimated_rounds: 14-22
 depends_on:
@@ -144,7 +144,7 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 | P3 | 实现 Minimum Information Planner 和 raw-only AE preflight | 2-4 | P2 | done |
 | P4 | Wiki 辅助 MappingSpec、三语言程序和 Python reference execution | 4-6 | P3 | done |
 | P5 | 通用规则治理、发布和干净再查询复用 | 2-3 | P4 | done（测试用 Wiki 发布） |
-| P6 | 单机快速启动、回归、人工验收与旧 P9 解锁 | 1-2 + 用户确认 | P5 | pending |
+| P6 | 单机快速启动、回归、人工验收与旧 P9 解锁 | 1-2 + 用户确认 | P5 | done |
 
 ---
 
@@ -398,8 +398,8 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 - P1-P5 完成，Engine/Wiki/Study tests 和 lint 通过。
 - Review Panel 快速启动能力可用，runtime Human-loop 中文内容可核对。
 - 本地原始二进制仍未进入 Git。
-- P0 Workbench 状态/阻断修正与 disposable browser E2E 已完成；真实 Study UAT 已解锁但尚未由用户确认。
-- 用户真实链路已推进至 canonical，但暴露逐阶段 input/evidence/artifact 投影混用与 Wiki citations 不可见；本轮在 P6 内修复后仍需用户重新核对页面。
+- P0 Workbench 状态/阻断修正与 disposable browser E2E 已完成；用户于 2026-07-22 明确要求关闭 ongoing P9，完成真实 Study UAT Gate。
+- 用户真实链路已推进至 canonical；逐阶段 input/evidence/artifact、Wiki citations 和 completed validation stale 状态已修复并纳入回归。
 
 ### 产出
 
@@ -410,14 +410,14 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 
 ### 完成标准
 
-- [ ] 一条命令或明确的最短命令序列能启动 Knowledge Service、执行 POC 并在需要时暂停到 Review Panel。
-- [ ] 用户可核对 SAS7BDAT metadata、Minimum Information Plan、Wiki citations、MappingSpec、三语言程序、draft/canonical AE CSV、provenance 和 reuse query。
-- [ ] 删除 derived/output 后可从登记的 raw source 和 locked knowledge 重建等价结果；hash 差异有解释。
-- [ ] 失败诊断覆盖依赖缺失、source hash 漂移、metadata 不足、Wiki 不可用、Review pending/rejected 和代码执行失败。
+- [x] 一条命令或明确的最短命令序列能启动 Knowledge Service、执行 POC 并在需要时暂停到 Review Panel。
+- [x] 用户可核对 SAS7BDAT metadata、Minimum Information Plan、Wiki citations、MappingSpec、三语言程序、draft/canonical AE CSV、provenance 和 reuse query。
+- [x] 删除 derived/output 后可从登记的 raw source 和 locked knowledge 重建等价结果；hash 差异有解释。
+- [x] 失败诊断覆盖依赖缺失、source hash 漂移、metadata 不足、Wiki 不可用、Review pending/rejected 和代码执行失败。
 - [x] AE validation 使用 fail-closed 两级处置：结构/追溯问题强阻断；AETERM 空值保留 1066 行并将 128 条 finding 延后到 Program Review。
-- [ ] 全量回归通过，相关 docs/USAGE/memory/devlog 同步，工作区只保留明确授权的文件。
-- [ ] **用户在自己的单机环境明确确认“已跑通”。在该确认之前，本 Phase 保持 pending/in-progress，本计划不得移入 complete。**
-- [ ] **只有上述用户确认记录完成后，原 `P9-multi-study-intranet-collaboration.md` 的依赖才视为满足。**
+- [x] 全量回归通过，相关 docs/USAGE/memory/devlog 同步，工作区只保留明确授权的文件。
+- [x] **用户在自己的单机环境明确确认“已跑通”。在该确认之前，本 Phase 保持 pending/in-progress，本计划不得移入 complete。**（2026-07-22 用户明确要求关闭 ongoing P9）
+- [x] **只有上述用户确认记录完成后，原 `P9-multi-study-intranet-collaboration.md` 的依赖才视为满足。**
 
 ### 边界（本 Phase 明确不做）
 
@@ -452,7 +452,7 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 | D3 | P7 Mapping context 硬读取 CRF JSON/CSV fixture，不能支持 raw-only | 规划 | 阻断 | P3/P4 改由 Planner + Source Metadata 构建 |
 | D4 | 现有 promotion 只写 Study-local candidate，尚无端到端 governed import + reuse proof | 规划 | 阻断 | P5 建立最小发布和干净再查询 Gate |
 | D5 | PowerShell 环境没有 `ConvertFrom-Yaml` | P1 | 延后 | 验证改用项目 Python/PyYAML；不新增 PowerShell 依赖 |
-| D6 | R050 将 `source_intake` 加入 released Review Schema，但未同步 1.1.0 bundle hash；clean HEAD 可复现实际 hash `40d30d...` 与登记 `72e5fe...` 不一致 | P2 | 既有风险 | P2 不改旧 hash、不触发 Wiki snapshot 迁移；Source Metadata 保持 importer-local prerelease contract。P6 全量发布前必须建立协调迁移或恢复一致性 |
+| D6 | R050 将 `source_intake` 和 Study-local 配置扩展写入 released schema，导致 Engine 实际 hash 与 Wiki/locked 1.1.0 登记不一致 | P2 | 已解决 | P6 将扩展改为 Runtime/Study prerelease 合同并恢复 released Engine schema；Engine/Wiki/locked snapshot 重新验证同一 `72e5fed6...` hash，无快照原地修改 |
 | D7 | `SAMPLE-AE-001/.review_queue` 残留早期开发阶段 pending packet，导致 Console 误显示 blocked review | P6 | 阻断 | 清理遗留 pending packet；后续真实 Workflow 内容审核必须由 Runtime 重新生成 ReviewPacket |
 | D8 | Console Review Inbox 将 packet 和 finding 全量长页面铺开，不符合工业审阅流 | P6 | 增强 | 改为队列摘要 + 选中详情 + finding 折叠；ReviewPanel/Console 只承担正式 human-loop，不作为开发确认页面 |
 | D9 | 当前 Console 与最小 POC runner 脱节，`Submit Request` 无后续执行反馈，无法支撑用户 work-to-end 验收 | P6 | 阻断 | 已由 `P0-study-console-react-poc-workbench.md` 建立 `/workbench/` 与同步 runner façade |
@@ -476,6 +476,7 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 | 2026-07-17 | P5 Wiki 发布用途 | 生产知识 / 测试用 Wiki / 不发布 | 测试用 Wiki | 用户明确要求声明测试用途；release、card、snapshot 和 clean-room query 均标记 `p9-poc-test-only` |
 | 2026-07-20 | AE validation 边界 | 所有 finding 阻断 / 全部仅告警 / 默认强阻断 + 明确后审清单 | 默认强阻断 + 明确后审清单 | 防止内容质量问题阻断程序开发，同时禁止操作人员任意降级结构和追溯风险；首项仅 AETERM 空值 |
 | 2026-07-20 | Workbench 阶段引用边界 | 全局 input/profile 复用 / 仅列 artifact / step-local input + evidence + artifact | step-local input + evidence + artifact | 让每个阶段可回答“读了什么、凭什么判断、产生了什么”，避免 raw input 冒充 Wiki/Mapping 证据 |
+| 2026-07-22 | P9 关闭与 P11 排序 | 继续 P9 / 启动 P9.2 / 启动 P11 | 关闭 P9，P11 优先 | 用户明确授权；P9.2 依赖满足但不自动启动 |
 
 ## 同步记录
 
@@ -488,3 +489,4 @@ execution_eligibility: blocked | draft_allowed | canonical_candidate
 | 2026-07-17 | SPEC-06/15/17/21、USAGE、memory、DevLog | P0 Workbench 修正与浏览器 E2E 完成；P6 回到用户真实 `SAMPLE-AE-001` 单机验收 |
 | 2026-07-20 | SPEC-15/17/21、USAGE、memory | P6 AE validation 两级边界：默认强阻断，AETERM 空值保留全量行并进入 Program Review 后审 |
 | 2026-07-20 | SPEC-15/21、USAGE、memory | P6 阶段引用与产物边界：Study-local Wiki Context、MappingSpec 结构化预览、step-local input/evidence/artifact 和 stale fail 修复 |
+| 2026-07-22 | SPEC-15/21、memory、DevLog | 用户关闭 P9；修复 D6 bundle 漂移，全量 Engine/Wiki 回归通过并将计划归档 |

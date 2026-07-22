@@ -10,4 +10,5 @@
 - 已完成 Validation Review 的 deferred finding 投影为 warning，不能残留 stale fail；原 validation 与行级 evidence 不删除。
 - 页面采用 compact Run Bar、横向 Stage Rail、单一 Main Workspace；Review 一次聚焦一个 finding，Activity 默认折叠。
 - API preflight、React tests、disposable browser E2E 是不同 Gate；自动 E2E 不操作真实 Study，也不替代用户 UAT 或监管验证。
-- 用户明确确认真实 Study 单机跑通前，P9.1/P6 保持进行中，不能解锁 P9.2。
+- 2026-07-22 用户明确要求关闭 ongoing P9，P9.1/P6 的单机 UAT Gate 因而完成；P9.2 依赖已满足但未自动启动，用户选择 P11 优先。
+- P9 `source_intake`、额外 ReviewAssignment 和 Study-local 配置属于 Runtime prerelease 扩展，不得修改 released Engine/Wiki 1.1.0 schema bundle；Engine/Wiki/locked snapshot hash 保持一致。

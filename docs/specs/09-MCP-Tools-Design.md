@@ -810,3 +810,9 @@ P9.1-P4 没有新增 core MCP tool。Mapping planner 使用 Runtime-local prerel
 
 R/SAS 文件是可审查程序产物，不在 P4 执行。source hash、MappingSpec hash、程序文件
 hash 或 Wiki locator evidence 任一漂移均 fail closed，且不会产生 canonical dataset。
+
+## 10. P11 Agent ActionProposal 授权边界
+
+P11 的 Agent backend 不接收 MCP Server 或 tool registry。模型若认为需要调用工具，只能返回 `ActionProposal`，其中包含 `origin=agent` 的严格 `ActionRequest`、proposal ID 和 rationale reference。Clinical Runtime 随后使用现有 `ActionPolicy` 重新验证 Stage、capability、tool/executable 和禁止参数；只有通过的请求才可进入原有确定性调用路径。
+
+该边界不新增 core MCP tool，不允许 backend 直接执行工具，也不允许 proposal 携带 `command`、`script_path`、`next_stage` 或 `skip_stage`。fake backend 测试覆盖允许的 SDTM Spec proposal、越阶段 Define-XML 拒绝和非 Agent origin 拒绝。

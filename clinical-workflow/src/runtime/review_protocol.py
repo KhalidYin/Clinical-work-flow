@@ -30,17 +30,29 @@ from typing import Any
 from jsonschema import Draft202012Validator, FormatChecker
 
 
-REVIEW_PROTOCOL_SCHEMA_PATH = (
+RELEASED_REVIEW_PROTOCOL_SCHEMA_PATH = (
     Path(__file__).resolve().parents[2]
     / "schemas"
     / "review"
     / "review-protocol.schema.json"
 )
+# Backward-compatible alias for callers that need the released bundle member.
+REVIEW_PROTOCOL_SCHEMA_PATH = RELEASED_REVIEW_PROTOCOL_SCHEMA_PATH
 
 
 def load_review_protocol_schema() -> dict[str, Any]:
-    """Load the authoritative Review Protocol JSON Schema bundle."""
-    return json.loads(REVIEW_PROTOCOL_SCHEMA_PATH.read_text(encoding="utf-8"))
+    """Load the released schema and apply the Study-local prerelease extension.
+
+    ``source_intake`` was introduced by the P9 single-Study POC after shared
+    bundle 1.1.0 was locked.  Keeping the extension in memory prevents a local
+    POC review type from mutating the released Engine/Wiki bundle or its locked
+    knowledge snapshots.
+    """
+    schema = json.loads(RELEASED_REVIEW_PROTOCOL_SCHEMA_PATH.read_text(encoding="utf-8"))
+    review_types = schema["$defs"]["review_packet"]["properties"]["review_type"]["enum"]
+    if ReviewType.SOURCE_INTAKE.value not in review_types:
+        review_types.insert(0, ReviewType.SOURCE_INTAKE.value)
+    return schema
 
 
 def _schema_definition(schema_bundle: dict[str, Any], name: str) -> dict[str, Any]:

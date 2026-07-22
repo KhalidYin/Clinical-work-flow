@@ -11,7 +11,7 @@
 - Canonical 十阶段顺序不等于局部产物必须拥有全部上游文档。基础 SDTM AE 可以在 CRF 缺失但 raw metadata/evidence 充分时生成 draft；不确定变量进入 gap/review，且不能伪造前序 Stage completion evidence。
 - 缺少目标产物 required 来源、未审核 prior Gate、格式未声明、hash 不匹配或缺少 required code artifact 时必须 fail closed；conditional 来源只阻断受影响变量。
 - 当前 POC 使用 Python 生成终端可查看的 CSV；R/SAS 代码仍是必须的可追溯程序产物。未配置 SAS runtime 前只生成、不执行 SAS。
-- `source_intake` 是正式 ReviewPacket 类型，只批准来源进入 Parser/Derived Gate，不批准 MappingSpec、程序执行或 canonical artifact promotion。
+- `source_intake` 是 P9 Runtime prerelease ReviewPacket 扩展，只批准来源进入 Parser/Derived Gate，不批准 MappingSpec、程序执行或 canonical artifact promotion；它不属于 released Engine/Wiki 1.1.0 bundle。
 - 本地 SAS7BDAT 等二进制可以作为正式 raw source：在 Git 中登记相对路径、大小、hash、storage policy 和 parser status，二进制本体保持未跟踪。受控 parser 必须校验 Study root、格式和 hash，同时保留 column label、format、宽度和值标签可得状态；缺 catalog/value labels 时保持 gap，不能从数据值猜测。
 - 行级 preview 使用 `source-preview.local.csv`，仅保存在本地且不作为 canonical/版本化证据；Git 保存 preview manifest、来源 hash 和 parser toolchain。Parser Review 是实际 Workflow Human-loop，不是开发阶段批准步骤。
 - Minimum Information Planner 判断一次目标产物是否具有足够信息，不判断十阶段是否完成。`producible_variables` 是可进入 Mapping 候选的证据范围，不等于映射已批准；Plan 固定 `creates_stage_completion_evidence=false`。

@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from src.config.project import (
+    ProjectConfig,
     ProjectConfigError,
     load_project_config,
     resolve_project_path,
@@ -15,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 FIXTURE_STUDY = ROOT / "tests" / "fixtures" / "studies" / "minimal"
 
 
-def test_project_schema_declares_required_runtime_contract():
+def test_released_project_schema_remains_locked_and_runtime_model_owns_p9_extensions():
     schema = json.loads((ROOT / "schemas" / "project.schema.json").read_text(encoding="utf-8"))
 
     assert set(schema["required"]) >= {
@@ -29,10 +30,20 @@ def test_project_schema_declares_required_runtime_contract():
         "paths",
     }
     assert "phase_iv" in schema["properties"]["trial_phase"]["enum"]
-    assert "synthetic_safety" in schema["properties"]["therapeutic_area"]["enum"]
+    assert "synthetic_safety" not in schema["properties"]["therapeutic_area"]["enum"]
     assert "sdtm_spec" in schema["properties"]["review_assignments"]["required"]
-    assert "source_intake" in schema["properties"]["review_assignments"]["properties"]
-    assert "work_dir" in schema["properties"]["paths"]["properties"]
+    released_assignments = schema["properties"]["review_assignments"]["properties"]
+    runtime_schema = ProjectConfig.model_json_schema(mode="validation")
+    runtime_assignments = runtime_schema["$defs"]["ReviewAssignments"]["properties"]
+    runtime_paths = runtime_schema["$defs"]["ProjectPaths"]["properties"]
+
+    assert "synthetic_safety" in runtime_schema["properties"]["therapeutic_area"]["enum"]
+    assert "source_intake" not in released_assignments
+    assert "source_intake" in runtime_assignments
+    assert "parser_output" in runtime_assignments
+    assert "sdtm_programming" in runtime_assignments
+    assert "work_dir" not in schema["properties"]["paths"]["properties"]
+    assert "work_dir" in runtime_paths
 
 
 def test_load_project_config_from_fixture():

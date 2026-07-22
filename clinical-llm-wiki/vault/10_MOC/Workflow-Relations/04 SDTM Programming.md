@@ -21,8 +21,9 @@ contract_sha256: 6c868de9ca43d01d9efc2e82fe905d431ee377cad339329520005bd72eacd6b
 - Stage Playbook：[[30_Workflows/Stages/SDTM Programming|SDTM 编程基线工作手册]]
 - 下一阶段：[[10_MOC/Workflow-Relations/05 ADaM Spec|05 ADaM Spec 关系视图]]
 
-## 领域知识（8）
+## 领域知识（9）
 
+- [[20_Knowledge/Programming/P9 SDTM AE Metadata Mapping Evidence Gate|P9 SDTM AE Metadata Mapping Evidence Gate（测试用）]]
 - [[20_Knowledge/Standards/SDTM Domain Representation|SDTM Domain Representation]]
 - [[20_Knowledge/Standards/SDTM Implementation Boundary|SDTM Implementation Boundary]]
 - [[20_Knowledge/Standards/SDTM Terminology Boundary|SDTM Terminology Boundary]]

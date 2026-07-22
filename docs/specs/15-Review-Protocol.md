@@ -57,11 +57,11 @@
 - 已经提交决定的历史 ReviewPacket 必须原样归档，不追溯翻译；语言调整只作用于此约定生效后的新 packet，避免破坏审核证据和 Git 审计链。
 - Review Panel 只负责按 payload 展示和记录决定；中文默认由 ReviewPacket 生成端保证。
 
-`source_intake` 是 Study POC 后新增的正式 ReviewPacket 类型，用于审核 `input/` 来源清单、格式、hash、去标识/合成状态和可进入 parser 的范围。它只打开 Parser/Derived Gate，不提升 canonical artifact，也不授权未登记来源进入程序链。
+`source_intake` 是 P9.1 Study POC 的 Runtime prerelease ReviewPacket 扩展，用于审核 `input/` 来源清单、格式、hash、去标识/合成状态和可进入 parser 的范围。它由 Runtime 从 released Review Protocol 1.1.0 派生并继续执行严格 Schema 校验，但不是 shared Engine/Wiki bundle 1.1.0 的成员；因此不会修改既有 bundle hash 或 locked snapshot。它只打开 Parser/Derived Gate，不提升 canonical artifact，也不授权未登记来源进入程序链。
 
-P9.1-P2 的 Parser/Derived 结果暂时继续使用已发布的 `source_intake` review type，
+P9.1-P2 的 Parser/Derived 结果暂时继续使用 prerelease `source_intake` review type，
 但 `review_id`、标题和证据必须明确标记为 parser result。原因是新增独立
-`parser_output` 枚举会改变已发布 Review Protocol 及 Engine/Wiki 1.1.0 bundle；
+`parser_output` 枚举若进入 shared schema 会改变已发布 Review Protocol 及 Engine/Wiki 1.1.0 bundle；
 在 P3 尚未批准跨模块 bundle/snapshot 迁移前，不能为界面分类提前破坏既有 lock。
 该复用不合并两个 Gate：来源准入包和解析结果包仍是两个独立 ReviewPacket，分别
 记录来源许可与解析证据。

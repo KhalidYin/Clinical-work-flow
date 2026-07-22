@@ -490,3 +490,15 @@ artifact 是否存在推断步骤完成，也不把错误附加到“第一个 p
 自动验收分三层：API preflight 只证明服务和 payload 可达；React 测试证明组件行为；
 `scripts/e2e-sample-ae-workbench.ps1` 在可丢弃 StudiesRoot 中用真实浏览器点击完整流程。
 三者都不替代用户对真实 `SAMPLE-AE-001` 的单机 UAT，也不构成监管验证。
+
+## 17. P11-P1 Agent Execution Backend 与模型策略首批基线
+
+P11 不用 Microsoft Agent Framework 替换 Clinical Runtime。当前实现新增 Runtime-owned async `AgentExecutionBackend` 边界：backend 只接收 schema-valid `ProductionRequest` / `ValidationRequest` 并返回结构化结果与 `ActionProposal`；它不能持有核心 MCP tool registry、写 ReviewQueue、晋升 canonical artifact、改变 checkpoint 或选择下一阶段。
+
+- `FakeAgentExecutionBackend` 是不访问文件、网络、工具和 ReviewQueue 的确定性测试实现；MAF adapter 将在同一接口后续接入。
+- Runtime 对 backend 返回的每个 `ActionProposal` 再调用既有 `ActionPolicy`；越阶段、错 capability 或错 tool 的 proposal fail closed。
+- `ModelRegistry` 只登记 Provider、deployment alias、固定 model version、capability 和允许的数据分类，不保存 endpoint secret/API key。
+- `ModelPolicy` 按 production/validation profile 选择部署；synthetic/deidentified 可以使用显式批准的跨 Provider fallback，敏感数据未进入 allow-list 时 fail closed。
+- Validation request 不接受 Producer 隐藏推理、自评 confidence 或同一 deployment；独立性由部署 ID 和 profile policy 机器验证。
+
+当前 MAF 只作为 optional dependency 精确固定；本切片未创建 live Provider client、未发送外部数据，也未实现具体临床 stage。

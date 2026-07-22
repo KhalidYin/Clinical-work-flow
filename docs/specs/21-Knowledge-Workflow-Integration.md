@@ -113,7 +113,7 @@ Study 不定义共享 Schema，不修改一般规则正文，不把未批准的�
 
 POC 阶段的数据集输出优先使用 CSV 等可在终端直接查看的文本格式；机器 provenance、ReviewPacket、DecisionReceipt 和 manifest 可以继续使用 JSON/YAML，但必须明确状态、来源 hash 和可追溯路径。当前环境可用 Python 执行 reference/test chain；R 与 SAS 代码仍应作为显式程序产物纳入追溯，其中 SAS 在未配置执行环境前只生成、不执行。
 
-首个真实 Study POC 使用 `source_intake` ReviewPacket 审核来源准入。该 packet 可以引用 `work/derived/source-intake/` 下的 source scan report，但不得把 source scan report 误认为 parser 输出；批准结果只允许后续生成 Parser/Derived 候选，不允许直接产生 MappingSpec、程序执行或 canonical dataset。
+首个真实 Study POC 使用 Runtime prerelease `source_intake` ReviewPacket 审核来源准入。该类型不进入 Engine/Wiki 1.1.0 shared bundle，Runtime 在 released Review Schema 上派生扩展并严格验证，从而保持既有 bundle/snapshot hash 不变。该 packet 可以引用 `work/derived/source-intake/` 下的 source scan report，但不得把 source scan report 误认为 parser 输出；批准结果只允许后续生成 Parser/Derived 候选，不允许直接产生 MappingSpec、程序执行或 canonical dataset。
 
 ---
 
@@ -476,6 +476,8 @@ P1 完成以以下证据为准：
 Engine 在 P2 首发 `1.0.0` shared contract bundle，并在 P5 为结构化 Study Decision 升级为当前 `1.1.0`；清单及 canonical JSON hash 位于
 [`schemas/contract-bundle.json`](../../clinical-workflow/schemas/contract-bundle.json)。该 bundle 是 Wiki
 镜像和 Study manifest 锁定的唯一 Schema 来源。
+
+P9.1 的 `source_intake`、额外 ReviewAssignment、`synthetic_safety` 和 Study-local path/policy 字段属于 Runtime/Study prerelease 扩展，不回写 1.1.0 released schema 成员。Engine/Wiki 镜像及 locked snapshot 继续验证同一 `72e5fed6...` bundle hash；扩展若要跨模块发布，必须另行升级 SemVer 并执行 snapshot 兼容迁移。
 
 - Pipeline Contract 固定十阶段顺序、单一前置依赖、executor、输入、输出和阶段专属完成证据；
 - Action Policy 将当前 6 个 core MCP tools、5 个 auxiliary tools 和 7 个受控 executables 完整分类并按 Stage 白名单授权；

@@ -1,5 +1,5 @@
 ---
-updated: 2026-07-20
+updated: 2026-07-22
 ---
 
 # 项目计划
@@ -8,7 +8,7 @@ updated: 2026-07-20
 
 | # | 子计划 | 文件 | 当前 Phase | 状态 |
 |---|--------|------|------------|------|
-| P9.1 | Metadata-driven SDTM AE 最小信息单机 POC | [P9-metadata-driven-sdtm-ae-minimal-poc.md](plans/ongoing/P9-metadata-driven-sdtm-ae-minimal-poc.md) | P6 单机快速启动、回归、人工验收与旧 P9 解锁 | in-progress |
+| P11 | 十阶段 Production / Validation 与知识增长 POC | [P11-ten-stage-production-validation-poc.md](plans/ongoing/P11-ten-stage-production-validation-poc.md) | P1 共享执行、模型、验证与知识增长合同 | in-progress |
 
 ## 待开始
 
@@ -19,11 +19,13 @@ updated: 2026-07-20
 
 > 当前执行视野只展开 P6 → P8：P6 先建立 SDTMIG 3.4 Core/Events/AE 知识解析质量基线；P7 再用“生成 SDTM AE”证明 Wiki + LLM + Workflow 的实际执行价值；P8 在此基础上完成本地 Application API + Study Console。后续知识按同一质量 Gate 随实际 Workflow 缺口增量摄取。
 
-P8 已完成本地单机 Application API + Study Console 基线。当前先执行 P9.1，以本地 SAS7BDAT、Minimum Information Planner、Wiki 辅助 MappingSpec、三语言程序产物和知识复用完成真实单机 POC。自动测试通过不能解锁 P9.2；只有用户明确确认本机跑通后，才可重新确认“内网协作/多用户/Runtime bridge”范围。
+P8 已完成本地单机 Application API + Study Console 基线。P9.1 已于 2026-07-22 根据用户明确关闭指令完成，Engine 307 项与 Wiki 158 项回归通过；P9.2 依赖已满足，但用户选择 P11 优先，不自动启动内网协作部署。
 
-2026-07-17 P0 `Study Workbench 流程与阻断可观测性修正` 已完成：Runner ledger、Input Check、结构化 blocker、Run/Retry 语义、单一主工作区和可丢弃 Study 浏览器 E2E 均已通过。P9.1/P6 现在回到用户真实 `SAMPLE-AE-001` 单机 UAT；用户明确确认前仍保持 in-progress，不能解锁 P9.2。
+2026-07-17 P0 `Study Workbench 流程与阻断可观测性修正` 已完成：Runner ledger、Input Check、结构化 blocker、Run/Retry 语义、单一主工作区和可丢弃 Study 浏览器 E2E 均已通过。2026-07-22 用户关闭 P9.1 后，该 UAT Gate 已完成。
 
-P10 是待专项评审的知识架构 backlog：保留 Obsidian 主题卡与 Vault 顶层结构，将现有 SDTMIG 3.4 专用 statement/relation/query 能力通用化为 Package Registry、statement-level FTS 和 scope-aware Runtime Context。它不扩大当前 approved knowledge，也不在评审前进入 Development。P9.1 完成后的 P9.2/P10 实际优先级由用户另行确认。
+P10 是待专项评审的知识架构 backlog：保留 Obsidian 主题卡与 Vault 顶层结构，将现有 SDTMIG 3.4 专用 statement/relation/query 能力通用化为 Package Registry、statement-level FTS 和 scope-aware Runtime Context。它不扩大当前 approved knowledge，也不在评审前进入 Development；当前优先级低于用户已启动的 P11。
+
+P11 是当前进行中的十阶段 synthetic Production/Validation 纵向 POC：保留 Clinical Runtime、Review Protocol、MCP 和文件状态权威，以 Microsoft Agent Framework 作为可插拔执行后端，并通过两个正向知识增长闭环、一个负向错误归因案例和十阶段 React Workbench 证明 use-case-driven knowledge growth。
 
 ## 最近完成
 
@@ -31,9 +33,9 @@ P10 是待专项评审的知识架构 backlog：保留 Obsidian 主题卡与 Vau
 
 | 日期 | 子计划 | 文件 | 已同步到 |
 |------|--------|------|----------|
+| 2026-07-22 | Metadata-driven SDTM AE 最小信息单机 POC | [P9-metadata-driven-sdtm-ae-minimal-poc.md](plans/complete/P9-metadata-driven-sdtm-ae-minimal-poc.md) | SPEC-02/06/09/13/15/17/21、USAGE、memory、DevLog |
 | 2026-07-17 | Study Workbench 流程与阻断可观测性修正 | [P0-study-workbench-flow-correction.md](plans/complete/P0-study-workbench-flow-correction.md) | SPEC-06/15/17/21、USAGE、memory、DevLog、P9.1/P6 |
 | 2026-07-17 | Study Console React POC Workbench | [P0-study-console-react-poc-workbench.md](plans/complete/P0-study-console-react-poc-workbench.md) | SPEC-06/15/17/20/21、USAGE、DevLog、TASK_STATE |
-| 2026-07-16 | Workflow Application API 与本地 Study Console | [P8-workflow-api-study-console.md](plans/complete/P8-workflow-api-study-console.md) | SPEC-06/15/16/20/21、USAGE、DEPLOY、项目记忆 |
 
 ## 延后
 

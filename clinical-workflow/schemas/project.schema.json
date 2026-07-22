@@ -31,7 +31,7 @@
       "enum": ["phase_i", "phase_ii", "phase_iii", "phase_iv"]
     },
     "therapeutic_area": {
-      "enum": ["oncology", "cardiovascular", "diabetes", "respiratory", "non_oncology", "synthetic_safety", "other"]
+      "enum": ["oncology", "cardiovascular", "diabetes", "respiratory", "non_oncology", "other"]
     },
     "primary_language": {
       "enum": ["sas", "r", "python"]
@@ -53,6 +53,8 @@
       "required": [
         "sdtm_version",
         "sdtmig_version",
+        "adam_version",
+        "adamig_version",
         "ct_version"
       ],
       "properties": {
@@ -96,23 +98,8 @@
         "adam_spec": { "$ref": "#/$defs/review_assignment" },
         "tfl_shell": { "$ref": "#/$defs/review_assignment" },
         "tfl_qc": { "$ref": "#/$defs/review_assignment" },
-        "submission": { "$ref": "#/$defs/review_assignment" },
-        "source_intake": { "$ref": "#/$defs/review_assignment" },
-        "parser_output": { "$ref": "#/$defs/review_assignment" },
-        "sdtm_programming": { "$ref": "#/$defs/review_assignment" }
+        "submission": { "$ref": "#/$defs/review_assignment" }
       }
-    },
-    "source_policy": {
-      "type": "object"
-    },
-    "programming_chain": {
-      "type": "object"
-    },
-    "synthetic_only": {
-      "type": "boolean"
-    },
-    "scaffold_status": {
-      "type": "string"
     },
     "paths": {
       "type": "object",
@@ -125,8 +112,6 @@
       ],
       "properties": {
         "input_dir": { "type": "string", "minLength": 1 },
-        "work_dir": { "type": "string", "minLength": 1 },
-        "program_dir": { "type": "string", "minLength": 1 },
         "output_dir": { "type": "string", "minLength": 1 },
         "review_queue_dir": { "type": "string", "minLength": 1 },
         "audit_log": { "type": "string", "minLength": 1 }

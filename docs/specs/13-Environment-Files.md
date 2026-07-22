@@ -825,3 +825,13 @@ python -m src.runtime.agent_loop `
 SAS7BDAT 可以作为正式 `input/edc/` 或 `input/raw/` 来源。生产/POC 原始二进制可以采用本地保留、Git 仅登记相对路径、大小、SHA-256、来源角色和 storage policy 的方式；未提交 Git 不等于未登记来源。
 
 Parser 必须分别记录数据值和可得 metadata：变量名、类型、长度、column label、format/informat、value-label mapping。若 value labels 依赖缺失的外部 format catalog，必须标记 unavailable/gap，不能从观测值猜测。Source Intake 只批准读取资格；parser validation/review 通过后，derived metadata 才能进入 Mapping context。
+
+## 10. P11 Agent 与观测依赖分组
+
+P11 的 Agent/observability 依赖位于 `clinical-workflow/pyproject.toml` 的 `agents` optional group，当前精确包含 `agent-framework-core==1.12.0` 以及受限主版本范围的 OpenTelemetry API/SDK。默认 Engine、Wiki 和 fake backend 测试不要求安装该分组；只有接入 live MAF Provider 或 trace exporter 的环境才安装：
+
+```powershell
+python -m pip install -e ".\clinical-workflow[agents]"
+```
+
+Provider endpoint、API key、credential 和真实 deployment name 不进入 `ModelRegistry`、Study artifact 或 Git。注册表只保存 deployment alias、固定 model/version、capability、region 和允许的数据分类；凭据由后续 Provider adapter 的进程环境或受控 identity 注入。当前首批 P11 实现没有发起外部模型调用。

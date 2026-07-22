@@ -8,6 +8,7 @@ from src.runtime.review_protocol import (
     REVIEW_FINDING_SCHEMA,
     REVIEW_PACKET_SCHEMA,
     REVIEW_PROTOCOL_SCHEMA,
+    RELEASED_REVIEW_PROTOCOL_SCHEMA_PATH,
     Decision,
     FindingCategory,
     RejectionReason,
@@ -23,7 +24,11 @@ TS_SCHEMA_PATH = ROOT / "src" / "review_panel" / "src" / "schema.ts"
 
 
 def load_schema() -> dict:
-    return json.loads(REVIEW_SCHEMA_PATH.read_text(encoding="utf-8"))
+    return REVIEW_PROTOCOL_SCHEMA
+
+
+def load_released_schema() -> dict:
+    return json.loads(RELEASED_REVIEW_PROTOCOL_SCHEMA_PATH.read_text(encoding="utf-8"))
 
 
 def schema_def(name: str) -> dict:
@@ -55,6 +60,15 @@ def test_review_schema_bundle_is_python_runtime_authority():
         DECISION_RECEIPT_SCHEMA["required"]
         == schema["$defs"]["decision_receipt"]["required"]
     )
+
+
+def test_source_intake_is_prerelease_runtime_extension_not_released_bundle_member():
+    released = load_released_schema()
+    released_types = released["$defs"]["review_packet"]["properties"]["review_type"]["enum"]
+    runtime_types = load_schema()["$defs"]["review_packet"]["properties"]["review_type"]["enum"]
+
+    assert "source_intake" not in released_types
+    assert runtime_types == [item.value for item in ReviewType]
 
 
 def test_python_enums_match_review_json_schema():

@@ -822,3 +822,79 @@
 - `clinical-workflow/tests/`, `scripts/e2e-sample-ae-workbench.ps1`
 - `USAGE.md`, `docs/specs/15-Review-Protocol.md`, `21-Knowledge-Workflow-Integration.md`
 - `docs/main/memory/p9-workbench-flow-baseline.md`, `docs/dep/`（本轮提交）
+
+---
+
+## 2026-07-22
+
+### R070 [15:35] [P9-metadata-driven-sdtm-ae-minimal-poc] P6: 关闭 P9 并恢复 released bundle 一致性
+
+#### Done
+
+- 用户明确要求关闭 ongoing P9，记录为 P9.1/P6 单机 UAT Gate 完成；P9.2 依赖满足但未自动启动。
+- 定位 D6 根因：P9 将 `source_intake`、Study-local ReviewAssignment/config 扩展直接写入 released 1.1.0 schema 成员，Engine 实际 bundle hash 漂移而 Wiki/locked snapshot 仍锁定原 hash。
+- 恢复 released Engine project/review schema 与 Wiki 镜像一致；Runtime 从 released Review Schema 派生 `source_intake` prerelease 扩展，P9 功能继续严格校验但不修改 shared bundle。
+- 修复 P9 知识卡发布遗漏：Vault inventory 更新为 11 个 programming patterns / 45 个 knowledge relation items，并用既有生成器重建 SDTM Spec/Programming 关系投影。
+- P9 全部 Phase 标记完成，子计划迁移到 `plans/complete/`，PLAN 和项目记忆同步。
+
+#### Issues / Blockers
+
+- `.venv` 缺 Pillow/PyMuPDF，pip 两次因 PyPI SSL EOF 无法安装；系统 Python 已有声明依赖，改用该解释器完成 Wiki 全量回归。
+- Wiki 首次全量回归 154 passed / 4 failed；根因是 P9 新增已治理 programming pattern 后库存断言和关系投影未更新，修复后 158 passed。
+- None remaining for P9 closure.
+
+#### Validation
+
+- Engine 全量回归：307 passed。
+- Wiki 全量回归：158 passed（218 warnings，均为既有依赖 deprecation/pending-deprecation）。
+- shared bundle registered/actual hash 均为 `72e5fed6cd37fdb82888e3a7b2310fe44fa0953a30eb579688a7c580f2b33e14`。
+
+#### Next
+
+1. P9 done — 不自动启动 P9.2。
+2. 按用户排序进入 P11 P1。
+
+#### Files Changed / Commits
+
+- `clinical-workflow/schemas/project.schema.json`, `schemas/review/review-protocol.schema.json`, `src/runtime/review_protocol.py`, related tests（uncommitted）
+- `clinical-llm-wiki/tests/`, `vault/10_MOC/Workflow-Relations/`（uncommitted）
+- `docs/specs/15-Review-Protocol.md`, `21-Knowledge-Workflow-Integration.md`, `docs/main/memory/`, `docs/dep/`（uncommitted）
+
+---
+
+### R071 [15:56] [P11-ten-stage-production-validation-poc] P1: 启动 Agent backend 与 model policy 合同
+
+#### Done
+
+- 将 P11 从 backlog 迁移为 ongoing，P1 标记 in-progress，并建立可恢复 TASK_STATE。
+- 新增 async `AgentExecutionBackend` Protocol、严格 Production/Validation request/result、ActionProposal、ArtifactInput 和规范化 backend failure。
+- 新增无文件/网络/工具/ReviewQueue 权限的 `FakeAgentExecutionBackend`；Runtime 对所有 ActionProposal 继续调用既有 ActionPolicy。
+- 新增 ModelDeployment/Profile/Registry/Policy：固定 model version、显式 capability/data class、approved fallback、独立 Validator deployment 和敏感数据 fail-closed。
+- 将 `agent-framework-core==1.12.0` 与 OpenTelemetry API/SDK 放入 `agents` optional dependency；本轮未安装或调用 live Provider。
+- P11 P1 已完成 4 项 Gate；MAF live adapter、FailureDiagnosis/Knowledge Evolution、OTel/redaction、prerelease JSON Schema 和 `SYNTH-E2E-001` scaffold 仍待后续切片。
+
+#### Issues / Blockers
+
+- 首次 TOML 验证因 Windows 默认 GBK 读取包含 Unicode 箭头的文件失败；显式 UTF-8 后通过，文件内容无错误。
+- PyPI SSL EOF 使 optional MAF 包未在本轮安装；fake/backend contract 不依赖该包，live MAF adapter 前必须恢复安装并执行 compatibility test。
+- None blocking the next P11 P1 slice.
+
+#### Validation
+
+- P11 backend/model policy 定向回归：19 passed。
+- Engine 全量回归（包含 P11 新测试）：326 passed。
+- `ruff check clinical-workflow/src clinical-workflow/tests` 通过；`git diff --check` 通过。
+- `pyproject.toml` UTF-8/TOML 与 `agents` 精确版本断言通过。
+
+#### Next
+
+1. 实现 FailureDiagnosis、Finding Merger、Risk/Gate Policy 和一次 rework 上限。
+2. 实现 Knowledge Usage/Gap/Candidate/Evolution contracts 与 snapshot immutability 测试。
+3. 增加 prerelease JSON Schema、OTel redaction/local exporter 和 `SYNTH-E2E-001` scaffold。
+
+#### Files Changed / Commits
+
+- `clinical-workflow/src/runtime/agent_backend.py`, `model_policy.py`, `clinical-workflow/pyproject.toml`（uncommitted）
+- `clinical-workflow/tests/test_agent_backend.py`, `test_model_policy.py`（uncommitted）
+- `docs/specs/06-AI-Architecture.md`, `09-MCP-Tools-Design.md`, `13-Environment-Files.md`（uncommitted）
+- `docs/dep/PLAN.md`, `plans/ongoing/P11-ten-stage-production-validation-poc.md`, `TASK_STATE.md`（uncommitted）
