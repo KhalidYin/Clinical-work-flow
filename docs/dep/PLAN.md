@@ -6,9 +6,9 @@ updated: 2026-07-22
 
 ## 进行中
 
-| # | 子计划 | 文件 | 当前 Phase | 状态 |
+| # | 子计划 | 文件 | 当前 Gate / Phase | 状态 |
 |---|--------|------|------------|------|
-| P11 | 十阶段 Production / Validation 与知识增长 POC | [P11-ten-stage-production-validation-poc.md](plans/ongoing/P11-ten-stage-production-validation-poc.md) | P1 共享执行、模型、验证与知识增长合同 | in-progress |
+| P11 | 十阶段 Production / Validation 与知识增长 POC | [P11-ten-stage-production-validation-poc.md](plans/ongoing/P11-ten-stage-production-validation-poc.md) | G0 基础就绪（原 P1） | in-progress |
 
 ## 待开始
 
@@ -25,7 +25,7 @@ P8 已完成本地单机 Application API + Study Console 基线。P9.1 已于 20
 
 P10 是待专项评审的知识架构 backlog：保留 Obsidian 主题卡与 Vault 顶层结构，将现有 SDTMIG 3.4 专用 statement/relation/query 能力通用化为 Package Registry、statement-level FTS 和 scope-aware Runtime Context。它不扩大当前 approved knowledge，也不在评审前进入 Development；当前优先级低于用户已启动的 P11。
 
-P11 是当前进行中的十阶段 synthetic Production/Validation 纵向 POC：保留 Clinical Runtime、Review Protocol、MCP 和文件状态权威，以 Microsoft Agent Framework 作为可插拔执行后端，并通过两个正向知识增长闭环、一个负向错误归因案例和十阶段 React Workbench 证明 use-case-driven knowledge growth。
+P11 是当前进行中的十阶段 synthetic Production/Validation 纵向 POC：保留 Clinical Runtime、Review Protocol、MCP 和文件状态权威，以 Microsoft Agent Framework 作为可插拔执行后端，并通过两个正向知识增长闭环、一个负向错误归因案例和十阶段 React Workbench 证明 use-case-driven knowledge growth。执行组织采用 G0 基础就绪 + G1-G10 canonical Stage Gate；每个临床 Gate 形成独立 Evidence Report，必须取得用户明确批准后才进入下一 Stage。
 
 ## 最近完成
 

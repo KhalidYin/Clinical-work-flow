@@ -4,7 +4,7 @@ status: in-progress
 created: 2026-07-22
 updated: 2026-07-22
 priority: 1
-estimated_rounds: 36-52
+estimated_rounds: 41-54
 depends_on:
   - P9-metadata-driven-sdtm-ae-minimal-poc.md
 tags:
@@ -44,6 +44,7 @@ syncs_to:
 - 约束：本计划是 synthetic POC，不宣称 GxP、生产就绪、完整 CDISC conformity 或真实监管递交就绪。
 - 方案来源：2026-07-20 至 2026-07-22 正式头脑风暴。
 - 头脑风暴记录：用户批准“新建连续极简合成 Study”“Clinical Runtime + Microsoft Agent Framework 可插拔执行后端”“多 Provider synthetic POC”“所有阶段记录知识 usage/gap，完成两个正向增长闭环和一个负向禁止 promotion 案例”“复用当前 AE Workbench 并扩展十阶段 UI”的组合方案；否决 AutoGen、完整 MAF Runtime 替换、十个互相独立 POC、十阶段逐一知识 promotion 和 P11 内实施 P10 通用 RAG/检索重构。
+- 计划修订记录：2026-07-22 用户批准将原 6 个建设 Phase 改为 `G0` 基础就绪加 `G1-G10` 十个 canonical Stage Gate；`G1-G10` 每个 Gate 都必须形成证据报告并取得用户明确批准，未批准时硬暂停，不能进入下一 Stage。
 
 ## 涉及范围
 
@@ -152,26 +153,50 @@ syncs_to:
 
 ---
 
-## Phase 总览
+## Gate 总览
 
-| Phase | 目标 | 预估轮次 | 依赖 | 状态 |
-|-------|------|----------|------|------|
-| P1 | 冻结共享执行、模型、验证、知识增长和 run 合同 | 6-8 | P9.1 用户明确完成 UAT | in-progress |
-| P2 | 完成 Protocol Analysis → SAP Generation 与方法知识增长闭环 | 5-7 | P1 | pending |
-| P3 | 完成 SDTM Spec → SDTM Programming 与标准知识增长闭环 | 6-9 | P2 | pending |
-| P4 | 完成 ADaM Spec → ADaM Programming 与负向 gap 分类 | 6-9 | P3 | pending |
-| P5 | 完成 TFL Shell Design → TFL Programming | 5-7 | P4 | pending |
-| P6 | 完成 QC、Submission、通用 API、十阶段 UI 和全链验收 | 8-12 | P5 | pending |
+`G0` 是跨 Stage 的技术前置，不计入十个临床 Gate。`G1-G10` 与 `PipelineContract` 的 canonical stage 一一对应；后续章节允许按相邻 Stage 共用工作包和文件清单，但状态、证据报告、用户验收和暂停点必须逐 Gate 独立。
+
+| Gate | Canonical stage / 目标 | 预估轮次 | 依赖 | 状态 |
+|------|------------------------|----------|------|------|
+| G0 | 基础就绪：共享执行、模型、验证、知识增长和 run 合同 | 4-6 | P9.1 completed | in-progress |
+| G1 | `protocol_analysis` | 3-4 | G0 | pending |
+| G2 | `sap_generation` + 方法知识正向增长闭环 | 3-4 | G1 accepted | pending |
+| G3 | `sdtm_spec` + 标准/映射知识正向增长闭环 | 4-5 | G2 accepted | pending |
+| G4 | `sdtm_programming` | 4-5 | G3 accepted | pending |
+| G5 | `adam_spec` + `model_application_failure` 负向案例 | 4-5 | G4 accepted | pending |
+| G6 | `adam_programming` | 4-5 | G5 accepted | pending |
+| G7 | `tfl_shell_design` | 3-4 | G6 accepted | pending |
+| G8 | `tfl_programming` | 3-4 | G7 accepted | pending |
+| G9 | `qc_validation` | 4-5 | G8 accepted | pending |
+| G10 | `submission_packaging` + 全链重建、浏览器 UAT 和最终质量报告 | 5-7 | G9 accepted | pending |
+
+### G1-G10 统一验收与硬暂停合同
+
+每个临床 Gate 必须按同一顺序闭合，不能因为下游文件已经存在而跳过：
+
+1. 锁定上游 canonical 输入、contract、snapshot、model profile 和 source hash。
+2. 完成 Production structured output，Runtime 授权并执行需要的 deterministic tool/executable。
+3. 完成与 Producer 隔离的 LLM Validation、确定性 Validation 和 finding merge；模型 confidence 不构成通过证据。
+4. 记录 `StageRunManifest`、`KnowledgeUsageManifest`、citation、gap、trace 和 completion evidence。
+5. 仅在 Clinical Gate 需要时使用既有 ReviewPacket/DecisionReceipt 完成人工临床决策和 canonical promotion。
+6. 验证 reject/rework、tamper、schema invalid、tool/model failure 和 resume/retry 等本 Gate 相关负向路径。
+7. Workbench 必须能查看本 Gate 的状态、输入、Production/Validation、知识、Review、产物和审计；G1 建立通用骨架，G2-G10 逐 Stage 增量接入。
+8. 写入 `docs/reviews/P11-G<NN>-<stage>.md` Gate Evidence Report，至少列出输入/输出 hash、模型 deployment、验证结果、Review receipt、知识证据、测试命令、已知限制和恢复说明。
+9. Evidence Report 初始状态为 `awaiting-user-acceptance`；用户明确批准后改为 `accepted`，并在本计划关键决策记录与 DEVLOG 留痕。
+10. 未取得用户明确批准时，P11 必须硬暂停；不得预先实现、执行或标记下一 canonical Stage 为 `in-progress`。
+
+Gate Evidence Report 是 P11 项目交付凭证，不进入 Study `.review_queue/`，也不替代临床 ReviewPacket/DecisionReceipt。G0 只形成技术 readiness evidence，不占用 G1-G10 的十次临床 Stage 验收。
 
 ---
 
-## P1：共享执行、模型、验证与知识增长合同
+## G0：共享执行、模型、验证与知识增长合同（原 P1）
 
 ### 输入条件
 
 - P9.1 P1-P6 已完成，用户明确确认 `SAMPLE-AE-001` 单机链路已跑通；“基本通过”本身不替代该 Gate。
 - Engine/Wiki/Study contract bundle、locked snapshot、Review receipt 和 AE canonical 回归能在 clean HEAD 重现。
-- 已确认至少一个 live Provider；跨 Provider Validator 不可用时可完成 fake/offline 合同，但 P6 live Gate 保持未完成。
+- 已确认至少一个 live Provider；跨 Provider Validator 不可用时可完成 fake/offline 合同，但 G10 live evaluation 保持未完成。
 
 ### 产出
 
@@ -181,6 +206,7 @@ syncs_to:
 - `FailureDiagnosis`、`KnowledgeUsageManifest`、`KnowledgeGapReport`、`EvidenceUnit`、`KnowledgeCandidate`、`KnowledgeEvolutionReceipt`。
 - 确定性 Finding Merger、Risk/Gate Policy 和最多一次自动修复循环。
 - OpenTelemetry trace naming、local exporter 和敏感字段 redaction。
+- prerelease `WorkflowRunState`/`StageState` Schema、Gate Evidence Report 模板和 G1-G10 独立状态/暂停语义。
 - `SYNTH-E2E-001` scaffold、十阶段最小 artifact inventory 和评估 fixture 目录。
 
 ### 完成标准
@@ -193,9 +219,10 @@ syncs_to:
 - [ ] FailureDiagnosis 能区分六类 failure，只有 `knowledge_coverage_gap` 可创建 candidate；ambiguous 必须人工确认。
 - [ ] KnowledgeCandidate 不继承 approval，旧 snapshot 不原地修改，EvolutionReceipt 可证明唯一变化维度。
 - [ ] OTel trace 与 run/audit ID 可关联且不包含 secret、原始敏感 prompt 或未授权数据。
+- [ ] `WorkflowRunState`/`StageState` 只投影 Runtime 权威状态，Gate Evidence Report 不进入 `.review_queue/`，G1-G10 未 accepted 时下一 Stage 保持 pending。
 - [ ] fake backend、schema drift、timeout、Provider failure、invalid structured output、tool authorization、redaction 和 snapshot immutability 测试通过。
 
-### 边界（本 Phase 明确不做）
+### 边界（本 G0 明确不做）
 
 - 不实现任何具体临床 stage 内容或 live POC 结论。
 - 不迁移 AgentRuntime 状态，不引入第二框架，不实施 P10 通用知识检索。
@@ -227,11 +254,11 @@ syncs_to:
 
 ---
 
-## P2：Protocol Analysis 与 SAP Generation POC
+## G1-G2 工作包：Protocol Analysis 与 SAP Generation POC
 
 ### 输入条件
 
-- P1 contracts、backend、fake evaluation 和 data policy Gate 全部通过。
+- G0 contracts、backend、fake evaluation 和 data policy readiness 全部通过。
 - 合成 Protocol、Study metadata、`p11-poc-test-only` 方法来源和 Snapshot S0 已登记并锁定。
 - Protocol parser adapter 的格式、locator 和 source hash 合同已冻结。
 
@@ -243,17 +270,26 @@ syncs_to:
 - 方法知识正向增长闭环：FailureDiagnosis → EvidenceUnit → Candidate → Human Review → Snapshot S1 → 同任务重放 → EvolutionReceipt。
 - 两阶段 StageRunManifest、KnowledgeUsageManifest、validation evidence 和 completion evidence。
 
-### 完成标准
+### G1 完成标准：Protocol Analysis
 
 - [ ] Protocol parser 记录 source path/hash、parser version、页/节 locator；解析失败或 locator 缺失不得伪造 study facts。
 - [ ] Protocol Producer 只输出 schema-valid facts/candidates，Validator 能发现预植入遗漏和无证据推断。
+- [ ] `output/protocol/analysis.yaml`、StageRunManifest、KnowledgeUsageManifest、Review evidence 和 completion evidence 相互可追溯。
+- [ ] G1 建立通用 Workbench 骨架，`[P11-UI-01..10]` 能以 G1 数据展示十阶段轨、阶段概览及七类证据视图；缺失的后续 Stage 数据只能显示 pending/empty。
+- [ ] parsing、structured output、traceability、review reject/rework、tamper 和 resume/retry 回归通过。
+- [ ] `docs/reviews/P11-G01-protocol-analysis.md` 已形成并取得用户明确批准；批准前 G2 保持 pending。
+
+### G2 完成标准：SAP Generation
+
 - [ ] SAP 所有关键 endpoint、estimand、population 和 method 能追溯 Protocol 或 approved Study decision；无证据内容保留 gap。
-- [ ] Stage 1 与 Stage 2 分别产生独立 ReviewPacket 和 completion evidence，不因下游文件存在而跳过 Gate。
+- [ ] G1 accepted evidence 是 G2 唯一上游放行依据；`output/sap/sap.yaml` 不能反向补写 G1 completion evidence。
 - [ ] 方法知识 S0 失败正确归类为 coverage gap，S1 重放除 snapshot 外输入/模型/Prompt/工具不变。
 - [ ] EvolutionReceipt 显示目标 evaluation 由 fail → pass，相关负例无新增失败；candidate 和 snapshot 明确为 test-only。
-- [ ] parsing、structured output、traceability、review reject/rework、knowledge S0/S1 和 tamper 回归通过。
+- [ ] `[P11-UI-03..10]` 能查看 G2 Production/Validation、方法知识 growth chain、Review、SAP artifact 和审计事件。
+- [ ] SAP structured output、Protocol trace、knowledge S0/S1、review reject/rework、snapshot tamper 和回归测试通过。
+- [ ] `docs/reviews/P11-G02-sap-generation.md` 已形成并取得用户明确批准；批准前 G3 保持 pending。
 
-### 边界（本 Phase 明确不做）
+### 边界（本工作包明确不做）
 
 - 不生成完整 ICH E9 SAP，不覆盖 adaptive/Bayesian/全部 sensitivity 场景。
 - 不从 ClinicalTrials.gov 自动下载未审核资料作为正式 Study source。
@@ -279,11 +315,11 @@ syncs_to:
 
 ---
 
-## P3：SDTM Spec 与 SDTM Programming POC
+## G3-G4 工作包：SDTM Spec 与 SDTM Programming POC
 
 ### 输入条件
 
-- P2 Protocol/SAP canonical candidate 和 Review evidence 已闭合。
+- G2 SAP canonical candidate、Review evidence 和 Gate Evidence Report 已 accepted。
 - P9.1 AE contracts、minimum-information、MappingSpec、program review 和 canonical AE 回归保持通过。
 - 合成 DM source metadata、subject identity 规则和标准知识 gap source 已登记。
 
@@ -294,17 +330,27 @@ syncs_to:
 - 标准/映射知识正向增长闭环和 S0/S1 EvolutionReceipt。
 - DM/AE 交叉一致性、USUBJID trace、CDISC findings 和 deferred review evidence。
 
-### 完成标准
+### G3 完成标准：SDTM Spec
 
-- [ ] AE 复用 P9.1 合同而非复制另一套 AE 规则；canonical hash 差异必须为零或有批准解释。
-- [ ] DM 与 AE 的 STUDYID/USUBJID、subject count 和 source identity 一致，无法形成 subject identity 时 fail closed。
+- [ ] AE 复用 P9.1 MappingSpec/Review 合同而非复制另一套 AE 规则；可比 canonical hash 差异必须为零或有批准解释。
+- [ ] DM 与 AE 的 STUDYID/USUBJID、subject identity 规则和 source provenance 一致；无法形成 subject identity 时 fail closed。
 - [ ] MappingSpec 的 mapped/gap 状态只依据 source evidence、locked knowledge 和 approved decision；不得从值分布猜语义。
-- [ ] Producer 不执行任意代码；Runtime generator/runner 只消费 approved MappingSpec 和登记 source。
-- [ ] Python reference execution 可重建；R/SAS artifacts 共享 MappingSpec/source/rule hashes，未执行状态明确。
 - [ ] 标准知识 S0 失败、candidate Review、S1 重放、适用范围负例和无新增回归全部通过。
-- [ ] Stage 3/4 的 review pause/reject/rework、P21/CDISC finding、hash tamper、unknown operation 和 canonical promotion 测试通过。
+- [ ] `[P11-UI-03..10]` 能查看 DM/AE spec、rule citation、gap、标准知识 growth chain、Review 和 completion evidence。
+- [ ] spec review pause/reject/rework、P21/CDISC finding、hash tamper 和 canonical promotion 测试通过。
+- [ ] `docs/reviews/P11-G03-sdtm-spec.md` 已形成并取得用户明确批准；批准前 G4 保持 pending。
 
-### 边界（本 Phase 明确不做）
+### G4 完成标准：SDTM Programming
+
+- [ ] Runtime generator/runner 只消费 G3 accepted 的 approved MappingSpec 和登记 source；Producer 不能直接执行任意代码。
+- [ ] Python reference execution 可重建；R/SAS artifacts 共享 MappingSpec/source/rule hashes，未执行状态明确。
+- [ ] draft/canonical DM/AE、program manifest、validation、provenance、USUBJID trace 和 completion evidence 闭合。
+- [ ] DM 与 AE 的 STUDYID/USUBJID、subject count 和 source identity 一致；不一致时阻断 promotion。
+- [ ] `[P11-UI-03..10]` 能查看 G4 programs/datasets、执行状态、validation findings、Review 和审计事件。
+- [ ] program review、P21/CDISC finding、hash tamper、unknown operation、tool failure、retry 和 canonical promotion 测试通过。
+- [ ] `docs/reviews/P11-G04-sdtm-programming.md` 已形成并取得用户明确批准；批准前 G5 保持 pending。
+
+### 边界（本工作包明确不做）
 
 - 不覆盖 DM/AE 之外的 SDTM Domain，不实现完整 MedDRA/CT 包或 define.xml。
 - 不要求 SAS Runtime，不把生成但未执行的 R/SAS 程序描述为 independent execution。
@@ -327,15 +373,15 @@ syncs_to:
 ### 关键决策
 
 - 首个执行轨道继续使用 Python reference；SAS/R 是有 provenance 的 code artifacts。
-- SDTM knowledge POC 验证“标准/映射知识”，与 P2 的统计方法知识形成不同类别证据。
+- SDTM knowledge POC 验证“标准/映射知识”，与 G2 的统计方法知识形成不同类别证据。
 
 ---
 
-## P4：ADaM Spec 与 ADaM Programming POC
+## G5-G6 工作包：ADaM Spec 与 ADaM Programming POC
 
 ### 输入条件
 
-- P3 canonical candidate DM/AE、approved MappingSpec 和 SAP trace 可用。
+- G4 accepted 的 canonical candidate DM/AE、approved MappingSpec 和 SAP trace 可用。
 - 现有 ADAE knowledge workflow、TEAE rule fixture 和 `adam_spec_build` 回归通过。
 - ADSL/ADAE 最小 spec、program、dataset 和 validation Schema 已冻结。
 
@@ -346,16 +392,27 @@ syncs_to:
 - SDTM/SAP → ADSL/ADAE traceability、TEAE 独立重算和 dataset comparison。
 - 负向知识案例：正确知识已在 KnowledgePacket，但 Producer 故意错用；FailureDiagnosis 必须为 `model_application_failure`，不得写 KnowledgeCandidate。
 
-### 完成标准
+### G5 完成标准：ADaM Spec
 
-- [ ] ADSL subject-level rows 与 DM 一致；ADAE records 与 AE trace 闭合，关键 derivation 均引用 SAP/SDTM/knowledge/Study decision。
-- [ ] TEAE rule 包含 applicability、window、date source 和 missing-date handling；Validator 可独立重算并发现预植入错误。
+- [ ] ADSL/ADAE spec 的关键 derivation 均引用 SAP、SDTM、locked knowledge 或 approved Study decision。
+- [ ] TEAE rule 包含 applicability、window、date source 和 missing-date handling；Validator 能发现预植入的错误应用。
+- [ ] 正确知识已在 KnowledgePacket 的负向案例归类为 `model_application_failure`，不产生 candidate、Wiki proposal 或新 snapshot。
+- [ ] 相同 failure 再现时关联既有 evaluation case，修复落在 Producer prompt/model/Agent 并进入 regression，不能用重复知识卡掩盖模型问题。
+- [ ] `[P11-UI-03..10]` 能查看 G5 spec trace、负向 FailureDiagnosis、禁止 promotion 依据、Review 和审计事件。
+- [ ] spec Review、reject/rework、hash drift、错误归因、禁止 knowledge promotion 和 canonical promotion 测试通过。
+- [ ] `docs/reviews/P11-G05-adam-spec.md` 已形成并取得用户明确批准；批准前 G6 保持 pending。
+
+### G6 完成标准：ADaM Programming
+
 - [ ] approved spec 是 program 唯一业务规则输入；program/output 记录相同 spec/source/snapshot/model/tool hashes。
-- [ ] 知识已存在的负向案例不会产生 candidate、Wiki proposal 或新 snapshot；修复落在 Producer prompt/model/Agent 并进入 regression。
-- [ ] 相同 failure 再现时能关联既有 evaluation case，不能通过重复知识卡掩盖模型问题。
-- [ ] Stage 5/6 Review、reject/rework、comparison mismatch、hash drift、tool failure 和 canonical promotion 测试通过。
+- [ ] ADSL subject-level rows 与 DM 一致；ADAE records 与 AE trace 闭合。
+- [ ] Validator 独立重算 TEAE，并对 treatment/date、missing-date handling 和 derivation trace 进行确定性比较。
+- [ ] Python reference programs/datasets、provenance、comparison report、canonical promotion 和 completion evidence 闭合。
+- [ ] `[P11-UI-03..10]` 能查看 G6 programs/datasets、独立重算、comparison findings、Review 和审计事件。
+- [ ] comparison mismatch、hash drift、tool failure、retry、reject/rework 和 canonical promotion 测试通过。
+- [ ] `docs/reviews/P11-G06-adam-programming.md` 已形成并取得用户明确批准；批准前 G7 保持 pending。
 
-### 边界（本 Phase 明确不做）
+### 边界（本工作包明确不做）
 
 - 不覆盖 BDS、ADTTE、ADLB 或完整 ADaMIG conformity。
 - 不使用第三个 LLM 自动仲裁 Producer/Validator 争议。
@@ -379,11 +436,11 @@ syncs_to:
 
 ---
 
-## P5：TFL Shell Design 与 TFL Programming POC
+## G7-G8 工作包：TFL Shell Design 与 TFL Programming POC
 
 ### 输入条件
 
-- P4 canonical candidate ADSL/ADAE、SAP method 和 TEAE rule 可用。
+- G6 accepted 的 canonical candidate ADSL/ADAE、SAP method 和 TEAE rule 可用。
 - 一张最小 TEAE summary table 的 shell/output Schema、denominator 和 display contract 已冻结。
 - `tfl_shells_list` 与 renderer 现有回归通过，已明确哪些能力是 catalog、哪些是 Study-specific generation。
 
@@ -394,19 +451,29 @@ syncs_to:
 - 独立 denominator、n/%、row/column ordering、title/footnote 和 shell/output comparison report。
 - 两阶段 KnowledgeUsageManifest、ReviewPacket、validation 和 completion evidence。
 
-### 完成标准
+### G7 完成标准：TFL Shell Design
 
 - [ ] Shell 的 title、population、input datasets/variables、denominator 和 display method 可追溯 SAP/ADSL/ADAE/knowledge。
-- [ ] 未存在的 ADaM variable 或无 evidence 的 footnote 会阻断 shell approval，不由 LLM补造。
-- [ ] TFL program 只消费 approved shell 和 canonical candidate datasets，所有显示值能反查 input records/denominator。
-- [ ] 独立计算与 production output 在 n/%、排序、总数和 missing handling 上一致；数值正确性不由 LLM 最终判断。
-- [ ] shell review、program/output review、comparison mismatch、partial output、hash drift 和 retry 测试通过。
+- [ ] 未存在的 ADaM variable 或无 evidence 的 footnote 会阻断 shell approval，不由 LLM 补造。
+- [ ] 一张 TEAE summary shell、KnowledgeUsageManifest、Validation findings、ReviewPacket/DecisionReceipt 和 completion evidence 闭合。
+- [ ] `[P11-UI-03..10]` 能查看 G7 shell、input refs、Production/Validation、Review、artifact 和审计事件。
+- [ ] shell review、reject/rework、invalid variable、hash drift、partial evidence 和 resume/retry 测试通过。
+- [ ] `docs/reviews/P11-G07-tfl-shell-design.md` 已形成并取得用户明确批准；批准前 G8 保持 pending。
 
-### 边界（本 Phase 明确不做）
+### G8 完成标准：TFL Programming
+
+- [ ] TFL program 只消费 G7 accepted 的 approved shell 和 canonical candidate datasets，所有显示值能反查 input records/denominator。
+- [ ] 独立计算与 production output 在 n/%、排序、总数和 missing handling 上一致；数值正确性不由 LLM 最终判断。
+- [ ] Python reference renderer/program、CSV/HTML output、program manifest、comparison report 和 completion evidence 闭合。
+- [ ] `[P11-UI-03..10]` 能查看 G8 program/output、独立 comparison、partial output、Review 和审计事件。
+- [ ] program/output review、comparison mismatch、partial output、hash drift、tool failure 和 retry 测试通过。
+- [ ] `docs/reviews/P11-G08-tfl-programming.md` 已形成并取得用户明确批准；批准前 G9 保持 pending。
+
+### 边界（本工作包明确不做）
 
 - 不覆盖更多 table/figure/listing，不建设完整 RTF/PDF 排版。
 - 不允许自由文本代码执行，不把 renderer demo 声称为生产 reporting engine。
-- 不新增知识 promotion 案例；只记录 usage/gap 并复用 P2/P3 增长结果。
+- 不新增知识 promotion 案例；只记录 usage/gap 并复用 G2/G3 增长结果。
 
 ### 涉及文件
 
@@ -426,11 +493,11 @@ syncs_to:
 
 ---
 
-## P6：QC、Submission、通用 API、十阶段 UI 与全链验收
+## G9-G10 工作包：QC、Submission、通用 API、十阶段 UI 与全链验收
 
 ### 输入条件
 
-- P1-P5 所有 stage Gate、Review、canonical candidate、knowledge/evaluation 和回归通过。
+- G1-G8 的 Gate Evidence Report 全部 accepted，Review、canonical candidate、knowledge/evaluation 和回归通过。
 - 十阶段 `WorkflowRunState`/`StageState` API Schema 与 P11-UI-01..10 数据源已冻结。
 - 至少两个 live Provider deployment 可用于 synthetic/deidentified Producer/Validator，或用户明确批准带限制完成单 Provider POC。
 
@@ -443,9 +510,17 @@ syncs_to:
 - clean scaffold → submission package 全链回放、fake regression、multi-provider live evaluation、browser E2E 和 synthetic POC 质量报告。
 - 启动、依赖、失败诊断、清理、snapshot S0/S1 和限制说明。
 
-### 完成标准
+### G9 完成标准：QC Validation
 
-- [ ] QC report 覆盖所有 canonical artifact、completion evidence、deterministic/LLM/independent validation、deferred/disputed finding；LLM 不得下调确定性 finding。
+- [ ] QC report 覆盖 G1-G8 canonical artifact、completion evidence、deterministic/LLM/independent validation、deferred/disputed finding；LLM 不得下调确定性 finding。
+- [ ] Protocol → SAP → SDTM → ADaM → TFL 的输入、规则、程序、数据、输出和 Review trace 可由 stable IDs 交叉核对。
+- [ ] SDTM/ADaM validation、TFL comparison、P21 triage、knowledge usage/gap 和 known limitations 全部进入 QC evidence。
+- [ ] `[P11-UI-03..10]` 能查看 G9 聚合 QC、跨 Stage finding、deferred/disputed 状态和审计事件。
+- [ ] QC mismatch、缺失上游 evidence、LLM 降级确定性 finding、hash drift、tool failure 和 retry 测试通过。
+- [ ] `docs/reviews/P11-G09-qc-validation.md` 已形成并取得用户明确批准；批准前 G10 保持 pending。
+
+### G10 完成标准：Submission Packaging 与全链验收
+
 - [ ] Submission manifest 与物理文件/checksum 一致，未批准 artifact、raw source、secret、临时 prompt/model 内容不进入 package。
 - [ ] package 明确标记 `synthetic-poc-not-submission-ready`，define output 只代表最小 metadata POC。
 - [ ] 删除 derived/output 后能从登记 synthetic source、locked snapshot、固定 contracts/tools/models 重建等价结果；差异有可审计解释。
@@ -456,9 +531,10 @@ syncs_to:
 - [ ] `[P11-UI-07]` run → query → unit → source locator → artifact → finding → gap → candidate → review → snapshot → evaluation 可完整交叉查看。
 - [ ] OTel trace、StageRunManifest、audit trail、Review receipts 和 UI events 能通过 stable IDs 交叉核对且无敏感泄露。
 - [ ] specs、USAGE、Study README、memory、tests 和 DevLog 同步；输出 POC 质量报告并明确剩余 production/GxP 风险。
-- [ ] 用户在本机通过十阶段 Workbench 完成一次 synthetic run、Review 和 Submission POC 验收后，P11 才可 complete。
+- [ ] 用户在本机通过十阶段 Workbench 完成一次 synthetic run、Review 和 Submission POC 验收。
+- [ ] `docs/reviews/P11-G10-submission-packaging.md` 已形成并取得用户明确批准；只有此时 P11 才可 complete。
 
-### 边界（本 Phase 明确不做）
+### 边界（本工作包明确不做）
 
 - 不解锁或自动开始 P9.2；P11 完成后由用户重新确认部署、多用户和 Runtime bridge 范围。
 - 不把十阶段 UI 扩成知识编辑、模型配置、RBAC、多人任务或运营 dashboard。
@@ -494,11 +570,11 @@ syncs_to:
 
 ## 执行中发现
 
-> 执行本子计划过程中暴露的问题在每个 Phase Gate 分类。
+> 执行本子计划过程中暴露的问题在每个 Gate 分类。
 
 | ID | 描述 | 发现于 | 类型 | 处理 |
 |----|------|--------|------|------|
-| D1 | P9 将 Study-local schema 扩展写入 released 1.1.0 成员，导致 P11 输入 Gate 的 Engine/Wiki bundle hash 不可重现 | P1 preflight | 阻断（已解决） | 恢复 released schema，将 P9 扩展改为 Runtime/Study prerelease；Engine 307、Wiki 158 项回归通过 |
+| D1 | P9 将 Study-local schema 扩展写入 released 1.1.0 成员，导致 P11 输入 Gate 的 Engine/Wiki bundle hash 不可重现 | G0 preflight | 阻断（已解决） | 恢复 released schema，将 P9 扩展改为 Runtime/Study prerelease；Engine 307、Wiki 158 项回归通过 |
 
 ## 关键决策记录
 
@@ -515,11 +591,13 @@ syncs_to:
 | 2026-07-22 | UI 状态权威 | 前端文件扫描 / AE PocState 扩张 / WorkflowRunState | 通用 WorkflowRunState | 防止前端推导和 AE 专项合同继续膨胀 |
 | 2026-07-22 | MAF Python 依赖基线 | 全量包 / core 精确固定 / 不固定版本 | `agent-framework-core==1.12.0` optional dependency | 当前正式 SDK 为 async；精确固定避免 `latest` 漂移，fake backend 不要求安装 Provider 包 |
 | 2026-07-22 | 首批实现边界 | 直接接 live Provider / 先冻结 backend+model policy / 先做 UI | 先冻结 async backend、fake backend 与 fail-closed model policy | 先验证替换、授权、数据分类和独立 Validator，再引入凭据和外部调用 |
+| 2026-07-22 | 阶段验收组织 | 6 个建设 Phase / 10 个自动证据点 / G0 + 10 个硬暂停 Stage Gate | G0 + G1-G10 硬暂停 | 与固定 PipelineContract 一一对应，逐段暴露集成风险；项目验收凭证与临床 Review 凭证保持分离 |
 
 ## 同步记录
 
-> 已进入 Development；完成各 Phase 后按 frontmatter `syncs_to` 和主文档影响逐项记录。
+> 已进入 Development；完成各 Gate 后按 frontmatter `syncs_to` 和主文档影响逐项记录。
 
 | 日期 | 已同步到 | 说明 |
 |------|----------|------|
-| 2026-07-22 | SPEC-06/09/13、TASK_STATE、DevLog | P1 首批 async backend/fake backend/model policy 与 prerelease/released bundle 边界 |
+| 2026-07-22 | SPEC-06/09/13、TASK_STATE、DevLog | G0 首批 async backend/fake backend/model policy 与 prerelease/released bundle 边界 |
+| 2026-07-22 | P11、PLAN、TASK_STATE、DevLog | 将后续执行重构为 G0 + G1-G10；每个临床 Gate 证据报告、用户批准与硬暂停独立 |

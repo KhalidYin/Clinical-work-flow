@@ -898,3 +898,37 @@
 - `clinical-workflow/tests/test_agent_backend.py`, `test_model_policy.py`（uncommitted）
 - `docs/specs/06-AI-Architecture.md`, `09-MCP-Tools-Design.md`, `13-Environment-Files.md`（uncommitted）
 - `docs/dep/PLAN.md`, `plans/ongoing/P11-ten-stage-production-validation-poc.md`, `TASK_STATE.md`（uncommitted）
+
+---
+
+### R072 [16:17] [P11-ten-stage-production-validation-poc] G0: 冻结十个 Stage Gate 分段验收合同
+
+#### Done
+
+- 用户批准将 P11 从 6 个建设 Phase 调整为 G0 基础就绪 + G1-G10 canonical Stage Gate；当前已开始的原 P1 作为 G0 原子单元继续，不返工、不提前进入临床 Stage。
+- G1-G10 与 PipelineContract 一一对应，每个 Gate 独立记录输入、Production、Validation、knowledge、Clinical Review、completion evidence、负向测试和 Workbench 证据。
+- 冻结 Gate Evidence Report 与硬暂停规则：报告属于 P11 项目交付凭证，不进入 Study `.review_queue/`，不能替代 ReviewPacket/DecisionReceipt；用户未明确批准时下一 Stage 必须保持 pending。
+- 将原 P2-P6 重组为五个共享工作包，但在每个工作包内拆出两个独立 Gate 的完成标准、Evidence Report 路径和用户验收点。
+- 调整 UI 实施节奏：G1 建通用 Workbench 骨架，G2-G10 逐 Stage 接入，避免到 Submission 阶段才集中整合 UI/API。
+
+#### Issues / Blockers
+
+- 当前 G0 无新增 blocker；MAF optional dependency 安装仍受此前 PyPI SSL EOF 影响，但 fake/offline 合同与后续 G0 工作不被阻断。
+- 十次人工验收会增加日历时间；这是已批准的质量控制成本，不扩大 clinical POC 内容范围。
+
+#### Validation
+
+- P11 frontmatter、Gate overview、G0/G1-G10 依赖、PLAN 当前 Gate 与 TASK_STATE 恢复点已交叉核对。
+- `git diff --check` 通过；十个 Gate heading 与十个 Evidence Report 路径逐项计数均为 10，PLAN/TASK_STATE 当前状态一致指向 G0。
+
+#### Next
+
+1. 继续 G0 FailureDiagnosis、Finding Merger、Risk/Gate Policy 和一次 rework 上限。
+2. 完成 Knowledge Usage/Gap/Candidate/Evolution、snapshot immutability、OTel redaction 和 prerelease run-state Schema。
+3. 建立 `SYNTH-E2E-001` scaffold；G0 未完成前不得进入 G1，G1 完成后必须提交 `P11-G01` Evidence Report 并等待用户批准。
+
+#### Files Changed / Commits
+
+- `docs/dep/plans/ongoing/P11-ten-stage-production-validation-poc.md`
+- `docs/dep/PLAN.md`, `docs/dep/TASK_STATE.md`
+- `docs/dep/devlog/active/DEVLOG-R049-R088.md`
