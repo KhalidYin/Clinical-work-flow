@@ -71,5 +71,6 @@
 | R075 | 2026-07-29 | 23:19 | P12-knowledge-application-platform | P1-A | 建立 React/Vite 前端、KUI-01/KUI-09 与 prerelease OpenAPI/MSW 骨架 | `clinical-llm-wiki/frontend/`, `clinical-llm-wiki/schemas/application/`, `USAGE.md`, `docs/dep/` | active/DEVLOG-R049-R088.md |
 | R076 | 2026-07-29 | 23:50 | P12-knowledge-application-platform | Plan | 收束 AI 知识流转、外部模型 API 和 D0+P1-P4 唯一主线 | `docs/dep/plans/ongoing/P12-knowledge-application-platform.md`, `docs/dep/PLAN.md`, `docs/main/memory/` | active/DEVLOG-R049-R088.md |
 | R077 | 2026-07-30 | 00:24 | P12-knowledge-application-platform | P1-B0 | 冻结外部模型调用、数据出站与显式 StepAttempt 合同 | `clinical-llm-wiki/service/processing/`, `clinical-llm-wiki/schemas/application/`, `clinical-llm-wiki/tests/`, `docs/` | active/DEVLOG-R049-R088.md |
+| R078 | 2026-07-30 | 01:17 | P12-knowledge-application-platform | P1-B | 建立 21 张 canonical table、pgvector fail-closed 与显式 Alembic 迁移基线 | `clinical-llm-wiki/service/db/`, `clinical-llm-wiki/alembic.ini`, `clinical-llm-wiki/tests/`, `docs/` | active/DEVLOG-R049-R088.md |
 
 > Legacy rounds R001-R008 remain immutable in [DEVLOG-legacy.md](archive/DEVLOG-legacy.md). They predate the searchable index and were intentionally not rewritten during adoption.

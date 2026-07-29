@@ -99,18 +99,54 @@ P1-B0 的 fake/replay 合同测试不需要 API Key，也不会访问供应商�
 
 ```powershell
 Set-Location .\clinical-llm-wiki
-..\.venv\Scripts\python -m pytest tests/test_model_provider_contract.py -q
+.\.venv\Scripts\python -m pytest tests/test_model_provider_contract.py -q
 ```
 
 只有准备启用 live external adapter 时，才在同一项目 `.venv` 安装：
 
 ```powershell
-..\.venv\Scripts\python -m pip install -e ".[models]"
-..\.venv\Scripts\python -m pip check
+.\.venv\Scripts\python -m pip install -e ".[models]"
+.\.venv\Scripts\python -m pip check
 ```
 
 共享或全局 Python 环境可能已经锁定其他 OpenAI SDK 版本；不要在该环境直接追加
 `clinical-llm-wiki[models]`。请使用上方项目 `.venv`，并在安装后执行 `pip check`。
+
+### P12 PostgreSQL/pgvector 迁移（P1-B）
+
+知识产品数据库只接受 `postgresql+psycopg://` URL。实际凭据只通过
+`KNOWLEDGE_DATABASE_URL` 注入，不写入 `alembic.ini`、模型、日志或 Git。建议为两个独立
+产品分别建立环境；Wiki 使用本目录隐藏虚拟环境：
+
+```powershell
+Set-Location .\clinical-llm-wiki
+python -m venv .venv
+.\.venv\Scripts\python -m pip install -e ".[dev]"
+.\.venv\Scripts\python -m pip check
+```
+
+目标 PostgreSQL 必须已安装 pgvector。部署或本地测试先显式运行 migration，应用启动不会
+自动建表：
+
+```powershell
+$env:KNOWLEDGE_DATABASE_URL = "postgresql+psycopg://<user>:<password>@<host>:<port>/<database>"
+.\.venv\Scripts\python -m alembic -c alembic.ini upgrade head
+.\.venv\Scripts\python -m alembic -c alembic.ini current
+Remove-Item Env:KNOWLEDGE_DATABASE_URL
+```
+
+初始 revision 在 pgvector 缺失时失败关闭，不会降级为“有 semantic 能力”的普通
+PostgreSQL。`downgrade` 仅用于已评审的回滚演练；它删除本产品表但保留可能由同库其他对象
+使用的 `vector` extension。长数据 backfill 和 P4 legacy Wiki 迁移不得写入 Alembic
+revision。
+
+无需数据库的合同测试默认跳过集成项。真实迁移验收使用独立空测试库：
+
+```powershell
+$env:KNOWLEDGE_TEST_DATABASE_URL = "postgresql+psycopg://<user>:<password>@<host>:<port>/<empty_test_database>"
+.\.venv\Scripts\python -m pytest tests/test_database_migration_integration.py -q
+Remove-Item Env:KNOWLEDGE_TEST_DATABASE_URL
+```
 
 ## 3. 启动本地 Review Panel
 

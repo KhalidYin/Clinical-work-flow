@@ -1141,3 +1141,49 @@
 - `docs/main/memory/p12-plan-authority.md`
 - `docs/dep/devlog/active/DEVLOG-R049-R088.md`, `docs/dep/devlog/INDEX.md`
 - commit/push：待本轮门禁后完成
+
+### R078 [01:17] [P12-knowledge-application-platform] P1-B: 建立 canonical 数据库与显式迁移基线
+
+#### Done
+
+- 以 TDD 建立 `service/db/`，用同步 SQLAlchemy 2 metadata 固定 Source、Evidence、Candidate、KnowledgeRevision、Relation、Review、Release、Audit 以及 durable Processing/Model ledger 共 21 张 canonical table。
+- 把 P1-B0 的 ModelProfile、PromptProfile、ModelInvocation 与 StepAttempt lineage 落入数据库；增加 retry lineage、secret reference、调用状态形状、非负 token/cost/latency 和关键 revision 范围约束。
+- 新增 `alembic.ini` 与人工审查的 `20260730_0001` revision；Alembic 是唯一 DDL 入口，应用代码由契约测试禁止 `create_all`/`drop_all`。
+- 初始 revision 要求 pgvector 并 fail closed；downgrade 只删除本产品表，保留可能被同库其他对象使用的 `vector` extension。DDL、后续 resumable backfill 与 P4 legacy asset migration 继续分离。
+- 新增同步 psycopg engine/session factory，只接受 `postgresql+psycopg://`；数据库 URL 仅从 `KNOWLEDGE_DATABASE_URL` 注入，不提供带凭据默认值。
+- 修复 Wiki editable install 的 setuptools 包发现边界，只打包 `service*`/`scripts*`；为独立 Wiki `.venv` 固定已验收的 Ruff `<0.16` 与 pytest `<10`，不修改两个产品的目录边界。
+
+#### Issues / Blockers
+
+- 共享 Python 仍有既有 `browser-use`/pytest 依赖冲突，不能作为部署验收环境；Wiki 自有 `.venv` 已证明 editable install 和 `pip check` 可独立通过。
+- Wiki 全量回归仍有 18 个既有失败：受限 SDTMIG 原件/`structure-map-deep.json` 缺失，历史 accession hash、relation/snapshot 和 Workflow Map 生成物漂移。本切片未修改这些来源、Vault 或历史生成物，不在 P1-B 中擅自重建。
+- `npm audit` 首次重试仍遇到 registry TLS 中断，网络恢复后的最终重跑返回 0 vulnerabilities；前端 lock 未变化。
+- Docker Desktop 首次创建临时容器时运行层卡住；恢复后标准 PostgreSQL fail-closed 与 pgvector 成功路径均完成，所有带 `com.clinical-wiki.p12-p1b=true` 标签的临时容器及匿名卷已清理。
+
+#### Validation
+
+- 普通 `postgres:15-alpine`：migration 因 `extension "vector" is not available` 退出 1；事务回滚后 public table 数为 0。
+- `pgvector/pgvector:0.8.1-pg17`：clean apply、`alembic check` 无 drift、downgrade 到 base、确认 extension 保留、re-apply 与二次 drift check 通过。
+- Wiki 独立 `.venv`：`pip install -e ".[dev]"` 成功；`pip check` 为 `No broken requirements found`；pgvector Python 0.5.0、SQLAlchemy 2.0.51、psycopg 3.3.4、Alembic 1.18.5，历史 PDF fixture 所需 Pillow 已显式声明。
+- 定向合同：27 passed、1 skipped；其中真实数据库集成单独启用后 1 passed。Ruff 0.15.22 全 Wiki 通过。
+- Wiki 全量：164 passed、18 failed、4 skipped；失败集合与 R077 相同，新增 P1-B 文件无失败。
+- 前端回归：typecheck 通过；2 个测试文件、7 项测试通过；Vite build 通过（411 modules，JS gzip 117.34 kB）。
+- `npm audit --audit-level=high`：0 vulnerabilities。
+- `git diff --check` 通过；数据库实体不含 actual secret、绝对路径、供应商 URL、Study/Workflow/Agent/Project Memory 字段。
+
+#### Next
+
+1. 执行 P1-C：先冻结 IdentityProviderPort、产品角色/权限矩阵和 Document/Enrichment/Release worker 最小权限合同。
+2. 在权限合同通过后实现真实 FastAPI prerelease 路由，逐步替换 MSW；不得让 API DTO 直接充当 ORM schema。
+3. 主要风险是把 OIDC claim 当作产品授权、允许作者自审、让 worker 越权批准/发布，以及为了接 API 反向修改 P1-B0/P1-B 已冻结语义。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/service/db/`, `clinical-llm-wiki/alembic.ini`
+- `clinical-llm-wiki/tests/test_database_contract.py`, `clinical-llm-wiki/tests/test_database_migration_integration.py`
+- `clinical-llm-wiki/pyproject.toml`, `clinical-llm-wiki/README.md`
+- `USAGE.md`, `docs/specs/13-Environment-Files.md`
+- `docs/dep/PLAN.md`, `docs/dep/plans/ongoing/P12-knowledge-application-platform.md`
+- `docs/main/memory/p12-plan-authority.md`
+- `docs/dep/devlog/active/DEVLOG-R049-R088.md`, `docs/dep/devlog/INDEX.md`
+- commit/push：待本轮门禁后完成

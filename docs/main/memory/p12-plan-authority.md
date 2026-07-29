@@ -17,5 +17,7 @@ type: project
 - 首版只调用外部模型 API：产品自有 `ModelProviderPort` 后使用 embedded LiteLLM Python SDK，不部署本地 LLM 或 LiteLLM Proxy。数据边界、结构化输出、模型/Prompt 版本和每次 StepAttempt 必须可追溯。
 - P1-B0 已于 2026-07-30 完成：`clinical-llm-wiki/service/processing/model_provider.py` 与 checked-in prerelease JSON Schema 固定一次调用、`stream=false`、无 SDK retry/fallback、secret reference、脱敏失败、fake/replay 和 exact input hash 回放边界。
 - live LiteLLM 是 `clinical-llm-wiki[models]` 可选依赖；共享 Python 可能与其他 OpenAI SDK 锁冲突，必须在项目 `.venv` 安装并运行 `pip check`。P1-B0 测试不需要真实 API Key 或网络调用。
+- P1-B 已于 2026-07-30 完成：`clinical-llm-wiki/service/db/` 的 SQLAlchemy metadata 与 `alembic.ini`/初始 revision 固定 21 张 canonical table；P1-B0 的 Model/Profile/Invocation/StepAttempt 字段进入 durable ledger，但 secret 值、绝对路径、供应商 URL、Study/Workflow/Agent/Project Memory 字段不得入库。
+- Alembic 是唯一 DDL 入口，应用不得 `create_all`。标准 PostgreSQL 缺少 `vector` 时 migration 失败且零表残留；pgvector 0.8.1/PostgreSQL 17 已验证 clean apply、无 metadata drift、downgrade、保留共享 extension 和 re-apply。DDL、后续 resumable backfill 与 P4 legacy asset migration 必须继续分离。
 
-**如何应用：** 当前下一任务是 P1-B，以已冻结的 ModelInvocation、Profile 和 StepAttempt 字段建立 PostgreSQL/pgvector、SQLAlchemy 2/psycopg 3/Alembic 的 canonical schema 与迁移基线。如果未来需要重启 Workflow、Agent、Project Memory 或多 Study 协作，必须基于 P12 当时已发布的外部合同新建计划，不能恢复旧 P1-P11 文件继续执行。
+**如何应用：** 当前下一任务是 P1-C，先建立 IdentityProviderPort、产品 RBAC 和 Document/Enrichment/Release worker 最小权限合同，再实现真实 FastAPI prerelease 路由并逐步替换 MSW。P1-C 不得反向修改 P1-B0/P1-B 已冻结的模型调用和数据库语义。如果未来需要重启 Workflow、Agent、Project Memory 或多 Study 协作，必须基于 P12 当时已发布的外部合同新建计划，不能恢复旧 P1-P11 文件继续执行。

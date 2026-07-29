@@ -391,7 +391,7 @@ Docling 是否进入锁定依赖，必须先用 SDTM IG 多栏与跨页表、ADa
 ### 完成标准
 
 - [ ] 每类对象只有一个声明权威；DB、ObjectStore、FTS、vector、relation projection 和 Markdown 不存在双权威。
-- [ ] Alembic migration 可 clean apply/upgrade/可行的 downgrade/re-apply；应用启动不执行 `create_all`；pgvector 缺失时 fail closed 或显式禁用 semantic capability。
+- [x] Alembic migration 可 clean apply/upgrade/可行的 downgrade/re-apply；应用启动不执行 `create_all`；pgvector 缺失时 fail closed 或显式禁用 semantic capability。
 - [ ] DDL revision、resumable data backfill 与 legacy asset migration 有不同入口；字段破坏性变化遵守 expand/migrate/switch/contract。
 - [ ] ObjectStore provider 可替换，业务模型不保存本地绝对路径或供应商专有 URL。
 - [ ] OIDC claims 只完成身份映射，产品角色/权限由平台授权层决定；生产路径不保存用户密码。
@@ -408,10 +408,10 @@ Docling 是否进入锁定依赖，必须先用 SDTM IG 多栏与跨页表、ADa
 - [x] P1-A：提取批准的 Evidence Ledger 主题 token，完成 `[KUI-01]` App Shell、`[KUI-09]` Admin、Sources 与其 loading/empty/error/partial/窄屏状态。
 - [x] P1-A：签入 `/api/prerelease/v1` OpenAPI 草案、同合同 TypeScript 类型与 MSW fixture；组件测试和桌面/窄屏浏览器 smoke 通过。
 - [x] P1-B0：已冻结 ModelProviderPort、ModelProfile/PromptProfile/ModelInvocation、数据出站边界、结构化输出与 ledger-owned retry 合同；fake/replay 与 embedded LiteLLM adapter 均不发起正式知识抽取。
-- [ ] P1-B：建立 PostgreSQL/pgvector、SQLAlchemy/psycopg/Alembic 的唯一结构化权威与迁移基线。
+- [x] P1-B：已建立 21 张 canonical table、PostgreSQL/pgvector、SQLAlchemy 2/psycopg 3/Alembic 的唯一结构化权威与迁移基线。
 - [ ] P1-C：建立身份映射、产品 RBAC、worker 合同和真实 FastAPI prerelease 路由，再逐步替换 MSW。
 
-P1-A/P1-B0 完成不等于 P1 Gate 通过；数据库、ObjectStore、RBAC、worker、完整合同一致性和权限正反测试仍是 P1 的阻断条件。下一具体任务是 P1-B，以已经冻结的 ModelInvocation 与 StepAttempt 字段为输入建立数据库迁移，不反向修改模型调用语义。
+P1-A/P1-B0/P1-B 完成不等于 P1 Gate 通过；ObjectStore、RBAC、worker、完整合同一致性和权限正反测试仍是 P1 的阻断条件。下一具体任务是 P1-C，先冻结 IdentityProviderPort、产品角色/权限和三类 worker 的最小权限合同，再接真实 FastAPI prerelease 路由；不能让 API 或 MSW fixture 反向修改已冻结的数据库与模型调用语义。
 
 ### 边界（本 Phase 明确不做）
 
@@ -788,3 +788,4 @@ P3 只消费 P2 已批准的 KnowledgeRevision。内部先构建可解释检索�
 | 2026-07-29 | `clinical-llm-wiki/frontend/app.html`、`clinical-llm-wiki/frontend/src/`、`clinical-llm-wiki/schemas/application/knowledge-api.prerelease.yaml`、`USAGE.md` | P1-A 完成：React/Vite 产品骨架、KUI-01/KUI-09、prerelease OpenAPI/MSW、组件与桌面/窄屏浏览器基线；P1 继续 in-progress |
 | 2026-07-29 | 本计划、`docs/dep/PLAN.md`、P12 memory | 用户批准计划复核：知识流转固定为 Source → Evidence → AI Candidate → 作者确认 → 独立审核 → 索引/评估 → immutable Release；计划收束为 D0 + P1-P4，P1 下一切片改为模型合同 P1-B0 |
 | 2026-07-30 | `clinical-llm-wiki/service/processing/model_provider.py`、prerelease JSON Schema、`docs/specs/13-Environment-Files.md`、`USAGE.md`、P12 memory | P1-B0 完成：冻结外部模型、Prompt、调用审计、数据边界和显式 StepAttempt 合同；下一切片为 P1-B 数据库迁移 |
+| 2026-07-30 | `clinical-llm-wiki/service/db/`、`alembic.ini`、数据库契约/集成测试、`USAGE.md`、SPEC-13、P12 memory | P1-B 完成：21 张 canonical table、显式 Alembic revision、pgvector fail-closed、clean apply/downgrade/re-apply 和无 drift 门禁通过；下一切片为 P1-C |

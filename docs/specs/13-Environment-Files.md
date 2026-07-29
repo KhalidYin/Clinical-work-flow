@@ -846,7 +846,9 @@ P12 的外部模型能力属于 `clinical-llm-wiki/`，不复用 P11 Workflow �
 `ModelRegistry`，也不把供应商字段写入 Study。安装必须使用项目隔离环境：
 
 ```powershell
-.\.venv\Scripts\python -m pip install -e ".\clinical-llm-wiki[models]"
+Set-Location .\clinical-llm-wiki
+python -m venv .venv
+.\.venv\Scripts\python -m pip install -e ".[models]"
 .\.venv\Scripts\python -m pip check
 ```
 
@@ -868,3 +870,29 @@ endpoint_ref: env://KNOWLEDGE_MODEL_ENDPOINT
 - timeout、rate limit、provider error 只记录脱敏类别，不保留原始异常链；
 - profile 切换与重试由 durable ledger 建立新 StepAttempt，SDK 不静默 fallback；
 - P1-B0 测试只使用 fake/replay 或注入 callable，不发起真实供应商请求。
+
+## 12. P12 Knowledge Product 数据库环境
+
+P1-B 使用同步 SQLAlchemy 2、psycopg 3 与 Alembic。数据库 URL 的唯一运行时变量是：
+
+```text
+KNOWLEDGE_DATABASE_URL=postgresql+psycopg://<user>:<password>@<host>:<port>/<database>
+```
+
+该变量由 migration command 和后续 repository 进程读取；仓库不提供带凭据的默认值，
+`alembic.ini` 也不保存 URL。SQLite、旧 FTS 文件和其他 PostgreSQL driver URL 不得作为
+canonical product database 的静默 fallback。
+
+数据库必须安装 pgvector extension。初始 revision 首先执行
+`CREATE EXTENSION IF NOT EXISTS vector`；扩展不可用时整个事务失败，不创建部分业务表，
+也不声称 semantic capability 可用。应用启动不得调用 `create_all` 或自动修改 schema。
+
+测试专用变量：
+
+```text
+KNOWLEDGE_TEST_DATABASE_URL=postgresql+psycopg://<user>:<password>@<host>:<port>/<empty_test_database>
+```
+
+它只启用 opt-in migration integration test，不能被生产应用读取。测试覆盖 clean apply、
+Alembic metadata drift、downgrade、re-apply 和 vector extension 存在性；测试库必须独立且
+可丢弃。DDL revision、后续 resumable backfill 和 P4 legacy asset migration 使用不同入口。

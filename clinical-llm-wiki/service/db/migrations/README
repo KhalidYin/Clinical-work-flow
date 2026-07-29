@@ -1,0 +1,4 @@
+Alembic is the only DDL entrypoint for the Knowledge Application Platform.
+
+Keep schema revisions short and reviewable. Data backfills and P4 legacy-asset
+migrations use separate resumable commands and must not be embedded here.

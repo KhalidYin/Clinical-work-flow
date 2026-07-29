@@ -14,15 +14,18 @@ Wiki 不控制 Pipeline 阶段顺序，也不执行任意命令。Study 必须�
 
 ## P12 知识应用平台边界
 
-P12 在本目录原地把 Wiki 演进为独立知识产品，不新增第三个项目目录。当前 P1-B0 已冻结外部模型调用合同：
+P12 在本目录原地把 Wiki 演进为独立知识产品，不新增第三个项目目录。当前 P1-B0 已冻结外部模型调用合同，P1-B 已建立数据库迁移基线：
 
 - `service/processing/model_provider.py` 是产品自有 `ModelProviderPort`、版本化 Model/Prompt/Profile、数据出站策略和 fake/replay adapter；
 - `schemas/application/model-provider.prerelease.schema.json` 是 request/invocation 持久化的 prerelease JSON Schema；
 - live adapter 仅在 Enrichment Worker 后续显式配置时使用 embedded LiteLLM Python SDK，不部署 LiteLLM Proxy，也不进行静默 retry/fallback；
 - `local_processing_only` 与 `prohibited` 数据不能出站，`enterprise_provider_only` 只能发送到企业托管 deployment；
 - 调用固定为非流式 JSON Schema 输出；密钥只使用 `env://` 或受控 `secret://` 引用，审计记录不保存密钥、原始供应商异常或 chain-of-thought。
+- `service/db/` 的 SQLAlchemy 2 metadata 固定 Source/Evidence/Candidate/Revision/Relation/Review/Release/Audit 与 durable processing/model ledger 共 21 张表；
+- `alembic.ini` 与 `service/db/migrations/` 是唯一 DDL 入口，应用启动不调用 `create_all`；migration 要求 PostgreSQL 已安装 pgvector，缺失时失败关闭；
+- 数据库只保存对象 key、hash 和 secret reference，不保存本地绝对路径、供应商专有 URL、实际密钥或另一个 Workflow 产品的实体。
 
-P1-B0 不发起真实模型调用、不摄取正式知识，也不改变现有 Vault/SQLite 服务的运行路径。正式启用 live adapter 时，应在隔离的项目虚拟环境安装 `models` 可选依赖。
+P1-B0/P1-B 不发起真实模型调用、不摄取正式知识，也不改变现有 Vault/SQLite 服务的运行路径。正式启用 live adapter 时，应在本目录隔离的 `.venv` 安装 `models` 可选依赖。
 
 ## 本地使用
 

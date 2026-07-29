@@ -1,0 +1,296 @@
+from __future__ import annotations
+
+from io import StringIO
+import importlib
+from pathlib import Path
+import tomllib
+
+from alembic import command
+from alembic.config import Config
+from alembic.script import ScriptDirectory
+import pytest
+from sqlalchemy import Column, Constraint, ForeignKeyConstraint
+
+from service.db.base import Base
+from service.processing import model_provider
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_database_runtime_dependencies_are_explicit() -> None:
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    dependencies = project["project"]["dependencies"]
+
+    assert "SQLAlchemy>=2.0,<3" in dependencies
+    assert "psycopg[binary]>=3.2,<4" in dependencies
+    assert "alembic>=1.17,<2" in dependencies
+    assert "pgvector>=0.4,<1" in dependencies
+    assert project["build-system"]["build-backend"] == "setuptools.build_meta"
+    assert project["tool"]["setuptools"]["packages"]["find"]["include"] == [
+        "service*",
+        "scripts*",
+    ]
+
+
+def test_canonical_metadata_owns_the_p1_database_tables() -> None:
+    assert set(Base.metadata.tables) == {
+        "audit_events",
+        "candidate_evidence",
+        "evidence",
+        "evaluation_runs",
+        "index_manifests",
+        "job_steps",
+        "knowledge_candidates",
+        "knowledge_relations",
+        "knowledge_revisions",
+        "knowledge_units",
+        "model_invocations",
+        "model_profiles",
+        "processing_runs",
+        "prompt_profiles",
+        "release_items",
+        "releases",
+        "review_decisions",
+        "source_artifacts",
+        "source_versions",
+        "sources",
+        "step_attempts",
+    }
+
+
+def test_ledger_and_model_tables_preserve_the_frozen_p1_b0_contract() -> None:
+    attempt_columns = set(Base.metadata.tables["step_attempts"].columns.keys())
+    assert set(model_provider.StepAttemptContext.model_fields) <= attempt_columns
+
+    model_profile_columns = set(Base.metadata.tables["model_profiles"].columns.keys())
+    assert set(model_provider.ModelProfile.model_fields) <= model_profile_columns
+
+    prompt_profile_columns = set(Base.metadata.tables["prompt_profiles"].columns.keys())
+    assert {
+        *model_provider.PromptProfile.model_fields,
+        "output_schema_sha256",
+    } <= prompt_profile_columns
+
+    invocation_columns = set(Base.metadata.tables["model_invocations"].columns.keys())
+    assert {
+        "invocation_id",
+        "created_at",
+        "run_id",
+        "step_id",
+        "attempt_id",
+        "attempt_number",
+        "previous_attempt_id",
+        "status",
+        "model_profile_id",
+        "model_profile_version",
+        "provider",
+        "model",
+        "prompt_profile_id",
+        "prompt_profile_version",
+        "output_schema_sha256",
+        "data_boundary",
+        "input_sha256",
+        "output_sha256",
+        "provider_request_id",
+        "prompt_tokens",
+        "completion_tokens",
+        "total_tokens",
+        "cost_usd",
+        "latency_ms",
+        "output",
+        "error_type",
+        "error_message",
+    } <= invocation_columns
+
+
+def test_canonical_schema_keeps_secrets_paths_and_other_products_out() -> None:
+    all_columns = {
+        column.name
+        for table in Base.metadata.tables.values()
+        for column in table.columns
+    }
+
+    assert {
+        "api_key",
+        "access_token",
+        "secret_value",
+        "absolute_path",
+        "provider_url",
+        "study_id",
+        "workflow_id",
+        "agent_id",
+        "project_memory_id",
+    }.isdisjoint(all_columns)
+    assert set(Base.metadata.tables["source_artifacts"].columns.keys()) >= {
+        "object_key",
+        "sha256",
+        "media_type",
+        "size_bytes",
+    }
+    assert "secret_ref" in Base.metadata.tables["model_profiles"].columns
+
+
+def test_ledger_context_uses_composite_foreign_keys() -> None:
+    attempt_fks = {
+        (
+            tuple(element.parent.name for element in constraint.elements),
+            tuple(element.target_fullname for element in constraint.elements),
+        )
+        for constraint in Base.metadata.tables["step_attempts"].constraints
+        if isinstance(constraint, ForeignKeyConstraint)
+    }
+    assert (
+        ("step_id", "run_id"),
+        ("job_steps.step_id", "job_steps.run_id"),
+    ) in attempt_fks
+
+    invocation_fks = {
+        (
+            tuple(element.parent.name for element in constraint.elements),
+            tuple(element.target_fullname for element in constraint.elements),
+        )
+        for constraint in Base.metadata.tables["model_invocations"].constraints
+        if isinstance(constraint, ForeignKeyConstraint)
+    }
+    assert (
+        ("attempt_id", "step_id", "run_id", "attempt_number"),
+        (
+            "step_attempts.attempt_id",
+            "step_attempts.step_id",
+            "step_attempts.run_id",
+            "step_attempts.attempt_number",
+        ),
+    ) in invocation_fks
+
+
+def test_sync_database_session_accepts_only_the_psycopg_postgres_dialect(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session_module = importlib.import_module("service.db.session")
+
+    monkeypatch.setenv(
+        "KNOWLEDGE_DATABASE_URL",
+        "postgresql+psycopg://knowledge:example@localhost/knowledge",
+    )
+    assert session_module.database_url_from_environment().startswith(
+        "postgresql+psycopg://"
+    )
+
+    engine = session_module.create_database_engine(
+        "postgresql+psycopg://knowledge:example@localhost/knowledge"
+    )
+    assert engine.dialect.name == "postgresql"
+    assert engine.dialect.driver == "psycopg"
+
+    factory = session_module.create_session_factory(engine)
+    assert factory.kw["expire_on_commit"] is False
+
+    with pytest.raises(ValueError, match=r"postgresql\+psycopg"):
+        session_module.create_database_engine("sqlite:///knowledge.db")
+
+    monkeypatch.delenv("KNOWLEDGE_DATABASE_URL")
+    with pytest.raises(RuntimeError, match="KNOWLEDGE_DATABASE_URL"):
+        session_module.database_url_from_environment()
+
+
+def test_alembic_has_one_reviewable_initial_revision(monkeypatch: pytest.MonkeyPatch) -> None:
+    config = Config(ROOT / "alembic.ini")
+    script = ScriptDirectory.from_config(config)
+
+    assert script.get_heads() == [script.get_current_head()]
+    revision = script.get_revision(script.get_current_head())
+    assert revision is not None
+    assert revision.down_revision is None
+
+    monkeypatch.setenv(
+        "KNOWLEDGE_DATABASE_URL",
+        "postgresql+psycopg://knowledge:example@localhost/knowledge",
+    )
+    output = StringIO()
+    config.output_buffer = output
+    command.upgrade(config, "head", sql=True)
+    sql = output.getvalue()
+
+    assert "CREATE EXTENSION IF NOT EXISTS vector" in sql
+    for table_name in Base.metadata.tables:
+        assert f"CREATE TABLE {table_name}" in sql
+
+
+def test_initial_revision_columns_match_canonical_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = Config(ROOT / "alembic.ini")
+    script = ScriptDirectory.from_config(config)
+    revision = script.get_revision(script.get_current_head())
+    assert revision is not None
+
+    class MigrationRecorder:
+        def __init__(self) -> None:
+            self.tables: dict[str, set[str]] = {}
+            self.constraints: dict[str, set[str]] = {}
+            self.indexes: dict[str, set[str]] = {}
+            self.executed: list[str] = []
+            self.dropped: list[str] = []
+
+        @staticmethod
+        def f(name: str) -> str:
+            return name
+
+        def execute(self, statement: str) -> None:
+            self.executed.append(statement)
+
+        def create_table(self, name: str, *elements: object) -> None:
+            self.tables[name] = {
+                element.name for element in elements if isinstance(element, Column)
+            }
+            self.constraints[name] = {
+                str(element.name)
+                for element in elements
+                if isinstance(element, Constraint)
+            }
+
+        def create_index(
+            self,
+            name: str,
+            table_name: str,
+            columns: list[str],
+            *,
+            unique: bool,
+        ) -> None:
+            del columns, unique
+            self.indexes.setdefault(table_name, set()).add(name)
+
+        def drop_table(self, name: str) -> None:
+            self.dropped.append(name)
+
+    recorder = MigrationRecorder()
+    monkeypatch.setattr(revision.module, "op", recorder)
+    revision.module.upgrade()
+
+    assert recorder.executed == ["CREATE EXTENSION IF NOT EXISTS vector"]
+    assert set(recorder.tables) == set(Base.metadata.tables)
+    for table_name, table in Base.metadata.tables.items():
+        assert recorder.tables[table_name] == set(table.columns.keys())
+        assert recorder.constraints[table_name] == {
+            str(constraint.name) for constraint in table.constraints
+        }
+        assert recorder.indexes.get(table_name, set()) == {
+            str(index.name) for index in table.indexes
+        }
+
+    revision.module.downgrade()
+    assert set(recorder.dropped) == set(Base.metadata.tables)
+    assert len(recorder.dropped) == len(set(recorder.dropped))
+
+
+def test_application_never_creates_or_mutates_schema_at_runtime() -> None:
+    runtime_sources = [
+        path
+        for path in (ROOT / "service").rglob("*.py")
+        if "migrations" not in path.parts
+    ]
+    source_text = "\n".join(path.read_text(encoding="utf-8") for path in runtime_sources)
+
+    assert ".create_all(" not in source_text
+    assert ".drop_all(" not in source_text
