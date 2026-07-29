@@ -1,8 +1,8 @@
 ---
 phase_index: 10
-status: planning
+status: deferred
 created: 2026-07-19
-updated: 2026-07-19
+updated: 2026-07-29
 priority: 1
 estimated_rounds: 16-24
 depends_on:
@@ -24,7 +24,7 @@ syncs_to:
 
 # 通用原子知识单元与检索模块化
 
-> 本文件是待专项评审的 backlog 计划初稿。它记录推荐架构、Phase Gate 和风险边界，不构成开发授权。进入执行前必须完成 P1 设计评审，并重新核对 P9.1、锁定 Snapshot 与 Engine bundle 的实际状态。
+> **Deferred 2026-07-29**：本计划的原子知识、检索和 package registry 范围已被独立知识库应用平台 `P12-knowledge-application-platform.md` 吸收。本文件只保留历史设计追溯，不再形成第二条知识开发主线。
 
 ## 目标
 

@@ -1,8 +1,8 @@
 ---
 phase_index: 11
-status: in-progress
+status: deferred
 created: 2026-07-22
-updated: 2026-07-22
+updated: 2026-07-29
 priority: 1
 estimated_rounds: 41-54
 depends_on:
@@ -26,6 +26,8 @@ syncs_to:
 ---
 
 # 十阶段 Production / Validation 与知识增长 POC
+
+> **Deferred 2026-07-29**：用户明确停止后续 Workflow POC，并将后续唯一主线改为独立知识库应用平台 `P12-knowledge-application-platform.md`。本计划不再进入 G1-G10；已提交历史保留，工作树中的未提交 G0 草稿不构成本计划完成证据，须在 P12 进入 Development 前单独决定归档或清理。
 
 ## 目标
 
@@ -159,7 +161,7 @@ syncs_to:
 
 | Gate | Canonical stage / 目标 | 预估轮次 | 依赖 | 状态 |
 |------|------------------------|----------|------|------|
-| G0 | 基础就绪：共享执行、模型、验证、知识增长和 run 合同 | 4-6 | P9.1 completed | in-progress |
+| G0 | 基础就绪：共享执行、模型、验证、知识增长和 run 合同 | 4-6 | P9.1 completed | deferred |
 | G1 | `protocol_analysis` | 3-4 | G0 | pending |
 | G2 | `sap_generation` + 方法知识正向增长闭环 | 3-4 | G1 accepted | pending |
 | G3 | `sdtm_spec` + 标准/映射知识正向增长闭环 | 4-5 | G2 accepted | pending |

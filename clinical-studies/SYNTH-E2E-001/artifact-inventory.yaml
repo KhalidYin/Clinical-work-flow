@@ -1,0 +1,21 @@
+schema_version: "0.1.0"
+study_id: "SYNTH-E2E-001"
+inventory_status: "planned"
+execution_boundary: "g0-contract-only"
+stages:
+  - {ordinal: 1, gate: "G1", stage_id: "protocol_analysis", output_root: "output/protocol", minimum_artifact: "analysis.yaml", status: "planned"}
+  - {ordinal: 2, gate: "G2", stage_id: "sap_generation", output_root: "output/sap", minimum_artifact: "sap.yaml", status: "planned"}
+  - {ordinal: 3, gate: "G3", stage_id: "sdtm_spec", output_root: "work/mapping", minimum_artifact: "sdtm-mapping-spec.json", status: "planned"}
+  - {ordinal: 4, gate: "G4", stage_id: "sdtm_programming", output_root: "output/sdtm", minimum_artifact: "sdtm-stage-manifest.json", status: "planned"}
+  - {ordinal: 5, gate: "G5", stage_id: "adam_spec", output_root: "output/adam", minimum_artifact: "adam-spec.json", status: "planned"}
+  - {ordinal: 6, gate: "G6", stage_id: "adam_programming", output_root: "output/adam", minimum_artifact: "adam-stage-manifest.json", status: "planned"}
+  - {ordinal: 7, gate: "G7", stage_id: "tfl_shell_design", output_root: "output/tfl", minimum_artifact: "teae-shell.json", status: "planned"}
+  - {ordinal: 8, gate: "G8", stage_id: "tfl_programming", output_root: "output/tfl", minimum_artifact: "teae-output.json", status: "planned"}
+  - {ordinal: 9, gate: "G9", stage_id: "qc_validation", output_root: "output/qc", minimum_artifact: "qc-report.json", status: "planned"}
+  - {ordinal: 10, gate: "G10", stage_id: "submission_packaging", output_root: "output/submission", minimum_artifact: "submission-manifest.json", status: "planned"}
+common_evidence:
+  - "stage-run-manifest"
+  - "knowledge-usage-manifest"
+  - "production-result"
+  - "validation-result"
+  - "completion-evidence"

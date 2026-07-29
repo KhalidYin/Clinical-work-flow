@@ -1,8 +1,8 @@
 ---
 phase_index: 9
-status: planning
+status: deferred
 created: 2026-07-14
-updated: 2026-07-16
+updated: 2026-07-29
 priority: 2
 estimated_rounds: 20-32
 depends_on:
@@ -23,6 +23,8 @@ syncs_to:
 ---
 
 # 多 Study 内网协作与受控部署
+
+> **Deferred 2026-07-29**：当前产品周期不再开发 Workflow/Study 协作平台。单组织多用户、OIDC、RBAC 和独立部署仅在知识库应用平台 P12 范围内实现；本计划保留为未来 Workflow Product 的历史候选。
 
 ## 目标
 

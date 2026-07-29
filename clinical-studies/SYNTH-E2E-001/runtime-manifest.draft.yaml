@@ -1,0 +1,20 @@
+# Contract-only draft. It is deliberately invalid as an executable lock.
+manifest_id: "manifest-synth-e2e-001-draft"
+manifest_status: "p11_g0_contract_only"
+schema_version: "1.1.0"
+revision: 0
+study_id: "SYNTH-E2E-001"
+created_at: "2026-07-28T00:00:00+08:00"
+required_locks:
+  pipeline_contract: "not_locked"
+  workflow_knowledge: "not_locked"
+  domain_knowledge: "not_locked"
+  model_policy: "not_locked"
+  toolchain: "not_locked"
+policies:
+  live_upgrade: "forbidden"
+  conflict: "fail_closed"
+  fallback: "locked_snapshot_only_after_approval"
+execution_boundary:
+  executable: false
+  reason: "G0 readiness and all required immutable locks are incomplete."

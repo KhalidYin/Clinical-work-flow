@@ -1,7 +1,7 @@
 ---
 status: in-progress
 created: 2026-07-22 15:40
-updated: 2026-07-22 16:17
+updated: 2026-07-28 00:17
 ---
 
 # Current Task
@@ -20,11 +20,15 @@ G0 — 完成共享执行、模型、验证与知识增长基础就绪（子计�
 - [x] 更新 P11 Phase 状态、DEVLOG 与可恢复上下文。
 - [x] 用户批准将后续执行改为 G0 + G1-G10 十个 canonical Stage Gate。
 - [x] 冻结每个 G1-G10 的 Gate Evidence Report、用户明确批准和硬暂停规则。
+- [x] 实现 FailureDiagnosis、Finding Merger、Risk/Gate Policy 与最多一次自动 rework。
+- [x] 实现 Knowledge Usage/Gap/Evidence/Candidate/Evolution 合同与 snapshot 不可变约束。
+- [ ] 增加 prerelease JSON Schema，并完成定向/全量回归。
+- [ ] 完成 OTel redaction、WorkflowRunState/StageState 与 `SYNTH-E2E-001` scaffold。
 
 ## Working Context
 
-- **Files being edited**: `clinical-workflow/src/runtime/`、`clinical-workflow/src/config/`、`clinical-workflow/tests/`、`docs/dep/`、相关 schema/spec。
-- **Last command run**: P11 backend/model policy 定向回归（19 passed）；Engine 全量 326 passed；Wiki 全量 158 passed；本轮计划文档 `git diff --check` 通过。
+- **Files being edited**: `clinical-workflow/src/runtime/validation_policy.py`、`clinical-workflow/src/knowledge/evolution.py`、`clinical-workflow/src/runtime/contracts/`、相关测试、schema/spec 与 `docs/dep/`。
+- **Last command run**: G0 validation/evolution/prerelease Schema 定向回归（26 passed）；Ruff 待全量执行。
 - **Key decisions**: Clinical Runtime 保持状态和 ActionPolicy 权威；P9 `source_intake` 等扩展不修改已发布 bundle；P11 首批仅做合同与 fake backend，不进入具体临床 stage；G1-G10 分别验收，未取得用户批准不得开始下一 Stage。
 - **Blocker**: 无。
 
@@ -38,4 +42,4 @@ G0 — 完成共享执行、模型、验证与知识增长基础就绪（子计�
 
 ## Resume From
 
-继续 P11 G0：补 Validation/Knowledge Evolution 合同、prerelease JSON Schema、redaction/trace、通用 `WorkflowRunState`/`StageState` 和 `SYNTH-E2E-001` scaffold；不得进入 G1 临床 Stage。G0 完成后先形成 readiness evidence，再按计划启动 G1；G1 完成后必须硬暂停等待用户验收。
+继续 P11 G0：实现 OTel redaction/local exporter、`WorkflowRunState`/`StageState`/Gate acceptance 状态投影与 `SYNTH-E2E-001` scaffold；随后运行全量回归。不得进入 G1 临床 Stage。

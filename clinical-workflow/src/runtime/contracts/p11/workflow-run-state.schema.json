@@ -1,0 +1,425 @@
+{
+  "$id": "https://clinical-ai-workflow.local/schemas/prerelease/p11/workflow-run-state.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "GateAcceptanceStatus": {
+      "enum": [
+        "not_ready",
+        "awaiting_user_acceptance",
+        "accepted"
+      ],
+      "title": "GateAcceptanceStatus",
+      "type": "string"
+    },
+    "KnowledgeLockProjection": {
+      "additionalProperties": false,
+      "properties": {
+        "snapshot_id": {
+          "pattern": "^[a-z][a-z0-9._-]{2,127}$",
+          "title": "Snapshot Id",
+          "type": "string"
+        },
+        "snapshot_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Snapshot Sha256",
+          "type": "string"
+        },
+        "status": {
+          "const": "locked",
+          "default": "locked",
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "snapshot_id",
+        "snapshot_sha256"
+      ],
+      "title": "KnowledgeLockProjection",
+      "type": "object"
+    },
+    "ModelPolicyProjection": {
+      "additionalProperties": false,
+      "properties": {
+        "registry_version": {
+          "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$",
+          "title": "Registry Version",
+          "type": "string"
+        },
+        "production_profile_id": {
+          "pattern": "^[a-z][a-z0-9._-]{2,127}$",
+          "title": "Production Profile Id",
+          "type": "string"
+        },
+        "validation_profile_id": {
+          "pattern": "^[a-z][a-z0-9._-]{2,127}$",
+          "title": "Validation Profile Id",
+          "type": "string"
+        },
+        "policy_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Policy Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "registry_version",
+        "production_profile_id",
+        "validation_profile_id",
+        "policy_sha256"
+      ],
+      "title": "ModelPolicyProjection",
+      "type": "object"
+    },
+    "PipelineStage": {
+      "enum": [
+        "protocol_analysis",
+        "sap_generation",
+        "sdtm_spec",
+        "sdtm_programming",
+        "adam_spec",
+        "adam_programming",
+        "tfl_shell_design",
+        "tfl_programming",
+        "qc_validation",
+        "submission_packaging"
+      ],
+      "title": "PipelineStage",
+      "type": "string"
+    },
+    "RunBlocker": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/RunBlockerKind"
+        },
+        "stage_id": {
+          "$ref": "#/$defs/PipelineStage"
+        },
+        "code": {
+          "pattern": "^[a-z][a-z0-9._-]{2,127}$",
+          "title": "Code",
+          "type": "string"
+        },
+        "summary": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        },
+        "evidence_refs": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "stage_id",
+        "code",
+        "summary",
+        "evidence_refs"
+      ],
+      "title": "RunBlocker",
+      "type": "object"
+    },
+    "RunBlockerKind": {
+      "enum": [
+        "input",
+        "validation",
+        "review",
+        "system",
+        "gate_acceptance"
+      ],
+      "title": "RunBlockerKind",
+      "type": "string"
+    },
+    "StageExecutionStatus": {
+      "enum": [
+        "pending",
+        "running",
+        "blocked",
+        "completed"
+      ],
+      "title": "StageExecutionStatus",
+      "type": "string"
+    },
+    "StageState": {
+      "additionalProperties": false,
+      "properties": {
+        "ordinal": {
+          "maximum": 10,
+          "minimum": 1,
+          "title": "Ordinal",
+          "type": "integer"
+        },
+        "stage_id": {
+          "$ref": "#/$defs/PipelineStage"
+        },
+        "display_name": {
+          "minLength": 1,
+          "title": "Display Name",
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/StageExecutionStatus"
+        },
+        "gate_acceptance": {
+          "$ref": "#/$defs/GateAcceptanceStatus",
+          "default": "not_ready"
+        },
+        "gate_evidence_report_ref": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gate Evidence Report Ref"
+        },
+        "input_refs": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Input Refs",
+          "type": "array"
+        },
+        "evidence_refs": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "artifact_refs": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Artifact Refs",
+          "type": "array"
+        },
+        "production_run_ref": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9._-]{2,127}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Production Run Ref"
+        },
+        "validation_run_refs": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Validation Run Refs",
+          "type": "array"
+        },
+        "knowledge_usage_ref": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9._-]{2,127}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Knowledge Usage Ref"
+        },
+        "clinical_review_ref": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9._-]{2,127}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Clinical Review Ref"
+        },
+        "completion_evidence_refs": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Completion Evidence Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "ordinal",
+        "stage_id",
+        "display_name",
+        "state"
+      ],
+      "title": "StageState",
+      "type": "object"
+    },
+    "WorkflowActionName": {
+      "enum": [
+        "run",
+        "resume",
+        "retry",
+        "refresh"
+      ],
+      "title": "WorkflowActionName",
+      "type": "string"
+    },
+    "WorkflowNextAction": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "$ref": "#/$defs/WorkflowActionName"
+        },
+        "stage_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PipelineStage"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "enabled": {
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        }
+      },
+      "required": [
+        "action",
+        "enabled"
+      ],
+      "title": "WorkflowNextAction",
+      "type": "object"
+    },
+    "WorkflowRunStatus": {
+      "enum": [
+        "idle",
+        "running",
+        "blocked",
+        "completed"
+      ],
+      "title": "WorkflowRunStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "0.1.0",
+      "default": "0.1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "study_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Study Id",
+      "type": "string"
+    },
+    "run_id": {
+      "pattern": "^[a-z][a-z0-9._-]{2,127}$",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "pipeline_contract_version": {
+      "default": "1.0.0",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-([0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*))?(?:\\+([0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*))?$",
+      "title": "Pipeline Contract Version",
+      "type": "string"
+    },
+    "knowledge_lock": {
+      "$ref": "#/$defs/KnowledgeLockProjection"
+    },
+    "model_policy": {
+      "$ref": "#/$defs/ModelPolicyProjection"
+    },
+    "run_state": {
+      "$ref": "#/$defs/WorkflowRunStatus"
+    },
+    "active_stage_id": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PipelineStage"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "stages": {
+      "items": {
+        "$ref": "#/$defs/StageState"
+      },
+      "maxItems": 10,
+      "minItems": 10,
+      "title": "Stages",
+      "type": "array"
+    },
+    "next_actions": {
+      "items": {
+        "$ref": "#/$defs/WorkflowNextAction"
+      },
+      "minItems": 1,
+      "title": "Next Actions",
+      "type": "array"
+    },
+    "blocker": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RunBlocker"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "study_id",
+    "run_id",
+    "knowledge_lock",
+    "model_policy",
+    "run_state",
+    "active_stage_id",
+    "stages",
+    "next_actions"
+  ],
+  "title": "WorkflowRunState",
+  "type": "object"
+}

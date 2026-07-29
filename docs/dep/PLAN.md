@@ -1,31 +1,20 @@
 ---
-updated: 2026-07-22
+updated: 2026-07-29
 ---
 
 # 项目计划
 
 ## 进行中
 
-| # | 子计划 | 文件 | 当前 Gate / Phase | 状态 |
-|---|--------|------|------------|------|
-| P11 | 十阶段 Production / Validation 与知识增长 POC | [P11-ten-stage-production-validation-poc.md](plans/ongoing/P11-ten-stage-production-validation-poc.md) | G0 基础就绪（原 P1） | in-progress |
+暂无。P11 已暂停并转入 deferred；P12 已完成规划但尚未获得进入 Development 的单独授权。
 
 ## 待开始
 
 | # | 子计划 | 文件 | 预估轮次 | 依赖 |
 |---|--------|------|----------|------|
-| P9.2 | 多 Study 内网协作与受控部署 | [P9-multi-study-intranet-collaboration.md](plans/backlog/P9-multi-study-intranet-collaboration.md) | 20-32（执行前重估） | P9.1 完成并由用户确认；随后重新确认部署授权 |
-| P10 | 通用原子知识单元与检索模块化（待专项评审） | [P10-general-knowledge-unit-retrieval.md](plans/backlog/P10-general-knowledge-unit-retrieval.md) | 16-24（评审后重估） | P9.1 完成并冻结现有 Snapshot/合同基线 |
+| P12 | 独立知识库应用平台 | [P12-knowledge-application-platform.md](plans/backlog/P12-knowledge-application-platform.md) | 37-52 | P6 知识演化资产作为迁移基线 |
 
-> 当前执行视野只展开 P6 → P8：P6 先建立 SDTMIG 3.4 Core/Events/AE 知识解析质量基线；P7 再用“生成 SDTM AE”证明 Wiki + LLM + Workflow 的实际执行价值；P8 在此基础上完成本地 Application API + Study Console。后续知识按同一质量 Gate 随实际 Workflow 缺口增量摄取。
-
-P8 已完成本地单机 Application API + Study Console 基线。P9.1 已于 2026-07-22 根据用户明确关闭指令完成，Engine 307 项与 Wiki 158 项回归通过；P9.2 依赖已满足，但用户选择 P11 优先，不自动启动内网协作部署。
-
-2026-07-17 P0 `Study Workbench 流程与阻断可观测性修正` 已完成：Runner ledger、Input Check、结构化 blocker、Run/Retry 语义、单一主工作区和可丢弃 Study 浏览器 E2E 均已通过。2026-07-22 用户关闭 P9.1 后，该 UAT Gate 已完成。
-
-P10 是待专项评审的知识架构 backlog：保留 Obsidian 主题卡与 Vault 顶层结构，将现有 SDTMIG 3.4 专用 statement/relation/query 能力通用化为 Package Registry、statement-level FTS 和 scope-aware Runtime Context。它不扩大当前 approved knowledge，也不在评审前进入 Development；当前优先级低于用户已启动的 P11。
-
-P11 是当前进行中的十阶段 synthetic Production/Validation 纵向 POC：保留 Clinical Runtime、Review Protocol、MCP 和文件状态权威，以 Microsoft Agent Framework 作为可插拔执行后端，并通过两个正向知识增长闭环、一个负向错误归因案例和十阶段 React Workbench 证明 use-case-driven knowledge growth。执行组织采用 G0 基础就绪 + G1-G10 canonical Stage Gate；每个临床 Gate 形成独立 Evidence Report，必须取得用户明确批准后才进入下一 Stage。
+P12 是后续唯一主计划：建设独立前端、后端、PostgreSQL/pgvector、S3-compatible ObjectStore、多人知识治理、检索评估、Release/Snapshot 和外部 API/MCP 合同。Workflow、Agent Runtime 和 Project Memory Service 均不在当前开发周期，只保留接口边界。
 
 ## 最近完成
 
@@ -41,6 +30,8 @@ P11 是当前进行中的十阶段 synthetic Production/Validation 纵向 POC：
 
 - 原 Obsidian 知识库计划已被 P3 吸收，仅保留设计追溯：[P1-clinical-statistics-knowledge-base.md](plans/deferred/P1-clinical-statistics-knowledge-base.md)。
 - 原 Workflow + Wiki 整合计划已被 P3 吸收，仅保留设计追溯：[P2-workflow-knowledge-integration.md](plans/deferred/P2-workflow-knowledge-integration.md)。
-- GraphRAG / Neo4j：待结构化过滤与全文检索评估证明存在关系推理缺口。
-- 公开云端、多租户 SaaS 和跨组织共享：不在 P9 内网单租户多 Study 基线内，需真实规模、数据分类和独立授权后另立计划。
-- 专用知识管理 Web UI：P8 只建设 Study Console；Wiki 正文继续用 Obsidian 维护，除非后续用户研究证明需要独立知识编辑前端。
+- 多 Study 内网协作与受控部署：[P9-multi-study-intranet-collaboration.md](plans/deferred/P9-multi-study-intranet-collaboration.md)。
+- 原通用原子知识单元与检索计划已被 P12 吸收：[P10-general-knowledge-unit-retrieval.md](plans/deferred/P10-general-knowledge-unit-retrieval.md)。
+- 十阶段 Production / Validation Workflow POC：[P11-ten-stage-production-validation-poc.md](plans/deferred/P11-ten-stage-production-validation-poc.md)。
+- GraphRAG / Neo4j、独立 Vector DB：只有 P12 benchmark 证明 PostgreSQL FTS/pgvector/relation model 不足后另立计划。
+- 多租户 SaaS、跨组织共享、Workflow Product、Project Memory Service 和 Agent Runtime：不在当前产品周期。

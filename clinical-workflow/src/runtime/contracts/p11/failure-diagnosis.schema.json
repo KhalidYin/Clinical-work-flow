@@ -1,0 +1,80 @@
+{
+  "$id": "https://clinical-ai-workflow.local/schemas/prerelease/p11/failure-diagnosis.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "FailureCategory": {
+      "enum": [
+        "knowledge_coverage_gap",
+        "retrieval_selection_failure",
+        "model_application_failure",
+        "tool_or_contract_failure",
+        "study_evidence_gap",
+        "ambiguous_failure"
+      ],
+      "title": "FailureCategory",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "candidate_eligible": {
+      "title": "Candidate Eligible",
+      "type": "boolean"
+    },
+    "category": {
+      "$ref": "#/$defs/FailureCategory"
+    },
+    "diagnosis_id": {
+      "pattern": "^[a-z][a-z0-9._-]{2,127}$",
+      "title": "Diagnosis Id",
+      "type": "string"
+    },
+    "evidence_refs": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Evidence Refs",
+      "type": "array"
+    },
+    "failure_ref": {
+      "pattern": "^[a-z][a-z0-9._-]{2,127}$",
+      "title": "Failure Ref",
+      "type": "string"
+    },
+    "knowledge_usage_ref": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z][a-z0-9._-]{2,127}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Knowledge Usage Ref"
+    },
+    "rationale": {
+      "maxLength": 2000,
+      "minLength": 1,
+      "title": "Rationale",
+      "type": "string"
+    },
+    "requires_human_confirmation": {
+      "title": "Requires Human Confirmation",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "diagnosis_id",
+    "failure_ref",
+    "category",
+    "evidence_refs",
+    "rationale",
+    "candidate_eligible",
+    "requires_human_confirmation"
+  ],
+  "title": "FailureDiagnosis",
+  "type": "object"
+}

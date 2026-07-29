@@ -1,0 +1,173 @@
+{
+  "$id": "https://clinical-ai-workflow.local/schemas/prerelease/p11/knowledge-evolution-receipt.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "EvaluationOutcome": {
+      "enum": [
+        "fail",
+        "pass"
+      ],
+      "title": "EvaluationOutcome",
+      "type": "string"
+    },
+    "EvaluationResult": {
+      "additionalProperties": false,
+      "properties": {
+        "case_id": {
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)+$",
+          "title": "Case Id",
+          "type": "string"
+        },
+        "evaluation_id": {
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)+$",
+          "title": "Evaluation Id",
+          "type": "string"
+        },
+        "model_profile_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Model Profile Sha256",
+          "type": "string"
+        },
+        "outcome": {
+          "$ref": "#/$defs/EvaluationOutcome"
+        },
+        "prompt_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Prompt Sha256",
+          "type": "string"
+        },
+        "regression_failures": {
+          "default": [],
+          "items": {
+            "minLength": 3,
+            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)+$",
+            "type": "string"
+          },
+          "title": "Regression Failures",
+          "type": "array"
+        },
+        "run_input_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Run Input Sha256",
+          "type": "string"
+        },
+        "snapshot": {
+          "$ref": "#/$defs/SnapshotReference"
+        },
+        "toolchain_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Toolchain Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "evaluation_id",
+        "case_id",
+        "outcome",
+        "run_input_sha256",
+        "model_profile_sha256",
+        "prompt_sha256",
+        "toolchain_sha256",
+        "snapshot"
+      ],
+      "title": "EvaluationResult",
+      "type": "object"
+    },
+    "SnapshotReference": {
+      "additionalProperties": false,
+      "properties": {
+        "parent_snapshot_id": {
+          "anyOf": [
+            {
+              "minLength": 3,
+              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent Snapshot Id"
+        },
+        "sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "snapshot_id": {
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)+$",
+          "title": "Snapshot Id",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "snapshot_id",
+        "version",
+        "sha256"
+      ],
+      "title": "SnapshotReference",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "after": {
+      "$ref": "#/$defs/EvaluationResult"
+    },
+    "before": {
+      "$ref": "#/$defs/EvaluationResult"
+    },
+    "candidate_id": {
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)+$",
+      "title": "Candidate Id",
+      "type": "string"
+    },
+    "changed_dimensions": {
+      "default": [
+        "knowledge_snapshot"
+      ],
+      "items": {
+        "const": "knowledge_snapshot",
+        "type": "string"
+      },
+      "title": "Changed Dimensions",
+      "type": "array"
+    },
+    "receipt_id": {
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)+$",
+      "title": "Receipt Id",
+      "type": "string"
+    },
+    "review_receipt_ref": {
+      "minLength": 1,
+      "title": "Review Receipt Ref",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "0.1.0",
+      "default": "0.1.0",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "receipt_id",
+    "candidate_id",
+    "review_receipt_ref",
+    "before",
+    "after"
+  ],
+  "title": "KnowledgeEvolutionReceipt",
+  "type": "object"
+}

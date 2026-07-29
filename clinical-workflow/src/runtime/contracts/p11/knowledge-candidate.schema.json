@@ -1,0 +1,187 @@
+{
+  "$id": "https://clinical-ai-workflow.local/schemas/prerelease/p11/knowledge-candidate.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "EvidenceUnit": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed_uses": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Allowed Uses",
+          "type": "array"
+        },
+        "derivation_ref": {
+          "minLength": 1,
+          "title": "Derivation Ref",
+          "type": "string"
+        },
+        "evidence_unit_id": {
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)+$",
+          "title": "Evidence Unit Id",
+          "type": "string"
+        },
+        "locator_ref": {
+          "minLength": 1,
+          "title": "Locator Ref",
+          "type": "string"
+        },
+        "rights_status": {
+          "$ref": "#/$defs/RightsStatus"
+        },
+        "source_id": {
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)+$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Source Sha256",
+          "type": "string"
+        },
+        "source_version": {
+          "minLength": 1,
+          "title": "Source Version",
+          "type": "string"
+        },
+        "statement": {
+          "minLength": 1,
+          "title": "Statement",
+          "type": "string"
+        },
+        "statement_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Statement Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "evidence_unit_id",
+        "source_id",
+        "source_version",
+        "source_sha256",
+        "locator_ref",
+        "statement",
+        "statement_sha256",
+        "rights_status",
+        "derivation_ref"
+      ],
+      "title": "EvidenceUnit",
+      "type": "object"
+    },
+    "KnowledgeChangeType": {
+      "enum": [
+        "add",
+        "revise",
+        "retire"
+      ],
+      "title": "KnowledgeChangeType",
+      "type": "string"
+    },
+    "RightsStatus": {
+      "enum": [
+        "cleared",
+        "restricted",
+        "prohibited",
+        "unknown"
+      ],
+      "title": "RightsStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "applicability_scope": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Applicability Scope",
+      "type": "array"
+    },
+    "candidate_id": {
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)+$",
+      "title": "Candidate Id",
+      "type": "string"
+    },
+    "change_type": {
+      "$ref": "#/$defs/KnowledgeChangeType"
+    },
+    "diagnosis_id": {
+      "pattern": "^[a-z][a-z0-9._-]{2,127}$",
+      "title": "Diagnosis Id",
+      "type": "string"
+    },
+    "evidence_units": {
+      "items": {
+        "$ref": "#/$defs/EvidenceUnit"
+      },
+      "minItems": 1,
+      "title": "Evidence Units",
+      "type": "array"
+    },
+    "gap_report_id": {
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)+$",
+      "title": "Gap Report Id",
+      "type": "string"
+    },
+    "proposed_content": {
+      "minLength": 1,
+      "title": "Proposed Content",
+      "type": "string"
+    },
+    "release_scope": {
+      "const": "p11-poc-test-only",
+      "default": "p11-poc-test-only",
+      "title": "Release Scope",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "0.1.0",
+      "default": "0.1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "status": {
+      "const": "proposed",
+      "default": "proposed",
+      "title": "Status",
+      "type": "string"
+    },
+    "supersedes_knowledge_ids": {
+      "default": [],
+      "items": {
+        "minLength": 3,
+        "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)+$",
+        "type": "string"
+      },
+      "title": "Supersedes Knowledge Ids",
+      "type": "array"
+    },
+    "title": {
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    }
+  },
+  "required": [
+    "candidate_id",
+    "change_type",
+    "gap_report_id",
+    "diagnosis_id",
+    "title",
+    "proposed_content",
+    "applicability_scope",
+    "evidence_units"
+  ],
+  "title": "KnowledgeCandidate",
+  "type": "object"
+}
