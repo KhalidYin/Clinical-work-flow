@@ -27,7 +27,7 @@ syncs_to:
 
 # 十阶段 Production / Validation 与知识增长 POC
 
-> **Deferred 2026-07-29**：用户明确停止后续 Workflow POC，并将后续唯一主线改为独立知识库应用平台 `P12-knowledge-application-platform.md`。本计划不再进入 G1-G10；已提交历史保留，工作树中的未提交 G0 草稿不构成本计划完成证据，须在 P12 进入 Development 前单独决定归档或清理。
+> **Superseded / 废弃（2026-07-29）**：用户明确废弃旧 Workflow 主线，并将唯一执行权威改为 `P12-knowledge-application-platform.md`。本计划不得恢复进入 G1-G10；已提交实现和本文只保留为独立 Workflow 产品的历史证据，不构成 P12 依赖或交付内容。
 
 ## 目标
 

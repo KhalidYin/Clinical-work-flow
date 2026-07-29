@@ -1,0 +1,3480 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Clinical Knowledge Ledger — P12 D0 evidence-driven knowledge platform HTML design draft."
+    />
+    <title>Clinical Knowledge Ledger · D0 Design Draft</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        color-scheme: light;
+        --ink-950: #13221e;
+        --ink-900: #192b26;
+        --ink-800: #253b34;
+        --ink-700: #3d534b;
+        --ink-500: #6e7e76;
+        --paper-50: #fbfaf5;
+        --paper-100: #f4f1e8;
+        --paper-200: #eae5d8;
+        --paper-300: #d9d1c0;
+        --blue-700: #1f5c78;
+        --blue-100: #deecf1;
+        --red-700: #a6402a;
+        --red-100: #f3ded7;
+        --olive-700: #53633f;
+        --olive-100: #e3e8d8;
+        --amber-700: #8a641e;
+        --amber-100: #f4e8c9;
+        --white: #fffef9;
+        --shadow: 0 18px 50px rgba(25, 43, 38, 0.09);
+        --sidebar-width: 256px;
+        --topbar-height: 72px;
+        --serif: "Newsreader", Georgia, "Times New Roman", serif;
+        --sans: "Atkinson Hyperlegible", "Segoe UI", sans-serif;
+        --mono: "IBM Plex Mono", Consolas, monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        min-width: 320px;
+        color: var(--ink-900);
+        background:
+          linear-gradient(rgba(28, 44, 38, 0.025) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(28, 44, 38, 0.025) 1px, transparent 1px),
+          var(--paper-100);
+        background-size: 26px 26px;
+        font-family: var(--sans);
+        font-size: 15px;
+        line-height: 1.5;
+      }
+
+      body::before {
+        position: fixed;
+        z-index: 20;
+        inset: 0;
+        pointer-events: none;
+        opacity: 0.18;
+        content: "";
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.12'/%3E%3C/svg%3E");
+        mix-blend-mode: multiply;
+      }
+
+      button,
+      input,
+      select,
+      textarea {
+        font: inherit;
+      }
+
+      button,
+      a,
+      select,
+      input,
+      textarea {
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      button {
+        color: inherit;
+      }
+
+      button:focus-visible,
+      a:focus-visible,
+      select:focus-visible,
+      input:focus-visible,
+      textarea:focus-visible {
+        outline: 3px solid rgba(31, 92, 120, 0.3);
+        outline-offset: 3px;
+      }
+
+      .skip-link {
+        position: fixed;
+        z-index: 1000;
+        top: 12px;
+        left: 12px;
+        padding: 10px 14px;
+        color: var(--white);
+        background: var(--blue-700);
+        transform: translateY(-150%);
+      }
+
+      .skip-link:focus {
+        transform: translateY(0);
+      }
+
+      .app-shell {
+        min-height: 100vh;
+      }
+
+      .sidebar {
+        position: fixed;
+        z-index: 30;
+        inset: 0 auto 0 0;
+        display: flex;
+        width: var(--sidebar-width);
+        flex-direction: column;
+        overflow: auto;
+        color: #f6f1e6;
+        background:
+          radial-gradient(circle at 20% 0%, rgba(217, 209, 192, 0.09), transparent 38%),
+          var(--ink-950);
+        border-right: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .brand {
+        display: grid;
+        grid-template-columns: 42px 1fr;
+        gap: 12px;
+        align-items: center;
+        min-height: var(--topbar-height);
+        padding: 12px 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.11);
+      }
+
+      .brand-mark {
+        display: grid;
+        width: 38px;
+        height: 38px;
+        place-items: center;
+        color: var(--ink-950);
+        background: #e4ddcc;
+        border: 1px solid rgba(255, 255, 255, 0.44);
+        font-family: var(--serif);
+        font-size: 24px;
+        font-weight: 600;
+        transform: rotate(-2deg);
+      }
+
+      .brand-name {
+        margin: 0;
+        font-family: var(--serif);
+        font-size: 18px;
+        font-weight: 600;
+        line-height: 1.05;
+      }
+
+      .brand-kicker {
+        display: block;
+        margin-top: 4px;
+        color: #a9b4ae;
+        font-family: var(--mono);
+        font-size: 9px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .nav-section-label {
+        margin: 20px 22px 8px;
+        color: #7f9189;
+        font-family: var(--mono);
+        font-size: 9px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .primary-nav {
+        display: grid;
+        gap: 3px;
+        padding: 0 11px;
+      }
+
+      .nav-link {
+        position: relative;
+        display: grid;
+        grid-template-columns: 19px 1fr auto;
+        gap: 11px;
+        align-items: center;
+        width: 100%;
+        padding: 10px 11px;
+        color: #b9c3be;
+        background: transparent;
+        border: 0;
+        border-left: 2px solid transparent;
+        cursor: pointer;
+        text-align: left;
+        transition:
+          color 160ms ease,
+          background 160ms ease,
+          border-color 160ms ease;
+      }
+
+      .nav-link:hover {
+        color: var(--white);
+        background: rgba(255, 255, 255, 0.045);
+      }
+
+      .nav-link.is-active {
+        color: var(--white);
+        background: rgba(255, 255, 255, 0.08);
+        border-left-color: #dbd1ba;
+      }
+
+      .nav-link.is-active::after {
+        position: absolute;
+        right: -11px;
+        width: 11px;
+        height: 22px;
+        content: "";
+        background: var(--paper-100);
+        clip-path: polygon(100% 0, 100% 100%, 0 50%);
+      }
+
+      .nav-link svg {
+        width: 18px;
+        height: 18px;
+        stroke: currentColor;
+        stroke-width: 1.6;
+        fill: none;
+      }
+
+      .nav-count {
+        min-width: 21px;
+        padding: 1px 5px;
+        color: #ced5d1;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 2px;
+        font-family: var(--mono);
+        font-size: 9px;
+        text-align: center;
+      }
+
+      .sidebar-foot {
+        margin-top: auto;
+        padding: 18px 20px 20px;
+        color: #94a49d;
+        border-top: 1px solid rgba(255, 255, 255, 0.09);
+      }
+
+      .sidebar-foot p {
+        margin: 0 0 9px;
+        font-size: 12px;
+      }
+
+      .mock-stamp {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 5px 8px;
+        color: #dbd1ba;
+        border: 1px solid rgba(219, 209, 186, 0.42);
+        border-radius: 2px;
+        font-family: var(--mono);
+        font-size: 9px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        transform: rotate(-1deg);
+      }
+
+      .mock-stamp::before {
+        width: 6px;
+        height: 6px;
+        content: "";
+        background: #d5a063;
+        border-radius: 50%;
+        box-shadow: 0 0 0 3px rgba(213, 160, 99, 0.12);
+      }
+
+      .stage {
+        min-height: 100vh;
+        margin-left: var(--sidebar-width);
+      }
+
+      .topbar {
+        position: sticky;
+        z-index: 15;
+        top: 0;
+        display: flex;
+        min-height: var(--topbar-height);
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 10px clamp(18px, 3vw, 42px);
+        background: rgba(251, 250, 245, 0.9);
+        border-bottom: 1px solid var(--paper-300);
+        backdrop-filter: blur(14px);
+      }
+
+      .mobile-menu {
+        display: none;
+      }
+
+      .environment-line {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .environment-name {
+        color: var(--ink-700);
+        font-family: var(--mono);
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .environment-divider {
+        width: 26px;
+        height: 1px;
+        background: var(--paper-300);
+      }
+
+      .health {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--olive-700);
+        font-size: 12px;
+      }
+
+      .health::before {
+        width: 7px;
+        height: 7px;
+        content: "";
+        background: var(--olive-700);
+        border-radius: 50%;
+        box-shadow: 0 0 0 4px var(--olive-100);
+      }
+
+      .top-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .release-chip {
+        padding: 6px 9px;
+        color: var(--blue-700);
+        background: var(--blue-100);
+        border: 1px solid #bfd7e0;
+        border-radius: 2px;
+        font-family: var(--mono);
+        font-size: 10px;
+      }
+
+      .role-control {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        align-items: center;
+        overflow: hidden;
+        background: var(--white);
+        border: 1px solid var(--paper-300);
+      }
+
+      .role-avatar {
+        display: grid;
+        width: 34px;
+        height: 34px;
+        place-items: center;
+        color: var(--white);
+        background: var(--ink-800);
+        font-family: var(--serif);
+        font-size: 15px;
+      }
+
+      .role-control select {
+        min-width: 110px;
+        padding: 7px 28px 7px 9px;
+        color: var(--ink-900);
+        background: transparent;
+        border: 0;
+        cursor: pointer;
+      }
+
+      .page {
+        display: none;
+        max-width: 1500px;
+        margin: 0 auto;
+        padding: 34px clamp(18px, 3vw, 42px) 60px;
+      }
+
+      .page.is-active {
+        display: block;
+        animation: page-enter 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
+      }
+
+      @keyframes page-enter {
+        from {
+          opacity: 0;
+          transform: translateY(7px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .page-head {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 24px;
+        margin-bottom: 26px;
+      }
+
+      .folio {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 8px;
+        color: var(--red-700);
+        font-family: var(--mono);
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .folio::after {
+        width: 54px;
+        height: 1px;
+        content: "";
+        background: currentColor;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin-top: 0;
+      }
+
+      h1 {
+        max-width: 760px;
+        margin-bottom: 7px;
+        font-family: var(--serif);
+        font-size: clamp(34px, 4.3vw, 56px);
+        font-weight: 500;
+        letter-spacing: -0.035em;
+        line-height: 0.98;
+      }
+
+      .page-lede {
+        max-width: 720px;
+        margin-bottom: 0;
+        color: var(--ink-500);
+        font-size: 15px;
+      }
+
+      .button-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 9px;
+      }
+
+      .button {
+        display: inline-flex;
+        min-height: 38px;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 8px 13px;
+        color: var(--ink-900);
+        background: var(--white);
+        border: 1px solid var(--paper-300);
+        border-radius: 2px;
+        cursor: pointer;
+        font-weight: 700;
+        transition:
+          transform 140ms ease,
+          box-shadow 140ms ease,
+          background 140ms ease;
+      }
+
+      .button:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(25, 43, 38, 0.09);
+      }
+
+      .button:active:not(:disabled) {
+        transform: translateY(0);
+      }
+
+      .button:disabled {
+        cursor: not-allowed;
+        opacity: 0.48;
+      }
+
+      .button-primary {
+        color: var(--white);
+        background: var(--ink-900);
+        border-color: var(--ink-900);
+      }
+
+      .button-blue {
+        color: var(--white);
+        background: var(--blue-700);
+        border-color: var(--blue-700);
+      }
+
+      .button-danger {
+        color: var(--red-700);
+        background: var(--red-100);
+        border-color: #dfb7aa;
+      }
+
+      .button-quiet {
+        background: transparent;
+        border-color: transparent;
+      }
+
+      .button svg {
+        width: 16px;
+        height: 16px;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        fill: none;
+      }
+
+      .api-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        margin: 0 0 12px;
+        color: var(--ink-500);
+        font-family: var(--mono);
+        font-size: 9px;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+
+      .api-label::before {
+        width: 5px;
+        height: 5px;
+        content: "";
+        background: var(--blue-700);
+        transform: rotate(45deg);
+      }
+
+      .flow-register {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(110px, 1fr));
+        margin-bottom: 26px;
+        background: var(--paper-300);
+        border: 1px solid var(--paper-300);
+        gap: 1px;
+      }
+
+      .flow-step {
+        position: relative;
+        min-height: 68px;
+        padding: 12px 14px;
+        background: rgba(255, 254, 249, 0.76);
+      }
+
+      .flow-step::before {
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 3px;
+        content: "";
+        background: transparent;
+      }
+
+      .flow-step.is-current::before {
+        background: var(--red-700);
+      }
+
+      .flow-step.is-blocked::before {
+        background: var(--red-700);
+      }
+
+      .flow-step.is-done::before {
+        background: var(--olive-700);
+      }
+
+      .flow-index {
+        display: block;
+        color: var(--ink-500);
+        font-family: var(--mono);
+        font-size: 9px;
+      }
+
+      .flow-name {
+        display: block;
+        margin-top: 3px;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .flow-status {
+        display: block;
+        color: var(--ink-500);
+        font-size: 11px;
+      }
+
+      .metric-strip {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(130px, 1fr));
+        margin-bottom: 22px;
+        background: var(--paper-300);
+        border: 1px solid var(--paper-300);
+        gap: 1px;
+      }
+
+      .metric {
+        min-height: 86px;
+        padding: 14px 16px;
+        background: rgba(255, 254, 249, 0.84);
+      }
+
+      .metric-label {
+        color: var(--ink-500);
+        font-family: var(--mono);
+        font-size: 9px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .metric-value {
+        display: block;
+        margin-top: 7px;
+        font-family: var(--serif);
+        font-size: 26px;
+        line-height: 1;
+      }
+
+      .metric-detail {
+        display: block;
+        margin-top: 5px;
+        color: var(--ink-500);
+        font-size: 11px;
+      }
+
+      .work-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.45fr) minmax(310px, 0.72fr);
+        gap: 18px;
+      }
+
+      .panel {
+        position: relative;
+        min-width: 0;
+        background: rgba(255, 254, 249, 0.9);
+        border: 1px solid var(--paper-300);
+        box-shadow: 0 12px 34px rgba(25, 43, 38, 0.055);
+      }
+
+      .panel-rule::before {
+        position: absolute;
+        z-index: 1;
+        inset: -1px auto -1px -1px;
+        width: 4px;
+        content: "";
+        background: var(--blue-700);
+      }
+
+      .panel-head {
+        display: flex;
+        min-height: 54px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--paper-300);
+      }
+
+      .panel-title {
+        margin: 0;
+        font-family: var(--serif);
+        font-size: 20px;
+        font-weight: 600;
+      }
+
+      .panel-meta {
+        color: var(--ink-500);
+        font-family: var(--mono);
+        font-size: 9px;
+      }
+
+      .panel-body {
+        padding: 17px;
+      }
+
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        padding: 12px 14px;
+        background: var(--paper-50);
+        border-bottom: 1px solid var(--paper-300);
+      }
+
+      .search-control {
+        position: relative;
+        flex: 1 1 240px;
+      }
+
+      .search-control svg {
+        position: absolute;
+        top: 50%;
+        left: 10px;
+        width: 15px;
+        height: 15px;
+        stroke: var(--ink-500);
+        stroke-width: 1.7;
+        fill: none;
+        transform: translateY(-50%);
+      }
+
+      .search-control input,
+      .field input,
+      .field textarea,
+      .field select {
+        width: 100%;
+        color: var(--ink-900);
+        background: var(--white);
+        border: 1px solid var(--paper-300);
+        border-radius: 2px;
+      }
+
+      .search-control input {
+        height: 36px;
+        padding: 7px 10px 7px 33px;
+      }
+
+      .filter-select {
+        height: 36px;
+        padding: 6px 28px 6px 9px;
+        color: var(--ink-700);
+        background: var(--white);
+        border: 1px solid var(--paper-300);
+        border-radius: 2px;
+      }
+
+      .table-wrap {
+        overflow-x: auto;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th {
+        padding: 9px 12px;
+        color: var(--ink-500);
+        background: var(--paper-50);
+        border-bottom: 1px solid var(--paper-300);
+        font-family: var(--mono);
+        font-size: 9px;
+        font-weight: 500;
+        letter-spacing: 0.06em;
+        text-align: left;
+        text-transform: uppercase;
+      }
+
+      td {
+        padding: 13px 12px;
+        border-bottom: 1px solid var(--paper-200);
+        vertical-align: top;
+      }
+
+      tbody tr {
+        cursor: pointer;
+        transition: background 130ms ease;
+      }
+
+      tbody tr:hover,
+      tbody tr.is-selected {
+        background: #f0eee6;
+      }
+
+      tbody tr.is-selected {
+        box-shadow: inset 3px 0 var(--blue-700);
+      }
+
+      .source-title {
+        display: block;
+        margin-bottom: 2px;
+        font-weight: 700;
+      }
+
+      .subtle {
+        color: var(--ink-500);
+        font-size: 12px;
+      }
+
+      .mono {
+        font-family: var(--mono);
+        font-size: 11px;
+      }
+
+      .status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .status::before {
+        width: 7px;
+        height: 7px;
+        content: "";
+        background: currentColor;
+        border-radius: 50%;
+      }
+
+      .status-approved,
+      .status-released,
+      .status-passed {
+        color: var(--olive-700);
+      }
+
+      .status-review,
+      .status-processing {
+        color: var(--blue-700);
+      }
+
+      .status-blocked,
+      .status-failed {
+        color: var(--red-700);
+      }
+
+      .status-queued,
+      .status-draft {
+        color: var(--amber-700);
+      }
+
+      .detail-hero {
+        padding: 18px;
+        background:
+          linear-gradient(135deg, rgba(31, 92, 120, 0.08), transparent 55%),
+          var(--white);
+        border-bottom: 1px solid var(--paper-300);
+      }
+
+      .detail-id {
+        margin: 0 0 8px;
+        color: var(--blue-700);
+        font-family: var(--mono);
+        font-size: 10px;
+      }
+
+      .detail-hero h3 {
+        margin-bottom: 8px;
+        font-family: var(--serif);
+        font-size: 25px;
+        font-weight: 500;
+        line-height: 1.08;
+      }
+
+      .definition-list {
+        display: grid;
+        grid-template-columns: 112px 1fr;
+        margin: 0;
+      }
+
+      .definition-list dt,
+      .definition-list dd {
+        margin: 0;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--paper-200);
+      }
+
+      .definition-list dt {
+        color: var(--ink-500);
+        font-family: var(--mono);
+        font-size: 9px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .definition-list dd {
+        overflow-wrap: anywhere;
+        font-size: 13px;
+      }
+
+      .ledger-note {
+        position: relative;
+        margin-top: 16px;
+        padding: 13px 14px 13px 38px;
+        color: var(--ink-700);
+        background: var(--amber-100);
+        border: 1px solid #dfcca0;
+        font-size: 12px;
+      }
+
+      .ledger-note::before {
+        position: absolute;
+        top: 11px;
+        left: 13px;
+        content: "!";
+        color: var(--amber-700);
+        font-family: var(--serif);
+        font-size: 20px;
+        font-weight: 600;
+      }
+
+      .run-layout {
+        display: grid;
+        grid-template-columns: minmax(260px, 0.42fr) minmax(0, 1fr);
+        gap: 18px;
+      }
+
+      .run-list {
+        display: grid;
+        align-content: start;
+        gap: 7px;
+      }
+
+      .run-card {
+        width: 100%;
+        padding: 13px 14px;
+        background: rgba(255, 254, 249, 0.82);
+        border: 1px solid var(--paper-300);
+        border-left: 3px solid transparent;
+        cursor: pointer;
+        text-align: left;
+      }
+
+      .run-card.is-active {
+        background: var(--white);
+        border-left-color: var(--blue-700);
+        box-shadow: 0 10px 22px rgba(25, 43, 38, 0.06);
+      }
+
+      .run-card-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 6px;
+      }
+
+      .run-card strong {
+        font-family: var(--mono);
+        font-size: 11px;
+      }
+
+      .run-card p {
+        margin: 0 0 6px;
+        color: var(--ink-700);
+        font-size: 13px;
+      }
+
+      .run-card small {
+        color: var(--ink-500);
+        font-family: var(--mono);
+        font-size: 9px;
+      }
+
+      .run-summary {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 18px;
+        padding: 18px;
+        border-bottom: 1px solid var(--paper-300);
+      }
+
+      .run-summary h2 {
+        margin-bottom: 5px;
+        font-family: var(--serif);
+        font-size: 27px;
+        font-weight: 500;
+      }
+
+      .run-summary p {
+        margin: 0;
+      }
+
+      .run-facts {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(100px, 1fr));
+        gap: 1px;
+        background: var(--paper-300);
+        border: 1px solid var(--paper-300);
+      }
+
+      .run-fact {
+        min-width: 112px;
+        padding: 9px 10px;
+        background: var(--paper-50);
+      }
+
+      .run-fact span {
+        display: block;
+        color: var(--ink-500);
+        font-family: var(--mono);
+        font-size: 8px;
+        text-transform: uppercase;
+      }
+
+      .run-fact strong {
+        display: block;
+        margin-top: 4px;
+        font-family: var(--mono);
+        font-size: 10px;
+        font-weight: 500;
+      }
+
+      .step-ledger {
+        padding: 18px;
+      }
+
+      .step-row {
+        position: relative;
+        display: grid;
+        grid-template-columns: 34px minmax(0, 1fr) auto;
+        gap: 12px;
+        min-height: 72px;
+        padding-bottom: 14px;
+      }
+
+      .step-row:not(:last-child)::before {
+        position: absolute;
+        top: 30px;
+        bottom: -2px;
+        left: 15px;
+        width: 1px;
+        content: "";
+        background: var(--paper-300);
+      }
+
+      .step-marker {
+        z-index: 1;
+        display: grid;
+        width: 31px;
+        height: 31px;
+        place-items: center;
+        color: var(--ink-500);
+        background: var(--paper-50);
+        border: 1px solid var(--paper-300);
+        border-radius: 50%;
+        font-family: var(--mono);
+        font-size: 9px;
+      }
+
+      .step-row.is-done .step-marker {
+        color: var(--white);
+        background: var(--olive-700);
+        border-color: var(--olive-700);
+      }
+
+      .step-row.is-failed .step-marker {
+        color: var(--white);
+        background: var(--red-700);
+        border-color: var(--red-700);
+      }
+
+      .step-row.is-current .step-marker {
+        color: var(--white);
+        background: var(--blue-700);
+        border-color: var(--blue-700);
+      }
+
+      .step-copy h3 {
+        margin: 2px 0 2px;
+        font-size: 14px;
+      }
+
+      .step-copy p {
+        margin: 0;
+        color: var(--ink-500);
+        font-size: 12px;
+      }
+
+      .step-proof {
+        align-self: start;
+        padding-top: 4px;
+        color: var(--ink-500);
+        font-family: var(--mono);
+        font-size: 9px;
+        text-align: right;
+      }
+
+      .failure-box {
+        margin: 0 18px 18px 64px;
+        padding: 13px 14px;
+        color: #6f291d;
+        background: var(--red-100);
+        border: 1px solid #deb6aa;
+      }
+
+      .failure-box strong {
+        display: block;
+        margin-bottom: 3px;
+        font-family: var(--mono);
+        font-size: 10px;
+      }
+
+      .failure-box p {
+        margin: 0;
+        font-size: 12px;
+      }
+
+      .candidate-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(340px, 0.82fr);
+        gap: 1px;
+        background: var(--paper-300);
+        border: 1px solid var(--paper-300);
+        box-shadow: var(--shadow);
+      }
+
+      .evidence-column,
+      .candidate-column {
+        min-width: 0;
+        background: rgba(255, 254, 249, 0.94);
+      }
+
+      .column-head {
+        display: flex;
+        min-height: 60px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 13px 17px;
+        background: var(--paper-50);
+        border-bottom: 1px solid var(--paper-300);
+      }
+
+      .column-head h2 {
+        margin: 0;
+        font-family: var(--serif);
+        font-size: 21px;
+        font-weight: 600;
+      }
+
+      .column-body {
+        padding: 18px;
+      }
+
+      .evidence-paper {
+        position: relative;
+        min-height: 440px;
+        padding: 38px 36px 38px 54px;
+        background:
+          linear-gradient(90deg, transparent 34px, rgba(166, 64, 42, 0.19) 35px, transparent 36px),
+          repeating-linear-gradient(
+            transparent 0,
+            transparent 27px,
+            rgba(31, 92, 120, 0.08) 28px
+          ),
+          #fffdf7;
+        border: 1px solid var(--paper-300);
+        box-shadow: inset 0 0 36px rgba(67, 53, 34, 0.035);
+        font-family: var(--serif);
+        font-size: 17px;
+        line-height: 1.65;
+      }
+
+      .evidence-paper::before {
+        position: absolute;
+        top: 12px;
+        right: 14px;
+        content: "PAGE 290";
+        color: var(--ink-500);
+        font-family: var(--mono);
+        font-size: 8px;
+        letter-spacing: 0.08em;
+      }
+
+      .evidence-paper mark {
+        padding: 2px 2px;
+        color: inherit;
+        background: linear-gradient(transparent 32%, rgba(222, 191, 103, 0.45) 32%, rgba(222, 191, 103, 0.45) 89%, transparent 89%);
+      }
+
+      .locator-card {
+        margin-top: 14px;
+        padding: 12px 14px;
+        background: var(--blue-100);
+        border-left: 3px solid var(--blue-700);
+      }
+
+      .locator-card strong {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--blue-700);
+        font-family: var(--mono);
+        font-size: 10px;
+      }
+
+      .locator-card code {
+        overflow-wrap: anywhere;
+        color: var(--ink-700);
+        font-family: var(--mono);
+        font-size: 10px;
+      }
+
+      .field {
+        margin-bottom: 15px;
+      }
+
+      .field label {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 6px;
+        color: var(--ink-700);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .field label span {
+        color: var(--ink-500);
+        font-family: var(--mono);
+        font-size: 8px;
+        font-weight: 400;
+        text-transform: uppercase;
+      }
+
+      .field input,
+      .field textarea,
+      .field select {
+        padding: 10px 11px;
+      }
+
+      .field textarea {
+        min-height: 114px;
+        resize: vertical;
+      }
+
+      .field input:focus,
+      .field textarea:focus,
+      .field select:focus,
+      .search-control input:focus {
+        border-color: var(--blue-700);
+        outline: 3px solid rgba(31, 92, 120, 0.12);
+      }
+
+      .proposal-list {
+        display: grid;
+        gap: 7px;
+        margin-bottom: 18px;
+      }
+
+      .proposal {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 9px;
+        align-items: center;
+        padding: 9px 10px;
+        background: var(--paper-50);
+        border: 1px solid var(--paper-300);
+      }
+
+      .proposal input {
+        accent-color: var(--blue-700);
+      }
+
+      .proposal strong {
+        font-size: 12px;
+      }
+
+      .proposal code {
+        color: var(--ink-500);
+        font-family: var(--mono);
+        font-size: 9px;
+      }
+
+      .gate-banner {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 11px;
+        align-items: start;
+        margin-bottom: 15px;
+        padding: 12px 13px;
+        background: var(--paper-50);
+        border: 1px solid var(--paper-300);
+      }
+
+      .gate-number {
+        display: grid;
+        width: 26px;
+        height: 26px;
+        place-items: center;
+        color: var(--white);
+        background: var(--ink-800);
+        font-family: var(--mono);
+        font-size: 9px;
+      }
+
+      .gate-banner strong {
+        display: block;
+        margin-bottom: 2px;
+        font-size: 13px;
+      }
+
+      .gate-banner p {
+        margin: 0;
+        color: var(--ink-500);
+        font-size: 11px;
+      }
+
+      .query-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 310px;
+        gap: 18px;
+      }
+
+      .query-box {
+        padding: 18px;
+        background: var(--ink-950);
+        color: var(--white);
+      }
+
+      .query-box .api-label {
+        color: #9db0a7;
+      }
+
+      .query-form {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+      }
+
+      .query-form input {
+        min-width: 0;
+        padding: 12px 13px;
+        color: var(--ink-950);
+        background: var(--paper-50);
+        border: 1px solid #8d9c95;
+        border-radius: 2px;
+      }
+
+      .query-hints {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        margin-top: 12px;
+      }
+
+      .query-hint {
+        padding: 5px 8px;
+        color: #c5d0ca;
+        background: transparent;
+        border: 1px solid #53655d;
+        border-radius: 2px;
+        cursor: pointer;
+        font-size: 11px;
+      }
+
+      .degraded {
+        margin-top: 12px;
+        padding: 9px 11px;
+        color: #f1d69e;
+        background: rgba(138, 100, 30, 0.21);
+        border-left: 3px solid #d1a34f;
+        font-size: 12px;
+      }
+
+      .result-list {
+        display: grid;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .result-card {
+        padding: 17px;
+        background: rgba(255, 254, 249, 0.94);
+        border: 1px solid var(--paper-300);
+        box-shadow: 0 8px 22px rgba(25, 43, 38, 0.045);
+      }
+
+      .result-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 10px;
+      }
+
+      .result-head h3 {
+        margin-bottom: 4px;
+        font-family: var(--serif);
+        font-size: 22px;
+        font-weight: 600;
+      }
+
+      .rank {
+        color: var(--blue-700);
+        font-family: var(--serif);
+        font-size: 30px;
+        line-height: 1;
+      }
+
+      .result-claim {
+        margin-bottom: 13px;
+        color: var(--ink-700);
+      }
+
+      .citation {
+        display: flex;
+        gap: 9px;
+        align-items: flex-start;
+        padding: 10px 11px;
+        background: var(--blue-100);
+        border-left: 3px solid var(--blue-700);
+      }
+
+      .citation span {
+        color: var(--blue-700);
+        font-family: var(--mono);
+        font-size: 9px;
+        font-weight: 600;
+      }
+
+      .citation code {
+        color: var(--ink-700);
+        font-family: var(--mono);
+        font-size: 9px;
+      }
+
+      .lane-panel {
+        align-self: start;
+        padding: 16px;
+        background: rgba(255, 254, 249, 0.9);
+        border: 1px solid var(--paper-300);
+      }
+
+      .lane-panel h2 {
+        margin-bottom: 4px;
+        font-family: var(--serif);
+        font-size: 21px;
+      }
+
+      .lane-panel > p {
+        margin-bottom: 17px;
+        color: var(--ink-500);
+        font-size: 11px;
+      }
+
+      .lane {
+        margin-bottom: 14px;
+      }
+
+      .lane-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 5px;
+        font-family: var(--mono);
+        font-size: 9px;
+        text-transform: uppercase;
+      }
+
+      .lane-track {
+        height: 6px;
+        overflow: hidden;
+        background: var(--paper-200);
+      }
+
+      .lane-fill {
+        width: var(--score);
+        height: 100%;
+        background: var(--ink-700);
+        transform-origin: left;
+        animation: lane-in 500ms ease both;
+      }
+
+      .lane.is-degraded .lane-fill {
+        background: repeating-linear-gradient(
+          90deg,
+          var(--amber-700) 0,
+          var(--amber-700) 4px,
+          transparent 4px,
+          transparent 7px
+        );
+      }
+
+      @keyframes lane-in {
+        from {
+          transform: scaleX(0);
+        }
+        to {
+          transform: scaleX(1);
+        }
+      }
+
+      .release-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 360px;
+        gap: 18px;
+      }
+
+      .gate-list {
+        display: grid;
+      }
+
+      .release-gate {
+        display: grid;
+        grid-template-columns: 34px minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        padding: 15px 17px;
+        border-bottom: 1px solid var(--paper-200);
+      }
+
+      .release-gate:last-child {
+        border-bottom: 0;
+      }
+
+      .gate-icon {
+        display: grid;
+        width: 30px;
+        height: 30px;
+        place-items: center;
+        color: var(--ink-500);
+        background: var(--paper-50);
+        border: 1px solid var(--paper-300);
+        border-radius: 50%;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .release-gate.is-passed .gate-icon {
+        color: var(--white);
+        background: var(--olive-700);
+        border-color: var(--olive-700);
+      }
+
+      .release-gate.is-blocked .gate-icon {
+        color: var(--white);
+        background: var(--red-700);
+        border-color: var(--red-700);
+      }
+
+      .release-gate h3 {
+        margin: 0 0 2px;
+        font-size: 14px;
+      }
+
+      .release-gate p {
+        margin: 0;
+        color: var(--ink-500);
+        font-size: 11px;
+      }
+
+      .manifest {
+        position: relative;
+        overflow: hidden;
+        padding: 20px;
+        color: #eef2eb;
+        background: var(--ink-950);
+        box-shadow: var(--shadow);
+      }
+
+      .manifest::after {
+        position: absolute;
+        right: -24px;
+        bottom: -35px;
+        width: 120px;
+        height: 120px;
+        content: "";
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 50%;
+        box-shadow:
+          0 0 0 13px rgba(255, 255, 255, 0.025),
+          0 0 0 26px rgba(255, 255, 255, 0.018);
+      }
+
+      .manifest .folio {
+        color: #d9c6a1;
+      }
+
+      .manifest h2 {
+        margin-bottom: 15px;
+        font-family: var(--serif);
+        font-size: 27px;
+        font-weight: 500;
+      }
+
+      .manifest dl {
+        display: grid;
+        grid-template-columns: 1fr;
+        margin: 0;
+      }
+
+      .manifest dt {
+        margin-top: 9px;
+        color: #8fa29a;
+        font-family: var(--mono);
+        font-size: 8px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .manifest dd {
+        margin: 2px 0 0;
+        overflow-wrap: anywhere;
+        font-family: var(--mono);
+        font-size: 10px;
+      }
+
+      .manifest .button {
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        margin-top: 20px;
+      }
+
+      .relation-board {
+        position: relative;
+        min-height: 440px;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at center, rgba(31, 92, 120, 0.08), transparent 45%),
+          var(--white);
+        border: 1px solid var(--paper-300);
+      }
+
+      .relation-board svg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      .relation-board line {
+        stroke: var(--paper-300);
+        stroke-width: 1.2;
+      }
+
+      .node {
+        position: absolute;
+        width: 142px;
+        padding: 10px 12px;
+        background: var(--paper-50);
+        border: 1px solid var(--paper-300);
+        box-shadow: 0 8px 18px rgba(25, 43, 38, 0.07);
+      }
+
+      .node strong {
+        display: block;
+        font-family: var(--serif);
+        font-size: 16px;
+      }
+
+      .node span {
+        color: var(--ink-500);
+        font-family: var(--mono);
+        font-size: 8px;
+      }
+
+      .node-central {
+        top: 42%;
+        left: 45%;
+        color: var(--white);
+        background: var(--ink-800);
+        border-color: var(--ink-800);
+        transform: translate(-50%, -50%);
+      }
+
+      .node-central span {
+        color: #bec9c3;
+      }
+
+      .node-a {
+        top: 14%;
+        left: 12%;
+      }
+
+      .node-b {
+        top: 16%;
+        right: 10%;
+      }
+
+      .node-c {
+        bottom: 16%;
+        left: 17%;
+      }
+
+      .node-d {
+        right: 15%;
+        bottom: 13%;
+      }
+
+      .scope-state {
+        display: grid;
+        min-height: 430px;
+        place-items: center;
+        padding: 30px;
+        background:
+          linear-gradient(135deg, rgba(31, 92, 120, 0.05), transparent 60%),
+          rgba(255, 254, 249, 0.86);
+        border: 1px solid var(--paper-300);
+        text-align: center;
+      }
+
+      .scope-inner {
+        max-width: 530px;
+      }
+
+      .scope-number {
+        display: inline-block;
+        margin-bottom: 16px;
+        color: var(--paper-300);
+        font-family: var(--serif);
+        font-size: 76px;
+        line-height: 1;
+      }
+
+      .scope-state h2 {
+        margin-bottom: 8px;
+        font-family: var(--serif);
+        font-size: 29px;
+        font-weight: 500;
+      }
+
+      .scope-state p {
+        margin-bottom: 17px;
+        color: var(--ink-500);
+      }
+
+      .audit-list {
+        display: grid;
+        background: var(--white);
+        border: 1px solid var(--paper-300);
+      }
+
+      .audit-event {
+        display: grid;
+        grid-template-columns: 150px 110px minmax(0, 1fr) 90px;
+        gap: 12px;
+        align-items: center;
+        padding: 13px 15px;
+        border-bottom: 1px solid var(--paper-200);
+      }
+
+      .audit-event:last-child {
+        border-bottom: 0;
+      }
+
+      .audit-event time,
+      .audit-event code {
+        color: var(--ink-500);
+        font-family: var(--mono);
+        font-size: 9px;
+      }
+
+      dialog {
+        width: min(560px, calc(100vw - 28px));
+        padding: 0;
+        color: var(--ink-900);
+        background: var(--paper-50);
+        border: 1px solid var(--ink-700);
+        box-shadow: 0 26px 80px rgba(19, 34, 30, 0.35);
+      }
+
+      dialog::backdrop {
+        background: rgba(19, 34, 30, 0.62);
+        backdrop-filter: blur(3px);
+      }
+
+      .dialog-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 16px 18px;
+        color: var(--white);
+        background: var(--ink-900);
+      }
+
+      .dialog-head h2 {
+        margin: 0;
+        font-family: var(--serif);
+        font-size: 24px;
+        font-weight: 500;
+      }
+
+      .dialog-close {
+        width: 34px;
+        height: 34px;
+        color: var(--white);
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        cursor: pointer;
+      }
+
+      .dialog-body {
+        padding: 18px;
+      }
+
+      .dialog-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 9px;
+        padding: 13px 18px;
+        background: var(--paper-100);
+        border-top: 1px solid var(--paper-300);
+      }
+
+      .toast-region {
+        position: fixed;
+        z-index: 100;
+        right: 20px;
+        bottom: 20px;
+        display: grid;
+        width: min(390px, calc(100vw - 40px));
+        gap: 8px;
+      }
+
+      .toast {
+        display: grid;
+        grid-template-columns: 8px minmax(0, 1fr) auto;
+        gap: 11px;
+        align-items: start;
+        padding: 13px 14px;
+        color: var(--white);
+        background: var(--ink-900);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow: 0 18px 40px rgba(19, 34, 30, 0.25);
+        animation: toast-in 220ms ease both;
+      }
+
+      .toast-marker {
+        width: 8px;
+        height: 8px;
+        margin-top: 5px;
+        background: #91a177;
+        border-radius: 50%;
+      }
+
+      .toast.is-error .toast-marker {
+        background: #e17c63;
+      }
+
+      .toast strong {
+        display: block;
+        margin-bottom: 2px;
+        font-size: 13px;
+      }
+
+      .toast p {
+        margin: 0;
+        color: #bec9c3;
+        font-size: 11px;
+      }
+
+      .toast button {
+        color: #bec9c3;
+        background: transparent;
+        border: 0;
+        cursor: pointer;
+      }
+
+      @keyframes toast-in {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @media (max-width: 1150px) {
+        .work-grid,
+        .query-layout,
+        .release-layout {
+          grid-template-columns: 1fr;
+        }
+
+        .candidate-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .lane-panel,
+        .manifest {
+          width: 100%;
+        }
+      }
+
+      @media (max-width: 860px) {
+        :root {
+          --sidebar-width: 0px;
+        }
+
+        .sidebar {
+          width: 264px;
+          transform: translateX(-101%);
+          transition: transform 180ms ease;
+        }
+
+        body.nav-open .sidebar {
+          transform: translateX(0);
+          box-shadow: 20px 0 70px rgba(19, 34, 30, 0.28);
+        }
+
+        body.nav-open::after {
+          position: fixed;
+          z-index: 25;
+          inset: 0;
+          content: "";
+          background: rgba(19, 34, 30, 0.38);
+        }
+
+        .stage {
+          margin-left: 0;
+        }
+
+        .mobile-menu {
+          display: grid;
+          width: 38px;
+          height: 38px;
+          place-items: center;
+          background: var(--white);
+          border: 1px solid var(--paper-300);
+          cursor: pointer;
+        }
+
+        .mobile-menu svg {
+          width: 18px;
+          stroke: currentColor;
+        }
+
+        .environment-line {
+          margin-right: auto;
+        }
+
+        .environment-divider,
+        .health {
+          display: none;
+        }
+
+        .metric-strip {
+          grid-template-columns: repeat(2, 1fr);
+        }
+
+        .flow-register {
+          grid-template-columns: 1fr;
+        }
+
+        .flow-step {
+          min-height: auto;
+        }
+
+        .run-layout {
+          grid-template-columns: 1fr;
+        }
+
+        .run-list {
+          grid-template-columns: repeat(3, minmax(210px, 1fr));
+          overflow-x: auto;
+          padding-bottom: 5px;
+        }
+      }
+
+      @media (max-width: 620px) {
+        .topbar {
+          min-height: 64px;
+          padding: 9px 13px;
+        }
+
+        .release-chip {
+          display: none;
+        }
+
+        .role-control select {
+          min-width: 88px;
+          width: 88px;
+        }
+
+        .page {
+          padding: 25px 14px 50px;
+        }
+
+        .page-head {
+          display: block;
+        }
+
+        .page-head .button-row {
+          margin-top: 17px;
+        }
+
+        h1 {
+          font-size: 39px;
+        }
+
+        .metric-strip {
+          grid-template-columns: 1fr 1fr;
+        }
+
+        .run-facts {
+          grid-template-columns: 1fr;
+        }
+
+        .step-row {
+          grid-template-columns: 32px minmax(0, 1fr);
+        }
+
+        .step-proof {
+          grid-column: 2;
+          text-align: left;
+        }
+
+        .failure-box {
+          margin-left: 18px;
+        }
+
+        .evidence-paper {
+          min-height: 350px;
+          padding: 34px 20px 34px 40px;
+        }
+
+        .query-form {
+          grid-template-columns: 1fr;
+        }
+
+        .release-gate {
+          grid-template-columns: 32px minmax(0, 1fr);
+        }
+
+        .release-gate > .status {
+          grid-column: 2;
+        }
+
+        .audit-event {
+          grid-template-columns: 1fr;
+          gap: 3px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">跳到主要内容</a>
+
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="主导航">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">K</div>
+          <div>
+            <p class="brand-name">Knowledge Ledger</p>
+            <span class="brand-kicker">Clinical evidence system</span>
+          </div>
+        </div>
+
+        <p class="nav-section-label">Knowledge lifecycle</p>
+        <nav class="primary-nav">
+          <button class="nav-link is-active" type="button" data-page-target="sources">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 5.5h6l2 2h8v11H4z" />
+              <path d="M7 12h10M7 15h7" />
+            </svg>
+            <span>来源库</span>
+            <span class="nav-count">08</span>
+          </button>
+          <button class="nav-link" type="button" data-page-target="processing">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="8" />
+              <path d="M12 8v4l3 2" />
+            </svg>
+            <span>处理任务</span>
+            <span class="nav-count">03</span>
+          </button>
+          <button class="nav-link" type="button" data-page-target="candidates">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 3h9l3 3v15H6z" />
+              <path d="M9 11h6M9 15h4M14 3v4h4" />
+            </svg>
+            <span>候选审核</span>
+            <span class="nav-count">12</span>
+          </button>
+          <button class="nav-link" type="button" data-page-target="relations">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="6" cy="6" r="2.5" />
+              <circle cx="18" cy="8" r="2.5" />
+              <circle cx="11" cy="18" r="2.5" />
+              <path d="m8.3 6.5 7.2 1M7.4 8.1l2.4 7.5M16.6 10l-4.1 5.8" />
+            </svg>
+            <span>关系浏览</span>
+          </button>
+          <button class="nav-link" type="button" data-page-target="query">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="10.5" cy="10.5" r="6.5" />
+              <path d="m15.5 15.5 5 5" />
+            </svg>
+            <span>检索实验室</span>
+          </button>
+          <button class="nav-link" type="button" data-page-target="evaluation">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 20V10M12 20V4M19 20v-7" />
+              <path d="M3 20h18" />
+            </svg>
+            <span>评估</span>
+          </button>
+          <button class="nav-link" type="button" data-page-target="releases">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 6h16v14H4zM8 3h8v3H8z" />
+              <path d="m8.5 13 2.3 2.3 4.8-5" />
+            </svg>
+            <span>发布中心</span>
+            <span class="nav-count">01</span>
+          </button>
+        </nav>
+
+        <p class="nav-section-label">Control plane</p>
+        <nav class="primary-nav">
+          <button class="nav-link" type="button" data-page-target="audit">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 4h16v16H4z" />
+              <path d="M8 9h8M8 13h8M8 17h5" />
+            </svg>
+            <span>审计记录</span>
+          </button>
+          <button class="nav-link" type="button" data-page-target="admin">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="8" r="3.5" />
+              <path d="M5 20c.6-4 3-6 7-6s6.4 2 7 6" />
+            </svg>
+            <span>管理</span>
+          </button>
+        </nav>
+
+        <div class="sidebar-foot">
+          <p>这是 D0 设计草案，不连接真实 API、数据库或 worker。</p>
+          <span class="mock-stamp">Demo fixture / non-production</span>
+        </div>
+      </aside>
+
+      <main class="stage" id="main-content">
+        <header class="topbar">
+          <button class="mobile-menu" id="mobileMenu" type="button" aria-label="打开导航" aria-expanded="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 7h16M4 12h16M4 17h16" />
+            </svg>
+          </button>
+          <div class="environment-line">
+            <span class="environment-name">Evidence Workspace / Demo</span>
+            <span class="environment-divider" aria-hidden="true"></span>
+            <span class="health">Index healthy</span>
+          </div>
+          <div class="top-actions">
+            <span class="release-chip" id="currentReleaseChip">CURRENT · rel-2026.07-demo</span>
+            <label class="role-control">
+              <span class="role-avatar" aria-hidden="true">林</span>
+              <select id="roleSelect" aria-label="切换演示角色">
+                <option value="author">知识作者</option>
+                <option value="reviewer">独立审核人</option>
+                <option value="release-manager">发布管理员</option>
+              </select>
+            </label>
+          </div>
+        </header>
+
+        <section class="page is-active" data-page="sources" aria-labelledby="sources-title">
+          <div class="page-head">
+            <div>
+              <div class="folio">01 / Source registry</div>
+              <h1 id="sources-title">来源先于知识。</h1>
+              <p class="page-lede">
+                登记、定版并追踪每一份证据来源。上传只创建 SourceVersion；在人工确认、独立审核和发布前，它不会成为生产知识。
+              </p>
+            </div>
+            <div class="button-row">
+              <button class="button" type="button" id="sourceExport">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 3v12M7 10l5 5 5-5M5 20h14" />
+                </svg>
+                导出清单
+              </button>
+              <button class="button button-primary" type="button" id="openSourceDialog">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                登记新来源
+              </button>
+            </div>
+          </div>
+
+          <div class="flow-register" aria-label="知识生命周期">
+            <div class="flow-step is-current">
+              <span class="flow-index">01</span>
+              <span class="flow-name">来源登记</span>
+              <span class="flow-status">SourceVersion only</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-index">02</span>
+              <span class="flow-name">文档处理</span>
+              <span class="flow-status">Discrete job</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-index">03</span>
+              <span class="flow-name">人工治理</span>
+              <span class="flow-status">Author + reviewer</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-index">04</span>
+              <span class="flow-name">检索评估</span>
+              <span class="flow-status">Evidence metrics</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-index">05</span>
+              <span class="flow-name">正式发布</span>
+              <span class="flow-status">Immutable release</span>
+            </div>
+          </div>
+
+          <div class="metric-strip">
+            <div class="metric">
+              <span class="metric-label">Registered sources</span>
+              <span class="metric-value">08</span>
+              <span class="metric-detail">6 standards · 2 synthetic</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Rights verified</span>
+              <span class="metric-value">7 / 8</span>
+              <span class="metric-detail">1 source restricted</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Pending processing</span>
+              <span class="metric-value">03</span>
+              <span class="metric-detail">PostgreSQL job ledger</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Current release</span>
+              <span class="metric-value">0.9.4</span>
+              <span class="metric-detail">28 approved units</span>
+            </div>
+          </div>
+
+          <p class="api-label">Demo fixture · planned GET /sources</p>
+          <div class="work-grid">
+            <section class="panel" aria-labelledby="library-heading">
+              <div class="panel-head">
+                <h2 class="panel-title" id="library-heading">来源台账</h2>
+                <span class="panel-meta">08 RECORDS · ORDER: UPDATED DESC</span>
+              </div>
+              <div class="toolbar">
+                <label class="search-control">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="10.5" cy="10.5" r="6.5" />
+                    <path d="m15.5 15.5 5 5" />
+                  </svg>
+                  <input id="sourceSearch" type="search" placeholder="搜索标题、ID 或版本…" aria-label="搜索来源" />
+                </label>
+                <select class="filter-select" id="sourceTypeFilter" aria-label="按来源类型筛选">
+                  <option value="all">全部类型</option>
+                  <option value="standard">标准</option>
+                  <option value="guidance">指南</option>
+                  <option value="synthetic">合成样本</option>
+                </select>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>来源 / 版本</th>
+                      <th>类型</th>
+                      <th>权利</th>
+                      <th>处理状态</th>
+                      <th>更新</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sourceTable">
+                    <tr
+                      class="is-selected"
+                      tabindex="0"
+                      data-source-row
+                      data-type="standard"
+                      data-id="SRC-CDISC-SDTMIG-3-4"
+                    >
+                      <td>
+                        <span class="source-title">CDISC SDTMIG</span>
+                        <span class="mono">v3.4 · SRC-CDISC-SDTMIG-3-4</span>
+                      </td>
+                      <td>标准</td>
+                      <td><span class="status status-approved">已核验</span></td>
+                      <td><span class="status status-review">待作者确认</span></td>
+                      <td class="subtle">今天 09:42</td>
+                    </tr>
+                    <tr tabindex="0" data-source-row data-type="standard" data-id="SRC-CDISC-ADAMIG-1-3">
+                      <td>
+                        <span class="source-title">CDISC ADaMIG</span>
+                        <span class="mono">v1.3 · SRC-CDISC-ADAMIG-1-3</span>
+                      </td>
+                      <td>标准</td>
+                      <td><span class="status status-approved">已核验</span></td>
+                      <td><span class="status status-queued">排队中</span></td>
+                      <td class="subtle">昨天 17:18</td>
+                    </tr>
+                    <tr tabindex="0" data-source-row data-type="guidance" data-id="SRC-FDA-SDTCG-2026">
+                      <td>
+                        <span class="source-title">FDA Study Data Technical Conformance Guide</span>
+                        <span class="mono">2026 · SRC-FDA-SDTCG-2026</span>
+                      </td>
+                      <td>指南</td>
+                      <td><span class="status status-approved">已核验</span></td>
+                      <td><span class="status status-released">已发布</span></td>
+                      <td class="subtle">07-27</td>
+                    </tr>
+                    <tr tabindex="0" data-source-row data-type="guidance" data-id="SRC-ICH-E9-R1">
+                      <td>
+                        <span class="source-title">ICH E9 (R1) Addendum</span>
+                        <span class="mono">Final · SRC-ICH-E9-R1</span>
+                      </td>
+                      <td>指南</td>
+                      <td><span class="status status-approved">已核验</span></td>
+                      <td><span class="status status-released">已发布</span></td>
+                      <td class="subtle">07-25</td>
+                    </tr>
+                    <tr tabindex="0" data-source-row data-type="synthetic" data-id="SRC-SYNTH-TEAE-001">
+                      <td>
+                        <span class="source-title">Synthetic TEAE Evidence Pack</span>
+                        <span class="mono">v1 · SRC-SYNTH-TEAE-001</span>
+                      </td>
+                      <td>合成样本</td>
+                      <td><span class="status status-blocked">受限</span></td>
+                      <td><span class="status status-draft">仅测试</span></td>
+                      <td class="subtle">07-24</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <aside class="panel panel-rule" aria-labelledby="source-detail-title">
+              <div class="detail-hero">
+                <p class="detail-id" id="sourceDetailId">SRC-CDISC-SDTMIG-3-4</p>
+                <h3 id="source-detail-title">CDISC SDTM Implementation Guide</h3>
+                <span class="status status-review">Source only · 未进入知识库</span>
+              </div>
+              <div class="panel-body">
+                <dl class="definition-list">
+                  <dt>版本</dt>
+                  <dd>3.4 Final</dd>
+                  <dt>媒体类型</dt>
+                  <dd>PDF · 24.8 MB</dd>
+                  <dt>SHA-256</dt>
+                  <dd class="mono">4a9c…8b20</dd>
+                  <dt>来源权利</dt>
+                  <dd>External standard · internal evidence use</dd>
+                  <dt>对象状态</dt>
+                  <dd>Manifest verified</dd>
+                  <dt>最新任务</dt>
+                  <dd><a href="#processing" data-page-target="processing">DPR-2026-0729-003</a></dd>
+                </dl>
+                <div class="ledger-note">
+                  对象存在不代表任务成功。处理、候选、批准与发布状态都来自独立的 API 事实。
+                </div>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <section class="page" data-page="processing" aria-labelledby="processing-title">
+          <div class="page-head">
+            <div>
+              <div class="folio">02 / Document processing</div>
+              <h1 id="processing-title">异步，但不流式。</h1>
+              <p class="page-lede">
+                每次解析都是离散、持久、可恢复的 DocumentProcessingRun。页面轮询任务状态，不展示 token 流，也不从对象路径猜测进度。
+              </p>
+            </div>
+            <div class="button-row">
+              <button class="button button-primary" type="button" id="newRunButton">启动新任务</button>
+            </div>
+          </div>
+
+          <div class="flow-register" aria-label="知识生命周期">
+            <div class="flow-step is-done">
+              <span class="flow-index">01</span>
+              <span class="flow-name">来源登记</span>
+              <span class="flow-status">Completed</span>
+            </div>
+            <div class="flow-step is-current">
+              <span class="flow-index">02</span>
+              <span class="flow-name">文档处理</span>
+              <span class="flow-status" id="flowProcessingStatus">Failed at step 04</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-index">03</span>
+              <span class="flow-name">人工治理</span>
+              <span class="flow-status">Waiting</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-index">04</span>
+              <span class="flow-name">检索评估</span>
+              <span class="flow-status">Waiting</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-index">05</span>
+              <span class="flow-name">正式发布</span>
+              <span class="flow-status">Waiting</span>
+            </div>
+          </div>
+
+          <p class="api-label">Demo fixture · planned GET /processing-runs/{run_id} · conditional polling</p>
+          <div class="run-layout">
+            <div class="run-list" aria-label="处理任务列表">
+              <button class="run-card is-active" type="button">
+                <div class="run-card-head">
+                  <strong>DPR-0729-003</strong>
+                  <span class="status status-failed" id="runListStatus">失败</span>
+                </div>
+                <p>SDTMIG 3.4 / Evidence extraction</p>
+                <small>DOCUMENT POOL · ATTEMPT 02</small>
+              </button>
+              <button class="run-card" type="button">
+                <div class="run-card-head">
+                  <strong>DPR-0729-002</strong>
+                  <span class="status status-processing">处理中</span>
+                </div>
+                <p>ADaMIG 1.3 / Structure map</p>
+                <small>DOCUMENT POOL · ATTEMPT 01</small>
+              </button>
+              <button class="run-card" type="button">
+                <div class="run-card-head">
+                  <strong>DPR-0728-011</strong>
+                  <span class="status status-approved">完成</span>
+                </div>
+                <p>FDA SDTCG / Evidence units</p>
+                <small>DOCUMENT POOL · 42 CANDIDATES</small>
+              </button>
+            </div>
+
+            <section class="panel" aria-labelledby="run-detail-title">
+              <div class="run-summary">
+                <div>
+                  <span class="status status-failed" id="runHeaderStatus">步骤失败 · 可恢复</span>
+                  <h2 id="run-detail-title">DPR-2026-0729-003</h2>
+                  <p class="subtle">SourceVersion: SRC-CDISC-SDTMIG-3-4 / v3.4</p>
+                </div>
+                <div class="run-facts">
+                  <div class="run-fact">
+                    <span>Worker pool</span>
+                    <strong>document</strong>
+                  </div>
+                  <div class="run-fact">
+                    <span>Parser profile</span>
+                    <strong>docling-eval.2</strong>
+                  </div>
+                  <div class="run-fact">
+                    <span>Polling</span>
+                    <strong>paused / failed</strong>
+                  </div>
+                </div>
+              </div>
+
+              <div class="step-ledger" id="stepLedger">
+                <div class="step-row is-done" data-step="1">
+                  <span class="step-marker">✓</span>
+                  <div class="step-copy">
+                    <h3>登记与对象核验</h3>
+                    <p>校验 source version、rights、MIME 与对象 hash。</p>
+                  </div>
+                  <span class="step-proof">00:01 · sha256 verified</span>
+                </div>
+                <div class="step-row is-done" data-step="2">
+                  <span class="step-marker">✓</span>
+                  <div class="step-copy">
+                    <h3>结构解析</h3>
+                    <p>识别 452 页、1,284 个结构块和 93 张表。</p>
+                  </div>
+                  <span class="step-proof">04:18 · artifact 9fa2…</span>
+                </div>
+                <div class="step-row is-done" data-step="3">
+                  <span class="step-marker">✓</span>
+                  <div class="step-copy">
+                    <h3>Evidence 单元拆分</h3>
+                    <p>按页、章节、表格和引用位置拆分，不使用 token chunk 作为知识身份。</p>
+                  </div>
+                  <span class="step-proof">00:42 · 318 units</span>
+                </div>
+                <div class="step-row is-failed" data-step="4">
+                  <span class="step-marker">!</span>
+                  <div class="step-copy">
+                    <h3>Locator 规范化</h3>
+                    <p>检测跨页表格的 locator 连续性与内容 hash。</p>
+                  </div>
+                  <span class="step-proof">attempt 02 · failed</span>
+                </div>
+                <div class="step-row" data-step="5">
+                  <span class="step-marker">05</span>
+                  <div class="step-copy">
+                    <h3>候选封装</h3>
+                    <p>写入 Processing Result 与 Evidence Candidate manifest。</p>
+                  </div>
+                  <span class="step-proof">not started</span>
+                </div>
+              </div>
+
+              <div class="failure-box" id="failureBox">
+                <strong>LOCATOR_TABLE_SPAN_MISMATCH</strong>
+                <p>
+                  Table 6.2.1 跨页行锚点不连续。已保留步骤 01–03 checkpoint；重试只执行 locator normalization 与候选封装。
+                </p>
+                <div class="button-row" style="margin-top: 11px">
+                  <button class="button button-danger" type="button" id="retryRun">从 Checkpoint 重试</button>
+                  <button class="button button-quiet" type="button" id="copyRunId">复制 Run ID</button>
+                </div>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="page" data-page="candidates" aria-labelledby="candidate-title">
+          <div class="page-head">
+            <div>
+              <div class="folio">03 / Candidate governance</div>
+              <h1 id="candidate-title">证据在左，判断在右。</h1>
+              <p class="page-lede">
+                作者确认机器抽取是否忠于原文；独立审核人决定它是否可批准。任何 confidence 都不能替代这两个 Gate。
+              </p>
+            </div>
+            <span class="status status-review" id="candidatePageStatus">等待作者确认</span>
+          </div>
+
+          <div class="flow-register" aria-label="知识生命周期">
+            <div class="flow-step is-done">
+              <span class="flow-index">01</span>
+              <span class="flow-name">来源登记</span>
+              <span class="flow-status">Completed</span>
+            </div>
+            <div class="flow-step is-done">
+              <span class="flow-index">02</span>
+              <span class="flow-name">文档处理</span>
+              <span class="flow-status">Evidence candidate</span>
+            </div>
+            <div class="flow-step is-current">
+              <span class="flow-index">03</span>
+              <span class="flow-name">人工治理</span>
+              <span class="flow-status" id="governanceFlowStatus">Author confirmation</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-index">04</span>
+              <span class="flow-name">检索评估</span>
+              <span class="flow-status">Waiting</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-index">05</span>
+              <span class="flow-name">正式发布</span>
+              <span class="flow-status">Waiting</span>
+            </div>
+          </div>
+
+          <p class="api-label">Demo fixture · planned GET /candidates/KU-SDTM-AE-017</p>
+          <div class="candidate-grid">
+            <section class="evidence-column" aria-labelledby="evidence-column-title">
+              <div class="column-head">
+                <h2 id="evidence-column-title">原始证据</h2>
+                <span class="panel-meta">SOURCE HASH VERIFIED</span>
+              </div>
+              <div class="column-body">
+                <article class="evidence-paper">
+                  <strong>6.2 Adverse Events</strong>
+                  <p>
+                    Adverse events are represented in the AE domain. Start and end timing variables should retain the
+                    highest level of precision collected.
+                  </p>
+                  <p>
+                    <mark
+                      >When an adverse event is ongoing at the time of data cut-off, AEENRF may be used to represent
+                      the end relative to the reference period; an imputed date must not replace the collected
+                      source value.</mark
+                    >
+                  </p>
+                  <p>
+                    Sponsors should document derivations separately from collected values and maintain traceability to
+                    the source record.
+                  </p>
+                </article>
+                <div class="locator-card">
+                  <strong>Evidence locator</strong>
+                  <code>source:SRC-CDISC-SDTMIG-3-4 / p.290 / §6.2 / paragraph:04 / sha256:71ba…d91e</code>
+                </div>
+              </div>
+            </section>
+
+            <section class="candidate-column" aria-labelledby="candidate-column-title">
+              <div class="column-head">
+                <h2 id="candidate-column-title">知识候选</h2>
+                <span class="panel-meta">REVISION 03 · CONFIDENCE 0.91</span>
+              </div>
+              <div class="column-body">
+                <div class="gate-banner">
+                  <span class="gate-number" id="gateNumber">1</span>
+                  <div>
+                    <strong id="gateTitle">作者确认 Gate</strong>
+                    <p id="gateDescription">确认 claim、适用范围、locator 和关系建议忠于证据。</p>
+                  </div>
+                </div>
+
+                <div class="field">
+                  <label for="claimInput">原子主张 <span>Required</span></label>
+                  <textarea id="claimInput">
+持续至数据截止日的不良事件应保留采集到的日期精度；可使用 AEENRF 表示相对参考期的结束状态，不应以插补日期覆盖原始采集值。</textarea
+                  >
+                </div>
+                <div class="field">
+                  <label for="scopeInput">适用范围 <span>Applicability</span></label>
+                  <input id="scopeInput" value="SDTM / AE domain / ongoing adverse event" />
+                </div>
+                <div class="field">
+                  <label for="locatorInput">证据定位 <span>Immutable source ref</span></label>
+                  <input id="locatorInput" value="p.290 / §6.2 / paragraph:04" />
+                </div>
+
+                <div class="field">
+                  <label>关系建议 <span>Proposal only</span></label>
+                  <div class="proposal-list">
+                    <label class="proposal">
+                      <input type="checkbox" checked />
+                      <strong>applies_to → AE.AEENRF</strong>
+                      <code>evidence: same</code>
+                    </label>
+                    <label class="proposal">
+                      <input type="checkbox" checked />
+                      <strong>requires_traceability → collected value</strong>
+                      <code>evidence: ¶05</code>
+                    </label>
+                    <label class="proposal">
+                      <input type="checkbox" />
+                      <strong>related_to → ADAE.AENDT</strong>
+                      <code>cross-standard</code>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="button-row">
+                  <button class="button button-blue" type="button" id="authorConfirm">确认并提交独立审核</button>
+                  <button class="button" type="button" id="requestChange">请求修改</button>
+                  <button class="button button-primary" type="button" id="reviewApprove">审核通过</button>
+                </div>
+                <p class="subtle" style="margin: 12px 0 0">
+                  演示提示：切换右上角角色可验证作者自审拒绝。前端隐藏不构成授权，真实系统仍由后端状态机判定。
+                </p>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="page" data-page="relations" aria-labelledby="relations-title">
+          <div class="page-head">
+            <div>
+              <div class="folio">04 / Typed relations</div>
+              <h1 id="relations-title">关系必须带证据。</h1>
+              <p class="page-lede">
+                PostgreSQL typed relation 是首版权威。此处只展示一跳、有界、可追溯的关系；GraphRAG 不作为 provider，也不写入关系权威。
+              </p>
+            </div>
+            <span class="mock-stamp" style="color: var(--blue-700); border-color: var(--paper-300)">Bounded depth · 1</span>
+          </div>
+
+          <p class="api-label">Demo fixture · planned POST /relations/query</p>
+          <div class="relation-board" aria-label="TEAE 关系图示意">
+            <svg viewBox="0 0 1000 440" preserveAspectRatio="none" aria-hidden="true">
+              <line x1="450" y1="185" x2="180" y2="95" />
+              <line x1="450" y1="185" x2="815" y2="105" />
+              <line x1="450" y1="185" x2="245" y2="335" />
+              <line x1="450" y1="185" x2="790" y2="340" />
+            </svg>
+            <div class="node node-central">
+              <strong>TEAE Flag</strong>
+              <span>KU-ADAE-TEAE-001</span>
+            </div>
+            <div class="node node-a">
+              <strong>ASTDT</strong>
+              <span>depends_on · EV-102</span>
+            </div>
+            <div class="node node-b">
+              <strong>TRTSDT</strong>
+              <span>depends_on · EV-118</span>
+            </div>
+            <div class="node node-c">
+              <strong>ADAE</strong>
+              <span>applies_to · EV-091</span>
+            </div>
+            <div class="node node-d">
+              <strong>Treatment window</strong>
+              <span>qualified_by · EV-121</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="page" data-page="query" aria-labelledby="query-title">
+          <div class="page-head">
+            <div>
+              <div class="folio">05 / Retrieval laboratory</div>
+              <h1 id="query-title">答案之前，先看召回。</h1>
+              <p class="page-lede">
+                Query Lab 展示 metadata、FTS、vector 和 relation 四路贡献。只查询 released revision；通道降级必须显式，不由前端重算 rank。
+              </p>
+            </div>
+          </div>
+
+          <div class="flow-register" aria-label="知识生命周期">
+            <div class="flow-step is-done">
+              <span class="flow-index">01</span>
+              <span class="flow-name">来源登记</span>
+              <span class="flow-status">Completed</span>
+            </div>
+            <div class="flow-step is-done">
+              <span class="flow-index">02</span>
+              <span class="flow-name">文档处理</span>
+              <span class="flow-status">Completed</span>
+            </div>
+            <div class="flow-step is-done">
+              <span class="flow-index">03</span>
+              <span class="flow-name">人工治理</span>
+              <span class="flow-status">Released items only</span>
+            </div>
+            <div class="flow-step is-current">
+              <span class="flow-index">04</span>
+              <span class="flow-name">检索评估</span>
+              <span class="flow-status">Degraded: vector stale</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-index">05</span>
+              <span class="flow-name">正式发布</span>
+              <span class="flow-status">Current 0.9.4</span>
+            </div>
+          </div>
+
+          <div class="query-box">
+            <p class="api-label">Demo fixture · planned POST /queries</p>
+            <div class="query-form">
+              <input
+                id="queryInput"
+                value="持续至数据截止日的 AE，结束信息应该如何表达？"
+                aria-label="检索问题"
+              />
+              <button class="button button-blue" type="button" id="runQuery">运行检索</button>
+            </div>
+            <div class="query-hints" aria-label="示例问题">
+              <button class="query-hint" type="button">TEAE 定义依赖哪些日期？</button>
+              <button class="query-hint" type="button">AESTDTC 与 ASTDTF 的边界</button>
+              <button class="query-hint" type="button">不存在的 sponsor 规则</button>
+            </div>
+            <div class="degraded">
+              DEGRADED · vector index 使用上一 parser profile（docling-eval.1）。结果仍包含 metadata/FTS/relation 贡献，不伪装为完整召回。
+            </div>
+          </div>
+
+          <div class="query-layout" style="margin-top: 18px">
+            <div class="result-list" id="queryResults" aria-live="polite">
+              <article class="result-card">
+                <div class="result-head">
+                  <div>
+                    <span class="status status-released">Released · rel-2026.07-demo</span>
+                    <h3>持续中不良事件的结束信息表达</h3>
+                    <span class="mono">KU-SDTM-AE-017 · revision 04</span>
+                  </div>
+                  <span class="rank">.94</span>
+                </div>
+                <p class="result-claim">
+                  持续至数据截止日的不良事件应保留采集到的日期精度；可使用 AEENRF 表示相对参考期的结束状态，不应以插补日期覆盖原始采集值。
+                </p>
+                <div class="citation">
+                  <span>CITATION</span>
+                  <code>SDTMIG 3.4 · p.290 · §6.2 · paragraph 04 · source hash 4a9c…8b20</code>
+                </div>
+              </article>
+              <article class="result-card">
+                <div class="result-head">
+                  <div>
+                    <span class="status status-released">Released · rel-2026.07-demo</span>
+                    <h3>Collected value 与 derivation 的追溯边界</h3>
+                    <span class="mono">KU-TRACE-006 · revision 02</span>
+                  </div>
+                  <span class="rank">.81</span>
+                </div>
+                <p class="result-claim">
+                  采集值与派生值必须分离记录；任何日期插补都应保留规则、输入、输出和 source record traceability。
+                </p>
+                <div class="citation">
+                  <span>CITATION</span>
+                  <code>SDTMIG 3.4 · p.290 · §6.2 · paragraph 05 · source hash 4a9c…8b20</code>
+                </div>
+              </article>
+            </div>
+
+            <aside class="lane-panel" aria-labelledby="lane-title">
+              <h2 id="lane-title">召回通道</h2>
+              <p>分值与最终顺序来自 API fixture；前端仅负责展示。</p>
+              <div class="lane">
+                <div class="lane-head"><span>Metadata</span><span>0.98</span></div>
+                <div class="lane-track"><div class="lane-fill" style="--score: 98%"></div></div>
+              </div>
+              <div class="lane">
+                <div class="lane-head"><span>Full-text</span><span>0.87</span></div>
+                <div class="lane-track"><div class="lane-fill" style="--score: 87%"></div></div>
+              </div>
+              <div class="lane is-degraded">
+                <div class="lane-head"><span>Vector · stale</span><span>0.62</span></div>
+                <div class="lane-track"><div class="lane-fill" style="--score: 62%"></div></div>
+              </div>
+              <div class="lane">
+                <div class="lane-head"><span>Relation</span><span>0.76</span></div>
+                <div class="lane-track"><div class="lane-fill" style="--score: 76%"></div></div>
+              </div>
+              <div class="ledger-note">
+                Candidate 和 approved-but-unreleased revision 均未进入本次结果。
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <section class="page" data-page="evaluation" aria-labelledby="evaluation-title">
+          <div class="page-head">
+            <div>
+              <div class="folio">06 / Evaluation</div>
+              <h1 id="evaluation-title">质量必须能重放。</h1>
+              <p class="page-lede">
+                D0 只冻结 Evaluation 的信息结构；真正的 Gold Set、Recall@K 和 citation accuracy 将在 P5 由版本化运行产生。
+              </p>
+            </div>
+          </div>
+          <div class="scope-state">
+            <div class="scope-inner">
+              <span class="scope-number">06</span>
+              <h2>Evaluation 数据尚未进入 D0</h2>
+              <p>
+                这里不会虚构生产指标。当前只确认未来页面需要 suite version、case-level expected evidence、四路召回 breakdown、回归差异和失败原因。
+              </p>
+              <span class="mock-stamp" style="color: var(--ink-700); border-color: var(--paper-300)">Planned in P5</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="page" data-page="releases" aria-labelledby="release-title">
+          <div class="page-head">
+            <div>
+              <div class="folio">07 / Release center</div>
+              <h1 id="release-title">批准之后，仍有一道门。</h1>
+              <p class="page-lede">
+                Review-approved 只代表治理完成。Release Manager 还必须验证证据、职责分离、评估和对象 hash，才能生成不可变 release。
+              </p>
+            </div>
+            <span class="status status-blocked" id="releasePageStatus">Release blocked</span>
+          </div>
+
+          <div class="flow-register" aria-label="知识生命周期">
+            <div class="flow-step is-done">
+              <span class="flow-index">01</span>
+              <span class="flow-name">来源登记</span>
+              <span class="flow-status">Completed</span>
+            </div>
+            <div class="flow-step is-done">
+              <span class="flow-index">02</span>
+              <span class="flow-name">文档处理</span>
+              <span class="flow-status">Completed</span>
+            </div>
+            <div class="flow-step is-done">
+              <span class="flow-index">03</span>
+              <span class="flow-name">人工治理</span>
+              <span class="flow-status" id="releaseReviewFlow">1 pending review</span>
+            </div>
+            <div class="flow-step is-blocked" id="releaseEvaluationStep">
+              <span class="flow-index">04</span>
+              <span class="flow-name">检索评估</span>
+              <span class="flow-status" id="releaseEvaluationFlow">1 regression failed</span>
+            </div>
+            <div class="flow-step is-current" id="releaseBuildStep">
+              <span class="flow-index">05</span>
+              <span class="flow-name">正式发布</span>
+              <span class="flow-status" id="releaseFlowStatus">Blocked by 2 gates</span>
+            </div>
+          </div>
+
+          <p class="api-label">Demo fixture · planned GET /releases/rel-2026.08-rc1</p>
+          <div class="release-layout">
+            <section class="panel" aria-labelledby="release-gates-title">
+              <div class="panel-head">
+                <h2 class="panel-title" id="release-gates-title">发布资格 Gate</h2>
+                <span class="panel-meta">FAIL CLOSED · 4 CHECKS</span>
+              </div>
+              <div class="gate-list" id="releaseGateList">
+                <div class="release-gate is-passed" data-release-gate="evidence">
+                  <span class="gate-icon">✓</span>
+                  <div>
+                    <h3>Evidence 与 citation 完整</h3>
+                    <p>28 / 28 revisions 可回溯 SourceVersion 与 locator。</p>
+                  </div>
+                  <span class="status status-passed">通过</span>
+                </div>
+                <div class="release-gate is-blocked" data-release-gate="review">
+                  <span class="gate-icon">!</span>
+                  <div>
+                    <h3>独立审核完整</h3>
+                    <p id="reviewGateCopy">KU-SDTM-AE-017 仍等待独立 Reviewer 决策。</p>
+                  </div>
+                  <span class="status status-blocked" id="reviewGateStatus">阻断</span>
+                </div>
+                <div class="release-gate is-blocked" data-release-gate="evaluation">
+                  <span class="gate-icon">!</span>
+                  <div>
+                    <h3>Gold Set 回归</h3>
+                    <p id="evaluationGateCopy">citation accuracy 低于 rc0 基线 2.1%。</p>
+                  </div>
+                  <span class="status status-blocked" id="evaluationGateStatus">阻断</span>
+                </div>
+                <div class="release-gate is-passed" data-release-gate="hash">
+                  <span class="gate-icon">✓</span>
+                  <div>
+                    <h3>Object manifest hash</h3>
+                    <p>Source、derived artifact 与 snapshot input 无漂移。</p>
+                  </div>
+                  <span class="status status-passed">通过</span>
+                </div>
+              </div>
+              <div class="panel-body">
+                <div class="button-row">
+                  <button class="button" type="button" id="rerunEvaluation">重放评估 Fixture</button>
+                  <button class="button" type="button" data-page-target="candidates">打开待审候选</button>
+                </div>
+              </div>
+            </section>
+
+            <aside class="manifest" aria-labelledby="manifest-title">
+              <div class="folio">Release manifest</div>
+              <h2 id="manifest-title">rel-2026.08-rc1</h2>
+              <dl>
+                <dt>DB schema revision</dt>
+                <dd>p12_demo_html_only</dd>
+                <dt>Knowledge contract</dt>
+                <dd>knowledge-contract.preview.1</dd>
+                <dt>Parser profile</dt>
+                <dd>docling-eval.2</dd>
+                <dt>Index manifest</dt>
+                <dd>idx-preview-4lane-001</dd>
+                <dt>Candidate count</dt>
+                <dd>28 revisions</dd>
+                <dt>Snapshot hash</dt>
+                <dd id="snapshotHash">not-built / blocked</dd>
+              </dl>
+              <button class="button button-blue" type="button" id="buildRelease">构建不可变 Release</button>
+            </aside>
+          </div>
+        </section>
+
+        <section class="page" data-page="audit" aria-labelledby="audit-title">
+          <div class="page-head">
+            <div>
+              <div class="folio">08 / Audit</div>
+              <h1 id="audit-title">每次状态跃迁都有凭据。</h1>
+              <p class="page-lede">
+                审计记录只读，保留 actor、action、object、revision、result 与 correlation ID；不显示 secret、受限正文或隐藏推理。
+              </p>
+            </div>
+          </div>
+          <p class="api-label">Demo fixture · planned GET /audit-events</p>
+          <div class="audit-list">
+            <div class="audit-event">
+              <time>2026-07-29 09:42</time>
+              <code>source.register</code>
+              <span>SRC-CDISC-SDTMIG-3-4 / version 3.4</span>
+              <span class="status status-approved">success</span>
+            </div>
+            <div class="audit-event">
+              <time>2026-07-29 10:07</time>
+              <code>run.retry</code>
+              <span>DPR-2026-0729-003 / checkpoint locator-normalization</span>
+              <span class="status status-review">accepted</span>
+            </div>
+            <div class="audit-event">
+              <time>2026-07-29 10:15</time>
+              <code>review.denied</code>
+              <span>Author attempted self-review / KU-SDTM-AE-017</span>
+              <span class="status status-blocked">denied</span>
+            </div>
+            <div class="audit-event">
+              <time>2026-07-29 10:22</time>
+              <code>release.blocked</code>
+              <span>rel-2026.08-rc1 / evaluation regression</span>
+              <span class="status status-blocked">blocked</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="page" data-page="admin" aria-labelledby="admin-title">
+          <div class="page-head">
+            <div>
+              <div class="folio">09 / Administration</div>
+              <h1 id="admin-title">身份外置，授权内置。</h1>
+              <p class="page-lede">
+                D0 仅展示角色切换以验证交互。真实生产将由 OIDC 提供身份，平台自身维护 Author、Reviewer、Release Manager、Consumer 与 Service Account 权限。
+              </p>
+            </div>
+          </div>
+          <div class="scope-state">
+            <div class="scope-inner">
+              <span class="scope-number">09</span>
+              <h2>管理面不在本次高保真切片</h2>
+              <p>
+                首版需要用户映射、角色、Service Account scope、OIDC 状态和 secret 单次显示。当前角色选择器仅用于模拟权限拒绝，不代表真实认证。
+              </p>
+              <span class="mock-stamp" style="color: var(--ink-700); border-color: var(--paper-300)">Planned in P1</span>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="sourceDialog" aria-labelledby="source-dialog-title">
+      <form method="dialog" id="sourceForm">
+        <div class="dialog-head">
+          <h2 id="source-dialog-title">登记新来源</h2>
+          <button class="dialog-close" type="submit" value="cancel" aria-label="关闭">×</button>
+        </div>
+        <div class="dialog-body">
+          <p class="ledger-note" style="margin-top: 0">
+            此操作只创建 SourceVersion fixture，不触发解析，也不会生成 Knowledge Unit。
+          </p>
+          <div class="field">
+            <label for="newSourceTitle">来源标题 <span>Required</span></label>
+            <input id="newSourceTitle" required value="CDISC Controlled Terminology" />
+          </div>
+          <div class="field">
+            <label for="newSourceVersion">版本 <span>Required</span></label>
+            <input id="newSourceVersion" required value="2026-06-27" />
+          </div>
+          <div class="field">
+            <label for="newSourceRights">权利声明 <span>Fail closed</span></label>
+            <select id="newSourceRights" required>
+              <option value="">请选择</option>
+              <option value="verified">已核验，仅内部证据用途</option>
+              <option value="restricted">受限，禁止进入生产发布</option>
+            </select>
+          </div>
+        </div>
+        <div class="dialog-actions">
+          <button class="button" type="submit" value="cancel">取消</button>
+          <button class="button button-primary" type="button" id="registerSource">创建 SourceVersion</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div class="toast-region" id="toastRegion" aria-live="polite" aria-label="操作反馈"></div>
+
+    <script>
+      (() => {
+        "use strict";
+
+        const validPages = new Set([
+          "sources",
+          "processing",
+          "candidates",
+          "relations",
+          "query",
+          "evaluation",
+          "releases",
+          "audit",
+          "admin",
+        ]);
+
+        const state = {
+          activePage: "sources",
+          role: "author",
+          runStatus: "failed",
+          candidateStatus: "author_confirmation_required",
+          evaluationPassed: false,
+          releaseBuilt: false,
+        };
+
+        const $ = (selector, root = document) => root.querySelector(selector);
+        const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
+
+        function showToast(title, message, type = "success") {
+          const region = $("#toastRegion");
+          const toast = document.createElement("div");
+          toast.className = `toast${type === "error" ? " is-error" : ""}`;
+          toast.innerHTML = `
+            <span class="toast-marker" aria-hidden="true"></span>
+            <div><strong>${title}</strong><p>${message}</p></div>
+            <button type="button" aria-label="关闭通知">×</button>
+          `;
+          $("button", toast).addEventListener("click", () => toast.remove());
+          region.appendChild(toast);
+          window.setTimeout(() => toast.remove(), 5200);
+        }
+
+        function navigate(page, { updateHash = true } = {}) {
+          if (!validPages.has(page)) page = "sources";
+          state.activePage = page;
+          $$(".page").forEach((element) => {
+            element.classList.toggle("is-active", element.dataset.page === page);
+          });
+          $$(".nav-link").forEach((element) => {
+            const active = element.dataset.pageTarget === page;
+            element.classList.toggle("is-active", active);
+            if (active) element.setAttribute("aria-current", "page");
+            else element.removeAttribute("aria-current");
+          });
+          if (updateHash) history.replaceState(null, "", `#${page}`);
+          document.body.classList.remove("nav-open");
+          $("#mobileMenu").setAttribute("aria-expanded", "false");
+          const title = $(`[data-page="${page}"] h1`);
+          if (title) {
+            document.title = `${title.textContent.trim()} · Clinical Knowledge Ledger`;
+          }
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+
+        $$("[data-page-target]").forEach((element) => {
+          element.addEventListener("click", (event) => {
+            const target = event.currentTarget.dataset.pageTarget;
+            navigate(target);
+          });
+        });
+
+        $("#mobileMenu").addEventListener("click", () => {
+          const open = document.body.classList.toggle("nav-open");
+          $("#mobileMenu").setAttribute("aria-expanded", String(open));
+        });
+
+        document.addEventListener("click", (event) => {
+          if (
+            document.body.classList.contains("nav-open") &&
+            !event.target.closest(".sidebar") &&
+            !event.target.closest("#mobileMenu")
+          ) {
+            document.body.classList.remove("nav-open");
+            $("#mobileMenu").setAttribute("aria-expanded", "false");
+          }
+        });
+
+        function applyRole() {
+          state.role = $("#roleSelect").value;
+          const labels = {
+            author: "知识作者",
+            reviewer: "独立审核人",
+            "release-manager": "发布管理员",
+          };
+          showToast("演示角色已切换", `当前角色：${labels[state.role]}。真实权限仍应由后端判定。`);
+          renderCandidate();
+        }
+
+        $("#roleSelect").addEventListener("change", applyRole);
+
+        const sourceDetails = {
+          "SRC-CDISC-SDTMIG-3-4": ["SRC-CDISC-SDTMIG-3-4", "CDISC SDTM Implementation Guide"],
+          "SRC-CDISC-ADAMIG-1-3": ["SRC-CDISC-ADAMIG-1-3", "CDISC ADaM Implementation Guide"],
+          "SRC-FDA-SDTCG-2026": ["SRC-FDA-SDTCG-2026", "FDA Study Data Technical Conformance Guide"],
+          "SRC-ICH-E9-R1": ["SRC-ICH-E9-R1", "ICH E9 (R1) Addendum"],
+          "SRC-SYNTH-TEAE-001": ["SRC-SYNTH-TEAE-001", "Synthetic TEAE Evidence Pack"],
+        };
+
+        function selectSource(row) {
+          $$("[data-source-row]").forEach((item) => item.classList.remove("is-selected"));
+          row.classList.add("is-selected");
+          const details = sourceDetails[row.dataset.id];
+          $("#sourceDetailId").textContent = details[0];
+          $("#source-detail-title").textContent = details[1];
+        }
+
+        $$("[data-source-row]").forEach((row) => {
+          row.addEventListener("click", () => selectSource(row));
+          row.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              selectSource(row);
+            }
+          });
+        });
+
+        function filterSources() {
+          const query = $("#sourceSearch").value.trim().toLowerCase();
+          const type = $("#sourceTypeFilter").value;
+          $$("[data-source-row]").forEach((row) => {
+            const matchesQuery = row.textContent.toLowerCase().includes(query);
+            const matchesType = type === "all" || row.dataset.type === type;
+            row.hidden = !(matchesQuery && matchesType);
+          });
+        }
+
+        $("#sourceSearch").addEventListener("input", filterSources);
+        $("#sourceTypeFilter").addEventListener("change", filterSources);
+
+        $("#sourceExport").addEventListener("click", () => {
+          showToast("导出未执行", "D0 草案没有真实文件写入；未来由 GET /sources/export 返回审计下载。");
+        });
+
+        const sourceDialog = $("#sourceDialog");
+        $("#openSourceDialog").addEventListener("click", () => sourceDialog.showModal());
+        $("#registerSource").addEventListener("click", () => {
+          const title = $("#newSourceTitle").value.trim();
+          const version = $("#newSourceVersion").value.trim();
+          const rights = $("#newSourceRights").value;
+          if (!title || !version || !rights) {
+            showToast("登记被阻断", "标题、版本和权利声明都是必填项。", "error");
+            return;
+          }
+          sourceDialog.close();
+          showToast("SourceVersion 已创建（Fixture）", `${title} / ${version}。尚未启动处理，也未进入知识库。`);
+        });
+
+        function renderRun() {
+          const failed = state.runStatus === "failed";
+          const processing = state.runStatus === "processing";
+          const completed = state.runStatus === "author_confirmation_required";
+          const step4 = $('[data-step="4"]');
+          const step5 = $('[data-step="5"]');
+
+          step4.className = `step-row ${failed ? "is-failed" : processing ? "is-current" : "is-done"}`;
+          $(".step-marker", step4).textContent = failed ? "!" : processing ? "…" : "✓";
+          $(".step-proof", step4).textContent = failed
+            ? "attempt 02 · failed"
+            : processing
+              ? "attempt 03 · running"
+              : "attempt 03 · passed";
+
+          step5.className = `step-row ${completed ? "is-done" : processing ? "is-current" : ""}`;
+          $(".step-marker", step5).textContent = completed ? "✓" : processing ? "…" : "05";
+          $(".step-proof", step5).textContent = completed ? "318 candidates · manifest 2b71…" : processing ? "queued after step 04" : "not started";
+
+          $("#failureBox").hidden = !failed;
+          $("#runListStatus").className = `status ${failed ? "status-failed" : processing ? "status-processing" : "status-approved"}`;
+          $("#runListStatus").textContent = failed ? "失败" : processing ? "处理中" : "完成";
+          $("#runHeaderStatus").className = `status ${failed ? "status-failed" : processing ? "status-processing" : "status-approved"}`;
+          $("#runHeaderStatus").textContent = failed
+            ? "步骤失败 · 可恢复"
+            : processing
+              ? "离散任务执行中 · polling"
+              : "处理完成 · 等待作者确认";
+          $("#flowProcessingStatus").textContent = failed
+            ? "Failed at step 04"
+            : processing
+              ? "Retrying from checkpoint"
+              : "Author confirmation required";
+        }
+
+        $("#retryRun").addEventListener("click", () => {
+          state.runStatus = "processing";
+          renderRun();
+          showToast("重试已受理", "仅重新执行步骤 04–05；01–03 的 checkpoint 不会重复。");
+          window.setTimeout(() => {
+            state.runStatus = "author_confirmation_required";
+            renderRun();
+            showToast("处理完成", "已产生 318 个 Evidence Candidate，下一步需要作者确认。");
+          }, 950);
+        });
+
+        $("#copyRunId").addEventListener("click", async () => {
+          try {
+            await navigator.clipboard.writeText("DPR-2026-0729-003");
+            showToast("Run ID 已复制", "DPR-2026-0729-003");
+          } catch {
+            showToast("无法访问剪贴板", "当前浏览器可能禁止 file:// 页面写入剪贴板。", "error");
+          }
+        });
+
+        $("#newRunButton").addEventListener("click", () => {
+          showToast("启动被阻断", "D0 没有真实 POST /processing-runs；请选择已登记 SourceVersion 后由后端返回 202 + run_id。", "error");
+        });
+
+        function renderCandidate() {
+          const authorStage = state.candidateStatus === "author_confirmation_required";
+          const reviewStage = state.candidateStatus === "review_required";
+          const approvedStage = state.candidateStatus === "approved";
+
+          $("#candidatePageStatus").className = `status ${
+            approvedStage ? "status-approved" : reviewStage ? "status-review" : "status-queued"
+          }`;
+          $("#candidatePageStatus").textContent = approvedStage
+            ? "已批准 · 尚未发布"
+            : reviewStage
+              ? "等待独立审核"
+              : "等待作者确认";
+          $("#governanceFlowStatus").textContent = approvedStage
+            ? "Approved / not released"
+            : reviewStage
+              ? "Independent review"
+              : "Author confirmation";
+          $("#gateNumber").textContent = authorStage ? "1" : "2";
+          $("#gateTitle").textContent = authorStage ? "作者确认 Gate" : approvedStage ? "治理完成" : "独立审核 Gate";
+          $("#gateDescription").textContent = authorStage
+            ? "确认 claim、适用范围、locator 和关系建议忠于证据。"
+            : approvedStage
+              ? "Revision 已批准，但必须通过 Release Gate 才能进入生产检索。"
+              : "Reviewer 独立判断 evidence coverage、适用范围与关系是否可批准。";
+
+          const authorConfirm = $("#authorConfirm");
+          authorConfirm.disabled = !authorStage || state.role !== "author";
+          authorConfirm.textContent = authorStage
+            ? state.role === "author"
+              ? "确认并提交独立审核"
+              : "需要作者角色确认"
+            : "作者已确认";
+
+          $("#reviewApprove").disabled = approvedStage;
+          $("#requestChange").disabled = authorStage || approvedStage;
+          $$(
+            "#claimInput, #scopeInput, #locatorInput, .proposal input",
+          ).forEach((field) => {
+            field.disabled = !authorStage || state.role !== "author";
+          });
+          syncReviewGate();
+        }
+
+        $("#authorConfirm").addEventListener("click", () => {
+          if (state.role !== "author") {
+            showToast("角色不匹配", "只有 Candidate 作者可以执行第一道确认。", "error");
+            return;
+          }
+          state.candidateStatus = "review_required";
+          renderCandidate();
+          showToast("已提交独立审核", "Author confirmation 已记录；此 revision 尚未 approved，更没有 released。");
+        });
+
+        $("#reviewApprove").addEventListener("click", () => {
+          if (state.candidateStatus !== "review_required") {
+            showToast("审核尚未开放", "必须先完成作者确认。", "error");
+            return;
+          }
+          if (state.role !== "reviewer") {
+            showToast("作者自审被拒绝", "当前角色没有 Reviewer 权限；职责分离由后端状态机强制执行。", "error");
+            return;
+          }
+          state.candidateStatus = "approved";
+          renderCandidate();
+          showToast("Revision 已批准", "治理完成，但生产 API 仍不可见；请进入 Release Center。");
+        });
+
+        $("#requestChange").addEventListener("click", () => {
+          if (state.role !== "reviewer") {
+            showToast("权限不足", "只有独立审核人可以请求修改。", "error");
+            return;
+          }
+          state.candidateStatus = "author_confirmation_required";
+          renderCandidate();
+          showToast("已请求修改", "Candidate 返回作者确认状态，旧 decision 保留在 audit 中。");
+        });
+
+        $$(".query-hint").forEach((button) => {
+          button.addEventListener("click", () => {
+            $("#queryInput").value = button.textContent.trim();
+          });
+        });
+
+        $("#runQuery").addEventListener("click", () => {
+          const query = $("#queryInput").value.trim();
+          if (!query) {
+            showToast("请输入查询", "Query Lab 不会自动运行空问题。", "error");
+            return;
+          }
+          const button = $("#runQuery");
+          button.disabled = true;
+          button.textContent = "查询中…";
+          $("#queryResults").style.opacity = "0.45";
+          window.setTimeout(() => {
+            button.disabled = false;
+            button.textContent = "运行检索";
+            $("#queryResults").style.opacity = "1";
+            showToast("检索完成", "返回 2 个 released hits；vector 通道仍显式 degraded。");
+          }, 620);
+        });
+
+        function setGatePassed(name, copy) {
+          const gate = $(`[data-release-gate="${name}"]`);
+          gate.classList.remove("is-blocked");
+          gate.classList.add("is-passed");
+          $(".gate-icon", gate).textContent = "✓";
+          const status = $(".status", gate);
+          status.className = "status status-passed";
+          status.textContent = "通过";
+          if (copy) $("p", gate).textContent = copy;
+        }
+
+        function syncReviewGate() {
+          if (state.candidateStatus === "approved") {
+            setGatePassed("review", "28 / 28 revisions 具备独立 Reviewer decision；尚未构建 release。");
+            $("#releaseReviewFlow").textContent = "Review complete";
+          }
+          renderRelease();
+        }
+
+        function renderRelease() {
+          const reviewPassed = state.candidateStatus === "approved";
+          const allPassed = reviewPassed && state.evaluationPassed;
+          const evaluationStep = $("#releaseEvaluationStep");
+          const buildStep = $("#releaseBuildStep");
+          evaluationStep.className = `flow-step ${state.evaluationPassed ? "is-done" : "is-blocked"}`;
+          $("#releaseEvaluationFlow").textContent = state.evaluationPassed ? "Gold Set passed" : "1 regression failed";
+          buildStep.className = `flow-step ${state.releaseBuilt ? "is-done" : "is-current"}`;
+          $("#releasePageStatus").className = `status ${state.releaseBuilt ? "status-released" : allPassed ? "status-review" : "status-blocked"}`;
+          $("#releasePageStatus").textContent = state.releaseBuilt
+            ? "Released"
+            : allPassed
+              ? "Eligible for release"
+              : "Release blocked";
+          $("#releaseFlowStatus").textContent = state.releaseBuilt
+            ? "Immutable release built"
+            : allPassed
+              ? "All gates passed"
+              : `Blocked by ${Number(!reviewPassed) + Number(!state.evaluationPassed)} gate(s)`;
+          $("#buildRelease").disabled = state.releaseBuilt;
+          $("#buildRelease").textContent = state.releaseBuilt ? "Release 已构建" : "构建不可变 Release";
+          $("#currentReleaseChip").textContent = state.releaseBuilt
+            ? "CURRENT · rel-2026.08-rc1"
+            : "CURRENT · rel-2026.07-demo";
+        }
+
+        $("#rerunEvaluation").addEventListener("click", () => {
+          const button = $("#rerunEvaluation");
+          button.disabled = true;
+          button.textContent = "评估重放中…";
+          window.setTimeout(() => {
+            state.evaluationPassed = true;
+            setGatePassed("evaluation", "Gold Set 48 cases：Recall@5、citation accuracy 与 gap regression 全部通过。");
+            button.disabled = false;
+            button.textContent = "评估已通过";
+            renderRelease();
+            showToast("评估 Gate 已通过", "仍需确保独立审核完整，才能构建 release。");
+          }, 850);
+        });
+
+        $("#buildRelease").addEventListener("click", () => {
+          if (state.role !== "release-manager") {
+            showToast("需要发布管理员角色", "切换右上角角色后再构建；真实系统由后端 RBAC 拒绝。", "error");
+            return;
+          }
+          if (state.candidateStatus !== "approved" || !state.evaluationPassed) {
+            showToast("Release 被阻断", "独立审核与 Gold Set regression 必须全部通过。", "error");
+            return;
+          }
+          state.releaseBuilt = true;
+          $("#snapshotHash").textContent = "sha256:b724f1…cd903e";
+          renderRelease();
+          showToast("Immutable release 已构建（Fixture）", "rel-2026.08-rc1 现在才成为生产可消费知识。");
+        });
+
+        window.addEventListener("hashchange", () => {
+          navigate(location.hash.slice(1), { updateHash: false });
+        });
+
+        const initialPage = location.hash.slice(1);
+        navigate(validPages.has(initialPage) ? initialPage : "sources", { updateHash: !initialPage });
+        renderRun();
+        renderCandidate();
+        renderRelease();
+      })();
+    </script>
+  </body>
+</html>

@@ -1,4 +1,20 @@
+---
+phase_index: 1
+status: deferred
+created: 2026-06-22
+updated: 2026-07-29
+priority: 99
+estimated_rounds: 0
+depends_on: []
+tags:
+  - superseded
+  - historical
+syncs_to: []
+---
+
 # P1 风险收敛计划
+
+> **Superseded / 废弃（2026-07-29）**：用户已废弃 P12 之前的主线和子计划。本文只保留历史实施证据，不得恢复为当前执行流；当前唯一执行权威是 `plans/ongoing/P12-knowledge-application-platform.md`。
 
 > **执行状态（2026-07-14）**：本文件保留 P1-A/P1-B/P1-C 的实施证据，不再作为独立执行计划。原 P1-D/P1-E 已由 `plans/complete/P3-clinical-knowledge-workflow-platform.md` 的内部 P4 Gate 完成兼容处理，后续不得从本文另起并行执行流。
 

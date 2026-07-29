@@ -1,0 +1,105 @@
+:root {
+  color-scheme: light;
+  --ink-950: #13221e;
+  --ink-900: #192b26;
+  --ink-800: #253b34;
+  --ink-700: #3d534b;
+  --ink-500: #6e7e76;
+  --paper-50: #fbfaf5;
+  --paper-100: #f4f1e8;
+  --paper-200: #eae5d8;
+  --paper-300: #d9d1c0;
+  --blue-700: #1f5c78;
+  --blue-100: #deecf1;
+  --red-700: #a6402a;
+  --red-100: #f3ded7;
+  --olive-700: #53633f;
+  --olive-100: #e3e8d8;
+  --amber-700: #8a641e;
+  --amber-100: #f4e8c9;
+  --white: #fffef9;
+  --shadow: 0 18px 50px rgba(25, 43, 38, 0.09);
+  --sidebar-width: 256px;
+  --topbar-height: 72px;
+  --radius: 2px;
+  --serif: "Newsreader", Georgia, "Times New Roman", serif;
+  --sans: "Atkinson Hyperlegible", "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  background: var(--paper-100);
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  color: var(--ink-900);
+  background:
+    linear-gradient(rgba(28, 44, 38, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(28, 44, 38, 0.025) 1px, transparent 1px),
+    var(--paper-100);
+  background-size: 26px 26px;
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+body::before {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.16;
+  content: "";
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.12'/%3E%3C/svg%3E");
+  mix-blend-mode: multiply;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+a,
+select,
+input,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible,
+select:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid rgba(31, 92, 120, 0.3);
+  outline-offset: 3px;
+}
+
+button {
+  color: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

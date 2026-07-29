@@ -8,3 +8,5 @@
 - [Study 来源与最小信息边界](study-source-boundary.md) — 原始输入、derived/mapping/program/output 分层；SAS7BDAT 本地登记；目标产物 profile 取代全局 required source。
 - [P9.1 AE 规则治理边界](p9-rule-governance-boundary.md) — P5 已完成 Study-local Review Gate 与测试用 Wiki Release Gate；发布必须声明 `p9-poc-test-only`，不是生产正式知识。
 - [P9.1 Workbench 流程基线](p9-workbench-flow-baseline.md) — P9.1 已由用户关闭；保留 Runner/Review 边界及 prerelease schema 不污染 released bundle 的约束。
+- [P12 Knowledge Ledger 设计基线](p12-knowledge-ledger-design-baseline.md) — 已批准的颜色、排版、布局、状态语义与五段交互；P1 前端实现必须以该 HTML 为基线。
+- [P12 唯一计划权威](p12-plan-authority.md) — P12 是唯一可执行主线；D0+P1-P4、AI 候选→人工治理→发布流转及外部模型 API 边界已冻结，P1-P11 旧计划仅作只读追溯。

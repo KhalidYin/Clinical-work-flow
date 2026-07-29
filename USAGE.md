@@ -62,6 +62,26 @@ Set-Location ..
 
 代表性 gap 如 AEDECOD/MedDRA 编码、Controlled Terminology 深度抽取、CRF/EDC→SDTM 可执行编程指导和当前 Study 特定 AE 规则，必须由后续 P7 或 Study 审核补齐，不能由模型自行推断。
 
+### P12 Knowledge Ledger 前端（P1-A）
+
+P12 是当前唯一可执行主线；此前的 Workflow、Obsidian POC 等计划只作历史追溯。已批准的单文件设计基线仍是 `clinical-llm-wiki/frontend/index.html`，P1 React 产品骨架使用并行入口 `app.html`，在视觉与行为等价前不替换默认入口。
+
+```powershell
+Set-Location .\clinical-llm-wiki\frontend
+npm install
+npm run dev -- --host 127.0.0.1 --port 4173
+```
+
+浏览器打开 `http://127.0.0.1:4173/app.html#/sources?q=`。当前 Sources、Admin 和 App Shell 通过 `/api/prerelease/v1` 合同访问数据；开发模式由 MSW 提供同合同 fixture，尚未接通真实 Knowledge API、数据库、OIDC/RBAC 或 worker。MSW 不会在生产构建中自动启用，页面也不会把 fixture 状态声明为真实平台事实。
+
+提交前验证：
+
+```powershell
+npm run typecheck
+npm test
+npm run build
+```
+
 ## 3. 启动本地 Review Panel
 
 根目录轻量 Review Panel 是当前可直接使用的人工审核入口。它汇总根 `.review_queue/`、`clinical-llm-wiki/.review_queue/` 和 `clinical-studies/*/.review_queue/`，浏览器只提交 `queue_id/review_id`，不能传入磁盘路径。

@@ -1,0 +1,204 @@
+openapi: 3.1.0
+info:
+  title: Clinical Knowledge Ledger API
+  version: knowledge-api.prerelease.v1
+  description: >-
+    P12 P1 prerelease contract for App Shell, Source Registry and Admin identity mapping.
+    This contract does not authorize production data or expose Workflow/Agent/Project Memory fields.
+servers:
+  - url: /api/prerelease/v1
+paths:
+  /session:
+    get:
+      operationId: getSession
+      responses:
+        "200":
+          description: Authenticated platform identity and product role.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+  /health:
+    get:
+      operationId: getPlatformHealth
+      responses:
+        "200":
+          description: Explicit platform capability state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+  /releases/current:
+    get:
+      operationId: getCurrentRelease
+      responses:
+        "200":
+          description: Current immutable release pointer and index manifest.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentReleaseResponse"
+  /sources:
+    get:
+      operationId: listSources
+      responses:
+        "200":
+          description: Registered source versions; never inferred from object keys.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SourceCollectionResponse"
+  /admin/users:
+    get:
+      operationId: listPlatformUsers
+      responses:
+        "200":
+          description: Product authorization mapping; credentials and raw tokens are excluded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserCollectionResponse"
+        "403":
+          description: Actor lacks admin:read permission.
+components:
+  schemas:
+    ResponseMeta:
+      type: object
+      additionalProperties: false
+      required: [contractVersion, fixture, generatedAt]
+      properties:
+        contractVersion:
+          const: knowledge-api.prerelease.v1
+        fixture:
+          type: boolean
+        generatedAt:
+          type: string
+          format: date-time
+    Session:
+      type: object
+      additionalProperties: false
+      required: [actorId, displayName, role, organization, permissions]
+      properties:
+        actorId: { type: string }
+        displayName: { type: string }
+        role:
+          enum: [Admin, Knowledge Author, Knowledge Reviewer, Release Manager, Consumer]
+        organization: { type: string }
+        permissions:
+          type: array
+          items: { type: string }
+    PlatformHealth:
+      type: object
+      additionalProperties: false
+      required: [status, api, database, objectStore, semanticIndex, checkedAt]
+      properties:
+        status: { enum: [healthy, degraded] }
+        api: { $ref: "#/components/schemas/CapabilityState" }
+        database: { $ref: "#/components/schemas/CapabilityState" }
+        objectStore: { $ref: "#/components/schemas/CapabilityState" }
+        semanticIndex: { $ref: "#/components/schemas/CapabilityState" }
+        checkedAt: { type: string, format: date-time }
+    CapabilityState:
+      enum: [available, degraded, disabled]
+    CurrentRelease:
+      type: object
+      additionalProperties: false
+      required: [releaseId, version, status, indexVersion, releasedAt]
+      properties:
+        releaseId: { type: [string, "null"] }
+        version: { type: [string, "null"] }
+        status: { enum: [released, not_released] }
+        indexVersion: { type: [string, "null"] }
+        releasedAt: { type: [string, "null"], format: date-time }
+    SourceSummary:
+      type: object
+      additionalProperties: false
+      required: [sourceId, title, version, mediaType, rights, status, sourceHash, updatedAt]
+      properties:
+        sourceId: { type: string }
+        title: { type: string }
+        version: { type: string }
+        mediaType: { enum: [PDF, DOCX, XLSX, Markdown] }
+        rights: { enum: [licensed, internal, restricted] }
+        status:
+          enum: [registered, processing, candidate, approved, released, restricted, disabled]
+        sourceHash: { type: string }
+        updatedAt: { type: string, format: date-time }
+    PlatformUser:
+      type: object
+      additionalProperties: false
+      required: [userId, displayName, email, identitySource, roles, status, lastActiveAt]
+      properties:
+        userId: { type: string }
+        displayName: { type: string }
+        email: { type: string, format: email }
+        identitySource: { enum: [local-test, oidc] }
+        roles:
+          type: array
+          items:
+            enum: [Admin, Knowledge Author, Knowledge Reviewer, Release Manager, Consumer]
+        status: { enum: [active, disabled] }
+        lastActiveAt: { type: [string, "null"], format: date-time }
+    SourceCollection:
+      type: object
+      additionalProperties: false
+      required: [items, total, partial, warnings]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/SourceSummary" }
+        total: { type: integer, minimum: 0 }
+        partial: { type: boolean }
+        warnings:
+          type: array
+          items: { type: string }
+    UserCollection:
+      type: object
+      additionalProperties: false
+      required: [items, total, partial, warnings]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/PlatformUser" }
+        total: { type: integer, minimum: 0 }
+        partial: { type: boolean }
+        warnings:
+          type: array
+          items: { type: string }
+    SessionResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/Session" }
+    HealthResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/PlatformHealth" }
+    CurrentReleaseResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/CurrentRelease" }
+    SourceCollectionResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/SourceCollection" }
+    UserCollectionResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/UserCollection" }
+    Envelope:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data: {}
+        meta: { $ref: "#/components/schemas/ResponseMeta" }

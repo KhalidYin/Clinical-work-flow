@@ -932,3 +932,163 @@
 - `docs/dep/plans/ongoing/P11-ten-stage-production-validation-poc.md`
 - `docs/dep/PLAN.md`, `docs/dep/TASK_STATE.md`
 - `docs/dep/devlog/active/DEVLOG-R049-R088.md`
+
+---
+
+## 2026-07-29
+
+### R073 [21:02] [P12-knowledge-application-platform] D0: 交付 Evidence Ledger HTML 前端草案
+
+#### Done
+
+- 将 P12 从 backlog 切换为 ongoing，启动 D0 Demo Gate；P11 保持 deferred，既有 P11 草稿代码未修改。
+- 在 `clinical-llm-wiki/frontend/index.html` 交付无构建依赖的单文件 HTML 草案，未新增第三个产品目录或前端依赖。
+- 采用 Evidence Ledger 编辑式视觉：深墨导航、暖灰证据纸面、蓝色证据焦点、朱红阻断和橄榄批准；支持 reduced-motion 与窄屏 drawer。
+- 完成 Sources、非流式 Processing Runs、Candidate Review、Query Lab、Release Center 五段交互，并为 Relations、Evaluation、Audit、Admin 提供明确的 Demo 范围状态。
+- 验证 checkpoint retry、作者确认、作者自审拒绝、独立 Reviewer 批准、检索 degraded 状态、评估重放和 Release Manager 发布门禁。
+- 浏览器检查时发现 release 构建后阶段条与 current release 仍显示旧状态，已修正为统一状态投影。
+
+#### Issues / Blockers
+
+- D0 HTML 草案已完成，但用户尚未确认视觉方向、术语和任务闭环，因此 D0 继续保持 in-progress，P1 不解锁。
+- 原 `TASK_STATE.md` 指向已 deferred 的 P11；本轮按用户启动新主线的明确请求切换为 P12 D0 checkpoint，P11 代码草稿保持原样。
+- 工作区已有 `P1-RISK-REDUCTION-PLAN.md` 文件移动，不属于本轮，未修改。
+
+#### Validation
+
+- 静态检查：文件可解析加载、无重复 HTML `id`、核心九个页面区域存在，`git diff --check` 通过。
+- 桌面浏览器 1440×1000：Sources 与 Release Center 视觉检查通过。
+- 窄屏浏览器 390×844：导航收起、页面头、生命周期纵向布局和 Candidate Review 顺序布局通过。
+- 交互验证：Processing checkpoint retry 完成；作者自审明确拒绝；Reviewer 批准后 Release review Gate 自动更新；Gold Set fixture 重放后 Release Manager 可构建 immutable release。
+- 浏览器 console error/warning：0。
+
+#### Next
+
+1. 用户审阅 HTML 的信息架构、Evidence Ledger 视觉、中文术语和五段交互。
+2. 如有意见，继续在单文件草案中收敛；用户确认后再决定是否转换为 React/Vite + MSW。
+3. D0 未获用户确认前不得进入 P1 后端、数据库或 worker 开发。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/frontend/index.html`（新增，uncommitted）
+- `docs/dep/PLAN.md`, `docs/dep/plans/ongoing/P12-knowledge-application-platform.md`, `docs/dep/TASK_STATE.md`（更新，uncommitted）
+- `docs/dep/devlog/active/DEVLOG-R049-R088.md`, `docs/dep/devlog/INDEX.md`（更新，uncommitted）
+
+---
+
+### R074 [21:14] [P12-knowledge-application-platform] D0: 用户批准 HTML 为正式设计基线
+
+#### Done
+
+- 用户批准 Evidence Ledger HTML 草案作为正式设计基线，明确包含颜色、排版和样式设计。
+- 在 P12 中冻结设计权威、颜色/字体 token、布局密度和状态语义，并记录 D-UI-02：D0 使用单文件 HTML，React/Vite + MSW/OpenAPI 实现移至 P1。
+- D0 Gate 全部完成，Phase 状态改为 done；P1-P6 继续 pending，不因视觉验收自动启动。
+- 新增项目记忆 `p12-knowledge-ledger-design-baseline.md`，明确 HTML 是设计权威而非 API、权限、排名或数据权威。
+- D0 状态完成后删除 `TASK_STATE.md`，不为尚未获授权的 P1 建立活动 checkpoint。
+
+#### Issues / Blockers
+
+- P1 仍需用户明确授权；本次批准不包含 React 产品化、真实 API、数据库、worker、迁移或部署。
+- P11 G0 仍有未提交草稿，P12 进入 P1 Development 前必须按 D2 单独保留或清理，不能混入 P12 提交。
+- 工作区已有 `P1-RISK-REDUCTION-PLAN.md` 文件移动，不属于本轮，未修改。
+
+#### Validation
+
+- P12 frontmatter 继续为 ongoing，D0 为 done、P1 为 pending；PLAN 指针与 Gate 状态一致。
+- 设计基线项目记忆及索引链接已建立，D-UI-02 已标记用户批准。
+- `TASK_STATE.md` 已清理；`git diff --check` 通过。
+
+#### Next
+
+1. 由用户明确授权是否启动 P1；未授权时保持当前设计基线，不继续实现。
+2. 如获授权，P1 首个具体任务是将已批准 HTML 转换为 React/Vite + TanStack + MSW/OpenAPI 合同骨架并提取主题 token，不重新设计。
+3. P1 开始前先处理 P11 未提交 G0 草稿的污染风险，保持两个产品和提交边界清晰。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/frontend/index.html`（设计权威，内容未改）
+- `docs/dep/PLAN.md`, `docs/dep/plans/ongoing/P12-knowledge-application-platform.md`
+- `docs/main/memory/MEMORY.md`, `docs/main/memory/p12-knowledge-ledger-design-baseline.md`
+- `docs/dep/devlog/active/DEVLOG-R049-R088.md`, `docs/dep/devlog/INDEX.md`
+- `docs/dep/TASK_STATE.md`（删除）
+
+---
+
+### R075 [23:19] [P12-knowledge-application-platform] P1-A: 建立 React/Vite 前端与 prerelease API/MSW 骨架
+
+#### Done
+
+- 将 P12 固定为唯一可执行主线；用户明确废弃的 P1-P11 旧主线与子计划保留为只读历史，不删除审计证据，也不修改独立的 `clinical-workflow/` 产品代码。
+- 保留已批准的 `frontend/index.html` 设计权威，以 `app.html` 建立 React 19、TypeScript、Vite、TanStack Router/Query/Table 和 CSS Modules 产品骨架。
+- 从 D0 提取深墨、暖纸、证据蓝、阻断朱红、批准橄榄等 token；完成 `[KUI-01]` App Shell、Sources、`[KUI-09]` Admin，并给其余一级页面提供合同保留态而非伪造业务完成度。
+- 签入 `/api/prerelease/v1` OpenAPI 草案、TypeScript 合同、MSW fixture 与 mock service worker；应用事实、当前 release、身份和 sources 使用同一合同。
+- 覆盖 URL 可复现 source filter、默认/加载/空/错误/部分数据状态、Admin 角色信息、禁止回显凭据及 MSW 真实请求拦截。
+
+#### Issues / Blockers
+
+- P1-A 只完成前端和 prerelease 合同种子；真实 FastAPI、PostgreSQL/pgvector、Alembic、OIDC/RBAC、ObjectStore 和 worker 合同仍未完成，因此 P1 Gate 继续为 in-progress。
+- jsdom 与 Node/MSW 的 `AbortSignal` 来自不同 JavaScript realm；客户端增加运行时兼容检查，真实浏览器继续传递取消信号，测试 realm 不向原生 fetch 传递不兼容对象。
+- 首次重跑 `npm audit` 遇到 npm registry TLS 短暂中断；随后重试成功并返回 0 vulnerability，锁文件已签入。
+- `app.html` 暂不替换 D0 `index.html`；等真实 API 接入和设计等价性持续通过后再决定默认入口。
+
+#### Validation
+
+- `npm run typecheck`：通过。
+- `npm test`：2 个测试文件、7 项测试通过。
+- `npm run build`：Vite 生产构建通过，411 modules，JS gzip 约 117.34 kB。
+- `npm audit --audit-level=high`：通过，0 vulnerability。
+- OpenAPI YAML：可解析；`/api/prerelease/v1` 下 5 条 prerelease 路径与前端合同一致。
+- 浏览器 1440×1000：Sources、URL filter 与 Admin 路由通过；390×844：导航 drawer、Sources 横向表格与 Admin 自动收起通过。
+
+#### Next
+
+1. P1-B 建立 PostgreSQL/pgvector + SQLAlchemy 2/psycopg 3/Alembic 的唯一结构化权威、显式 migration 和 clean apply/re-apply 测试。
+2. P1-C 再建立 IdentityProviderPort、产品 RBAC、worker 最小权限合同和真实 FastAPI prerelease 路由，按合同逐步替换 MSW。
+3. P1 Gate 关闭前不启动 P2 文档解析/拆分任务，也不引入 GraphRAG、图数据库、消息队列或流式 transport。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/frontend/`（新增 React/Vite 产品骨架、测试与 MSW）
+- `clinical-llm-wiki/schemas/application/knowledge-api.prerelease.yaml`
+- `USAGE.md`
+- `docs/dep/PLAN.md`, `docs/dep/plans/ongoing/P12-knowledge-application-platform.md`
+- `docs/main/memory/MEMORY.md`, `docs/main/memory/p12-knowledge-ledger-design-baseline.md`, `docs/main/memory/p12-plan-authority.md`
+- `docs/dep/devlog/active/DEVLOG-R049-R088.md`, `docs/dep/devlog/INDEX.md`
+- `docs/dep/TASK_STATE.md`（完成后删除）
+
+---
+
+### R076 [23:50] [P12-knowledge-application-platform] Plan: 收束 AI 知识生产、外部模型与四阶段主线
+
+#### Done
+
+- 将知识流转明确为 Source → SourceVersion → SourceArtifact → Evidence → KnowledgeCandidate → KnowledgeRevision → ReleasedKnowledge；chunk 只作为可重建派生物，不作为知识权威。
+- 将异步语义细化为 PostgreSQL durable ledger 驱动的非线性作业 DAG：支持解析/增强分支、fan-in、局部重试、checkpoint、人工暂停与指定 step 返工，不引入流式 pipeline 或 Agent graph。
+- 冻结外部模型 API 方案：产品自有 `ModelProviderPort` 后使用 embedded LiteLLM Python SDK；不部署本地 LLM 或 LiteLLM Proxy，所有调用 `stream=false`、结构化输出、数据边界 fail closed，重试/换模型形成显式 StepAttempt。
+- 将原 P2-P6 收束为 P2 AI 知识生产、P3 检索/评估/发布、P4 产品闭环/迁移/部署；D0 与 P1-A 完成状态、完整 KUI-01..10、迁移、审核、评估、发布和运维 Gate 全部保留。
+- 把下一具体任务调整为 P1-B0：先冻结 ModelProfile、PromptProfile、ModelInvocation、出站策略和 ledger-owned retry 合同，再开展 P1-B 数据库迁移，避免后续字段返工。
+
+#### Issues / Blockers
+
+- P1-B0/P1-B/P1-C 尚未实现，P1 Gate 仍为 in-progress；本轮仅修订唯一主计划、索引与项目记忆，没有启动后端开发。
+- embedded LiteLLM 只解决多供应商调用适配，不解决业务重试、授权、知识建模、评估或发布；这些仍由平台自有合同和 ledger 管理。
+- 真实来源是否可发往外部模型受 rights 与数据边界约束；`local_processing_only` 或 `prohibited` 来源会在 Evidence 后停住，不能因 Demo 方便绕过。
+
+#### Validation
+
+- P12 只保留 D0、P1、P2、P3、P4 五个顶层 Gate；PLAN 与 memory 均指向 P1-B0。
+- 原完整 KUI-01..10 矩阵、D0 设计权威、PostgreSQL/ObjectStore 单一权威、Alembic 迁移、三类 worker、Gold Set、immutable release、legacy crosswalk 与部署验收仍在计划中。
+- P1-P11 旧计划继续仅作只读追溯；P12 frontmatter 不再把旧 P6 声明为可执行依赖。
+
+#### Next
+
+1. 执行 P1-B0：定义 ModelProviderPort、Model/Prompt/Invocation 和数据出站策略 schema，并用 fake/replay adapter 验证结构化输出、错误与显式 StepAttempt。
+2. P1-B0 Gate 通过后执行 P1-B：建立 PostgreSQL/pgvector、SQLAlchemy 2/psycopg 3/Alembic migration 和 canonical 字段。
+3. 主要风险是供应商能力差异、受限文档出站和 SDK 静默 fallback；三者必须在真实抽取前通过合同与负向测试关闭。
+
+#### Files Changed / Commits
+
+- `docs/dep/plans/ongoing/P12-knowledge-application-platform.md`
+- `docs/dep/PLAN.md`
+- `docs/main/memory/MEMORY.md`, `docs/main/memory/p12-plan-authority.md`
+- `docs/dep/devlog/active/DEVLOG-R049-R088.md`, `docs/dep/devlog/INDEX.md`
