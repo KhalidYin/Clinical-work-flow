@@ -1,5 +1,5 @@
 ---
-updated: 2026-07-29
+updated: 2026-07-30
 ---
 
 # 项目计划
@@ -8,13 +8,13 @@ updated: 2026-07-29
 
 | # | 当前 Gate | 子计划 | 状态 |
 |---|----------|--------|------|
-| P12 | P1 产品基础、模型合同、迁移与权限基线 | [P12-knowledge-application-platform.md](plans/ongoing/P12-knowledge-application-platform.md) | P1 in-progress · P1-A 前端骨架已完成 · 下一步 P1-B0 |
+| P12 | P1 产品基础、模型合同、迁移与权限基线 | [P12-knowledge-application-platform.md](plans/ongoing/P12-knowledge-application-platform.md) | P1 in-progress · P1-A/P1-B0 已完成 · 下一步 P1-B |
 
 ## 待开始
 
 P12 P2-P4 保持 pending；必须逐 Phase 通过 Gate，不能因 P1 启动而提前进入知识抽取、发布或迁移部署。
 
-P12 是唯一可执行主线：D0 Evidence Ledger HTML 是颜色、排版、布局、状态语义和核心交互基线；P1 已获用户授权，在 `clinical-llm-wiki/` 原地建设产品骨架。P1-A 已完成 React/Vite、KUI-01/KUI-09、prerelease OpenAPI/MSW 和浏览器基线。计划现收束为四个实施 Phase：P1 产品基础，P2 AI 知识生产，P3 检索/评估/发布，P4 产品闭环/迁移/部署。下一切片是 P1-B0，先冻结外部模型 API、数据边界和显式 StepAttempt 合同，再做 P1-B 数据库迁移。Workflow、Agent Runtime 和 Project Memory Service 不在当前开发周期，只保留接口边界。
+P12 是唯一可执行主线：D0 Evidence Ledger HTML 是颜色、排版、布局、状态语义和核心交互基线；P1 已获用户授权，在 `clinical-llm-wiki/` 原地建设产品骨架。P1-A 已完成 React/Vite、KUI-01/KUI-09、prerelease OpenAPI/MSW 和浏览器基线；P1-B0 已冻结外部模型 API、数据边界、结构化输出和显式 StepAttempt 合同。计划现收束为四个实施 Phase：P1 产品基础，P2 AI 知识生产，P3 检索/评估/发布，P4 产品闭环/迁移/部署。下一切片是 P1-B，以冻结合同建立 PostgreSQL/pgvector、SQLAlchemy/psycopg/Alembic 迁移基线。Workflow、Agent Runtime 和 Project Memory Service 不在当前开发周期，只保留接口边界。
 
 ## 最近完成
 

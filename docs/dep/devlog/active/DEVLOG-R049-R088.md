@@ -1092,3 +1092,52 @@
 - `docs/dep/PLAN.md`
 - `docs/main/memory/MEMORY.md`, `docs/main/memory/p12-plan-authority.md`
 - `docs/dep/devlog/active/DEVLOG-R049-R088.md`, `docs/dep/devlog/INDEX.md`
+
+---
+
+## 2026-07-30
+
+### R077 [00:24] [P12-knowledge-application-platform] P1-B0: 冻结外部模型调用与审计合同
+
+#### Done
+
+- 以 TDD 建立产品自有 `ModelProviderPort`、严格 Pydantic request/invocation 模型和 checked-in Draft 2020-12 prerelease JSON Schema。
+- 冻结版本化 ModelProfile、PromptProfile、output schema hash、四类 data boundary 和 ledger-owned StepAttempt lineage；retry、换模型或换 profile 不能复用旧 attempt。
+- 实现 embedded LiteLLM 单次调用 adapter：`stream=false`、`num_retries=0`、无 Router/fallback、严格 JSON Schema 输出，并记录 provider request ID、token、cost、latency 与输入/输出 hash。
+- timeout、rate limit、provider error 与非法结构化输出 fail closed；审计只保存脱敏错误分类，不保留供应商原始异常链、secret 或 chain-of-thought。
+- 提供无网络 `FakeModelProvider` 和 exact input-hash `ReplayModelProvider`；replay miss 不允许转为 live fallback。
+- 把 LiteLLM 固定为 `models` optional extra，并同步 Wiki README、USAGE、SPEC-13、P12、PLAN 与项目记忆；P1 仍为 in-progress，下一切片为 P1-B 数据库迁移。
+
+#### Issues / Blockers
+
+- 共享 Python 已安装 `browser-use` 并锁定旧 OpenAI SDK，而 LiteLLM 1.94 要求更高 OpenAI 版本；试装暴露冲突后已卸载 LiteLLM并恢复 OpenAI 2.16.0。live adapter 必须在项目 `.venv` 安装，不能污染共享 Python。
+- 当前共享 Python 的 `pip check` 仍报告其既有 browser-use/pypdf/rich/pytest 版本冲突；同时 Click 已是包含安全修复的新版本、与 browser-use 的精确旧 pin 不同。该共享环境不能作为 P12 部署验收环境。
+- Wiki 全量回归有 18 个既有失败：受限 SDTMIG 原件/derived map 缺失、历史 accession hash 与生成物漂移；本切片未修改 `sources/`、`snapshots/`、`vault/`、旧 content scripts 或对应测试，故不在 P1-B0 中重生成历史资产。
+- 本轮结束时 npm audit 两次因 registry TLS 连接中断无法重跑；首次基线提交前同一 lock 已审计为 0 vulnerability，且 P1-B0 未修改任何 npm 文件。
+
+#### Validation
+
+- `python -m pytest tests/test_model_provider_contract.py -q`：18 passed。
+- `python -m ruff check .`：全 Wiki 通过。
+- prerelease JSON Schema：Draft 2020-12 schema validation 通过，checked-in 文件与运行模型精确一致。
+- Wiki 全量：155 passed、18 failed、3 skipped；失败范围全部为上述既有受限资产/hash/生成物问题，与本切片文件无交集。
+- 前端回归：typecheck 通过；2 个测试文件、7 项测试通过；Vite build 通过（411 modules，JS gzip 约 117.34 kB）。
+- `git diff --check` 通过；所有模型测试使用注入 callable/fake/replay，未配置 API Key，未发起真实供应商调用。
+
+#### Next
+
+1. 执行 P1-B：以冻结的 ModelInvocation、Profile、StepAttempt 与 data-boundary 字段建立 PostgreSQL/pgvector canonical schema。
+2. 先写 Alembic clean apply/upgrade/downgrade/re-apply 失败测试，再实现 SQLAlchemy 2/psycopg 3 migration；应用启动禁止 `create_all`。
+3. 主要风险是把业务 migration、legacy Wiki migration 和长数据 backfill 混成一个入口，以及在 DB schema 中误存 secret、供应商 URL 或绝对文件路径。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/service/processing/`
+- `clinical-llm-wiki/schemas/application/model-provider.prerelease.schema.json`
+- `clinical-llm-wiki/tests/test_model_provider_contract.py`
+- `clinical-llm-wiki/pyproject.toml`, `clinical-llm-wiki/README.md`
+- `USAGE.md`, `docs/specs/13-Environment-Files.md`
+- `docs/dep/PLAN.md`, `docs/dep/plans/ongoing/P12-knowledge-application-platform.md`
+- `docs/main/memory/p12-plan-authority.md`
+- `docs/dep/devlog/active/DEVLOG-R049-R088.md`, `docs/dep/devlog/INDEX.md`
+- commit/push：待本轮门禁后完成

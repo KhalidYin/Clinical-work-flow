@@ -1,0 +1,470 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://clinical.example/schemas/model-provider.prerelease.schema.json",
+  "title": "P12 Model Provider Prerelease Contract",
+  "$defs": {
+    "DataBoundary": {
+      "enum": [
+        "local_processing_only",
+        "enterprise_provider_only",
+        "external_allowed",
+        "prohibited"
+      ],
+      "title": "DataBoundary",
+      "type": "string"
+    },
+    "DeploymentClass": {
+      "enum": [
+        "enterprise_managed",
+        "external_api"
+      ],
+      "title": "DeploymentClass",
+      "type": "string"
+    },
+    "InvocationErrorType": {
+      "enum": [
+        "timeout",
+        "rate_limit",
+        "structured_output_invalid",
+        "provider_error"
+      ],
+      "title": "InvocationErrorType",
+      "type": "string"
+    },
+    "InvocationStatus": {
+      "enum": [
+        "succeeded",
+        "failed",
+        "replayed"
+      ],
+      "title": "InvocationStatus",
+      "type": "string"
+    },
+    "ModelCapability": {
+      "enum": [
+        "structured_generation",
+        "embedding"
+      ],
+      "title": "ModelCapability",
+      "type": "string"
+    },
+    "ModelInvocation": {
+      "additionalProperties": false,
+      "description": "Auditable facts for exactly one provider call; no chain-of-thought.",
+      "properties": {
+        "invocation_id": {
+          "title": "Invocation Id",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "attempt": {
+          "$ref": "#/$defs/StepAttemptContext"
+        },
+        "status": {
+          "$ref": "#/$defs/InvocationStatus"
+        },
+        "model_profile_id": {
+          "title": "Model Profile Id",
+          "type": "string"
+        },
+        "model_profile_version": {
+          "title": "Model Profile Version",
+          "type": "string"
+        },
+        "provider": {
+          "title": "Provider",
+          "type": "string"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "prompt_profile_id": {
+          "title": "Prompt Profile Id",
+          "type": "string"
+        },
+        "prompt_profile_version": {
+          "title": "Prompt Profile Version",
+          "type": "string"
+        },
+        "output_schema_sha256": {
+          "title": "Output Schema Sha256",
+          "type": "string"
+        },
+        "data_boundary": {
+          "$ref": "#/$defs/DataBoundary"
+        },
+        "input_sha256": {
+          "title": "Input Sha256",
+          "type": "string"
+        },
+        "output_sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output Sha256"
+        },
+        "provider_request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provider Request Id"
+        },
+        "token_usage": {
+          "$ref": "#/$defs/TokenUsage"
+        },
+        "cost_usd": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cost Usd"
+        },
+        "latency_ms": {
+          "minimum": 0,
+          "title": "Latency Ms",
+          "type": "integer"
+        },
+        "output": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output"
+        },
+        "error_type": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InvocationErrorType"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "error_message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error Message"
+        }
+      },
+      "required": [
+        "attempt",
+        "status",
+        "model_profile_id",
+        "model_profile_version",
+        "provider",
+        "model",
+        "prompt_profile_id",
+        "prompt_profile_version",
+        "output_schema_sha256",
+        "data_boundary",
+        "input_sha256",
+        "latency_ms"
+      ],
+      "title": "ModelInvocation",
+      "type": "object"
+    },
+    "ModelMessage": {
+      "additionalProperties": false,
+      "properties": {
+        "role": {
+          "pattern": "^(user|assistant)$",
+          "title": "Role",
+          "type": "string"
+        },
+        "content": {
+          "minLength": 1,
+          "title": "Content",
+          "type": "string"
+        }
+      },
+      "required": [
+        "role",
+        "content"
+      ],
+      "title": "ModelMessage",
+      "type": "object"
+    },
+    "ModelProfile": {
+      "additionalProperties": false,
+      "description": "Versioned model configuration containing references, never secret values.",
+      "properties": {
+        "profile_id": {
+          "minLength": 1,
+          "title": "Profile Id",
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        },
+        "provider": {
+          "minLength": 1,
+          "title": "Provider",
+          "type": "string"
+        },
+        "model": {
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "deployment_class": {
+          "$ref": "#/$defs/DeploymentClass"
+        },
+        "secret_ref": {
+          "pattern": "^(env|secret)://[A-Za-z0-9_./-]+$",
+          "title": "Secret Ref",
+          "type": "string"
+        },
+        "endpoint_ref": {
+          "anyOf": [
+            {
+              "pattern": "^(env|secret)://[A-Za-z0-9_./-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Endpoint Ref"
+        },
+        "allowed_data_boundaries": {
+          "items": {
+            "$ref": "#/$defs/DataBoundary"
+          },
+          "minItems": 1,
+          "title": "Allowed Data Boundaries",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "capabilities": {
+          "items": {
+            "$ref": "#/$defs/ModelCapability"
+          },
+          "minItems": 1,
+          "title": "Capabilities",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "timeout_seconds": {
+          "default": 60,
+          "maximum": 600,
+          "minimum": 1,
+          "title": "Timeout Seconds",
+          "type": "integer"
+        },
+        "max_output_tokens": {
+          "default": 4096,
+          "minimum": 1,
+          "title": "Max Output Tokens",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "profile_id",
+        "version",
+        "provider",
+        "model",
+        "deployment_class",
+        "secret_ref",
+        "allowed_data_boundaries",
+        "capabilities"
+      ],
+      "title": "ModelProfile",
+      "type": "object"
+    },
+    "ModelRequest": {
+      "additionalProperties": false,
+      "description": "One provider call owned by one durable ledger attempt.",
+      "properties": {
+        "attempt": {
+          "$ref": "#/$defs/StepAttemptContext"
+        },
+        "model_profile": {
+          "$ref": "#/$defs/ModelProfile"
+        },
+        "prompt_profile": {
+          "$ref": "#/$defs/PromptProfile"
+        },
+        "data_boundary": {
+          "$ref": "#/$defs/DataBoundary"
+        },
+        "messages": {
+          "items": {
+            "$ref": "#/$defs/ModelMessage"
+          },
+          "minItems": 1,
+          "title": "Messages",
+          "type": "array"
+        }
+      },
+      "required": [
+        "attempt",
+        "model_profile",
+        "prompt_profile",
+        "data_boundary",
+        "messages"
+      ],
+      "title": "ModelRequest",
+      "type": "object"
+    },
+    "PromptProfile": {
+      "additionalProperties": false,
+      "description": "Versioned prompt and output schema used for one processing capability.",
+      "properties": {
+        "profile_id": {
+          "minLength": 1,
+          "title": "Profile Id",
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        },
+        "system_template": {
+          "minLength": 1,
+          "title": "System Template",
+          "type": "string"
+        },
+        "output_schema_id": {
+          "minLength": 1,
+          "title": "Output Schema Id",
+          "type": "string"
+        },
+        "output_schema": {
+          "additionalProperties": true,
+          "title": "Output Schema",
+          "type": "object"
+        }
+      },
+      "required": [
+        "profile_id",
+        "version",
+        "system_template",
+        "output_schema_id",
+        "output_schema"
+      ],
+      "title": "PromptProfile",
+      "type": "object"
+    },
+    "StepAttemptContext": {
+      "additionalProperties": false,
+      "description": "Ledger identity supplied by the worker; providers never create retries.",
+      "properties": {
+        "run_id": {
+          "minLength": 1,
+          "title": "Run Id",
+          "type": "string"
+        },
+        "step_id": {
+          "minLength": 1,
+          "title": "Step Id",
+          "type": "string"
+        },
+        "attempt_id": {
+          "minLength": 1,
+          "title": "Attempt Id",
+          "type": "string"
+        },
+        "attempt_number": {
+          "minimum": 1,
+          "title": "Attempt Number",
+          "type": "integer"
+        },
+        "previous_attempt_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Previous Attempt Id"
+        }
+      },
+      "required": [
+        "run_id",
+        "step_id",
+        "attempt_id",
+        "attempt_number"
+      ],
+      "title": "StepAttemptContext",
+      "type": "object"
+    },
+    "TokenUsage": {
+      "additionalProperties": false,
+      "properties": {
+        "prompt_tokens": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Prompt Tokens",
+          "type": "integer"
+        },
+        "completion_tokens": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Completion Tokens",
+          "type": "integer"
+        },
+        "total_tokens": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Total Tokens",
+          "type": "integer"
+        }
+      },
+      "title": "TokenUsage",
+      "type": "object"
+    }
+  },
+  "anyOf": [
+    {
+      "$ref": "#/$defs/ModelRequest"
+    },
+    {
+      "$ref": "#/$defs/ModelInvocation"
+    }
+  ]
+}

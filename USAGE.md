@@ -82,6 +82,36 @@ npm test
 npm run build
 ```
 
+### P12 外部模型合同（P1-B0）
+
+知识产品首版只预留外部模型 API，不部署本地生成模型或 LiteLLM Proxy。live adapter 位于
+`clinical-llm-wiki/service/processing/model_provider.py`，通过 embedded LiteLLM Python SDK
+完成供应商协议适配；业务重试、换模型和 fallback 不交给 SDK，每次动作必须由后续 PostgreSQL
+ledger 建立新的 StepAttempt。
+
+ModelProfile 只保存 `env://NAME` 或受控 Secret Store 引用，不保存实际密钥。SourceVersion 的
+数据边界必须是 `local_processing_only`、`enterprise_provider_only`、`external_allowed` 或
+`prohibited`；前两类限制和禁止项在解析证据出站前 fail closed。所有生成调用固定
+`stream=false` 并要求版本化 JSON Schema，非法结构化输出只产生脱敏失败记录，不能写入
+KnowledgeCandidate。
+
+P1-B0 的 fake/replay 合同测试不需要 API Key，也不会访问供应商：
+
+```powershell
+Set-Location .\clinical-llm-wiki
+..\.venv\Scripts\python -m pytest tests/test_model_provider_contract.py -q
+```
+
+只有准备启用 live external adapter 时，才在同一项目 `.venv` 安装：
+
+```powershell
+..\.venv\Scripts\python -m pip install -e ".[models]"
+..\.venv\Scripts\python -m pip check
+```
+
+共享或全局 Python 环境可能已经锁定其他 OpenAI SDK 版本；不要在该环境直接追加
+`clinical-llm-wiki[models]`。请使用上方项目 `.venv`，并在安装后执行 `pip check`。
+
 ## 3. 启动本地 Review Panel
 
 根目录轻量 Review Panel 是当前可直接使用的人工审核入口。它汇总根 `.review_queue/`、`clinical-llm-wiki/.review_queue/` 和 `clinical-studies/*/.review_queue/`，浏览器只提交 `queue_id/review_id`，不能传入磁盘路径。

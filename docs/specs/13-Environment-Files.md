@@ -45,9 +45,13 @@
 │  │  └── audit_trail.jsonl → 完整操作审计日志                      │    │
 │  └─────────────────────────────────────────────────────────────┘    │
 │                                                                       │
-│  所有处理在本地 (无云调用, 无网络传输)                                 │
+│  本图仅描述 Clinical Workflow 的当前本地处理边界                       │
 └─────────────────────────────────────────────────────────────────────┘
 ```
+
+> P12 `clinical-llm-wiki/` 是独立知识产品。其 Enrichment Worker 后续可在来源
+> rights 与 data-boundary 允许时调用外部模型 API；该边界不改变上图所描述的
+> Clinical Workflow，也不授权把 Study 数据发送到知识产品或供应商。
 
 ### 1.2 依赖清单
 
@@ -835,3 +839,32 @@ python -m pip install -e ".\clinical-workflow[agents]"
 ```
 
 Provider endpoint、API key、credential 和真实 deployment name 不进入 `ModelRegistry`、Study artifact 或 Git。注册表只保存 deployment alias、固定 model/version、capability、region 和允许的数据分类；凭据由后续 Provider adapter 的进程环境或受控 identity 注入。当前首批 P11 实现没有发起外部模型调用。
+
+## 11. P12 Knowledge Product 外部模型环境
+
+P12 的外部模型能力属于 `clinical-llm-wiki/`，不复用 P11 Workflow 的
+`ModelRegistry`，也不把供应商字段写入 Study。安装必须使用项目隔离环境：
+
+```powershell
+.\.venv\Scripts\python -m pip install -e ".\clinical-llm-wiki[models]"
+.\.venv\Scripts\python -m pip check
+```
+
+配置由版本化 ModelProfile 引用环境变量或 Secret Store；仓库、数据库、JSON Schema、
+审计和前端均不得保存实际值。示意：
+
+```text
+secret_ref:   env://KNOWLEDGE_MODEL_API_KEY
+endpoint_ref: env://KNOWLEDGE_MODEL_ENDPOINT
+```
+
+变量名由部署配置决定；上述名称不是硬编码要求。P1-B0 固定以下纪律：
+
+- 仅 Enrichment Worker 可申请 structured-generation capability；
+- 调用前校验 `local_processing_only`、`enterprise_provider_only`、
+  `external_allowed`、`prohibited` 四类数据边界；
+- live 适配使用 embedded LiteLLM Python SDK，不部署 Proxy/Router；
+- `stream=false`、`num_retries=0`、版本化 JSON Schema，非法输出 fail closed；
+- timeout、rate limit、provider error 只记录脱敏类别，不保留原始异常链；
+- profile 切换与重试由 durable ledger 建立新 StepAttempt，SDK 不静默 fallback；
+- P1-B0 测试只使用 fake/replay 或注入 callable，不发起真实供应商请求。

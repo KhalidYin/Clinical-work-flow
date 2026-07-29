@@ -2,7 +2,7 @@
 phase_index: 12
 status: in-progress
 created: 2026-07-29
-updated: 2026-07-29
+updated: 2026-07-30
 priority: 1
 estimated_rounds: 32-45
 depends_on: []
@@ -407,11 +407,11 @@ Docling 是否进入锁定依赖，必须先用 SDTM IG 多栏与跨页表、ADa
 - [x] P1-A：保留 D0 `index.html` 设计权威，以 `app.html` 建立 React/TypeScript/Vite + TanStack Router/Query/Table 产品骨架。
 - [x] P1-A：提取批准的 Evidence Ledger 主题 token，完成 `[KUI-01]` App Shell、`[KUI-09]` Admin、Sources 与其 loading/empty/error/partial/窄屏状态。
 - [x] P1-A：签入 `/api/prerelease/v1` OpenAPI 草案、同合同 TypeScript 类型与 MSW fixture；组件测试和桌面/窄屏浏览器 smoke 通过。
-- [ ] P1-B0：先冻结 ModelProviderPort、ModelProfile/PromptProfile/ModelInvocation、数据出站边界、结构化输出与 ledger-owned retry 合同；不发起正式知识抽取。
+- [x] P1-B0：已冻结 ModelProviderPort、ModelProfile/PromptProfile/ModelInvocation、数据出站边界、结构化输出与 ledger-owned retry 合同；fake/replay 与 embedded LiteLLM adapter 均不发起正式知识抽取。
 - [ ] P1-B：建立 PostgreSQL/pgvector、SQLAlchemy/psycopg/Alembic 的唯一结构化权威与迁移基线。
 - [ ] P1-C：建立身份映射、产品 RBAC、worker 合同和真实 FastAPI prerelease 路由，再逐步替换 MSW。
 
-P1-A 完成不等于 P1 Gate 通过；上方模型边界、数据库、ObjectStore、RBAC、worker、合同一致性和权限正反测试仍是 P1 的阻断条件。下一具体任务是 P1-B0，先避免数据库字段和 worker attempt 在模型合同冻结前反复迁移。
+P1-A/P1-B0 完成不等于 P1 Gate 通过；数据库、ObjectStore、RBAC、worker、完整合同一致性和权限正反测试仍是 P1 的阻断条件。下一具体任务是 P1-B，以已经冻结的 ModelInvocation 与 StepAttempt 字段为输入建立数据库迁移，不反向修改模型调用语义。
 
 ### 边界（本 Phase 明确不做）
 
@@ -747,6 +747,7 @@ P3 只消费 P2 已批准的 KnowledgeRevision。内部先构建可解释检索�
 | D5 | 把 Microsoft GraphRAG 作为 provider 会引入第二套图语义、派生输出与 Gate | 规划 | 范围（已解决） | GraphRAG 只作设计与评估参考，不进入依赖、合同、worker、输出路径或首版验收 |
 | D6 | 外部模型配置若到 AI 抽取实现时才决定，会反向修改 job attempt、审计、数据边界和数据库字段 | 计划复核 / P1 | 架构（已解决） | 在 P1-B0 先冻结 ModelProviderPort、Model/Prompt/Invocation 与 ledger-owned retry 合同，再进入 P1-B 数据库迁移 |
 | D7 | 原 P2-P6 把同一知识生产与发布闭环切得过碎，容易把异步 DAG 误解为固定线性阶段 | 计划复核 | 计划（已解决） | 收束为 D0 + P1-P4；P2 完成知识生产，P3 完成检索与发布，P4 完成迁移部署闭环 |
+| D8 | 共享 Python 已锁定 browser-use 的 OpenAI SDK，而当前 LiteLLM 版本要求更高版本，直接全局安装会造成依赖冲突 | P1-B0 | 环境（已解决） | live adapter 保持 `models` optional extra；开发/部署必须使用项目 `.venv` 并执行 `pip check`，合同测试通过依赖注入与 fake/replay，不要求全局安装或 live API |
 
 ## 关键决策记录
 
@@ -786,3 +787,4 @@ P3 只消费 P2 已批准的 KnowledgeRevision。内部先构建可解释检索�
 | 2026-07-29 | `clinical-llm-wiki/frontend/index.html`、`docs/main/memory/p12-knowledge-ledger-design-baseline.md` | 用户批准 D0 HTML 为正式设计基线；D0 完成，P1 仍待单独授权 |
 | 2026-07-29 | `clinical-llm-wiki/frontend/app.html`、`clinical-llm-wiki/frontend/src/`、`clinical-llm-wiki/schemas/application/knowledge-api.prerelease.yaml`、`USAGE.md` | P1-A 完成：React/Vite 产品骨架、KUI-01/KUI-09、prerelease OpenAPI/MSW、组件与桌面/窄屏浏览器基线；P1 继续 in-progress |
 | 2026-07-29 | 本计划、`docs/dep/PLAN.md`、P12 memory | 用户批准计划复核：知识流转固定为 Source → Evidence → AI Candidate → 作者确认 → 独立审核 → 索引/评估 → immutable Release；计划收束为 D0 + P1-P4，P1 下一切片改为模型合同 P1-B0 |
+| 2026-07-30 | `clinical-llm-wiki/service/processing/model_provider.py`、prerelease JSON Schema、`docs/specs/13-Environment-Files.md`、`USAGE.md`、P12 memory | P1-B0 完成：冻结外部模型、Prompt、调用审计、数据边界和显式 StepAttempt 合同；下一切片为 P1-B 数据库迁移 |
