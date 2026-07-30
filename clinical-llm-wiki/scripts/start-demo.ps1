@@ -139,6 +139,6 @@ if (-not $candidateReady) {
     throw "The API became healthy, but no worker-produced Candidate appeared."
 }
 
-Write-Host "Knowledge Ledger is ready at http://127.0.0.1:4173"
+Write-Host "Knowledge Ledger is ready at http://localhost:4173/app.html#/candidates"
 Write-Host "Local access identities are stored in .demo-runtime/access.json (not printed)."
 Write-Host "Use -Reset to remove only the clinical-knowledge-demo volumes and regenerate data."

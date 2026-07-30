@@ -826,8 +826,10 @@ P1-D 只接入 local/test identity wiring；production Provider 专用 OIDC adap
   增量 attempt 并连接 `previous_attempt_id`，成功 step 不被无条件重做；
 - Document、Enrichment、Release 可在一个本地进程内顺序消费，也可由同一镜像的三个进程
   独立运行；二者复用同一 WorkerRuntime 和 ledger 语义，不能合并 Service Account 权限；
-- P1 worker registry 为空，不领取 P2/P3 未实现任务。DDL、resumable data backfill 与 legacy
-  asset migration 使用三个独立入口；本地 Compose 只提供 loopback 骨架，不等于生产部署。
+- P1 worker registry 初始为空；P2-A 已注册 Document handler，P2-B2 已注册 replay
+  Enrichment handler，Release 仍不领取 P3 未实现任务。DDL、resumable data backfill 与
+  legacy asset migration 使用三个独立入口；本地 Compose 只提供 loopback 产品，不等于
+  生产部署。
 
 P1 Gate 已关闭。该边界不恢复已废弃的 Workflow POC，也不把 Project Memory、Study 规则或
 Agent session 写入主知识库。
@@ -915,3 +917,50 @@ supersede/retire 必须追加新治理事实。
 prerelease API 提供 Candidate collection、Author confirmation 与 Review decision 路由；KUI-03
 明确展示无 Candidate 的 `evidence_ready`，KUI-04 区分待作者确认和待独立审核。P2-B1 不提供
 Enrichment editor、Relation Explorer、索引、评估或 release。
+
+## 14. P12 P2-B2 replay Enrichment 与可回放人工治理
+
+P2-B2 在 P2-B1 治理合同之上增加可运行的 fake/replay vertical slice，不改变状态权威和四眼
+原则。Document、Enrichment 与人工 Gate 仍是离散、可恢复的异步步骤，不是流式 pipeline：
+
+```text
+Source registration
+  -> Document worker -> Evidence/evidence_ready
+  -> Enrichment worker -> Candidate/author_confirmation_required
+  -> human Author -> review_required
+  -> independent human Reviewer -> changes_requested | rejected | approved
+```
+
+Enrichment Worker 只从 canonical Evidence 构建版本化 ModelRequest；`input_sha256` 只覆盖模型、
+Prompt、Schema、data boundary 与真实消息，不包含 Attempt identity。相同 request hash 可命中
+本地 replay record 并重现相同结构化输出，但每次失败、retry 或恢复仍建立新的 StepAttempt 与
+ModelInvocation lineage。fake/replay adapter 不访问网络，也不允许 live fallback。
+
+结构化输出必须先通过 JSON Schema、Evidence ID、relation type/endpoint/edge evidence 与
+rights/data-boundary 校验，随后才能在一个事务内建立 Candidate 和 relation proposal。模型与
+Enrichment Service Account 无权执行 author confirmation、review decision、approve、release
+或 index publish；bootstrap 同样不能直写这些治理结果。
+
+request-change 不把旧对象改回草稿，而是允许原 Author 基于明确的旧 revision/hash 建立
+Candidate N+1。旧 Candidate 标记 superseded，旧 KnowledgeRevision 与 ReviewDecision 原样
+保留；新 Candidate 重新经过 Author confirmation 和独立 Reviewer。前端必须根据
+`reviewStatus=changes_requested` 把 author-confirmed revision 返回作者编辑 Gate，并继续让
+后端负责权限、职责分离、stale 与 idempotency 判定。
+
+本地产品通过 `scripts/start-demo.ps1` 建立 runtime-only 多身份 bundle。Bearer token 只产生
+authentication assertion，实际角色从 PostgreSQL `role_bindings` 解析；身份切换不是前端角色
+模拟。脚本生成的凭据只写 gitignored `.demo-runtime/`，不回显；`-Reset` 只针对固定
+`clinical-knowledge-demo` Compose project 和已验证 runtime 路径。
+
+P2-B2 Gate 的生产可见性是 fail closed：
+
+- `approved` 只更新 KnowledgeRevision/ProcessingRun，不建立 Release 或 ReleaseItem；
+- released-read repository 只读取 `releases.status='released'`，无 release 时返回
+  `not_released`；
+- P3/P4 前尚未实现的 Query/MCP route 不得出现临时 Candidate/approved 查询旁路；
+- 后续 Query、MCP、索引与 Release 实现必须继续以 current immutable release membership 为
+  唯一生产消费边界。
+
+P2-B2 只使用合成或允许本地测试的数据，不配置真实 API key，不证明生产 parser/model
+coverage。下一 Gate P2-B3 只允许接一个经授权的外部 ModelProfile；P3 才建立生产检索、
+评估与 immutable Release。

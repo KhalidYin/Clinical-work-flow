@@ -204,10 +204,9 @@ $env:VITE_KNOWLEDGE_API_TARGET = "http://127.0.0.1:8788"
 npm run dev -- --host 127.0.0.1 --port 4173
 ```
 
-在该本地测试 tab 的浏览器控制台执行
-`sessionStorage.setItem("knowledgeLedgerBearerToken", "<opaque-local-test-token>")` 后刷新。
-该值会暴露给当前页面 JavaScript，只适用于 loopback 开发；生产认证必须由后续专用 OIDC
-adapter 与受审核部署边界实现。P1-D 没有 Admin/Source 写路由，也没有默认 token 或自动建用户。
+打开 `app.html`，在“连接本地产品”表单中粘贴 opaque token。前端只把它保存在当前 tab 的
+sessionStorage；它仍会暴露给当前页面 JavaScript，只适用于 loopback 开发。生产认证必须由
+后续专用 OIDC adapter 与受审核部署边界实现。P1-D 没有默认 token 或自动建用户。
 
 验证真实 API 合同；PostgreSQL 项仅在提供独立测试库时启用：
 
@@ -236,34 +235,28 @@ P1-E 将二进制对象与结构化记录分开：PostgreSQL 保存 `object_key`
 ```powershell
 Set-Location .\clinical-llm-wiki
 .\.venv\Scripts\python -m service.processing.worker --list-pools
-# P2-A Document handler 已可用；Enrichment/Release 仍待后续 Gate：
+# P2-B2 Document 与 replay Enrichment handler 已可用；Release 仍待 P3：
 # .\.venv\Scripts\python -m service.processing.worker --pool document
+# .\.venv\Scripts\python -m service.processing.worker --pool enrichment
 ```
 
-P1 交付时三个 registry 都为空；P2-A 只注册 Document handler，Enrichment/Release 仍不会
-领取未来任务。启动某一 pool 前，数据库中必须已有 active Service Account，并配置对应 ID
-与其 `env://` 引用，例如 `KNOWLEDGE_DOCUMENT_WORKER_SERVICE_ACCOUNT_ID` 和
-`P12_DOCUMENT_WORKER_TOKEN`。local CLI 暂不解析 `secret://`；生产 Secret Store adapter
+P1 交付时三个 registry 都为空；P2-A 注册 Document，P2-B2 注册 replay Enrichment，
+Release 仍不会领取未来任务。启动某一 pool 前，数据库中必须已有 active Service Account，
+并配置对应 ID 与其 `env://` 引用。local CLI 暂不解析 `secret://`；生产 Secret Store adapter
 留在部署阶段。
 
-本地 Compose 骨架包含 PostgreSQL/pgvector、一次性 migration、API、前端和可选 workers。
-所有发布端口只绑定 loopback。仓库不提供默认密码、Bearer token、用户或 Service Account；
-先以受控流程预置 identity/RBAC 记录，再设置所需环境变量：
+本地 Compose 包含 PostgreSQL/pgvector、一次性 migration、受控 bootstrap、API、前端和独立
+workers，所有发布端口只绑定 loopback。仓库不提供默认密码或 token；当前应由 P2-B2
+`start-demo.ps1` 生成 runtime-only 配置，不要手工拼接万能身份：
 
 ```powershell
 Set-Location .\clinical-llm-wiki
-$env:KNOWLEDGE_POSTGRES_PASSWORD = "<local-only-password>"
-$env:KNOWLEDGE_LOCAL_BEARER_TOKEN = "<opaque-local-token>"
-$env:KNOWLEDGE_LOCAL_SUBJECT = "<preprovisioned-subject>"
-$env:KNOWLEDGE_LOCAL_DISPLAY_NAME = "Local Platform User"
-$env:KNOWLEDGE_LOCAL_EMAIL = "local-user@example.test"
-docker compose config --quiet
-docker compose up --build postgres migration api frontend
+.\scripts\start-demo.ps1
 ```
 
-只有三类 Service Account 都已预置并分别注入 credential 时才启用
-`docker compose --profile workers up`。开发 Compose 的 named volume 供 P2-A Document
-handler 使用 local adapter；它不代表生产对象存储选型，Enrichment/Release 仍无领域 handler。
+Document/Enrichment 默认作为两个独立 worker 服务启动，Release worker 只在显式 `release`
+profile 中存在。开发 Compose 的 named volume 使用 local ObjectStore adapter；它不代表生产
+对象存储选型，Release 仍无 P3 领域 handler。
 
 三类变更入口保持分离：
 
@@ -399,9 +392,90 @@ $env:KNOWLEDGE_TEST_DATABASE_URL = "postgresql+psycopg://<user>:<password>@127.0
 Remove-Item Env:KNOWLEDGE_TEST_DATABASE_URL
 ```
 
-本 Gate 没有模型调用、Relation Explorer、检索索引、评估或 release。下一 Gate P2-B2 才允许
-fake/replay Enrichment Worker 从 `evidence_ready` 生成可回放 Candidate；真实外部模型继续留在
-P2-B3。
+本 Gate 没有模型调用、Relation Explorer、检索索引、评估或 release。P2-B2 已在下一节用
+fake/replay Enrichment Worker 从 `evidence_ready` 生成可回放 Candidate；真实外部模型继续
+留在 P2-B3。
+
+### P12 fake/replay 完整知识治理产品（P2-B2）
+
+P2-B2 提供当前可直接运行的完整前后端 vertical slice。它使用合成 Markdown 与无网络
+replay record，不需要外部模型 API key：
+
+```powershell
+Set-Location .\clinical-llm-wiki
+.\scripts\start-demo.ps1 -Reset
+```
+
+脚本执行显式 Alembic migration，建立受控本地身份/RBAC/Profile 与 Source，调用真实
+Document Worker 形成 Evidence，再由独立 replay Enrichment Worker 建立 Candidate。FastAPI
+和 production React/Nginx 在 worker 产出 Candidate 后才宣布 ready。打开：
+
+```text
+http://localhost:4173/app.html#/candidates
+```
+
+本地身份保存在 gitignored 的 `.demo-runtime/access.json`，脚本和日志都不会回显 token。
+从文件复制 `author.token` 或 `reviewer.token`，在页面“连接本地产品”表单中登录；“更换本地
+身份”会清除当前 tab token 并重新经过 API 认证与数据库 RBAC。不要把该文件提交、截图或用作
+生产凭据。
+
+推荐人工验收顺序：
+
+1. 以 Demo Author 打开 replay Candidate，对照 Evidence、locator、rights 与 relation
+   proposal，确认 revision 1。
+2. 切换 Demo Reviewer，填写理由并请求修改。
+3. 切回 Demo Author，编辑 Candidate 形成 revision 2，再次确认。
+4. 切回 Demo Reviewer 审核通过。
+5. 确认页面显示“审核已批准，但尚未发布”，顶栏 current release 仍为 unavailable。
+
+Document 与 Enrichment 是两个独立异步 worker pool，依赖 PostgreSQL durable ledger
+领取离散 step；这不是 token/chunk 流式 pipeline。request-change 建立新 Candidate revision，
+旧 Candidate、KnowledgeRevision、ReviewDecision 与 AuditEvent 保持 append-only。replay
+bootstrap 不直写 Candidate、作者确认、审核决定或 Release。
+
+保留已有 demo 数据重新启动：
+
+```powershell
+.\scripts\start-demo.ps1
+```
+
+只在需要清空该 demo 的 named volumes、重新生成身份和合成数据时使用 `-Reset`。脚本会校验
+固定 Compose project `clinical-knowledge-demo` 和 `.demo-runtime` 绝对路径，不删除其他项目
+容器或目录。
+
+运行状态：
+
+```powershell
+docker compose --project-name clinical-knowledge-demo `
+  --env-file .demo-runtime/demo.env ps
+Invoke-RestMethod http://127.0.0.1:8788/api/prerelease/v1/health
+```
+
+P2-B2 提交前 Gate：
+
+```powershell
+.\.venv\Scripts\python -m pytest `
+  tests/test_demo_runtime_contract.py `
+  tests/test_enrichment_worker_contract.py `
+  tests/test_enrichment_governance_postgres_integration.py `
+  tests/test_knowledge_governance_contract.py `
+  tests/test_knowledge_governance_postgres_integration.py `
+  tests/test_platform_api_contract.py `
+  tests/test_platform_api_postgres_integration.py -q
+.\.venv\Scripts\python -m ruff check service tests
+
+Set-Location .\frontend
+npm test -- --run
+npm run typecheck
+npm run build
+```
+
+PostgreSQL integration tests 需要单独、可丢弃的空
+`KNOWLEDGE_TEST_DATABASE_URL`；不要指向 demo 或正式数据库。P2-B2 不配置真实模型、不构建
+生产 FTS/vector/relation index，也不实现 Release、Query Lab 或 MCP。released REST 只从
+`releases.status=released` 读取；approved revision 在 Release/ReleaseItem 为零时仍不可消费。
+下一 Gate P2-B3 必须由用户提供一个允许发送测试数据的 live ModelProfile 与 Secret
+reference，不能复用 replay 成功宣称真实模型质量。
 
 ## 3. 启动本地 Review Panel
 

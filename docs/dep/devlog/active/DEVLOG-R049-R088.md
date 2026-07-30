@@ -1673,3 +1673,62 @@
 - `clinical-llm-wiki/tests/test_knowledge_governance_postgres_integration.py`
 - `docs/dep/TASK_STATE.md`、DevLog/index
 - commit：本轮门禁后创建并 push
+
+### R088 [01:07] [P12-knowledge-application-platform] P2-B2: 完成可运行产品、E2E 与计划收口
+
+#### Done
+
+- 逐项关闭 P2-B2 completion criteria，并同步 P12 唯一计划、PLAN、Operational/Environment
+  specs、根/Wiki README、USAGE 与 project memory；下一 Gate 明确为 P2-B3 单一真实外部
+  模型，未授权 P3/P4、Release、Query/MCP 或部署。
+- 修正 `start-demo.ps1` 的交付入口。先以失败合同测试证明脚本错误指向 D0 根页，再固定输出
+  `http://localhost:4173/app.html#/candidates`，避免把静态设计基线或旧 MSW origin 当作完整
+  产品。
+- 最终官方入口刷新发现 approved-but-unreleased 横幅只存在于 mutation 内存。新增刷新态
+  失败组件测试，让 canonical `reviewStatus=approved` 持续派生“审核已批准，但尚未发布”；
+  mutation conflict/error 仍优先显示，不改变后端治理事实。
+- 用不带 `-Reset` 的单命令再次构建并启动完整产品。migration/bootstrap 可重复执行，
+  Document/Enrichment worker 保持独立，Candidate/Review 数量未增加，证明 bootstrap 不会
+  覆盖或复制已批准治理状态。
+- 删除临时 `TASK_STATE.md`；P12 ongoing plan 保持唯一执行权威，不新建额外子计划或第三个
+  产品目录。
+
+#### Issues / Blockers
+
+- 平台 health 为 `degraded` 是当前正确状态：database available，但 semantic index 尚未构建、
+  current release 为 `not_released`。P2-B2 不应把缺少 P3 能力伪装为 fully available。
+- P2-B3 需要用户提供一个允许发送测试数据的 live ModelProfile 与 Secret reference；在获得
+  该授权前不得自行选择供应商、调用真实模型或把 replay 结果当成模型质量。
+- Starlette TestClient/httpx2 deprecation warning 继续列为后续依赖维护项；不影响真实 HTTP
+  和浏览器 E2E。
+
+#### Validation
+
+- 单命令 `scripts/start-demo.ps1` 成功输出正式 React 产品 URL；PostgreSQL、API、
+  frontend、Document Worker、Enrichment Worker 全部运行，API database available，frontend
+  HTTP 200。
+- 幂等重启后 Evidence=1、Candidate=2、ModelInvocation=1 (`replayed`)、
+  ReviewDecision=4、Release=0、ReleaseItem=0；run=`approved`，revision 1
+  `changes_requested`、revision 2 `approved`。
+- 真实官方入口刷新后 Demo Reviewer 身份、Evidence/locator/rights、revision 2、
+  “审核已批准，但尚未发布”和 `Current release = not released` 同时可见。
+- P2-B2 PostgreSQL replay/governance/API 矩阵 31 passed；frontend 3 个测试文件、
+  20 passed；demo runtime 合同 4 passed；Ruff、TypeScript typecheck、production build 与
+  Compose config 通过（413 modules，JS gzip 126.28 kB）。
+
+#### Next
+
+1. 用户明确授权后进入 P2-B3：只配置一个 live ModelProfile/Secret reference，并先验证
+   data boundary 零出站拒绝、schema/timeout/429 fail-closed 与显式 StepAttempt。
+2. 不在 P2-B3 引入多供应商路由、本地 LLM、LiteLLM Proxy、GraphRAG provider、Release 或
+   Workflow/Project Memory；P3 才进入检索、评估和 immutable release。
+3. 主要风险是外部模型请求泄露未授权 Evidence、SDK 静默 retry/fallback、模型 confidence
+   越过人工 Gate，以及误把 live vertical slice 当成生产知识覆盖。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/frontend/src/pages/CandidatesPage.tsx` 与 Candidate Review tests
+- `clinical-llm-wiki/scripts/start-demo.ps1` 与 demo runtime contract
+- `README.md`、`USAGE.md`、`clinical-llm-wiki/README.md`
+- P12 plan/PLAN、SPEC-12/13、memory、DevLog/index
+- commit：本轮最终门禁后创建并 push

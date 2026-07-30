@@ -175,6 +175,15 @@ export function CandidatesPage() {
   });
 
   const isMutating = revise.isPending || confirm.isPending || review.isPending;
+  const canonicalNotice: ActionNotice | null =
+    candidate?.reviewStatus === "approved"
+      ? {
+          kind: "success",
+          title: "审核已批准，但尚未发布",
+          detail: "该 KnowledgeRevision 尚未进入 immutable release。",
+        }
+      : null;
+  const visibleNotice = notice ?? canonicalNotice;
 
   function selectCandidate(candidateId: string) {
     setSelectedCandidateId(candidateId);
@@ -255,18 +264,20 @@ export function CandidatesPage() {
           </aside>
 
           <div className={styles.candidateStage}>
-            {notice ? (
+            {visibleNotice ? (
               <div
                 className={`${styles.actionNotice} ${
-                  notice.kind === "success" ? styles.actionSuccess : styles.actionFailure
+                  visibleNotice.kind === "success"
+                    ? styles.actionSuccess
+                    : styles.actionFailure
                 }`}
-                role={notice.kind === "success" ? "status" : "alert"}
+                role={visibleNotice.kind === "success" ? "status" : "alert"}
               >
                 <div>
-                  <strong>{notice.title}</strong>
-                  <span>{notice.detail}</span>
+                  <strong>{visibleNotice.title}</strong>
+                  <span>{visibleNotice.detail}</span>
                 </div>
-                {notice.kind === "conflict" ? (
+                {visibleNotice.kind === "conflict" ? (
                   <button
                     className={styles.secondaryButton}
                     type="button"

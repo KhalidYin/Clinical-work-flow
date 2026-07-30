@@ -14,7 +14,21 @@ docs/                平台级规格、计划、DEVLOG 和审查记录
 
 ## 常用入口
 
-完整首次安装、snapshot 锁定与审核说明见 [USAGE.md](USAGE.md)，备份/恢复/回滚见 [DEPLOY_GUIDE.md](docs/deploy/DEPLOY_GUIDE.md)。先启动本地知识服务：
+P12 是当前唯一可执行主线。P2-B2 已交付可实际启动的 Knowledge Ledger 前后端产品：
+
+```powershell
+Set-Location .\clinical-llm-wiki
+.\scripts\start-demo.ps1 -Reset
+```
+
+打开 `http://localhost:4173/app.html#/candidates`，从未纳入 Git 的
+`.demo-runtime/access.json` 复制 Demo Author/Reviewer token，通过页面登录。该 demo 使用
+真实 PostgreSQL、FastAPI、Document Worker、独立 replay Enrichment Worker 和 production
+React/Nginx；`approved` 仍不是 production release。
+
+完整首次安装、身份切换、E2E Gate、legacy snapshot 锁定与审核说明见
+[USAGE.md](USAGE.md)，备份/恢复/回滚见
+[DEPLOY_GUIDE.md](docs/deploy/DEPLOY_GUIDE.md)。legacy loopback Knowledge Service 启动方式：
 
 ```powershell
 cd clinical-llm-wiki

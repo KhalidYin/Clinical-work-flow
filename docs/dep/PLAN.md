@@ -1,5 +1,5 @@
 ---
-updated: 2026-07-30
+updated: 2026-07-31
 ---
 
 # 项目计划
@@ -8,13 +8,13 @@ updated: 2026-07-30
 
 | # | 当前 Gate | 子计划 | 状态 |
 |---|----------|--------|------|
-| P12 | P2-B2 fake/replay 可回放知识治理闭环 | [P12-knowledge-application-platform.md](plans/ongoing/P12-knowledge-application-platform.md) | P2-A/P2-B1 done · P2-B2 next；未授权真实模型 |
+| P12 | P2-B3 单一真实外部模型与 P2 Gate | [P12-knowledge-application-platform.md](plans/ongoing/P12-knowledge-application-platform.md) | P1/P2-A/P2-B1/P2-B2 done · 等待 live ModelProfile/Secret 授权 |
 
 ## 待开始
 
-P12 P2-B2 是下一 Gate；P2-B3、P3、P4 保持 pending。P2-B1 完成不自动授权真实模型、发布或迁移部署。
+P12 P2-B3 是下一 Gate；P3、P4 保持 pending。P2-B2 完成不自动授权真实模型、发布、生产检索或迁移部署；P2-B3 启动前必须由用户提供一个允许发送测试数据的 ModelProfile 与 Secret reference。
 
-P12 是唯一可执行主线，产品结果固定为“受控 Source → Evidence → AI Candidate → 作者确认 → 独立审核 → 检索评估 → immutable Release → REST/MCP 消费”。D0 Evidence Ledger HTML 继续作为颜色、排版、布局和核心交互基线。P1 已关闭产品基础 Gate；P2-A 已关闭 Source Registry、对象一致性、确定性解析、Document Worker DAG/fan-in、Evidence lineage、`202 + run_id` API 与 KUI-02/03。P2-B1 已新增 `evidence_ready` 与独立 backfill，并冻结 Candidate eligibility、edge evidence、作者确认、独立审核、stale/idempotency、released immutability 和 worker/admin 越权合同。下一 Gate P2-B2 只用 fake/replay ModelProvider 接通 Enrichment → Candidate → 作者/Reviewer 的可回放闭环；P2-B3 最后只接一个真实外部模型。Docling/OCR、完整生产 OIDC/S3、GraphRAG/Neo4j、Workflow、Agent Runtime 和 Project Memory 均不牵引当前主线。
+P12 是唯一可执行主线，产品结果固定为“受控 Source → Evidence → AI Candidate → 作者确认 → 独立审核 → 检索评估 → immutable Release → REST/MCP 消费”。D0 Evidence Ledger HTML 继续作为颜色、排版、布局和核心交互基线。P1 已关闭产品基础 Gate；P2-A 已关闭 Source Registry、对象一致性、确定性解析、Document Worker DAG/fan-in、Evidence lineage、`202 + run_id` API 与 KUI-02/03。P2-B1 已冻结 Candidate eligibility、edge evidence、作者确认、独立审核、stale/idempotency、released immutability 和 worker/admin 越权合同。P2-B2 已用无网络 replay 接通真实 Source → Evidence → Candidate → request-change/revision → 独立批准的可启动前后端闭环，并证明 approved 仍无 Release。下一 Gate P2-B3 只接一个经授权的真实外部模型并关闭 P2；Docling/OCR、完整生产 OIDC/S3、GraphRAG/Neo4j、Workflow、Agent Runtime 和 Project Memory 均不牵引当前主线。
 
 ## 最近完成
 

@@ -134,3 +134,7 @@ def test_demo_start_script_generates_local_credentials_and_waits_for_health() ->
     assert "--wait" in script
     assert "--volumes" in script
     assert "KNOWLEDGE_POSTGRES_PASSWORD=" in script
+    assert (
+        "Knowledge Ledger is ready at "
+        "http://localhost:4173/app.html#/candidates"
+    ) in script

@@ -948,8 +948,9 @@ P1-E 的 `ObjectStorePort` 是 provider-neutral 合同。开发/测试 local ada
 KNOWLEDGE_OBJECT_STORE_ROOT=/var/lib/clinical-knowledge/objects
 ```
 
-P1 没有把该变量当作生产 S3 fallback，也没有选择 endpoint、bucket、region 或 access key。
-生产 S3-compatible adapter、credential isolation、bucket policy 和备份恢复属于 P4 部署 Gate。
+P1/P2 没有把该变量当作生产 S3 fallback，也没有选择 endpoint、bucket、region 或 access
+key。生产 S3-compatible adapter、credential isolation、bucket policy 和备份恢复属于 P4
+部署 Gate。
 
 Pool worker 使用同一模块和镜像，通过 `--pool document|enrichment|release` 分开运行。local
 entrypoint 需要 pool-specific Service Account ID；记录的 `secret_ref` 必须指向实际存在的
@@ -968,8 +969,8 @@ KNOWLEDGE_WORKER_LEASE_SECONDS=60                  # optional, positive integer
 
 数据库只保存 ID、pool、scope 和 secret reference，不保存这些值。local worker CLI 只解析
 `env://`；生产 `secret://` resolver 需在 P4 单独实现并验收。P1 交付时 worker 没有领域
-handler；P2-A 只为 document pool 注册确定性 Source → Evidence handler，enrichment/release
-仍不会领取 P2-B/P3 任务。
+handler；P2-A 为 document pool 注册确定性 Source → Evidence handler，P2-B2 为 enrichment
+pool 注册 fake/replay Candidate handler，release 仍不会领取 P3 任务。
 
 API 默认仍只允许 loopback。容器内监听 `0.0.0.0` 仅在显式设置下开放：
 
@@ -979,9 +980,10 @@ KNOWLEDGE_API_BIND_SCOPE=compose_local
 ```
 
 该模式只能与 Compose 的 `127.0.0.1:8788:8788` 端口发布同时使用，不是远程部署开关；其他
-非 loopback host/scope 组合失败关闭。`compose.yaml` 不提供默认 PostgreSQL password、Bearer
-token、PlatformUser、RoleBinding 或 Service Account。workers 位于显式 `workers` profile，
-未完成受控预置时不得启用。
+非 loopback host/scope 组合失败关闭。`compose.yaml` 不提供默认 PostgreSQL password 或
+Bearer token；P2-B2 由受控 bootstrap 建立 runtime-only PlatformUser、RoleBinding 与
+Service Account。Document/Enrichment worker 默认独立启动，Release worker 位于显式
+`release` profile。
 
 变更入口固定分离：
 
@@ -1061,5 +1063,59 @@ worker handler，因此不要启动 enrichment pool 来期待自动生成 Candid
 - author 与 reviewer 使用不同内部 actor ID。
 
 Service Account secret、Provider API key、模型 payload、source bytes 与原始异常都不得出现在
-这些请求、响应或 AuditEvent 中。P2-B2 才定义 fake/replay Enrichment handler 的运行配置，
+这些请求、响应或 AuditEvent 中。P2-B2 已定义 fake/replay Enrichment handler 的运行配置，
 P2-B3 才启用单一真实外部模型。
+
+## 17. P12 P2-B2 replay demo 与多身份本地环境
+
+P2-B2 的完整本地产品由 `scripts/start-demo.ps1` 生成 runtime-only 配置。推荐入口：
+
+```powershell
+Set-Location .\clinical-llm-wiki
+.\scripts\start-demo.ps1 -Reset
+```
+
+脚本使用加密随机数生成 PostgreSQL、三类 Worker、Demo Author 与 Demo Reviewer 凭据，并写入
+gitignored `.demo-runtime/`：
+
+```text
+.demo-runtime/
+  demo.env         # Compose secret values；不回显、不提交
+  identities.json  # local authentication assertions；角色不从此文件读取
+  access.json      # 人工复制到页面登录表单的 Author/Reviewer token
+```
+
+`identities.json` 只包含 issuer/subject/display identity，不是授权权威。bootstrap 在
+PostgreSQL `platform_users`/`role_bindings` 建立内部角色；API 使用
+`KNOWLEDGE_LOCAL_IDENTITIES_PATH` 读取多个 local assertion，再由数据库 repository 解析权限。
+保留 P1-D 单身份变量作为显式 fallback，但不能与多身份文件同时形成第二套角色来源。
+
+Compose 内部变量：
+
+```text
+KNOWLEDGE_LOCAL_IDENTITIES_PATH=/run/knowledge/identities.json
+KNOWLEDGE_ENRICHMENT_PROVIDER_MODE=replay
+KNOWLEDGE_ENRICHMENT_RECORDS_PATH=/var/lib/clinical-knowledge/demo/replay-records.json
+```
+
+Document 与 Enrichment worker 默认作为两个独立服务启动，分别使用
+`KNOWLEDGE_DOCUMENT_WORKER_SERVICE_ACCOUNT_ID`/
+`KNOWLEDGE_ENRICHMENT_WORKER_SERVICE_ACCOUNT_ID` 和各自 `P12_*_WORKER_TOKEN`。Release worker
+只在显式 `release` profile 中存在；P2-B2 不启动它。`KNOWLEDGE_ENRICHMENT_PROVIDER_MODE`
+只能是 `fake` 或 `replay`，不能静默切换 live。
+
+端口仍只发布到 loopback：
+
+```text
+http://127.0.0.1:8788/api/prerelease/v1
+http://localhost:4173/app.html#/candidates
+```
+
+`-Reset` 是破坏性 demo 操作，但脚本必须先确认目标为固定
+`clinical-knowledge-demo` Compose project，并验证 `.demo-runtime` 解析后的绝对路径位于
+`clinical-llm-wiki/` 内；不得接受任意 project/path。省略 `-Reset` 时复用现有 volume 与
+身份文件。
+
+P2-B2 不读取 live model secret、endpoint 或 LiteLLM `models` extra。P2-B3 只有在用户提供
+一个允许发送测试数据的 ModelProfile 与 Secret reference 后才可启用 live adapter；不得把
+demo.env、replay record 或 local bearer token 改名后当作生产配置。

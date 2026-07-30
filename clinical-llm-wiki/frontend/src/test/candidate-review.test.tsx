@@ -182,6 +182,30 @@ describe("KUI-04 Candidate governance workbench", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("persists the approved-but-unreleased gate after canonical facts reload", async () => {
+    server.use(
+      http.get(resolveApiPath(API_PATHS.session), () => HttpResponse.json(reviewerSession)),
+      http.get(
+        resolveApiPath(`${API_PATHS.candidates}/cand-ui-teae-001`),
+        () =>
+          HttpResponse.json(
+            response({
+              ...reviewerDetail().data,
+              reviewStatus: "approved",
+            }),
+          ),
+      ),
+    );
+    renderCandidates();
+
+    expect(
+      await screen.findByText("审核已批准，但尚未发布"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("该 KnowledgeRevision 尚未进入 immutable release。"),
+    ).toBeInTheDocument();
+  });
+
   it("creates revision N+1 from an edited claim and opens the returned candidate", async () => {
     useAuthorDetailHandler();
     let requestBody: Record<string, unknown> | null = null;

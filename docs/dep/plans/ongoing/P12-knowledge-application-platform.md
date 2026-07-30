@@ -2,7 +2,7 @@
 phase_index: 12
 status: in-progress
 created: 2026-07-29
-updated: 2026-07-30
+updated: 2026-07-31
 priority: 1
 estimated_rounds: 37-52
 depends_on: []
@@ -387,7 +387,7 @@ Docling 是否进入锁定依赖，必须先用 SDTM IG 多栏与跨页表、ADa
 |-------|------|----------|------|------|
 | D0 | 大改前可运行前端 Demo Gate | 2-3 | - | done |
 | P1 | 产品基础：数据库迁移、身份权限、作业账本、模型与合同基线 | 8-11 | D0 | done |
-| P2 | AI 知识生产：Source → Evidence → Candidate → 作者确认 → 独立审核 | 12-17 | P1 | in-progress（P2-A/P2-B1 done；P2-B2 next） |
+| P2 | AI 知识生产：Source → Evidence → Candidate → 作者确认 → 独立审核 | 12-17 | P1 | in-progress（P2-A/P2-B1/P2-B2 done；P2-B3 next） |
 | P3 | 发布与检索：Approved Revision → 索引/评估 → immutable Release | 8-11 | P2 | pending |
 | P4 | 产品闭环：完整前端、外部接口、既有 Wiki 迁移、部署与运维验收 | 7-10 | P3 | pending |
 
@@ -568,7 +568,7 @@ P2-B 不再作为一次性“大模型 + 关系图 + 全部审核 UI”交付。
 - 不实现 Relation Explorer 图形交互、检索索引、评估或 release。
 - 不反向修改 P1/P2-A 的 Source、ObjectStore、ledger、parser 或 Evidence lineage 语义。
 
-### P2-B2：fake/replay 可回放知识治理闭环
+### P2-B2：fake/replay 可回放知识治理闭环（completed 2026-07-31）
 
 #### 输入条件
 
@@ -585,12 +585,30 @@ P2-B 不再作为一次性“大模型 + 关系图 + 全部审核 UI”交付。
 
 #### 完成标准
 
-- [ ] fake/replay 不访问网络；相同 replay key、input hash、Prompt/Schema version 可重现相同结构化输出并保留新的 StepAttempt 事实。
-- [ ] 模型输出只能创建 Candidate/proposal，不能触发作者确认、Reviewer 决定、approved 或 release 状态。
-- [ ] request-change 产生新 Candidate revision 并保留旧 revision/decision；stale UI/API 写入返回显式冲突。
-- [ ] 从失败的 Enrichment step 安全重试时不重复提交已确认的 revision，也不重跑无关 Document 分支。
-- [ ] `[KUI-04]` 默认、loading、empty、error、partial-data、stale conflict 和窄屏状态通过组件/API/真实浏览器 Gate；核心测试不能只检查静态标题。
-- [ ] 端到端回放能证明 approved 仍不可被生产 Query/REST/MCP 返回。
+- [x] fake/replay 不访问网络；相同 replay key、input hash、Prompt/Schema version 可重现相同结构化输出并保留新的 StepAttempt 事实。
+- [x] 模型输出只能创建 Candidate/proposal，不能触发作者确认、Reviewer 决定、approved 或 release 状态。
+- [x] request-change 产生新 Candidate revision 并保留旧 revision/decision；stale UI/API 写入返回显式冲突。
+- [x] 从失败的 Enrichment step 安全重试时不重复提交已确认的 revision，也不重跑无关 Document 分支。
+- [x] `[KUI-04]` 默认、loading、empty、error、partial-data、stale conflict 和窄屏状态通过组件/API/真实浏览器 Gate；核心测试不能只检查静态标题。
+- [x] 端到端回放能证明 approved 仍不可被生产 Query/REST/MCP 返回。
+
+#### B2 Gate 验收记录
+
+- 阶段提交：`5292150`（replay/governance backend）、`72a94c8`（KUI-04）、
+  `7953331`（完整本地产品）、`e2958bb`（真实 E2E 与 request-change 修复），均已同步远端。
+- 单命令启动 `scripts/start-demo.ps1 -Reset` 从 migration、受控 bootstrap、真实 Document
+  Worker、独立 Enrichment Worker、FastAPI 到 production frontend；bootstrap 不直写
+  Candidate，replay record 使用与 Worker 相同的 canonical request hash。
+- 真实浏览器完成 Author confirm → independent Reviewer request-change → Candidate revision 2
+  → Author reconfirm → independent approve。无认证、作者越权审核和陈旧 hash 分别返回
+  401、403、409。
+- 最终实库为 Evidence=1、Candidate=2、ModelInvocation=1 (`replayed`)、
+  ReviewDecision=4、Release=0、ReleaseItem=0；released REST 明确返回 `not_released`。
+  P3/P4 前尚未暴露的 MCP/Query surface 保持 404 fail closed，不能从 Candidate 或 approved
+  revision 建立旁路。
+- 390×844 真实产品无全局横向溢出，Evidence 在 Candidate 之前；P2-B2 后端相关矩阵
+  31 passed、前端 20 passed，Ruff、typecheck 与 production build 通过；刷新后仍持久显示
+  approved-but-unreleased Gate。
 
 #### 边界（本切片明确不做）
 
