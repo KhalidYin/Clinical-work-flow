@@ -12,6 +12,7 @@ import pytest
 from sqlalchemy import Column, Constraint, ForeignKeyConstraint
 
 from service.db.base import Base
+from service.auth import identity_authorization
 from service.processing import model_provider
 
 
@@ -47,11 +48,14 @@ def test_canonical_metadata_owns_the_p1_database_tables() -> None:
         "knowledge_units",
         "model_invocations",
         "model_profiles",
+        "platform_users",
         "processing_runs",
         "prompt_profiles",
         "release_items",
         "releases",
         "review_decisions",
+        "role_bindings",
+        "service_accounts",
         "source_artifacts",
         "source_versions",
         "sources",
@@ -129,6 +133,54 @@ def test_canonical_schema_keeps_secrets_paths_and_other_products_out() -> None:
         "size_bytes",
     }
     assert "secret_ref" in Base.metadata.tables["model_profiles"].columns
+    assert "secret_ref" in Base.metadata.tables["service_accounts"].columns
+
+
+def test_identity_authorization_tables_preserve_p1_c_contract() -> None:
+    platform_user_columns = set(Base.metadata.tables["platform_users"].columns.keys())
+    assert {
+        "user_id",
+        "identity_source",
+        "issuer",
+        "subject",
+        "display_name",
+        "email",
+        "status",
+        "last_authenticated_at",
+    } <= platform_user_columns
+
+    role_binding_columns = set(Base.metadata.tables["role_bindings"].columns.keys())
+    assert {"user_id", "role", "granted_by_actor_id", "created_at"} <= role_binding_columns
+
+    service_account_columns = set(
+        Base.metadata.tables["service_accounts"].columns.keys()
+    )
+    assert {
+        "service_account_id",
+        "display_name",
+        "worker_pool",
+        "scopes",
+        "secret_ref",
+        "status",
+        "created_by_actor_id",
+    } <= service_account_columns
+    assert {
+        "secret_value",
+        "client_secret",
+        "access_token",
+        "password",
+    }.isdisjoint(service_account_columns)
+    assert {
+        role.value
+        for role in identity_authorization.ProductRole
+        if role is not identity_authorization.ProductRole.SERVICE_ACCOUNT
+    } == {
+        "platform_admin",
+        "knowledge_curator",
+        "reviewer",
+        "release_manager",
+        "consumer",
+    }
 
 
 def test_ledger_context_uses_composite_foreign_keys() -> None:
@@ -194,14 +246,18 @@ def test_sync_database_session_accepts_only_the_psycopg_postgres_dialect(
         session_module.database_url_from_environment()
 
 
-def test_alembic_has_one_reviewable_initial_revision(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_alembic_has_linear_reviewable_revisions(monkeypatch: pytest.MonkeyPatch) -> None:
     config = Config(ROOT / "alembic.ini")
     script = ScriptDirectory.from_config(config)
 
     assert script.get_heads() == [script.get_current_head()]
-    revision = script.get_revision(script.get_current_head())
-    assert revision is not None
-    assert revision.down_revision is None
+    head = script.get_revision(script.get_current_head())
+    assert head is not None
+    assert head.revision == "20260730_0002"
+    assert head.down_revision == "20260730_0001"
+    initial = script.get_revision("20260730_0001")
+    assert initial is not None
+    assert initial.down_revision is None
 
     monkeypatch.setenv(
         "KNOWLEDGE_DATABASE_URL",
@@ -217,13 +273,16 @@ def test_alembic_has_one_reviewable_initial_revision(monkeypatch: pytest.MonkeyP
         assert f"CREATE TABLE {table_name}" in sql
 
 
-def test_initial_revision_columns_match_canonical_metadata(
+def test_linear_revision_columns_match_canonical_metadata(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     config = Config(ROOT / "alembic.ini")
     script = ScriptDirectory.from_config(config)
-    revision = script.get_revision(script.get_current_head())
-    assert revision is not None
+    revisions = list(reversed(list(script.walk_revisions(base="base", head="heads"))))
+    assert [revision.revision for revision in revisions] == [
+        "20260730_0001",
+        "20260730_0002",
+    ]
 
     class MigrationRecorder:
         def __init__(self) -> None:
@@ -265,8 +324,9 @@ def test_initial_revision_columns_match_canonical_metadata(
             self.dropped.append(name)
 
     recorder = MigrationRecorder()
-    monkeypatch.setattr(revision.module, "op", recorder)
-    revision.module.upgrade()
+    for revision in revisions:
+        monkeypatch.setattr(revision.module, "op", recorder)
+        revision.module.upgrade()
 
     assert recorder.executed == ["CREATE EXTENSION IF NOT EXISTS vector"]
     assert set(recorder.tables) == set(Base.metadata.tables)
@@ -279,7 +339,8 @@ def test_initial_revision_columns_match_canonical_metadata(
             str(index.name) for index in table.indexes
         }
 
-    revision.module.downgrade()
+    for revision in reversed(revisions):
+        revision.module.downgrade()
     assert set(recorder.dropped) == set(Base.metadata.tables)
     assert len(recorder.dropped) == len(set(recorder.dropped))
 

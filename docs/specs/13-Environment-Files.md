@@ -896,3 +896,26 @@ KNOWLEDGE_TEST_DATABASE_URL=postgresql+psycopg://<user>:<password>@<host>:<port>
 它只启用 opt-in migration integration test，不能被生产应用读取。测试覆盖 clean apply、
 Alembic metadata drift、downgrade、re-apply 和 vector extension 存在性；测试库必须独立且
 可丢弃。DDL revision、后续 resumable backfill 和 P4 legacy asset migration 使用不同入口。
+
+## 13. P12 Knowledge Product 身份与 Service Account 环境
+
+P1-C 不引入产品自有密码库，也不定义可直接部署的 OIDC client 环境变量。生产认证由
+P1-D 以后实现的 `IdentityProviderPort` adapter 负责；Provider 只返回已验证的 issuer、
+subject 和显示属性，产品角色及权限继续由 PostgreSQL 内部授权记录决定。OIDC token 的
+role/permission claim 不能写入 ActorContext。
+
+`LocalIdentityProvider` 只允许显式 `local` 或 `test` 环境，并使用测试代码注入的 opaque
+token 映射；它不是生产 fallback，不读取用户名/密码，也没有默认 token。P1-D 配置真实
+Provider 时必须另行冻结 issuer、audience、JWKS/metadata、clock skew 和 credential 注入
+合同，不能从 P1-C 示例推断环境变量名。
+
+Worker Service Account 的 `secret_ref` 只允许以下形式：
+
+```text
+env://P12_DOCUMENT_WORKER_TOKEN
+secret://knowledge/workers/enrichment
+```
+
+实际 secret 值由进程环境或受控 Secret Store 注入，不进入数据库、迁移、日志、前端、
+JSON Schema 或 Git。Document、Enrichment、Release pool 只能取得 P1-C 权限矩阵允许的
+scope；即使部署为单进程多 pool，也必须分别解析 Service Account，不能合并成万能凭据。

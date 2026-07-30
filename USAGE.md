@@ -72,7 +72,7 @@ npm install
 npm run dev -- --host 127.0.0.1 --port 4173
 ```
 
-浏览器打开 `http://127.0.0.1:4173/app.html#/sources?q=`。当前 Sources、Admin 和 App Shell 通过 `/api/prerelease/v1` 合同访问数据；开发模式由 MSW 提供同合同 fixture，尚未接通真实 Knowledge API、数据库、OIDC/RBAC 或 worker。MSW 不会在生产构建中自动启用，页面也不会把 fixture 状态声明为真实平台事实。
+浏览器打开 `http://127.0.0.1:4173/app.html#/sources?q=`。当前 Sources、Admin 和 App Shell 通过 `/api/prerelease/v1` 合同访问数据；开发模式由 MSW 提供同合同 fixture，尚未接通真实 Knowledge API、数据库、P1-C 身份授权合同或 worker。MSW 不会在生产构建中自动启用，页面也不会把 fixture 状态声明为真实平台事实。
 
 提交前验证：
 
@@ -146,6 +146,32 @@ revision。
 $env:KNOWLEDGE_TEST_DATABASE_URL = "postgresql+psycopg://<user>:<password>@<host>:<port>/<empty_test_database>"
 .\.venv\Scripts\python -m pytest tests/test_database_migration_integration.py -q
 Remove-Item Env:KNOWLEDGE_TEST_DATABASE_URL
+```
+
+### P12 身份与授权合同（P1-C）
+
+P1-C 把认证与授权分开：OIDC/OAuth2 Provider 后续只产生已验证的 issuer、subject 和展示
+信息；产品角色必须通过平台内部映射取得，不能信任 token 中自报的 role/permission claim。
+开发和测试可使用 `LocalIdentityProvider` 的 opaque token adapter，但它在非
+`local`/`test` 环境会拒绝初始化，也不提供密码认证。
+
+人工角色固定为 Platform Admin、Knowledge Curator、Reviewer、Release Manager 和
+Consumer；Service Account 是单独 principal。Platform Admin 不隐式取得
+`review:decide` 或 `release:publish`，独立 Reviewer 必须使用平台内部 actor ID 与候选作者
+比较，作者自审会失败关闭。Document、Enrichment、Release 三类 worker 的 scope 由
+`WORKER_POOL_PERMISSIONS` 限定，任何 worker 都不能审核或发布。
+
+Service Account 只保存 `env://NAME` 或 `secret://path` 引用，数据库和 JSON 合同不保存
+password、access token 或 client secret。当前 P1-C 只冻结端口、策略、三张持久化表和迁移；
+真实 FastAPI session/Admin 路由与生产 OIDC adapter 属于 P1-D，不能把当前 local adapter
+当作部署认证入口。
+
+验证合同和两级 migration metadata：
+
+```powershell
+Set-Location .\clinical-llm-wiki
+.\.venv\Scripts\python -m pytest tests/test_identity_authorization_contract.py tests/test_database_contract.py -q
+.\.venv\Scripts\python -m ruff check service/auth service/db tests/test_identity_authorization_contract.py tests/test_database_contract.py
 ```
 
 ## 3. 启动本地 Review Panel

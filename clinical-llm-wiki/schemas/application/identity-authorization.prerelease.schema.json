@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://clinical.example/schemas/identity-authorization.prerelease.schema.json",
+  "title": "P12 Identity and Authorization Prerelease Policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "product_roles",
+    "permissions",
+    "role_permissions",
+    "worker_pool_permissions"
+  ],
+  "properties": {
+    "contract_version": {
+      "const": "identity-authorization.prerelease.v1"
+    },
+    "product_roles": {
+      "const": [
+        "consumer",
+        "knowledge_curator",
+        "platform_admin",
+        "release_manager",
+        "reviewer",
+        "service_account"
+      ]
+    },
+    "permissions": {
+      "const": [
+        "admin:manage_roles",
+        "admin:manage_service_accounts",
+        "admin:manage_users",
+        "admin:read",
+        "audit:read",
+        "candidate:read",
+        "candidate:submit",
+        "candidate:write",
+        "evaluation:run",
+        "evidence:read",
+        "evidence:write",
+        "index:build",
+        "model:invoke",
+        "object:read",
+        "object:write_derived",
+        "processing:execute",
+        "processing:read",
+        "processing:retry",
+        "processing:start",
+        "query:released",
+        "relation:propose",
+        "release:build",
+        "release:publish",
+        "review:decide",
+        "source:read",
+        "source:register",
+        "source:upload"
+      ]
+    },
+    "role_permissions": {
+      "const": {
+        "platform_admin": [
+          "admin:manage_roles",
+          "admin:manage_service_accounts",
+          "admin:manage_users",
+          "admin:read",
+          "audit:read",
+          "candidate:read",
+          "evidence:read",
+          "processing:read",
+          "query:released",
+          "source:read"
+        ],
+        "knowledge_curator": [
+          "candidate:read",
+          "candidate:submit",
+          "candidate:write",
+          "evidence:read",
+          "processing:read",
+          "processing:retry",
+          "processing:start",
+          "query:released",
+          "relation:propose",
+          "source:read",
+          "source:register",
+          "source:upload"
+        ],
+        "reviewer": [
+          "candidate:read",
+          "evidence:read",
+          "query:released",
+          "review:decide",
+          "source:read"
+        ],
+        "release_manager": [
+          "audit:read",
+          "candidate:read",
+          "evaluation:run",
+          "evidence:read",
+          "query:released",
+          "release:build",
+          "release:publish",
+          "source:read"
+        ],
+        "consumer": [
+          "query:released"
+        ]
+      }
+    },
+    "worker_pool_permissions": {
+      "const": {
+        "document": [
+          "evidence:write",
+          "object:read",
+          "object:write_derived",
+          "processing:execute",
+          "source:read"
+        ],
+        "enrichment": [
+          "candidate:write",
+          "evidence:read",
+          "model:invoke",
+          "processing:execute",
+          "relation:propose"
+        ],
+        "release": [
+          "candidate:read",
+          "evaluation:run",
+          "evidence:read",
+          "index:build",
+          "object:write_derived",
+          "processing:execute",
+          "release:build"
+        ]
+      }
+    }
+  }
+}

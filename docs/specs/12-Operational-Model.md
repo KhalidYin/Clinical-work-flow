@@ -790,3 +790,25 @@ AI 辅助成本 (Phase 3):
      · 时间节省、质量提升、返工减少 → 说服其他团队
      · 不让 "AI 不安全" 的恐惧驱动决策
 ```
+
+---
+
+## 11. P12 独立知识产品的身份与治理边界
+
+本文件前述临床 Workflow 角色不直接成为 P12 Knowledge Product 的权限。P12 是
+`clinical-llm-wiki/` 内的独立产品，首版按单组织多用户运行，认证外置、授权内置：
+
+- OIDC/OAuth2 只证明外部身份；平台通过 issuer + subject 映射内部 user，再绑定
+  Platform Admin、Knowledge Curator、Reviewer、Release Manager 或 Consumer 角色；
+- Platform Admin 负责用户、角色和 Service Account 管理，但不自动获得知识审核或发布
+  权限；需要承担 Reviewer/Release Manager 职责时必须显式绑定对应角色；
+- Knowledge Curator 创建、编辑和提交候选，独立 Reviewer 决策；审核时比较平台内部
+  actor ID，作者不能审核自己创建的候选；
+- Document、Enrichment、Release worker 使用独立 Service Account 和最小 scope。模型或
+  worker 只能生成候选/派生产物，不能确认、审核或发布知识；
+- Service Account 只登记 secret reference。实际 credential 不进入知识实体、审计内容、
+  前端或 Git。
+
+P1-C 只冻结上述端口、权限矩阵、持久化记录与负向合同；真实 API/OIDC 接入属于 P1-D，
+worker claim/lease/checkpoint 与部署形态属于 P1-E。该边界不恢复已废弃的 Workflow POC，
+也不把 Project Memory 或 Study 规则写入主知识库。

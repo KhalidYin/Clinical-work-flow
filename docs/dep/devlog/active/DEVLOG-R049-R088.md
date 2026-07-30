@@ -1187,3 +1187,47 @@
 - `docs/main/memory/p12-plan-authority.md`
 - `docs/dep/devlog/active/DEVLOG-R049-R088.md`, `docs/dep/devlog/INDEX.md`
 - commit/push：待本轮门禁后完成
+
+### R079 [11:06] [P12-knowledge-application-platform] P1-C: 冻结身份、RBAC 与 Worker 最小权限合同
+
+#### Done
+
+- 以 TDD 新增 `service/auth/identity_authorization.py`，冻结认证事实、内部 Actor、五类人工角色、Service Account principal、权限枚举和 fail-closed authorization check；OIDC assertion 明确不接收产品 role/permission claim。
+- 实现只允许 local/test 的 opaque-token `LocalIdentityProvider` 与静态授权映射 adapter；生产环境不能启用 local adapter，也不存在产品内置密码流。
+- 固定职责分离：Platform Admin 不隐式拥有审核/发布权限；Knowledge Curator 不能审核；Reviewer 按平台内部 actor ID 拒绝作者自审；Release Manager 与 Reviewer 权限相互独立。
+- 固定 Document、Enrichment、Release 三类 worker pool 最小 scope；Service Account 不能取得跨 pool、审核、发布或角色管理权限，credential 只登记 `env://`/`secret://` reference。
+- 新增 checked-in identity authorization prerelease JSON Schema，并以合同测试保证策略快照与运行时矩阵精确一致。
+- 在 canonical metadata 中增加 `platform_users`、`role_bindings`、`service_accounts`，表总数由 21 增至 24；新增线性 `20260730_0002` Alembic revision，授权审计字段只保存内部 actor ID。
+- 同步 Wiki README、根 USAGE、SPEC-12/13、P12 唯一计划、PLAN 与项目记忆；P1-C 完成但 P1 仍为 in-progress，下一切片固定为 P1-D 真实 Knowledge API。
+
+#### Issues / Blockers
+
+- Wiki `.venv` 在本轮开始时不存在；首次 editable install 超过 120 秒工具上限被终止，续装在 190 秒内完成。根因是 Windows/Python 3.14 冷环境依赖解析与安装较慢，最终 `pip check` 无冲突。
+- `pgvector/pgvector:0.8.1-pg17` 本轮从 Docker registry 拉取持续无进度，未重跑完整 `0001 -> 0002` clean-chain；P1-B 已保留 `0001` 的 pgvector clean apply/drift/downgrade/reapply 证据。本轮使用本地 `postgres:17-alpine`、stamp 到已验收 `0001` 后独立验证新增 `0002`，没有把该结果夸大为完整 pgvector Gate。
+- 旧 DEVLOG 记录的 18 个 Wiki 历史失败在当前 HEAD/隔离环境不再复现；本轮没有修改对应 `sources/`、Vault、snapshot 或历史生成脚本，故只记录当前全量结果，不推断旧失败消失的具体外部原因。
+- 测试仍有 Starlette/httpx 迁移 warning，前端测试/构建仍有 Node `--localstorage-file` warning；二者不阻断 P1-C，但升级 TestClient/Node 测试环境时需单独处理。
+
+#### Validation
+
+- Wiki 隔离 `.venv`：editable dev install 成功，`pip check` 返回 `No broken requirements found`。
+- P1-C/P1-B 定向合同：26 passed；覆盖身份 claim 越权、五类人工角色正反矩阵、作者自审、三类 worker scope、secret 不落库、checked-in Schema 和两级 migration metadata。
+- PostgreSQL 17 实库：`0002` upgrade、字段检查、downgrade 到 `0001`、表删除检查与 reapply 均通过；临时容器按 `clinical-ai-owner=codex-p12-p1c` 标签核对后删除。
+- Wiki 全量：197 passed、1 skipped；Ruff 0.15.22 全 Wiki通过。
+- 前端回归：typecheck 通过；2 个测试文件、7 项测试通过；Vite production build 通过（411 modules，JS gzip 117.36 kB）。
+- `git diff --check` 通过；数据库与合同不保存 password、token、client secret、外部角色 claim 或跨产品实体。
+
+#### Next
+
+1. 执行 P1-D：建立真实 FastAPI prerelease application，先接通 `/session`、`/health`、Sources 与 Admin P1 路由，API DTO、ORM、identity policy 和 checked-in OpenAPI 保持分层。
+2. 逐路由替换 MSW 并加入未认证、无映射用户、disabled user、角色不足、自审和 stale write 等 HTTP 正反合同；local adapter 只能用于 local/test。
+3. P1-D Gate 通过前不启动 P1-E ObjectStore/claim/lease/checkpoint/worker，不进入 P2 正式知识摄取。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/service/auth/`, `clinical-llm-wiki/schemas/application/identity-authorization.prerelease.schema.json`
+- `clinical-llm-wiki/service/db/models.py`, `clinical-llm-wiki/service/db/migrations/versions/20260730_0002_identity_authorization.py`
+- `clinical-llm-wiki/tests/test_identity_authorization_contract.py`, `clinical-llm-wiki/tests/test_database_contract.py`
+- `clinical-llm-wiki/README.md`, `USAGE.md`, `docs/specs/12-Operational-Model.md`, `docs/specs/13-Environment-Files.md`
+- `docs/dep/PLAN.md`, `docs/dep/plans/ongoing/P12-knowledge-application-platform.md`, `docs/main/memory/p12-plan-authority.md`
+- `docs/dep/devlog/active/DEVLOG-R049-R088.md`, `docs/dep/devlog/INDEX.md`
+- commit：本轮门禁后创建；未 push

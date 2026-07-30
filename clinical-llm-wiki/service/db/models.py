@@ -36,6 +36,79 @@ def _created_at() -> Mapped[datetime]:
     return mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 
+class PlatformUser(Base):
+    __tablename__ = "platform_users"
+    __table_args__ = (
+        CheckConstraint(
+            "identity_source IN ('local_test', 'oidc')",
+            name="identity_source",
+        ),
+        CheckConstraint("status IN ('active', 'disabled')", name="user_status"),
+        UniqueConstraint("issuer", "subject", name="identity_subject"),
+        Index("ix_platform_users_status_updated_at", "status", "updated_at"),
+    )
+
+    user_id: Mapped[str] = _text_id()
+    identity_source: Mapped[str] = mapped_column(String(40), nullable=False)
+    issuer: Mapped[str] = mapped_column(String(500), nullable=False)
+    subject: Mapped[str] = mapped_column(String(500), nullable=False)
+    display_name: Mapped[str] = mapped_column(String(240), nullable=False)
+    email: Mapped[str] = mapped_column(String(320), nullable=False)
+    status: Mapped[str] = mapped_column(String(40), nullable=False)
+    last_authenticated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class RoleBinding(Base):
+    __tablename__ = "role_bindings"
+    __table_args__ = (
+        CheckConstraint(
+            "role IN ('platform_admin', 'knowledge_curator', 'reviewer', "
+            "'release_manager', 'consumer')",
+            name="product_role",
+        ),
+        PrimaryKeyConstraint("user_id", "role"),
+    )
+
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("platform_users.user_id", ondelete="CASCADE"), nullable=False
+    )
+    role: Mapped[str] = mapped_column(String(80), nullable=False)
+    granted_by_actor_id: Mapped[str] = mapped_column(String(160), nullable=False)
+    created_at: Mapped[datetime] = _created_at()
+
+
+class ServiceAccount(Base):
+    __tablename__ = "service_accounts"
+    __table_args__ = (
+        CheckConstraint(
+            "worker_pool IN ('document', 'enrichment', 'release')",
+            name="worker_pool",
+        ),
+        CheckConstraint(
+            "secret_ref ~ '^(env|secret)://[A-Za-z0-9_./-]+$'",
+            name="secret_ref",
+        ),
+        CheckConstraint("status IN ('active', 'disabled')", name="account_status"),
+        Index("ix_service_accounts_pool_status", "worker_pool", "status"),
+    )
+
+    service_account_id: Mapped[str] = _text_id()
+    display_name: Mapped[str] = mapped_column(String(240), nullable=False)
+    worker_pool: Mapped[str] = mapped_column(String(40), nullable=False)
+    scopes: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    secret_ref: Mapped[str] = mapped_column(String(512), nullable=False)
+    status: Mapped[str] = mapped_column(String(40), nullable=False)
+    created_by_actor_id: Mapped[str] = mapped_column(String(160), nullable=False)
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
 class Source(Base):
     __tablename__ = "sources"
 

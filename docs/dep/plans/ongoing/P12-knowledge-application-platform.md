@@ -394,9 +394,10 @@ Docling 是否进入锁定依赖，必须先用 SDTM IG 多栏与跨页表、ADa
 - [x] Alembic migration 可 clean apply/upgrade/可行的 downgrade/re-apply；应用启动不执行 `create_all`；pgvector 缺失时 fail closed 或显式禁用 semantic capability。
 - [ ] DDL revision、resumable data backfill 与 legacy asset migration 有不同入口；字段破坏性变化遵守 expand/migrate/switch/contract。
 - [ ] ObjectStore provider 可替换，业务模型不保存本地绝对路径或供应商专有 URL。
-- [ ] OIDC claims 只完成身份映射，产品角色/权限由平台授权层决定；生产路径不保存用户密码。
-- [ ] 作者/Reviewer/Release Manager/Consumer/Admin/Service Account 权限正反矩阵和作者自审拒绝测试通过。
-- [ ] Document/Enrichment/Release worker 的最小权限和禁止动作有 contract test；单进程多 pool 与分进程执行不改变任务语义。
+- [x] OIDC claims 只完成身份映射，产品角色/权限由平台授权层决定；生产路径不保存用户密码。
+- [x] 作者/Reviewer/Release Manager/Consumer/Admin/Service Account 权限正反矩阵和作者自审拒绝测试通过。
+- [x] Document/Enrichment/Release worker 的最小权限和禁止动作有 contract test。
+- [ ] P1-E 验证单进程多 pool 与分进程执行不改变任务语义。
 - [x] 外部模型配置不泄露 secret；模型/Prompt/Schema/数据边界均版本化；provider/model 切换或重试形成新的 StepAttempt，不发生静默 fallback。
 - [x] ModelProviderPort 的 fake/replay adapter、结构化输出失败、timeout、限流、供应商错误和禁发数据正反合同测试通过；生成调用固定 `stream=false`。
 - [ ] OpenAPI/JSON Schema checked-in contract 与运行模型一致，Project Memory/Workflow/Agent 字段不进入知识实体。
@@ -409,11 +410,11 @@ Docling 是否进入锁定依赖，必须先用 SDTM IG 多栏与跨页表、ADa
 - [x] P1-A：签入 `/api/prerelease/v1` OpenAPI 草案、同合同 TypeScript 类型与 MSW fixture；组件测试和桌面/窄屏浏览器 smoke 通过。
 - [x] P1-B0：已冻结 ModelProviderPort、ModelProfile/PromptProfile/ModelInvocation、数据出站边界、结构化输出与 ledger-owned retry 合同；fake/replay 与 embedded LiteLLM adapter 均不发起正式知识抽取。
 - [x] P1-B：已建立 21 张 canonical table、PostgreSQL/pgvector、SQLAlchemy 2/psycopg 3/Alembic 的唯一结构化权威与迁移基线。
-- [ ] P1-C：冻结 `IdentityProviderPort`、local/test identity adapter、六类产品角色、Service Account scope 与 Document/Enrichment/Release worker 最小权限；作者自审、worker 越权批准/发布和 OIDC claim 直接当授权均必须被合同测试拒绝。
+- [x] P1-C：冻结 `IdentityProviderPort`、local/test identity adapter、六类产品角色、Service Account scope 与 Document/Enrichment/Release worker 最小权限；作者自审、worker 越权批准/发布和 OIDC claim 直接当授权均被合同测试拒绝。
 - [ ] P1-D：建立真实 FastAPI prerelease 应用与路由，保持 API DTO、ORM 与 checked-in OpenAPI 分层；先接通 `/session`、`/health`、Sources 和 Admin 等 P1 边界，逐路由替换 MSW，不借机进入 P2 知识生产。
 - [ ] P1-E：实现可替换 `ObjectStorePort`、ProcessingRun claim/lease/checkpoint 与三类 worker 入口，建立本地 Compose 骨架并执行 P1 集成 Gate；未满足对象权威、最小权限、合同一致性或失败恢复时不得进入 P2。
 
-P1-A/P1-B0/P1-B 完成不等于 P1 Gate 通过；ObjectStore、RBAC、worker、真实 API、完整合同一致性和权限正反测试仍是 P1 的阻断条件。2026-07-30 用户批准方案 B，将原过大的 P1-C 拆为 P1-C 身份与授权、P1-D 真实 API、P1-E 运行基础与 Gate 关闭三个连续切片。下一具体任务只是 P1-C；P1-C Gate 通过前不接真实 API，P1-D Gate 通过前不启动 P1-E，且任何切片都不能反向修改已冻结的数据库与模型调用语义。
+P1-A/P1-B0/P1-B/P1-C 完成不等于 P1 Gate 通过；ObjectStore、worker 运行时、真实 API、完整合同一致性和失败恢复仍是 P1 的阻断条件。2026-07-30 用户批准方案 B，将原过大的 P1-C 拆为 P1-C 身份与授权、P1-D 真实 API、P1-E 运行基础与 Gate 关闭三个连续切片。P1-C 已完成，下一具体任务是 P1-D；P1-D Gate 通过前不启动 P1-E，且任何切片都不能反向修改已冻结的数据库、模型调用与授权语义。
 
 ### 边界（本 Phase 明确不做）
 
@@ -794,3 +795,4 @@ P3 只消费 P2 已批准的 KnowledgeRevision。内部先构建可解释检索�
 | 2026-07-30 | `clinical-llm-wiki/service/processing/model_provider.py`、prerelease JSON Schema、`docs/specs/13-Environment-Files.md`、`USAGE.md`、P12 memory | P1-B0 完成：冻结外部模型、Prompt、调用审计、数据边界和显式 StepAttempt 合同；下一切片为 P1-B 数据库迁移 |
 | 2026-07-30 | `clinical-llm-wiki/service/db/`、`alembic.ini`、数据库契约/集成测试、`USAGE.md`、SPEC-13、P12 memory | P1-B 完成：21 张 canonical table、显式 Alembic revision、pgvector fail-closed、clean apply/downgrade/re-apply 和无 drift 门禁通过；下一切片为 P1-C |
 | 2026-07-30 | 本计划、`docs/dep/PLAN.md` | 用户批准方案 B：P1 剩余工作拆为 P1-C 身份与授权、P1-D 真实 API、P1-E 运行基础与 Gate 关闭；未启动 Development |
+| 2026-07-30 | `clinical-llm-wiki/service/auth/`、identity prerelease Schema、identity/RBAC 数据表与 `0002` migration、合同测试、README/USAGE/SPEC-12/13、P12 memory | P1-C 完成：OIDC 只映射身份，产品授权内置；五类人工角色与 Service Account 分离，作者自审和 worker 越权失败关闭；下一切片为 P1-D |
