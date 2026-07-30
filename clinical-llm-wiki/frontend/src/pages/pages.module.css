@@ -460,6 +460,455 @@
   text-overflow: ellipsis;
 }
 
+.candidateWorkbench {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(210px, 0.24fr) minmax(0, 1fr);
+}
+
+.candidateQueue,
+.candidateStage {
+  min-width: 0;
+}
+
+.candidateQueue {
+  align-self: start;
+  overflow: hidden;
+  background: rgba(251, 250, 245, 0.82);
+  border: 1px solid var(--paper-300);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.queueHeader {
+  display: flex;
+  padding: 11px 12px;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--ink-500);
+  background: var(--paper-200);
+  border-bottom: 1px solid var(--paper-300);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.candidatePicker {
+  display: grid;
+  width: 100%;
+  padding: 14px 12px;
+  gap: 8px;
+  color: var(--ink-900);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--paper-200);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.candidatePicker:last-child {
+  border-bottom: 0;
+}
+
+.candidatePicker:hover,
+.candidatePickerSelected {
+  background: var(--white);
+}
+
+.candidatePickerSelected {
+  box-shadow: inset 3px 0 var(--blue-700);
+}
+
+.candidatePicker strong {
+  display: -webkit-box;
+  overflow: hidden;
+  font-family: var(--serif);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.queueMeta,
+.queueFoot {
+  color: var(--ink-500);
+  font-family: var(--mono);
+  font-size: 8px;
+}
+
+.queueFoot {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.candidateStage {
+  display: grid;
+  gap: 12px;
+}
+
+.actionNotice {
+  display: flex;
+  min-height: 58px;
+  padding: 11px 13px;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid;
+  border-radius: var(--radius);
+}
+
+.actionNotice div {
+  display: grid;
+  gap: 3px;
+}
+
+.actionNotice strong {
+  font-family: var(--serif);
+  font-size: 17px;
+}
+
+.actionNotice span {
+  font-family: var(--mono);
+  font-size: 9px;
+}
+
+.actionSuccess {
+  color: var(--olive-700);
+  background: var(--olive-100);
+  border-color: rgba(83, 99, 63, 0.24);
+}
+
+.actionFailure {
+  color: var(--red-700);
+  background: var(--red-100);
+  border-color: rgba(166, 64, 42, 0.24);
+}
+
+.detailState {
+  display: grid;
+  min-height: 440px;
+  padding: 48px;
+  gap: 12px;
+  align-content: center;
+  background: rgba(251, 250, 245, 0.82);
+  border: 1px solid var(--paper-300);
+  text-align: center;
+}
+
+.reviewGrid {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  background: var(--paper-300);
+  border: 1px solid var(--paper-300);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.evidenceColumn,
+.governanceColumn {
+  min-width: 0;
+  background: rgba(251, 250, 245, 0.95);
+}
+
+.columnHeader {
+  display: flex;
+  min-height: 68px;
+  padding: 13px 15px;
+  gap: 14px;
+  align-items: flex-start;
+  justify-content: space-between;
+  background: var(--paper-200);
+  border-bottom: 1px solid var(--paper-300);
+}
+
+.columnHeader h2 {
+  margin: 3px 0 0;
+  font-family: var(--serif);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.columnIndex,
+.panelMeta {
+  color: var(--ink-500);
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.panelMeta {
+  max-width: 48%;
+  text-align: right;
+}
+
+.columnBody {
+  display: grid;
+  padding: 15px;
+  gap: 14px;
+}
+
+.evidencePaper {
+  position: relative;
+  margin: 0;
+  padding: 22px 18px 16px;
+  background: var(--white);
+  border: 1px solid var(--paper-300);
+  box-shadow: 0 10px 28px rgba(25, 43, 38, 0.06);
+}
+
+.evidencePaper::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 3px;
+  content: "";
+  background: var(--olive-700);
+}
+
+.evidencePaper p {
+  margin: 12px 0 18px;
+  font-family: var(--serif);
+  font-size: 18px;
+  line-height: 1.55;
+}
+
+.evidenceId {
+  color: var(--olive-700);
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.evidenceMeta {
+  display: grid;
+  margin: 0;
+  gap: 8px;
+}
+
+.evidenceMeta div {
+  display: grid;
+  gap: 2px;
+}
+
+.evidenceMeta dt,
+.sectionLabel,
+.candidateReadView span,
+.editor label,
+.reviewActions label {
+  color: var(--ink-500);
+  font-family: var(--mono);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.evidenceMeta dd {
+  overflow-wrap: anywhere;
+  margin: 0;
+  color: var(--ink-700);
+  font-family: var(--mono);
+  font-size: 9px;
+}
+
+.hashLine {
+  display: block;
+  overflow: hidden;
+  margin-top: 12px;
+  padding: 7px 8px;
+  color: var(--ink-700);
+  background: var(--paper-200);
+  font-size: 8px;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.gateBanner {
+  display: flex;
+  padding: 12px;
+  gap: 11px;
+  align-items: flex-start;
+  color: var(--blue-700);
+  background: var(--blue-100);
+  border: 1px solid rgba(31, 92, 120, 0.2);
+}
+
+.gateNumber {
+  display: grid;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  color: var(--white);
+  background: var(--blue-700);
+  font-family: var(--serif);
+  font-size: 18px;
+}
+
+.gateBanner strong {
+  font-family: var(--serif);
+  font-size: 18px;
+}
+
+.gateBanner p {
+  margin: 3px 0 0;
+  color: var(--ink-700);
+  font-size: 11px;
+}
+
+.candidateReadView {
+  display: grid;
+  gap: 12px;
+}
+
+.candidateReadView p {
+  margin: 5px 0 0;
+  font-family: var(--serif);
+  font-size: 20px;
+  line-height: 1.35;
+}
+
+.recordPair,
+.editorPair {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.recordPair div {
+  min-width: 0;
+}
+
+.recordPair pre {
+  overflow: auto;
+  min-height: 90px;
+  margin: 5px 0 0;
+  padding: 9px;
+  color: var(--ink-700);
+  background: var(--paper-200);
+  border: 1px solid var(--paper-300);
+  font-family: var(--mono);
+  font-size: 9px;
+  white-space: pre-wrap;
+}
+
+.editor {
+  display: grid;
+  gap: 8px;
+}
+
+.editor textarea,
+.reviewActions textarea {
+  width: 100%;
+  min-height: 92px;
+  padding: 10px;
+  resize: vertical;
+  color: var(--ink-900);
+  background: var(--white);
+  border: 1px solid var(--paper-300);
+  border-radius: var(--radius);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.editor > textarea {
+  min-height: 116px;
+  font-family: var(--serif);
+  font-size: 17px;
+}
+
+.editorPair label {
+  display: grid;
+  gap: 5px;
+}
+
+.editNote,
+.readOnlyNote {
+  margin: 0;
+  color: var(--ink-500);
+  font-size: 11px;
+}
+
+.relationSection {
+  display: grid;
+  gap: 7px;
+}
+
+.sectionLabel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.relationTableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--paper-300);
+}
+
+.relationTable {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 520px;
+}
+
+.relationTable th,
+.relationTable td {
+  padding: 8px;
+  border-bottom: 1px solid var(--paper-200);
+  font-family: var(--mono);
+  font-size: 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.relationTable th {
+  color: var(--ink-500);
+  background: var(--paper-200);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.relationTable tr:last-child td {
+  border-bottom: 0;
+}
+
+.buttonRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.buttonRow .dangerButton {
+  margin-top: 0;
+}
+
+.reviewActions {
+  display: grid;
+  padding-top: 4px;
+  gap: 7px;
+  border-top: 1px solid var(--paper-300);
+}
+
+.sodWarning {
+  padding: 10px 12px;
+  color: var(--red-700);
+  background: var(--red-100);
+  border: 1px solid rgba(166, 64, 42, 0.2);
+  font-size: 11px;
+}
+
 .statePanel,
 .scopePanel {
   display: grid;
@@ -556,6 +1005,52 @@
 
   .candidateFacts {
     grid-template-columns: 1fr;
+  }
+
+  .candidateWorkbench {
+    grid-template-columns: 1fr;
+  }
+
+  .candidateQueue {
+    display: grid;
+    overflow-x: auto;
+    grid-auto-columns: minmax(220px, 76vw);
+    grid-auto-flow: column;
+  }
+
+  .queueHeader {
+    display: none;
+  }
+
+  .candidatePicker {
+    border-right: 1px solid var(--paper-200);
+    border-bottom: 0;
+  }
+
+  .candidatePickerSelected {
+    box-shadow: inset 0 3px var(--blue-700);
+  }
+
+  .reviewGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .recordPair,
+  .editorPair {
+    grid-template-columns: 1fr;
+  }
+
+  .actionNotice {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .columnHeader {
+    min-height: auto;
+  }
+
+  .panelMeta {
+    max-width: 42%;
   }
 
   .stepRow {

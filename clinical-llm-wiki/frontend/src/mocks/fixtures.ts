@@ -10,6 +10,7 @@ import {
   type RetryReceipt,
   type CancelReceipt,
   type CandidateCollection,
+  type CandidateDetail,
   type UserCollection,
 } from "../contracts/knowledgeApi";
 
@@ -184,7 +185,7 @@ export const candidatesFixture = response<CandidateCollection>({
       claim: "AESEQ is the sequence identifier within the AE domain.",
       scope: { standard: "SDTM", domain: "AE" },
       applicability: { standardVersion: "3.4" },
-      contentSha256: fixtureHash("aeseq-candidate"),
+      contentSha256: "a".repeat(64),
       evidenceCount: 2,
       relationProposalCount: 1,
       authorActorId: null,
@@ -201,7 +202,7 @@ export const candidatesFixture = response<CandidateCollection>({
       claim: "TEAE applicability is bounded by the confirmed analysis scope.",
       scope: { standard: "ADaM", dataset: "ADAE" },
       applicability: { analysis: "safety" },
-      contentSha256: fixtureHash("teae-candidate"),
+      contentSha256: "b".repeat(64),
       evidenceCount: 3,
       relationProposalCount: 2,
       authorActorId: "usr-author-004",
@@ -210,6 +211,85 @@ export const candidatesFixture = response<CandidateCollection>({
     },
   ],
 });
+
+export const candidateDetailsFixture: Record<string, ApiResponse<CandidateDetail>> = {
+  "cand-ui-aeseq-001": response<CandidateDetail>({
+    ...candidatesFixture.data.items[0],
+    parentCandidateId: null,
+    conditions: [],
+    exceptions: [],
+    evidence: [
+      {
+        evidenceId: "evidence-ui-aeseq-001",
+        sourceVersionId: "srcv-sdtmig-34",
+        locator: { page: 35, section: "6.2 AE", paragraph: 4 },
+        content:
+          "AESEQ is the sequence identifier used to uniquely identify a record within the AE domain.",
+        contentSha256: "e".repeat(64),
+        rights: {
+          classification: "licensed",
+          storageAllowed: true,
+          citationRequired: true,
+        },
+      },
+      {
+        evidenceId: "evidence-ui-aeseq-002",
+        sourceVersionId: "srcv-sdtmig-34",
+        locator: { page: 36, table: "AE domain variables", row: "AESEQ" },
+        content: "AESEQ is required for uniquely identifying each AE record.",
+        contentSha256: "f".repeat(64),
+        rights: {
+          classification: "licensed",
+          storageAllowed: true,
+          citationRequired: true,
+        },
+      },
+    ],
+    relationProposals: [
+      {
+        relationType: "applies_to",
+        targetKnowledgeUnitId: "KU-SDTM-AE",
+        evidenceIds: ["evidence-ui-aeseq-001"],
+        status: "proposed",
+      },
+    ],
+  }),
+  "cand-ui-teae-001": response<CandidateDetail>({
+    ...candidatesFixture.data.items[1],
+    parentCandidateId: null,
+    conditions: [],
+    exceptions: [],
+    evidence: [
+      {
+        evidenceId: "evidence-ui-teae-001",
+        sourceVersionId: "srcv-adamig-13",
+        locator: { page: 91, section: "ADAE analysis flags" },
+        content:
+          "Treatment-emergent flags must be derived within a prospectively defined analysis window.",
+        contentSha256: "c".repeat(64),
+        rights: {
+          classification: "licensed",
+          storageAllowed: true,
+          citationRequired: true,
+        },
+      },
+    ],
+    relationProposals: [
+      {
+        relationType: "depends_on",
+        targetKnowledgeUnitId: "KU-ADSL-TRTSDT",
+        evidenceIds: ["evidence-ui-teae-001"],
+        status: "proposed",
+      },
+      {
+        relationType: "applies_to",
+        targetKnowledgeUnitId: "KU-ADAM-ADAE",
+        evidenceIds: ["evidence-ui-teae-001"],
+        status: "proposed",
+      },
+    ],
+  }),
+};
 
 export const healthFixture = response<PlatformHealth>({
   status: "degraded",

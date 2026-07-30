@@ -4,6 +4,7 @@ import { API_PATHS, resolveApiPath } from "../contracts/knowledgeApi";
 import {
   healthFixture,
   cancelReceiptFixture,
+  candidateDetailsFixture,
   candidatesFixture,
   processingRunsFixture,
   releaseFixture,
@@ -27,6 +28,24 @@ export const handlers = [
   ),
   http.get(resolveApiPath(API_PATHS.candidates), () =>
     HttpResponse.json(candidatesFixture),
+  ),
+  http.get(
+    resolveApiPath(`${API_PATHS.candidates}/:candidateId`),
+    ({ params }) => {
+      const fixture = candidateDetailsFixture[String(params.candidateId)];
+      return fixture
+        ? HttpResponse.json(fixture)
+        : HttpResponse.json(
+            {
+              error: {
+                code: "candidate_not_found",
+                message: "The governed candidate does not exist.",
+              },
+              meta: candidatesFixture.meta,
+            },
+            { status: 404 },
+          );
+    },
   ),
   http.post(
     resolveApiPath(`${API_PATHS.processingRuns}/run-failed-002/steps/step-parse-text/retry`),

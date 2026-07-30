@@ -7,6 +7,7 @@ export const API_PATHS = {
   sources: "/api/prerelease/v1/sources",
   processingRuns: "/api/prerelease/v1/processing-runs",
   candidates: "/api/prerelease/v1/candidates",
+  knowledgeRevisions: "/api/prerelease/v1/knowledge-revisions",
   adminUsers: "/api/prerelease/v1/admin/users",
 } as const;
 
@@ -228,6 +229,113 @@ export interface CandidateCollection {
   total: number;
   partial: boolean;
   warnings: string[];
+}
+
+export interface CandidateEvidence {
+  evidenceId: string;
+  sourceVersionId: string;
+  locator: Record<string, unknown>;
+  content: string;
+  contentSha256: string;
+  rights: Record<string, unknown>;
+}
+
+export type RelationType =
+  | "applies_to"
+  | "conflicts_with"
+  | "depends_on"
+  | "derived_from"
+  | "supersedes"
+  | "supports"
+  | "used_by";
+
+export interface CandidateRelationProposal {
+  relationType: RelationType;
+  targetKnowledgeUnitId: string;
+  evidenceIds: string[];
+  status: "proposed" | "accepted" | "rejected" | "superseded";
+}
+
+export interface CandidateDetail extends CandidateSummary {
+  parentCandidateId: string | null;
+  conditions: Record<string, unknown>[];
+  exceptions: Record<string, unknown>[];
+  evidence: CandidateEvidence[];
+  relationProposals: CandidateRelationProposal[];
+}
+
+export interface CandidateRevisionRequest {
+  expectedRevisionNumber: number;
+  expectedContentSha256: string;
+  claim: string;
+  scope: Record<string, unknown>;
+  applicability: Record<string, unknown>;
+  conditions: Record<string, unknown>[];
+  exceptions: Record<string, unknown>[];
+  idempotencyKey: string;
+}
+
+export interface CandidateRevision {
+  candidateId: string;
+  parentCandidateId: string;
+  revisionNumber: number;
+  contentSha256: string;
+  status: "author_confirmation_required";
+}
+
+export interface AuthorConfirmationRequest {
+  expectedRevisionNumber: number;
+  expectedContentSha256: string;
+  idempotencyKey: string;
+}
+
+export interface AuthorConfirmation {
+  candidateId: string;
+  candidateStatus: "author_confirmed";
+  knowledgeRevisionId: string;
+  revisionStatus: "review_required";
+  decisionId: string;
+}
+
+export type ReviewDecisionOutcome = "approved" | "rejected" | "changes_requested";
+
+export interface ReviewDecisionRequest {
+  candidateId: string;
+  expectedRevisionNumber: number;
+  expectedContentSha256: string;
+  decision: ReviewDecisionOutcome;
+  idempotencyKey: string;
+  rationale: string | null;
+}
+
+export interface ReviewDecision {
+  candidateId: string;
+  knowledgeRevisionId: string;
+  revisionStatus: ReviewDecisionOutcome;
+  decisionId: string;
+}
+
+export type ApiErrorCode =
+  | "authentication_required"
+  | "invalid_identity"
+  | "permission_denied"
+  | "service_unavailable"
+  | "registration_conflict"
+  | "invalid_source"
+  | "unsupported_media"
+  | "run_not_found"
+  | "retry_not_allowed"
+  | "candidate_not_found"
+  | "invalid_governance_transition"
+  | "stale_revision"
+  | "duplicate_decision";
+
+export interface ErrorResponse {
+  error: {
+    code: ApiErrorCode;
+    message: string;
+  };
+  meta: ResponseMeta;
 }
 
 export interface RetryReceipt {

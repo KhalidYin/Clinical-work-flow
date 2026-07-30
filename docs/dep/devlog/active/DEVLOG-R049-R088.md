@@ -1501,3 +1501,59 @@
 - `clinical-llm-wiki/service/platform_api/`、`schemas/application/knowledge-api.prerelease.yaml`
 - `clinical-llm-wiki/tests/test_*p2b2*` 与相关 P1/P2 回归
 - commit：本轮门禁后创建；未 push
+
+### R085 [00:27] [P12-knowledge-application-platform] P2-B2b: 完成 Candidate 人工治理工作台
+
+#### Done
+
+- 先以 6 个失败组件测试冻结 KUI-04：必须显示 Evidence 原文、locator、rights 与 typed
+  relation proposal；作者编辑建立 revision N+1；作者确认和 Reviewer 决策携带精确
+  revision/hash/idempotency；409 stale 必须显式失败并重新读取 canonical facts。
+- 将 Candidate 页面从只读卡片升级为真实 API 驱动的治理工作台。左侧有界队列按当前会话权限
+  优先打开作者或 Reviewer 待办，主工作区保持 D0 已批准的纸张、墨绿、蓝色 Gate 视觉基线。
+- Evidence 与候选采用桌面双栏对照；Evidence 内容、不可变 locator、rights、source/hash 均先于
+  人工判断展示。窄屏改为 Evidence 在前、Candidate 编辑/审核在后，队列自身横向滚动但页面
+  不产生全局溢出。
+- 作者可编辑 claim、Scope、Applicability、Conditions 与 Exceptions；保存调用 revision API
+  建立 N+1 并自动打开后端返回的新 Candidate，旧 revision 不在前端原地覆盖。
+- 作者确认和独立 Reviewer approve/reject/request-change 均由 `/session` 权限驱动，不提供
+  前端角色切换。Reviewer 驳回/请求修改必须填写理由；当前 actor 为作者时显式显示职责分离
+  阻断，真正授权仍由后端 Gate 判定。
+- 扩展 TypeScript prerelease 合同和 JSON client：后端 ErrorResponse 的 code/message 被保留；
+  `stale_revision` 显示“本次操作未提交”与重新加载入口，不把冲突误报成成功。
+- 扩展 MSW detail fixture 仅供前端开发/组件测试；真实 E2E 仍必须关闭 MSW 并连接
+  PostgreSQL、FastAPI 与 Worker，不能把 fixture 当成可运行产品。
+
+#### Issues / Blockers
+
+- RED 初次运行 6/6 失败，确认现有页面没有详情/写入行为；GREEN 后唯一剩余失败来自测试把
+  ErrorResponse 错包在 `data` 中。按后端顶层 `{error, meta}` 合同修正测试，没有放宽客户端。
+- TypeScript 首次 Gate 发现测试异步闭包内请求体被控制流收窄为 `never`；改用显式索引访问，
+  运行请求与产品逻辑未改变。
+- 当前默认 MSW 身份是只读 Admin/Curator，因此浏览器烟测用于视觉、详情与响应式；作者和
+  Reviewer 写入在组件测试中使用各自会话，完整真实身份切换留给 demo/E2E 阶段。
+
+#### Validation
+
+- KUI-04 RED：6 failed；实现后定向测试 6 passed。
+- 前端全量：3 个测试文件、17 passed；TypeScript typecheck 与 production build 通过
+  （413 modules，JS gzip 125.30 kB）。
+- 真实浏览器桌面布局无全局横向溢出，Evidence/候选双栏同起点；390×844 时
+  `scrollWidth=375 < innerWidth=390`，Evidence top 477.6、Candidate top 1261.1，证明证据
+  优先堆叠；console 无 error/warning。
+
+#### Next
+
+1. 建立可重复 demo bootstrap：真实 PostgreSQL migration/seed、ObjectStore、Document Worker、
+   replay Enrichment Worker、FastAPI 与 production frontend 必须单命令启动。
+2. 用独立 Author/Reviewer bearer identity 完成真实 API 与浏览器闭环，覆盖 revision、
+   request-change、reconfirm、approve、self-review/stale 负向门禁。
+3. 验证 approved-but-unreleased 不进入生产 Query/REST/MCP；B2 不借此实现 P3 Relation Explorer、
+   索引、评估或 Release。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/frontend/src/pages/CandidatesPage.tsx`、`pages.module.css`
+- `clinical-llm-wiki/frontend/src/api/`、`contracts/`、`mocks/`
+- `clinical-llm-wiki/frontend/src/test/candidate-review.test.tsx`
+- commit：本轮门禁后创建；未 push

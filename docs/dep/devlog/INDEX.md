@@ -78,5 +78,6 @@
 | R082 | 2026-07-30 | 16:34 | P12-knowledge-application-platform | P2-A | 建立 Source/Object 补偿、确定性 Document Worker、Evidence lineage 与 KUI-02/03 并关闭 P2-A Gate | `clinical-llm-wiki/service/`, `clinical-llm-wiki/frontend/`, `clinical-llm-wiki/schemas/application/`, `clinical-llm-wiki/tests/`, `docs/` | active/DEVLOG-R049-R088.md |
 | R083 | 2026-07-30 | 23:45 | P12-knowledge-application-platform | P2-B1 | 分离 Evidence/Candidate 状态并冻结作者确认、独立审核与 immutable revision 治理合同 | `clinical-llm-wiki/service/`, `clinical-llm-wiki/frontend/`, `clinical-llm-wiki/schemas/application/`, `clinical-llm-wiki/tests/`, `docs/` | active/DEVLOG-R049-R088.md |
 | R084 | 2026-07-31 | 01:35 | P12-knowledge-application-platform | P2-B2a | 接通 fake/replay Enrichment、retry lineage、Candidate detail/revision API 与实库治理闭环 | `clinical-llm-wiki/service/`, `clinical-llm-wiki/schemas/application/`, `clinical-llm-wiki/tests/`, `docs/dep/` | active/DEVLOG-R049-R088.md |
+| R085 | 2026-07-31 | 00:27 | P12-knowledge-application-platform | P2-B2b | 完成 KUI-04 证据对照、版本化编辑、作者确认、独立审核与 stale 恢复 | `clinical-llm-wiki/frontend/src/`, `docs/dep/` | active/DEVLOG-R049-R088.md |
 
 > Legacy rounds R001-R008 remain immutable in [DEVLOG-legacy.md](archive/DEVLOG-legacy.md). They predate the searchable index and were intentionally not rewritten during adoption.

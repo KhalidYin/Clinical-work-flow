@@ -1,14 +1,21 @@
-import { resolveApiPath, type ApiResponse } from "../contracts/knowledgeApi";
+import {
+  resolveApiPath,
+  type ApiErrorCode,
+  type ApiResponse,
+  type ErrorResponse,
+} from "../contracts/knowledgeApi";
 
 export const LOCAL_BEARER_STORAGE_KEY = "knowledgeLedgerBearerToken";
 
 export class ApiRequestError extends Error {
   readonly status: number;
+  readonly code: ApiErrorCode | null;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, code: ApiErrorCode | null = null) {
     super(message);
     this.name = "ApiRequestError";
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -28,7 +35,7 @@ export async function getJson<T>(path: string, signal?: AbortSignal): Promise<Ap
   const response = await fetch(requestUrl, requestInit);
 
   if (!response.ok) {
-    throw new ApiRequestError(`请求失败（HTTP ${response.status}）`, response.status);
+    throw await apiError(response);
   }
 
   return (await response.json()) as ApiResponse<T>;
@@ -56,6 +63,20 @@ export async function postAction<T>(path: string): Promise<ApiResponse<T>> {
   });
 }
 
+export async function postJson<T, TBody extends object>(
+  path: string,
+  body: TBody,
+): Promise<ApiResponse<T>> {
+  return requestJson<T>(path, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+}
+
 async function requestJson<T>(path: string, init: RequestInit): Promise<ApiResponse<T>> {
   const requestUrl = resolveApiPath(path);
   const headers = new Headers(init.headers);
@@ -65,9 +86,20 @@ async function requestJson<T>(path: string, init: RequestInit): Promise<ApiRespo
   }
   const response = await fetch(requestUrl, { ...init, headers });
   if (!response.ok) {
-    throw new ApiRequestError(`请求失败（HTTP ${response.status}）`, response.status);
+    throw await apiError(response);
   }
   return (await response.json()) as ApiResponse<T>;
+}
+
+async function apiError(response: Response): Promise<ApiRequestError> {
+  try {
+    const payload = (await response.clone().json()) as Partial<ErrorResponse>;
+    const code = payload.error?.code ?? null;
+    const message = payload.error?.message ?? `请求失败（HTTP ${response.status}）`;
+    return new ApiRequestError(message, response.status, code);
+  } catch {
+    return new ApiRequestError(`请求失败（HTTP ${response.status}）`, response.status);
+  }
 }
 
 function acceptsAbortSignal(url: string, signal: AbortSignal): boolean {

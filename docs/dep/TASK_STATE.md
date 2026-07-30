@@ -1,7 +1,7 @@
 ---
 status: in-progress
 created: 2026-07-31 00:00
-updated: 2026-07-31 01:35
+updated: 2026-07-31 00:27
 ---
 
 # Current Task
@@ -15,9 +15,10 @@ P2-B2 — 完成 fake/replay 可回放知识治理闭环与完整前后端 E2E�
 - [x] 以失败测试冻结 replay identity、Enrichment step、Candidate revision 与 retry 合同
 - [x] 实现 fake/replay Enrichment Worker 和 PostgreSQL 状态跃迁与 append-only 审计
 - [x] 完成后端/API/实库 Gate
-- [ ] 后端阶段提交并同步远端
-- [ ] 以失败测试冻结 KUI-04 Evidence/编辑/作者/Reviewer/stale 行为
-- [ ] 实现 Candidate Review 完整 API 驱动前端，阶段提交并同步远端
+- [x] 后端阶段提交并同步远端（`5292150`）
+- [x] 以失败测试冻结 KUI-04 Evidence/编辑/作者/Reviewer/stale 行为
+- [x] 实现 Candidate Review 完整 API 驱动前端并通过组件/构建/浏览器 Gate
+- [ ] 前端阶段提交并同步远端
 - [ ] 建立可重复 demo bootstrap 与完整前后端启动路径
 - [ ] 执行真实 API、PostgreSQL、浏览器 E2E、窄屏与负向门禁
 - [ ] 同步 P12/PLAN/规范/USAGE/memory/DEVLOG，删除本文件并最终提交推送
@@ -40,4 +41,4 @@ P2-B2 — 完成 fake/replay 可回放知识治理闭环与完整前后端 E2E�
 
 ## Resume From
 
-提交并 push 后端阶段；随后先写 KUI-04 交互 RED 测试，再实现 Evidence 对照、编辑、作者确认、独立审核与 stale conflict。
+提交并 push KUI-04 前端阶段；随后建立真实 PostgreSQL/API/Worker demo bootstrap，不能用 MSW 冒充产品 E2E。
