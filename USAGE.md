@@ -72,7 +72,7 @@ npm install
 npm run dev -- --host 127.0.0.1 --port 4173
 ```
 
-浏览器打开 `http://127.0.0.1:4173/app.html#/sources?q=`。当前 Sources、Admin 和 App Shell 通过 `/api/prerelease/v1` 合同访问数据；开发模式由 MSW 提供同合同 fixture，尚未接通真实 Knowledge API、数据库、P1-C 身份授权合同或 worker。MSW 不会在生产构建中自动启用，页面也不会把 fixture 状态声明为真实平台事实。
+浏览器打开 `http://127.0.0.1:4173/app.html#/sources?q=`。Sources、Admin 和 App Shell 通过 `/api/prerelease/v1` 合同访问数据；开发模式默认由 MSW 提供同合同 fixture。P1-D 已提供真实只读 Knowledge API，按下方配置关闭 mocks 后可接入；MSW 不会在 production build 中自动启用，页面也不会把 fixture 状态声明为真实平台事实。
 
 提交前验证：
 
@@ -162,9 +162,9 @@ Consumer；Service Account 是单独 principal。Platform Admin 不隐式取得
 `WORKER_POOL_PERMISSIONS` 限定，任何 worker 都不能审核或发布。
 
 Service Account 只保存 `env://NAME` 或 `secret://path` 引用，数据库和 JSON 合同不保存
-password、access token 或 client secret。当前 P1-C 只冻结端口、策略、三张持久化表和迁移；
-真实 FastAPI session/Admin 路由与生产 OIDC adapter 属于 P1-D，不能把当前 local adapter
-当作部署认证入口。
+password、access token 或 client secret。P1-D 已把该合同接入真实 FastAPI read boundary，
+但 production Provider 专用 OIDC adapter 仍不在 P1 范围；不能把当前 local adapter 当作部署
+认证入口。
 
 验证合同和两级 migration metadata：
 
@@ -172,6 +172,51 @@ password、access token 或 client secret。当前 P1-C 只冻结端口、策略
 Set-Location .\clinical-llm-wiki
 .\.venv\Scripts\python -m pytest tests/test_identity_authorization_contract.py tests/test_database_contract.py -q
 .\.venv\Scripts\python -m ruff check service/auth service/db tests/test_identity_authorization_contract.py tests/test_database_contract.py
+```
+
+### P12 真实 prerelease Knowledge API（P1-D）
+
+P1-D 新应用与 legacy `/api/v1` 分离，固定前缀为 `/api/prerelease/v1`。`health` 为匿名状态
+端点；`session`、current release、Sources 和 Admin users 必须通过 Bearer 身份映射与后端
+permission 检查。应用启动只读现有 schema，不执行 migration、`create_all` 或 bootstrap。
+
+先运行 P1-B migration，并以受控 bootstrap 流程在 `platform_users` 与 `role_bindings` 中建立
+与 local issuer/subject 一致的测试用户。然后只在 loopback 本地开发环境设置：
+
+```powershell
+Set-Location .\clinical-llm-wiki
+$env:KNOWLEDGE_DATABASE_URL = "postgresql+psycopg://<user>:<password>@127.0.0.1:<port>/<database>"
+$env:KNOWLEDGE_IDENTITY_MODE = "local"
+$env:KNOWLEDGE_LOCAL_BEARER_TOKEN = "<opaque-local-test-token>"
+$env:KNOWLEDGE_LOCAL_SUBJECT = "<mapped-subject>"
+$env:KNOWLEDGE_LOCAL_DISPLAY_NAME = "Local Platform User"
+$env:KNOWLEDGE_LOCAL_EMAIL = "local-user@example.test"
+$env:KNOWLEDGE_LOCAL_ISSUER = "local://knowledge-platform"
+.\.venv\Scripts\python -m service.platform_api.main
+```
+
+另一个终端连接真实 API：
+
+```powershell
+Set-Location .\clinical-llm-wiki\frontend
+$env:VITE_ENABLE_MOCKS = "false"
+$env:VITE_KNOWLEDGE_API_TARGET = "http://127.0.0.1:8788"
+npm run dev -- --host 127.0.0.1 --port 4173
+```
+
+在该本地测试 tab 的浏览器控制台执行
+`sessionStorage.setItem("knowledgeLedgerBearerToken", "<opaque-local-test-token>")` 后刷新。
+该值会暴露给当前页面 JavaScript，只适用于 loopback 开发；生产认证必须由后续专用 OIDC
+adapter 与受审核部署边界实现。P1-D 没有 Admin/Source 写路由，也没有默认 token 或自动建用户。
+
+验证真实 API 合同；PostgreSQL 项仅在提供独立测试库时启用：
+
+```powershell
+Set-Location .\clinical-llm-wiki
+.\.venv\Scripts\python -m pytest tests/test_platform_api_contract.py -q
+$env:KNOWLEDGE_TEST_DATABASE_URL = "postgresql+psycopg://<user>:<password>@127.0.0.1:<port>/<empty_test_database>"
+.\.venv\Scripts\python -m pytest tests/test_platform_api_postgres_integration.py -q
+Remove-Item Env:KNOWLEDGE_TEST_DATABASE_URL
 ```
 
 ## 3. 启动本地 Review Panel

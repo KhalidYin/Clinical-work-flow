@@ -10,6 +10,10 @@ import {
 
 const fixtureTime = "2026-07-29T14:58:00Z";
 
+function fixtureHash(prefix: string): string {
+  return prefix.padEnd(64, "0");
+}
+
 function response<T>(data: T): ApiResponse<T> {
   return {
     data,
@@ -24,15 +28,20 @@ function response<T>(data: T): ApiResponse<T> {
 export const sessionFixture = response<Session>({
   actorId: "usr-ke-017",
   displayName: "Kevin Dean",
-  role: "Admin",
+  principalType: "human",
+  roles: ["platform_admin"],
   organization: "Clinical Knowledge Lab",
   permissions: [
     "source:read",
-    "source:register",
-    "candidate:author",
-    "review:independent",
-    "release:manage",
+    "processing:read",
+    "evidence:read",
+    "candidate:read",
+    "query:released",
     "admin:read",
+    "admin:manage_users",
+    "admin:manage_roles",
+    "admin:manage_service_accounts",
+    "audit:read",
   ],
 });
 
@@ -65,7 +74,7 @@ export const sourcesFixture = response<SourceCollection>({
       mediaType: "PDF",
       rights: "licensed",
       status: "released",
-      sourceHash: "f4b8d992a713",
+      sourceHash: fixtureHash("f4b8d992a713"),
       updatedAt: "2026-07-29T13:41:00Z",
     },
     {
@@ -75,7 +84,7 @@ export const sourcesFixture = response<SourceCollection>({
       mediaType: "PDF",
       rights: "licensed",
       status: "approved",
-      sourceHash: "9a60cf74e81d",
+      sourceHash: fixtureHash("9a60cf74e81d"),
       updatedAt: "2026-07-29T12:18:00Z",
     },
     {
@@ -85,7 +94,7 @@ export const sourcesFixture = response<SourceCollection>({
       mediaType: "XLSX",
       rights: "licensed",
       status: "processing",
-      sourceHash: "70d1b30ca4f9",
+      sourceHash: fixtureHash("70d1b30ca4f9"),
       updatedAt: "2026-07-29T11:04:00Z",
     },
     {
@@ -95,7 +104,7 @@ export const sourcesFixture = response<SourceCollection>({
       mediaType: "DOCX",
       rights: "internal",
       status: "candidate",
-      sourceHash: "d3f17c269aa2",
+      sourceHash: fixtureHash("d3f17c269aa2"),
       updatedAt: "2026-07-28T16:43:00Z",
     },
     {
@@ -105,7 +114,7 @@ export const sourcesFixture = response<SourceCollection>({
       mediaType: "Markdown",
       rights: "restricted",
       status: "restricted",
-      sourceHash: "b5f08043ce91",
+      sourceHash: fixtureHash("b5f08043ce91"),
       updatedAt: "2026-07-27T09:22:00Z",
     },
   ],
@@ -120,8 +129,8 @@ export const usersFixture = response<UserCollection>({
       userId: "usr-ke-017",
       displayName: "Kevin Dean",
       email: "kevin.dean@example.test",
-      identitySource: "local-test",
-      roles: ["Admin"],
+      identitySource: "local_test",
+      roles: ["platform_admin"],
       status: "active",
       lastActiveAt: fixtureTime,
     },
@@ -130,7 +139,7 @@ export const usersFixture = response<UserCollection>({
       displayName: "Lin Chen",
       email: "lin.chen@example.test",
       identitySource: "oidc",
-      roles: ["Knowledge Author"],
+      roles: ["knowledge_curator"],
       status: "active",
       lastActiveAt: "2026-07-29T13:37:00Z",
     },
@@ -139,7 +148,7 @@ export const usersFixture = response<UserCollection>({
       displayName: "Mei Zhou",
       email: "mei.zhou@example.test",
       identitySource: "oidc",
-      roles: ["Knowledge Reviewer"],
+      roles: ["reviewer"],
       status: "active",
       lastActiveAt: "2026-07-29T12:55:00Z",
     },
@@ -148,7 +157,7 @@ export const usersFixture = response<UserCollection>({
       displayName: "Arun Rao",
       email: "arun.rao@example.test",
       identitySource: "oidc",
-      roles: ["Release Manager"],
+      roles: ["release_manager"],
       status: "disabled",
       lastActiveAt: null,
     },

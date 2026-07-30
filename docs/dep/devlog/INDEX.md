@@ -73,5 +73,6 @@
 | R077 | 2026-07-30 | 00:24 | P12-knowledge-application-platform | P1-B0 | 冻结外部模型调用、数据出站与显式 StepAttempt 合同 | `clinical-llm-wiki/service/processing/`, `clinical-llm-wiki/schemas/application/`, `clinical-llm-wiki/tests/`, `docs/` | active/DEVLOG-R049-R088.md |
 | R078 | 2026-07-30 | 01:17 | P12-knowledge-application-platform | P1-B | 建立 21 张 canonical table、pgvector fail-closed 与显式 Alembic 迁移基线 | `clinical-llm-wiki/service/db/`, `clinical-llm-wiki/alembic.ini`, `clinical-llm-wiki/tests/`, `docs/` | active/DEVLOG-R049-R088.md |
 | R079 | 2026-07-30 | 11:06 | P12-knowledge-application-platform | P1-C | 冻结身份映射、内部 RBAC、职责分离与三类 Worker 最小权限合同 | `clinical-llm-wiki/service/auth/`, `clinical-llm-wiki/service/db/`, `clinical-llm-wiki/schemas/application/`, `clinical-llm-wiki/tests/`, `docs/` | active/DEVLOG-R049-R088.md |
+| R080 | 2026-07-30 | 11:38 | P12-knowledge-application-platform | P1-D | 接通真实只读 FastAPI、Bearer/RBAC、SQLAlchemy read adapter 与前端真实 API 开关 | `clinical-llm-wiki/service/platform_api/`, `clinical-llm-wiki/frontend/`, `clinical-llm-wiki/schemas/application/`, `clinical-llm-wiki/tests/`, `docs/` | active/DEVLOG-R049-R088.md |
 
 > Legacy rounds R001-R008 remain immutable in [DEVLOG-legacy.md](archive/DEVLOG-legacy.md). They predate the searchable index and were intentionally not rewritten during adoption.

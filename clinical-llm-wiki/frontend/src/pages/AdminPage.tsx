@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { getJson } from "../api/client";
-import { API_PATHS, type UserCollection } from "../contracts/knowledgeApi";
+import { API_PATHS, roleLabel, type UserCollection } from "../contracts/knowledgeApi";
 import styles from "./pages.module.css";
 
 export function AdminPage() {
@@ -83,7 +83,7 @@ export function AdminPage() {
                       </span>
                     </td>
                     <td className={styles.mono}>{user.identitySource}</td>
-                    <td>{user.roles.join(", ")}</td>
+                    <td>{user.roles.map(roleLabel).join(", ")}</td>
                     <td>
                       <span
                         className={`${styles.status} ${

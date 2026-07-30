@@ -899,15 +899,33 @@ Alembic metadata drift、downgrade、re-apply 和 vector extension 存在性；�
 
 ## 13. P12 Knowledge Product 身份与 Service Account 环境
 
-P1-C 不引入产品自有密码库，也不定义可直接部署的 OIDC client 环境变量。生产认证由
-P1-D 以后实现的 `IdentityProviderPort` adapter 负责；Provider 只返回已验证的 issuer、
+P1-C/P1-D 不引入产品自有密码库，也不定义可直接部署的 OIDC client 环境变量。生产认证由
+后续 provider 专用 `IdentityProviderPort` adapter 负责；Provider 只返回已验证的 issuer、
 subject 和显示属性，产品角色及权限继续由 PostgreSQL 内部授权记录决定。OIDC token 的
 role/permission claim 不能写入 ActorContext。
 
-`LocalIdentityProvider` 只允许显式 `local` 或 `test` 环境，并使用测试代码注入的 opaque
-token 映射；它不是生产 fallback，不读取用户名/密码，也没有默认 token。P1-D 配置真实
-Provider 时必须另行冻结 issuer、audience、JWKS/metadata、clock skew 和 credential 注入
-合同，不能从 P1-C 示例推断环境变量名。
+`LocalIdentityProvider` 只允许显式 `local` 或 `test` 环境，并使用注入的 opaque token
+映射；它不是生产 fallback，不读取用户名/密码，也没有默认 token。P1-D local entrypoint
+使用以下显式变量，且只允许绑定 loopback：
+
+```text
+KNOWLEDGE_DATABASE_URL
+KNOWLEDGE_IDENTITY_MODE=local
+KNOWLEDGE_LOCAL_BEARER_TOKEN
+KNOWLEDGE_LOCAL_SUBJECT
+KNOWLEDGE_LOCAL_DISPLAY_NAME
+KNOWLEDGE_LOCAL_EMAIL
+KNOWLEDGE_LOCAL_ISSUER=local://knowledge-platform       # optional
+KNOWLEDGE_ORGANIZATION_NAME=Clinical Knowledge Platform # optional
+KNOWLEDGE_API_HOST=127.0.0.1                             # optional, loopback only
+KNOWLEDGE_API_PORT=8788                                  # optional
+```
+
+`KNOWLEDGE_LOCAL_ISSUER` + `KNOWLEDGE_LOCAL_SUBJECT` 必须已映射到 PostgreSQL 的 active user；
+应用不会自动建表或创建用户。前端真实 API 开关是 `VITE_ENABLE_MOCKS=false`，开发代理目标可用
+`VITE_KNOWLEDGE_API_TARGET` 覆盖。local token 仅存当前 tab 的 sessionStorage。production
+Provider 仍必须另行冻结 issuer、audience、JWKS/metadata、clock skew 和 credential 注入
+合同，不能沿用这些 local 变量。
 
 Worker Service Account 的 `secret_ref` 只允许以下形式：
 

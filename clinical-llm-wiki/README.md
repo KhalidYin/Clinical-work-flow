@@ -14,7 +14,7 @@ Wiki 不控制 Pipeline 阶段顺序，也不执行任意命令。Study 必须�
 
 ## P12 知识应用平台边界
 
-P12 在本目录原地把 Wiki 演进为独立知识产品，不新增第三个项目目录。当前 P1-B0 已冻结外部模型调用合同，P1-B 已建立数据库迁移基线，P1-C 已冻结身份与授权合同：
+P12 在本目录原地把 Wiki 演进为独立知识产品，不新增第三个项目目录。当前 P1-B0 已冻结外部模型调用合同，P1-B 已建立数据库迁移基线，P1-C 已冻结身份与授权合同，P1-D 已接通真实只读 prerelease API：
 
 - `service/processing/model_provider.py` 是产品自有 `ModelProviderPort`、版本化 Model/Prompt/Profile、数据出站策略和 fake/replay adapter；
 - `schemas/application/model-provider.prerelease.schema.json` 是 request/invocation 持久化的 prerelease JSON Schema；
@@ -28,8 +28,12 @@ P12 在本目录原地把 Wiki 演进为独立知识产品，不新增第三个�
 - 人工角色为 Platform Admin、Knowledge Curator、Reviewer、Release Manager、Consumer；Service Account 是独立 principal 类型。Platform Admin 不自动拥有审核或发布权限，Reviewer 不能审核自己创建的候选；
 - Document、Enrichment、Release Service Account 只能取得各自 worker pool 的 scope，任何 worker 都不能审核、发布或管理角色；凭据只保存 `env://`/`secret://` 引用；
 - `schemas/application/identity-authorization.prerelease.schema.json` 是签入仓库的权限策略快照，合同测试要求它与运行时权限矩阵逐字一致。
+- `service/platform_api/` 独立拥有 FastAPI app、Pydantic DTO、read repository port/SQLAlchemy adapter 和 local entrypoint；legacy `service/app.py` 与 `/api/v1` 保持不变；
+- `/api/prerelease/v1/health` 可匿名读取，`/session`、`/releases/current`、`/sources`、`/admin/users` 必须使用 Bearer 身份并在后端按 P1-C permission 检查；未映射、disabled 或权限不足均失败关闭；
+- `schemas/application/knowledge-api.prerelease.yaml`、运行 DTO 与前端 TypeScript contract 使用相同内部角色枚举；显示标签只在前端映射，不成为授权事实；
+- 前端默认仍可使用显式 MSW fixture；设置 `VITE_ENABLE_MOCKS=false` 后通过 Vite proxy 接入真实 API。local Bearer 只存当前浏览器 tab 的 `sessionStorage`，不得当作生产认证方案。
 
-P1-B0/P1-B/P1-C 不发起真实模型调用、不摄取正式知识，也不改变现有 Vault/SQLite 服务的运行路径。P1-C 尚未把身份合同接入真实 FastAPI 路由；该工作属于 P1-D。正式启用 live adapter 时，应在本目录隔离的 `.venv` 安装 `models` 可选依赖。
+P1-B0 至 P1-D 不发起真实模型调用、不摄取正式知识，也不改变现有 Vault/SQLite 服务的运行路径。P1-D 只提供 read boundary 和 local/test identity wiring；生产 Provider 专用 OIDC adapter、ObjectStore、worker claim/lease/checkpoint 和 Compose 仍未实现。正式启用 live model adapter 时，应在本目录隔离的 `.venv` 安装 `models` 可选依赖。
 
 ## 本地使用
 

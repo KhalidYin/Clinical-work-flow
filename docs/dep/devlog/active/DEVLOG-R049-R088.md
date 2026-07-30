@@ -1231,3 +1231,44 @@
 - `docs/dep/PLAN.md`, `docs/dep/plans/ongoing/P12-knowledge-application-platform.md`, `docs/main/memory/p12-plan-authority.md`
 - `docs/dep/devlog/active/DEVLOG-R049-R088.md`, `docs/dep/devlog/INDEX.md`
 - commit：本轮门禁后创建；未 push
+
+### R080 [11:38] [P12-knowledge-application-platform] P1-D: 接通真实 prerelease Knowledge API
+
+#### Done
+
+- 以 TDD 新增 `service/platform_api/`，把 FastAPI application、Pydantic DTO、read repository port、SQLAlchemy adapter 和 environment entrypoint 与 legacy `service/app.py` 分离；新边界固定为 `/api/prerelease/v1`，旧 `/api/v1` 未修改。
+- 接通匿名 `/health` 和受 Bearer 身份保护的 `/session`、`/releases/current`、`/sources`、`/admin/users`；身份必须映射到 active 内部用户，Sources/current release/Admin 分别执行 P1-C permission 检查。
+- 实现 401/403/503 失败关闭和错误脱敏；API 不回传 issuer、subject、token、secret reference 或外部 identity claim。未实现的 ObjectStore/semantic index 只报告 `disabled`，不会冒充可用。
+- 更新 checked-in OpenAPI：加入 bearer security、内部人工角色/identity source/permission 枚举和 error response；运行响应逐组件通过 Draft 2020-12 validation，API DTO 与 ORM 保持独立。
+- 对齐前端 TypeScript contract、角色显示映射和 MSW fixture；source hash fixture 改为完整 SHA-256，表格仅展示前 12 位。`VITE_ENABLE_MOCKS=false` 可通过 Vite proxy 接入真实 API，local token 只从当前 tab `sessionStorage` 读取，不写入源码。
+- 新增 local environment entrypoint，强制 loopback、显式 database/local identity 变量、无默认 token、无自动建表或用户 bootstrap；production Provider 专用 OIDC adapter 明确保留到后续部署阶段。
+- 同步 Wiki README、根 USAGE、SPEC-12/13、P12 唯一计划、PLAN 与项目记忆；P1-D 完成但 P1 仍为 in-progress，下一切片固定为 P1-E。
+
+#### Issues / Blockers
+
+- 首轮 HTTP 测试全部返回 422。根因是 FastAPI app factory 内局部 dependency 的注解在 `from __future__ import annotations` 下变成无法解析的 ForwardRef；删除该模块的延迟注解后恢复为正常 Security/Depends 解析，没有改变认证模型。
+- P1-D 是只读 boundary，没有 Admin/Source 写路由或用户 bootstrap。真实 local 启动前必须通过受控流程预置 migration、PlatformUser 和 RoleBinding；这是当前产品可用性的明确限制，不用隐式 seed 或默认管理员绕过。
+- 全量测试仍有 FastAPI/Starlette 关于 TestClient/httpx2 的迁移 warning，前端仍有 Node `--localstorage-file` warning；均未影响合同、构建或运行结果，升级测试依赖时需单独收敛。
+
+#### Validation
+
+- P1-D HTTP/OpenAPI 定向合同：12 passed；覆盖匿名 health、数据库 degraded、missing/invalid/unmapped/disabled identity、角色不足、repository 503 脱敏、无 secret 响应、checked-in OpenAPI 和 DTO/ORM 分层。
+- 临时 `pgvector/pgvector:0.8.1-pg17` 实库：P1-B clean migration Gate + P1-D PostgreSQL read adapter 共 2 passed；真实读取 session/source/admin/current release。容器按 `clinical-ai-owner=codex-p12-p1d` 标签核对后删除。
+- Wiki 全量：214 passed、2 skipped；两个 skip 分别是无常驻测试数据库时的 opt-in migration/API integration；Ruff 全 Wiki 通过。
+- 前端：typecheck 通过；2 个测试文件、7 项测试通过；Vite production build 通过（411 modules，JS gzip 117.53 kB）。
+
+#### Next
+
+1. 执行 P1-E：先冻结 `ObjectStorePort` 与 object key/hash 权威，禁止绝对路径和 provider URL 进入业务模型。
+2. 实现 ProcessingRun/JobStep/StepAttempt 的原子 claim、lease、heartbeat/checkpoint、过期回收和新 attempt lineage；验证单进程多 pool 与分进程语义一致。
+3. 增加 Document/Enrichment/Release 三类 worker entrypoint、本地 Compose 和失败恢复集成 Gate；P1-E 通过前不启动 P2 正式 Source → Evidence → Candidate 生产。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/service/platform_api/`, `clinical-llm-wiki/tests/test_platform_api_contract.py`, `clinical-llm-wiki/tests/test_platform_api_postgres_integration.py`
+- `clinical-llm-wiki/schemas/application/knowledge-api.prerelease.yaml`
+- `clinical-llm-wiki/frontend/src/`, `clinical-llm-wiki/frontend/vite.config.ts`
+- `clinical-llm-wiki/README.md`, `USAGE.md`, `docs/specs/12-Operational-Model.md`, `docs/specs/13-Environment-Files.md`
+- `docs/dep/PLAN.md`, `docs/dep/plans/ongoing/P12-knowledge-application-platform.md`, `docs/main/memory/`
+- `docs/dep/devlog/active/DEVLOG-R049-R088.md`, `docs/dep/devlog/INDEX.md`
+- commit：本轮门禁后创建；未 push

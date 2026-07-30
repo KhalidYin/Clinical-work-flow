@@ -1,5 +1,7 @@
 import { resolveApiPath, type ApiResponse } from "../contracts/knowledgeApi";
 
+export const LOCAL_BEARER_STORAGE_KEY = "knowledgeLedgerBearerToken";
+
 export class ApiRequestError extends Error {
   readonly status: number;
 
@@ -12,9 +14,12 @@ export class ApiRequestError extends Error {
 
 export async function getJson<T>(path: string, signal?: AbortSignal): Promise<ApiResponse<T>> {
   const requestUrl = resolveApiPath(path);
-  const requestInit: RequestInit = {
-    headers: { Accept: "application/json" },
-  };
+  const headers: Record<string, string> = { Accept: "application/json" };
+  const bearerToken = window.sessionStorage.getItem(LOCAL_BEARER_STORAGE_KEY);
+  if (bearerToken) {
+    headers.Authorization = `Bearer ${bearerToken}`;
+  }
+  const requestInit: RequestInit = { headers };
 
   if (signal && acceptsAbortSignal(requestUrl, signal)) {
     requestInit.signal = signal;

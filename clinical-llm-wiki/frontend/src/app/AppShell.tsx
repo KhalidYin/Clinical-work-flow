@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getJson } from "../api/client";
 import {
   API_PATHS,
+  roleLabel,
   type CurrentRelease,
   type PlatformHealth,
   type Session,
@@ -168,7 +169,9 @@ export function AppShell() {
                     ? "Identity unavailable"
                     : sessionData?.displayName}
               </span>
-              <span className={styles.identityRole}>{sessionData?.role ?? "unknown role"}</span>
+              <span className={styles.identityRole}>
+                {sessionData?.roles.map(roleLabel).join(", ") ?? "unknown role"}
+              </span>
             </span>
           </div>
         </header>

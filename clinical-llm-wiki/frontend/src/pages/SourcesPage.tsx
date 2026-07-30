@@ -51,7 +51,11 @@ const columns = [
   }),
   columnHelper.accessor("sourceHash", {
     header: "Source hash",
-    cell: (info) => <span className={styles.mono}>sha256:{info.getValue()}</span>,
+    cell: (info) => (
+      <span className={styles.mono} title={`sha256:${info.getValue()}`}>
+        sha256:{info.getValue().slice(0, 12)}
+      </span>
+    ),
   }),
 ];
 

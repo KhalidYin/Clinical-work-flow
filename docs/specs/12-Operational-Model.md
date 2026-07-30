@@ -809,6 +809,11 @@ AI 辅助成本 (Phase 3):
 - Service Account 只登记 secret reference。实际 credential 不进入知识实体、审计内容、
   前端或 Git。
 
-P1-C 只冻结上述端口、权限矩阵、持久化记录与负向合同；真实 API/OIDC 接入属于 P1-D，
-worker claim/lease/checkpoint 与部署形态属于 P1-E。该边界不恢复已废弃的 Workflow POC，
-也不把 Project Memory 或 Study 规则写入主知识库。
+P1-D 已实现真实只读 prerelease API：匿名 `/health` 与受 Bearer + 后端 permission 保护的
+`/session`、current release、Sources、Admin users。API DTO、SQLAlchemy read model、身份策略与
+checked-in OpenAPI 相互分层；外部 identity claim 不会出现在响应中。前端显示角色名称只由
+内部枚举映射，不参与授权。
+
+P1-D 只接入 local/test identity wiring；production Provider 专用 OIDC adapter 仍需后续部署
+计划。worker claim/lease/checkpoint、ObjectStore 与部署形态属于 P1-E。该边界不恢复已废弃的
+Workflow POC，也不把 Project Memory 或 Study 规则写入主知识库。
