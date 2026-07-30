@@ -8,13 +8,13 @@ updated: 2026-07-30
 
 | # | 当前 Gate | 子计划 | 状态 |
 |---|----------|--------|------|
-| P12 | P2 AI 知识生产 | [P12-knowledge-application-platform.md](plans/ongoing/P12-knowledge-application-platform.md) | P2-A Gate 已关闭 · P2-B pending/未授权 · 不自动进入模型增强 |
+| P12 | P2-B1 状态语义与治理合同 | [P12-knowledge-application-platform.md](plans/ongoing/P12-knowledge-application-platform.md) | 主线已重定位为可信知识闭环 · P2-A done · P2-B1 next/已批准 |
 
 ## 待开始
 
-P12 P2-B、P3、P4 保持 pending；P2-A 完成不自动授权模型增强、发布或迁移部署。
+P12 P2-B2、P2-B3、P3、P4 按 Gate 保持 pending；P2-B1 完成不自动进入 fake/replay Candidate、真实模型、发布或迁移部署。
 
-P12 是唯一可执行主线：D0 Evidence Ledger HTML 是颜色、排版、布局、状态语义和核心交互基线。P1 已于 2026-07-30 关闭产品基础 Gate。P2-A 同日关闭：Source Registry、对象写 intent/补偿/孤儿 reconcile、确定性 TXT/MD/PDF/DOCX/XLSX parser、Document Worker DAG/fan-in、Evidence lineage、`202 + run_id` API、KUI-02/03 与条件轮询已经建立。Docling 因缺少同条件受控临床样本证据未锁定；扫描 PDF 明确停在 OCR-required。P2 整体仍未完成，下一可选切片是 P2-B 外部模型增强、Candidate 与两级人工 Gate，必须另获授权。整体仍为 P1 产品基础、P2 AI 知识生产、P3 检索/评估/发布、P4 产品闭环/迁移/部署；Workflow、Agent Runtime 和 Project Memory Service 不在当前开发周期，只保留接口边界。
+P12 是唯一可执行主线，产品结果固定为“受控 Source → Evidence → AI Candidate → 作者确认 → 独立审核 → 检索评估 → immutable Release → REST/MCP 消费”。D0 Evidence Ledger HTML 继续作为颜色、排版、布局和核心交互基线。P1 已于 2026-07-30 关闭产品基础 Gate；P2-A 同日关闭 Source Registry、对象一致性、确定性解析、Document Worker DAG/fan-in、Evidence lineage、`202 + run_id` API 与 KUI-02/03。当前不再横向补平台能力，下一 Gate 是 P2-B1：新增 `evidence_ready`，把“Evidence 已完成”和“已有 Candidate 待作者确认”分开，并冻结 Candidate/Governance/两级人工 Gate 合同。P2-B2 再以 fake/replay 完成可回放闭环，P2-B3 最后只接一个真实外部模型。Docling/OCR、完整生产 OIDC/S3、GraphRAG/Neo4j、Workflow、Agent Runtime 和 Project Memory 均不牵引当前主线。
 
 ## 最近完成
 

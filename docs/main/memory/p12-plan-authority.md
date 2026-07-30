@@ -29,8 +29,10 @@ type: project
 - 生产 S3-compatible adapter、Secret Store resolver 和 Provider 专用 OIDC 仍属于 P4；P1 的 local ObjectStore/Compose 只用于开发骨架，不应被解释为生产选型。
 - P2-A 已于 2026-07-30 完成：`service/sources/` 用 PostgreSQL write intent、不可覆盖 ObjectStore 写、原子 Source/SourceVersion/SourceArtifact publish、补偿删除和可审计 reconcile 解决跨存储一致性；重复请求幂等，新内容建立新版本，hash/MIME/rights/对象丢失均失败关闭。
 - `0004` revision 增加 SourceVersion 版本唯一性、原始/派生 artifact lineage、ObjectWriteIntent 和 Evidence parser provenance。新写路径只使用 `original`/`parser_output`；P1 的 `canonical_source` 仅作为 legacy original 读取别名保留，不能与 Evidence 或派生对象混为一类。
-- P2-A Document Worker 只执行确定性 TXT/MD/PDF/DOCX/XLSX 解析、声明式 dependency/fan-in、derived artifact 与 Evidence 写入。运行终点是 `author_confirmation_required`；它不能创建 Candidate、approved revision、release 或生产索引，也没有调用外部模型。
+- P2-A Document Worker 只执行确定性 TXT/MD/PDF/DOCX/XLSX 解析、声明式 dependency/fan-in、derived artifact 与 Evidence 写入。已交付实现曾以 `author_confirmation_required` 表示 Evidence 终点，但此时没有 Candidate；用户于 2026-07-30 批准在 P2-B1 以新状态、新 migration 和独立 backfill 校正为 `evidence_ready`。P2-A 仍不能创建 Candidate、approved revision、release 或生产索引，也没有调用外部模型。
 - P2-A API 用 `POST /api/prerelease/v1/sources` 返回 `202 + run_id`，Processing Runs 只对 active 状态条件轮询；KUI-02/03 分开展示 Original、Derived 与 Evidence，并支持安全 step retry/cancel。
 - Parser Gate 没有锁定 Docling/Unstructured：现有 adapter 已通过 synthetic locator/hash/formula/fan-in 合同，但缺少同条件 SDTM 跨页表、ADaM 公式和 CT workbook 对照证据。扫描 PDF 明确返回 OCR-required；满足受控 fixture Gate 后才能重开依赖选型。
 
-**如何应用：** P1 与 P2-A Gate 已关闭，P2-B 尚未授权。下一任务只有在用户批准后才能进入外部模型增强、Knowledge Candidate 与作者确认/独立审核；不得把 P2-A Evidence 当作 approved/released knowledge，也不得反向修改 P1/P2-A 已冻结的对象、权限、ledger 或 provenance 语义。如果未来需要重启 Workflow、Agent、Project Memory 或多 Study协作，必须基于 P12 当时已发布的外部合同新建计划，不能恢复旧 P1-P11 文件继续执行。
+- 用户于 2026-07-30 批准把剩余主线重新定位为“可信知识闭环优先”，而不是继续横向建设平台或先追逐模型效果。P2-B 拆为三个连续 Gate：B1 状态语义与治理合同，B2 fake/replay 可回放闭环，B3 单一真实外部模型；P3 才进入检索、评估和 immutable release。
+
+**如何应用：** P1 与 P2-A Gate 已关闭，P2-B1 已批准为下一任务。B1 只新增 `evidence_ready`、安全 migration/backfill、Candidate/Governance/两级人工 Gate 合同和对应 API/UI 状态，不调用任何模型。P2-B2、P2-B3、P3、P4 仍需逐 Gate 推进，B1 完成不自动授权 fake/replay Candidate、真实模型或发布。不得把 P2-A Evidence 当作 Candidate、approved/released knowledge，也不得反向修改 P1/P2-A 已冻结的 Source、ObjectStore、权限、ledger 或 provenance 语义；状态修正只能用新的 expand revision 和独立 resumable backfill。如果未来需要重启 Workflow、Agent、Project Memory 或多 Study协作，必须基于 P12 当时已发布的外部合同新建计划，不能恢复旧 P1-P11 文件继续执行。

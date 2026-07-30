@@ -4,7 +4,7 @@ status: in-progress
 created: 2026-07-29
 updated: 2026-07-30
 priority: 1
-estimated_rounds: 35-49
+estimated_rounds: 37-52
 depends_on: []
 tags:
   - knowledge-product
@@ -35,6 +35,22 @@ syncs_to:
 
 在现有 `clinical-llm-wiki/` 中原地完成产品化：由 AI 辅助把受控来源转换为可追溯的知识候选，经作者确认、独立审核、检索评估和 Release Gate 后，形成不可变的正式知识版本。产品提供独立 Web 前端、Knowledge API、异步非线性作业、多角色治理、混合检索和外部只读接口。仓库继续只保留 `clinical-workflow/` 与 `clinical-llm-wiki/` 两个产品边界；后续主计划只建设知识产品，不改动既有临床 Workflow。
 
+当前产品主线不是继续横向建设通用平台，而是完成一条可回放的可信知识闭环：
+
+```text
+受控 Source
+  → 可定位 Evidence
+  → AI Knowledge Candidate
+  → Author confirmation
+  → Independent review
+  → Approved KnowledgeRevision
+  → Retrieval evaluation
+  → immutable Release
+  → REST / MCP 消费
+```
+
+数据库、ObjectStore、worker、外部模型适配、身份权限和前端只服务于这条主线；不得各自扩张为新的平台建设方向。
+
 ## 背景
 
 - 当前状态：现有 Wiki 已建立受治理 Markdown、来源包、Evidence locator、28 条 approved statement、typed relation、query index、locked snapshot、SQLite FTS 和 loopback Knowledge Service，可作为迁移基线。
@@ -60,7 +76,8 @@ syncs_to:
   - 用户批准首版仅配置外部模型 API，由自有 `ModelProviderPort` 隔离供应商，并以内嵌 LiteLLM Python SDK 作为多供应商适配实现；不部署 LiteLLM Proxy；
   - 用户批准复用成熟组件，但 canonical Source/Evidence/Knowledge/Governance/Release 模型自有；
   - Microsoft GraphRAG 不作为 provider、依赖、worker、首版输出物或验收项，只参考其关系发现和评估思路；
-  - 明确停止十阶段 Workflow POC，不在本计划集成 MAF、LangGraph、AutoGen、Dify 或任何 Agent Runtime。
+  - 明确停止十阶段 Workflow POC，不在本计划集成 MAF、LangGraph、AutoGen、Dify 或任何 Agent Runtime；
+  - 用户于 2026-07-30 批准“可信知识闭环优先”：P2-B 分为状态/治理合同、fake/replay 可回放闭环、单一真实外部模型三个连续 Gate；不以模型接通或页面数量代替治理闭环。
 
 ## 涉及范围
 
@@ -186,8 +203,11 @@ Source
   → SourceVersion
   → SourceArtifact
   → Evidence
+  → evidence_ready
   → KnowledgeCandidate
+  → author_confirmation_required
   → KnowledgeRevision
+  → review_required / approved
   → ReleasedKnowledge
 ```
 
@@ -200,10 +220,13 @@ SourceVersion 登记
   → 创建 ProcessingRun（202 + run_id）
   → [并行] 正文/章节解析、表格解析、OCR 或附件提取
   → 汇合为带 locator/hash 的 Evidence
+  → evidence_ready
   → [并行] 原子 claim 抽取、type/scope/condition/exception 建议、
            relation proposal、重复/冲突/gap 提示
   → 汇合为 KnowledgeCandidate
+  → author_confirmation_required
   → Author confirmation ──退回──> 指定解析或增强 step 重跑
+  → review_required
   → Independent review ───退回──> Candidate revision
   → Approved KnowledgeRevision
   → [并行] FTS/vector/relation index 构建、Gold Set evaluation
@@ -215,10 +238,11 @@ SourceVersion 登记
 
 ### 状态与人工 Gate
 
-用户可见状态固定为 `queued`、`processing`、`author_confirmation_required`、`review_required`、`approved`、`release_blocked`、`released`、`failed`、`cancelled`。`leased`、`attempt`、`retry_wait` 等调度状态仅在运行详情中出现，不成为业务状态。
+用户可见状态固定为 `queued`、`processing`、`evidence_ready`、`author_confirmation_required`、`review_required`、`approved`、`release_blocked`、`released`、`failed`、`cancelled`。`leased`、`attempt`、`retry_wait` 等调度状态仅在运行详情中出现，不成为业务状态。
 
 - API 接受任务后返回 `202 Accepted + run_id`；PostgreSQL durable ledger 保存 run、step、attempt、lease、checkpoint 和 artifact manifest。
 - worker 只领取已提交的离散任务；每一步产生持久结果或失败证据，成功步骤在安全重试时不无条件重复。
+- `evidence_ready` 只表示确定性解析已形成合格 Evidence，尚无可供作者确认的 Candidate；只有持久化 Candidate revision 后才能进入 `author_confirmation_required`。
 - `approved` 不等于生产可消费；只有通过 Release Manager 与 evaluation Gate 并进入 immutable release 的 revision 才能被生产 REST/MCP/Query Lab 返回。
 - 人工 Gate 分两级：作者确认结构化抽取是否准确；独立 Reviewer 判断知识能否批准。模型 confidence 只帮助排序，不是授权信号。
 - 退回不会整条流水线从头重跑；Decision 指定失效的 step/output，ledger 创建新的 StepAttempt，并保留旧 attempt、输入输出 hash 和审计链。
@@ -295,6 +319,7 @@ Docling 是否进入锁定依赖，必须先用 SDTM IG 多栏与跨页表、ADa
 | D-UI-01 | KUI-01..10 | 首个 Demo 同时高保真实现十个页面 | 高保真实现 Sources → Processing → Candidate Review → Query Lab → Release，其他页面使用真实空状态 | 先验证核心证据闭环，避免 Demo 伪完成 | approved 2026-07-29 |
 | D-UI-02 | D0 implementation | D0 直接建设 React/Vite + MSW 产品骨架 | D0 用单文件 HTML 完成设计验证；React/Vite + MSW/OpenAPI 合同实现移至 P1 | D0 的目标是大改前确认设计，避免在视觉 Gate 前安装依赖和扩张目录 | approved 2026-07-29 |
 | D-GRAPH-01 | Graph extension | 把 Microsoft GraphRAG 设计成可选 provider | 仅保留为设计和评估参考，不进入产品合同 | 避免双图语义、额外输出门禁和供应商耦合 | approved 2026-07-29 |
+| D-STATE-01 | KUI-03/KUI-04 | Evidence 完成后直接显示 `author_confirmation_required` | 新增 `evidence_ready`；只有 Candidate revision 已持久化才显示待作者确认 | 原状态在没有 Candidate 时要求作者确认，混淆 Evidence checkpoint 与人工 Gate | approved 2026-07-30 |
 
 ## 页面/组件/状态/交互矩阵
 
@@ -302,7 +327,7 @@ Docling 是否进入锁定依赖，必须先用 SDTM IG 多栏与跨页表、ADa
 |-------|-----------|--------------------|-----------------|----------|------------|----------|----------|------|
 | KUI-01 | App Shell / Identity | 当前用户、角色、release、index health、一级导航 | `/session`、`/health`、`/releases/current` | 登录后进入 `/sources` | 导航更新 URL；无权限入口隐藏且直接 URL 访问由后端拒绝 | loading 显示壳层骨架；empty 无 current release 时明确提示；error 显示 health/identity 错误；partial 保留已验证身份；窄屏 drawer | 刷新和深链能恢复当前页；权限不依赖前端判断 | 不允许 |
 | KUI-02 | Source Library | Source、版本、hash、rights、媒体类型、解析/发布状态；授权用户上传新版本 | `/sources`、`/sources/{id}`、对象登记回执 | 最近更新排序，默认显示 active/all-rights | 筛选写入 URL；上传完成只产生 source version，不产生 knowledge | loading/empty/error/partial 独立；窄屏表格滚动并保留版本/rights/hash | 上传、筛选、版本查看和无权限拒绝均可自动验证 | 不允许 |
-| KUI-03 | Processing Runs | 非流式 run/step/attempt、worker pool、parser、输入/输出 hash、checkpoint、派生物、失败和重试 | `/processing-runs`、`/processing-runs/{id}` | 显示最近运行；processing 项置顶 | 启动只接受已登记 source version；失败可从安全 checkpoint 重试；页面按 run 状态条件轮询 | loading/empty/error/partial；轮询中不模拟 chunk 流；窄屏步骤纵向排列 | parser 失败不显示为成功；同一步重试不重复产出；Document Worker 不发布 knowledge | 不允许 |
+| KUI-03 | Processing Runs | 非流式 run/step/attempt、worker pool、parser、输入/输出 hash、checkpoint、派生物、Evidence、失败和重试 | `/processing-runs`、`/processing-runs/{id}` | 显示最近运行；processing 项置顶；解析完成且尚无 Candidate 时显示 `evidence_ready` | 启动只接受已登记 source version；失败可从安全 checkpoint 重试；`evidence_ready` 可进入已授权的 Enrichment；页面只对 active run 条件轮询 | loading/empty/error/partial；轮询中不模拟 chunk 流；窄屏步骤纵向排列 | parser 失败不显示为成功；同一步重试不重复产出；无 Candidate 时不得显示待作者确认；Document Worker 不发布 knowledge | 不允许 |
 | KUI-04 | Candidate Review | 原始 evidence、locator、candidate 内容、适用范围、rights、版本差异、作者确认和 reviewer decision | `/candidates/{id}`、`/evidence/{id}`、`/reviews/{id}` | author 打开待确认 candidate；reviewer 打开首个待审 revision | author 修改并确认 claim/scope/locator/relation；独立 reviewer approve/reject/request-change；作者不能审核自己 | loading/empty/error/partial；stale revision 冲突显式；窄屏 evidence 后 editor | 作者确认与独立审核两级 Gate、stale revision、未覆盖 evidence 和权限拒绝行为均测试 | 不允许 |
 | KUI-05 | Relation Explorer | typed nodes/edges、source evidence、方向、状态和 release membership | `/relations/query`、`/knowledge-units/{id}` | 从选中 Knowledge Unit 展开一跳 approved/candidate relations | 选择节点更新 `node_id`；扩展深度有上限；candidate 与 released 样式分离 | loading/empty/error/partial；超限提示；窄屏图/列表可切换 | 不产生无 evidence edge；URL 能恢复节点和过滤条件 | 不允许 |
 | KUI-06 | Query Lab | query、metadata/FTS/vector/relation 各路候选、融合结果、citation、gap 和 Context Package | `/queries`、`/context-packages` | 默认空查询，不自动运行 | 提交后保留 query ID；可查看各路贡献，不允许前端重算 rank | loading/empty/error/partial；某一路不可用时标记 degraded；窄屏结果卡纵向 | 每个结果可定位 unit/evidence/source；degraded 不伪装完整召回 | 不允许 |
@@ -322,7 +347,7 @@ Docling 是否进入锁定依赖，必须先用 SDTM IG 多栏与跨页表、ADa
 ## 视觉与行为验收清单
 
 - [ ] `[KUI-01]` 首屏导航、identity、release/index health 和默认 Sources 页面与基线一致，深链可恢复。
-- [ ] `[KUI-02..03]` Source 上传/版本、非流式 processing 状态/失败/checkpoint 重试均由 API 证据驱动，不把 source、derived 或 worker 输出误标为 knowledge。
+- [ ] `[KUI-02..03]` Source 上传/版本、非流式 processing 状态/失败/checkpoint 重试均由 API 证据驱动；`evidence_ready` 不被误标为 Candidate 或待作者确认。
 - [ ] `[KUI-04]` Candidate revision、evidence 对照、作者确认、独立 approve/reject/request-change、stale conflict 和作者自审拒绝行为闭合。
 - [ ] `[KUI-05]` Relation 节点/边都有 typed evidence，candidate/released 不混淆，展开有上限且 URL 可恢复。
 - [ ] `[KUI-06]` Query Lab 分开展示 metadata/FTS/vector/relation 贡献和 degraded 状态，Context Package citation 可追溯。
@@ -361,8 +386,8 @@ Docling 是否进入锁定依赖，必须先用 SDTM IG 多栏与跨页表、ADa
 | Phase | 目标 | 预估轮次 | 依赖 | 状态 |
 |-------|------|----------|------|------|
 | D0 | 大改前可运行前端 Demo Gate | 2-3 | - | done |
-| P1 | 产品基础：数据库迁移、身份权限、作业账本、模型与合同基线 | 8-11 | D0 | in-progress |
-| P2 | AI 知识生产：Source → Evidence → Candidate → 作者确认 → 独立审核 | 10-14 | P1 | pending |
+| P1 | 产品基础：数据库迁移、身份权限、作业账本、模型与合同基线 | 8-11 | D0 | done |
+| P2 | AI 知识生产：Source → Evidence → Candidate → 作者确认 → 独立审核 | 12-17 | P1 | in-progress（P2-A done；P2-B1 next） |
 | P3 | 发布与检索：Approved Revision → 索引/评估 → immutable Release | 8-11 | P2 | pending |
 | P4 | 产品闭环：完整前端、外部接口、既有 Wiki 迁移、部署与运维验收 | 7-10 | P3 | pending |
 
@@ -414,7 +439,7 @@ Docling 是否进入锁定依赖，必须先用 SDTM IG 多栏与跨页表、ADa
 - [x] P1-D：已建立真实 FastAPI prerelease 应用与 read repository，接通 `/session`、`/health`、current release、Sources 和 Admin；Bearer 身份、内部 permission、错误脱敏、checked-in OpenAPI/DTO/前端合同和 PostgreSQL 实库读取 Gate 通过，legacy `/api/v1` 保持不变。
 - [x] P1-E：实现可替换 `ObjectStorePort`、ProcessingRun claim/lease/checkpoint 与三类 worker 入口，建立本地 Compose 骨架并执行 P1 集成 Gate；未满足对象权威、最小权限、合同一致性或失败恢复时不得进入 P2。
 
-P1-A/P1-B0/P1-B/P1-C/P1-D/P1-E 已于 2026-07-30 全部完成，P1 Gate 关闭。P1-E 固定了本地/内存 ObjectStore adapter、不可覆盖 object key/hash、PostgreSQL `SKIP LOCKED` claim、lease/heartbeat/checkpoint、过期 lease 新 attempt 恢复、显式 retry/cancel、统一三 pool WorkerRuntime、分离的 maintenance 入口和本地 Compose/镜像边界。P2 尚未启动；后续不得反向修改已冻结的数据库、模型调用、授权、read API 和运行时语义。
+P1-A/P1-B0/P1-B/P1-C/P1-D/P1-E 已于 2026-07-30 全部完成，P1 Gate 关闭。P1-E 固定了本地/内存 ObjectStore adapter、不可覆盖 object key/hash、PostgreSQL `SKIP LOCKED` claim、lease/heartbeat/checkpoint、过期 lease 新 attempt 恢复、显式 retry/cancel、统一三 pool WorkerRuntime、分离的 maintenance 入口和本地 Compose/镜像边界。P1 关闭当时 P2 尚未启动；当前 P2-A 已完成，后续仍不得反向修改已冻结的数据库、模型调用、授权、read API 和运行时语义。
 
 ### 边界（本 Phase 明确不做）
 
@@ -449,7 +474,7 @@ P1-A/P1-B0/P1-B/P1-C/P1-D/P1-E 已于 2026-07-30 全部完成，P1 Gate 关闭�
 
 ## P2: AI 知识生产：Source、Evidence、Candidate 与两级人工 Gate
 
-P2 是一个完整的知识生产 Phase，不再把“解析”和“AI 建模/审核”拆成两个独立 Phase。内部按 P2-A/P2-B 切片交付，但共享同一 `ProcessingRun`、对象 lineage 和 Gate。
+P2 是一个完整的知识生产 Phase，不再把“解析”和“AI 建模/审核”拆成两个独立产品方向。内部按 P2-A、P2-B1、P2-B2、P2-B3 切片交付，但共享同一 `ProcessingRun`、对象 lineage 和 Gate。
 
 **P2-A：Source/Object、解析分支与 Evidence（2026-07-30 完成）**
 
@@ -505,69 +530,129 @@ P2 是一个完整的知识生产 Phase，不再把“解析”和“AI 建模/�
 - 任务状态：PostgreSQL durable ledger，不由对象是否存在推导；这是离散异步任务，不是流式 pipeline。
 - Parser：adapter 模式；Docling 只是首选候选，首版格式范围由临床样本与 locator 可验证性决定。
 - 对象命名：opaque object key + DB manifest，不把用户文件名直接用作授权路径。
+- P2-A 已交付实现曾以 `author_confirmation_required` 表示 Evidence 终点；P2-B1 通过新状态、新 revision 和独立 backfill 将其校正为 `evidence_ready`，不修改历史 migration 或伪造 P2-A 当时的验收事实。
 
 ---
 
-**P2-B：外部模型增强、Knowledge Candidate 与两级人工 Gate**
+**P2-B：Knowledge Candidate 与两级人工 Gate**
 
-### 输入条件
+P2-B 不再作为一次性“大模型 + 关系图 + 全部审核 UI”交付。按 B1/B2/B3 三个连续 Gate 推进，先证明治理状态正确，再证明闭环可回放，最后才接真实外部模型。
 
-- P2-A 能从登记来源稳定产生带 locator/hash 的 Evidence。
-- Knowledge Reviewer 和 Release Manager 测试身份已配置。
-- 至少一个允许发送测试数据的外部 ModelProfile 已配置；受限来源用于验证出站 fail-closed。
+### P2-B1：状态语义与治理合同
 
-### 产出
+#### 输入条件
 
-- EvidenceUnit、KnowledgeUnit、Applicability、Relation、Revision、Candidate、ReviewDecision 和 governance state machine。
-- Enrichment Worker：通过 `ModelProviderPort` 从 Evidence 产生原子 claim、type/scope/condition/exception、Knowledge Candidate、typed relation proposal、去重、冲突与 gap 提示。
-- 作者确认与独立 Reviewer 分离；stale revision、approve/reject/request-change、supersede/retire 和 immutable released revision 规则。
-- 外部模型 provenance：provider/model/prompt/schema version、input/output hash、provider request ID、token/cost/latency/data boundary；confidence 只排序，不批准。
-- typed relation allow-list、edge evidence、闭包/悬空/冲突检查。
-- append-only audit event 和 correlation ID。
-- `[KUI-04]` Candidate Review、`[KUI-05]` Relation Explorer、`[KUI-10]` Audit。
+- P2-A 已稳定产生带 SourceVersion、locator、parser provenance 和 hash 的 Evidence。
+- P1 的 Alembic、RBAC、durable ledger、fake/replay ModelProvider 和 worker 最小权限合同保持有效。
 
-### 完成标准
+#### 产出
 
-- [ ] Knowledge Candidate 没有 Evidence/locator/source version 时不能进入 review；rights 或适用范围不完整时不能批准。
-- [ ] 机器候选先进入 `author_confirmation_required`；作者确认 claim/scope/locator/relation 后才进入 `review_required`。
-- [ ] 作者自审、过期 revision decision、重复 decision、越权 decision 和直接修改 released revision 全部拒绝。
-- [ ] Enrichment Worker 没有 confirm/review/approve/release 权限，LLM confidence 不触发状态跃迁。
-- [ ] AI 只执行原子抽取、分类/适用性、关系建议、重复/冲突/gap 和证据一致性辅助；不得虚构无证据事实，也不得确认、审核、批准或发布。
-- [ ] 数据边界在请求前检查；`local_processing_only`、`prohibited` 或 provider 不匹配时不出站并产生可解释失败。
-- [ ] 结构化输出不符合 JSON Schema、超时、限流或供应商错误时 fail closed；重试/换模型形成新的 StepAttempt，不由 SDK 静默 fallback。
-- [ ] Relation 必须类型合法、端点存在并有 evidence；dangling、循环约束和 conflicting/supersedes 语义有确定性验证。
-- [ ] released revision immutable；修订和退役只能创建新 revision/decision，不原地覆盖。
-- [ ] Audit 记录 actor、permission、object、revision、result 和 correlation ID，不记录 secret 或隐藏推理。
-- [ ] `[KUI-04..05]`、`[KUI-10]` 与对应视觉/行为验收项通过组件、API、并发和浏览器测试。
+- 新增 `evidence_ready` 业务状态：确定性解析完成但尚未生成 Candidate；`author_confirmation_required` 只允许表示已存在可确认的 Candidate revision。
+- 以新 Alembic expand revision 扩展状态约束；已有 P2-A 数据通过独立、可恢复 backfill 按“已有 Evidence 且不存在 Candidate”条件从 `author_confirmation_required` 转为 `evidence_ready`。不修改 `0001..0004` 历史 revision，不把 DDL 和数据修补混为一个入口。
+- 冻结 Evidence eligibility、KnowledgeCandidate、KnowledgeRevision、Applicability、Relation proposal、ReviewDecision、状态跃迁和 append-only audit 合同。
+- 冻结 Author confirmation、Independent Review、request-change、reject、approve、stale revision、supersede/retire 和 released immutability 规则。
+- 扩展 checked-in OpenAPI/JSON Schema、前端合同与 KUI-03/KUI-04 状态 fixture；本切片不发起模型调用。
 
-### 边界（本 Phase 明确不做）
+#### 完成标准
 
-- 不让 LLM 代替 Author/Reviewer/Release Manager，不依据模型 confidence 自动确认或批准。
-- 不部署本地 LLM、LiteLLM Proxy、Agent framework 或自动规划器；外部模型只在 Enrichment Worker 中调用。
-- 不实现 Project Memory；外部 candidate submission 只冻结 payload 和 inbox 语义。
-- 不部署 Neo4j，不实现 Microsoft GraphRAG provider 或全自动 graph extraction；仅把它保留在参考资料清单。
+- [ ] 没有 Candidate 的 P2-A run 只能停在 `evidence_ready`；没有持久化 Candidate revision 时进入 `author_confirmation_required` 必须被应用事务/状态合同拒绝，数据库继续负责状态枚举、FK、unique 和 revision 完整性，不为跨表存在性引入隐式 trigger。
+- [ ] DDL revision、可恢复 backfill 和业务写入保持三个入口；clean apply、已有数据库 upgrade、backfill 重放和 metadata drift Gate 通过。
+- [ ] Candidate 缺少 Evidence、locator、SourceVersion、rights 或适用范围时不能进入作者确认；Relation proposal 缺少合法类型、端点或 edge evidence 时失败关闭。
+- [ ] 作者确认后才进入 `review_required`；作者自审、过期 revision decision、重复 decision、越权 decision 和直接修改 released revision 全部拒绝。
+- [ ] Enrichment/Document/Release worker 均不能 confirm、review、approve 或发布；平台管理员不隐式绕过四眼原则。
+- [ ] `[KUI-03..04]` 合同能区分 `evidence_ready`、待作者确认和待独立审核；无 Candidate 时 UI 不显示确认操作。
 
-### 涉及文件
+#### 边界（本切片明确不做）
+
+- 不调用真实或 fake/replay 模型生成 Candidate。
+- 不实现 Relation Explorer 图形交互、检索索引、评估或 release。
+- 不反向修改 P1/P2-A 的 Source、ObjectStore、ledger、parser 或 Evidence lineage 语义。
+
+### P2-B2：fake/replay 可回放知识治理闭环
+
+#### 输入条件
+
+- P2-B1 状态迁移、Candidate/Governance schema、权限和 API 合同通过 Gate。
+- 使用合成或具备合法存储权、允许本地测试的 Source/Evidence fixture；Author 与独立 Reviewer 测试身份已配置。
+
+#### 产出
+
+- Enrichment Worker 使用 P1 已冻结的 fake/replay `ModelProviderPort`，从 `evidence_ready` Evidence 产生原子 claim、type/scope/condition/exception、KnowledgeCandidate 和 typed relation proposal。
+- 同一 `ProcessingRun` 在明确授权后从 `evidence_ready` 继续执行 Enrichment step；模型处理时进入 `processing`，成功持久化 Candidate 后进入 `author_confirmation_required`。
+- `[KUI-04]` Candidate Review 完成 Evidence/locator 对照、Candidate revision 编辑、作者确认、独立 approve/reject/request-change 和 stale conflict；最小 relation proposal 使用证据表格展示，不提前建设复杂图。
+- append-only Audit 记录 actor、permission、object、revision、result、correlation ID 和 input/output hash。
+- 形成 Source → Evidence → replay Candidate → Author confirmation → Independent Review → Approved KnowledgeRevision 的确定性回放 fixture。
+
+#### 完成标准
+
+- [ ] fake/replay 不访问网络；相同 replay key、input hash、Prompt/Schema version 可重现相同结构化输出并保留新的 StepAttempt 事实。
+- [ ] 模型输出只能创建 Candidate/proposal，不能触发作者确认、Reviewer 决定、approved 或 release 状态。
+- [ ] request-change 产生新 Candidate revision 并保留旧 revision/decision；stale UI/API 写入返回显式冲突。
+- [ ] 从失败的 Enrichment step 安全重试时不重复提交已确认的 revision，也不重跑无关 Document 分支。
+- [ ] `[KUI-04]` 默认、loading、empty、error、partial-data、stale conflict 和窄屏状态通过组件/API/真实浏览器 Gate；核心测试不能只检查静态标题。
+- [ ] 端到端回放能证明 approved 仍不可被生产 Query/REST/MCP 返回。
+
+#### 边界（本切片明确不做）
+
+- 不配置真实 API Key，不以单次模型效果作为 P2 Gate。
+- 不实现完整 Relation Explorer/Audit 搜索中心，不构建 FTS/vector/relation 生产索引。
+- 不处理正式受限临床文档，不声明生产 parser/model coverage。
+
+### P2-B3：单一真实外部模型与 P2 Gate
+
+#### 输入条件
+
+- P2-B2 的治理闭环可由 fake/replay 稳定重放。
+- 用户提供至少一个允许发送测试数据的外部 ModelProfile 和 Secret reference；只选择一个已配置 provider/profile 做首个 live vertical slice。
+- 受限来源 fixture 已准备，用于验证 `local_processing_only`、`prohibited` 和 provider/data-boundary 不匹配时 fail closed。
+
+#### 产出
+
+- Enrichment Worker 通过自有 `ModelProviderPort` 后的 embedded LiteLLM adapter 调用一个真实外部模型，固定 `stream=false` 和版本化 JSON Schema。
+- 从 Evidence 产生原子 claim、类型、适用范围、条件、例外、typed relation proposal、重复/冲突/gap 提示；确定性校验决定 eligibility，模型 confidence 只用于队列排序。
+- 记录 provider/model/prompt/schema version、input/output hash、provider request ID、token/cost/latency/data boundary；secret、隐藏推理和完整受限正文不进入日志。
+- `[KUI-05]` Relation Explorer 与 `[KUI-10]` Audit 完成 candidate/approved/released 视觉隔离、edge evidence、有限深度展开和调用审计。
+- 用允许出站的测试数据完成 Source → Evidence → live AI Candidate → 作者确认 → 独立 Reviewer 的可回放闭环，关闭 P2 Gate。
+
+#### 完成标准
+
+- [ ] 数据边界在请求前检查；`local_processing_only`、`prohibited` 或 provider 不匹配时零出站，并产生脱敏、可解释失败。
+- [ ] 结构化输出不符合 JSON Schema、timeout、429 或供应商错误时 fail closed；重试或换 profile 形成新的 StepAttempt，不由 SDK 静默 retry/fallback。
+- [ ] AI 只执行原子抽取、分类/适用性、关系建议、重复/冲突/gap 和证据一致性辅助；无 Evidence 的事实不能进入 Candidate。
+- [ ] Relation 必须类型合法、端点存在且有 edge evidence；dangling、闭包/循环约束、conflicting/supersedes 语义由确定性校验完成。
+- [ ] Audit 可追溯一次 live invocation 到 Candidate revision 和 Evidence，但不记录 API secret、chain-of-thought 或未批准敏感正文。
+- [ ] `[KUI-05]`、`[KUI-10]` 及对应组件/API/权限/浏览器测试通过。
+- [ ] P2 Gate 证明 Source → Evidence → AI Candidate → 作者确认 → 独立 Reviewer 闭环；`approved` 仍不等于 `released`。
+
+#### 边界（本切片明确不做）
+
+- 不做多供应商效果矩阵、自动路由、自动 fallback、本地 LLM、LiteLLM Proxy、Agent framework 或自动规划器。
+- 不让 LLM 代替 Author/Reviewer/Release Manager，不依据 confidence 自动确认或批准。
+- 不实现 Project Memory；外部 candidate submission 只在后续冻结 payload/inbox 语义。
+- 不部署 Neo4j，不实现 Microsoft GraphRAG provider 或全自动 graph extraction。
+
+### P2-B 涉及文件
 
 | 文件 | 操作 | 预计行数 |
 |------|------|----------|
+| `clinical-llm-wiki/service/db/` | 新增状态/治理 revision 与独立 backfill 入口 | +350-600 |
 | `clinical-llm-wiki/service/knowledge/` | 新建 canonical Knowledge/Relation domain | ~1200-1800 |
-| `clinical-llm-wiki/service/processing/enrichment.py`、`model_provider.py`、`model_profiles.py`、`prompts/` | 新建 Enrichment Worker 与外部模型实现 | ~900-1400 |
-| `clinical-llm-wiki/service/governance/` | 新建作者确认、review、release eligibility | ~900-1300 |
-| `clinical-llm-wiki/service/audit/` | 新建 | ~350-550 |
-| `clinical-llm-wiki/frontend/src/features/candidates/` | 新建 | ~900-1300 |
-| `clinical-llm-wiki/frontend/src/features/relations/` | 新建 | ~700-1000 |
-| `clinical-llm-wiki/frontend/src/features/audit/` | 新建 | ~400-650 |
-| `clinical-llm-wiki/tests/` | 增加治理/worker/并发/UI 测试 | +1500-2200 |
+| `clinical-llm-wiki/service/processing/enrichment.py`、`model_provider.py`、`model_profiles.py`、`prompts/` | 新建 replay/live Enrichment Worker | ~900-1400 |
+| `clinical-llm-wiki/service/governance/` | 新建作者确认、独立 review、release eligibility | ~900-1300 |
+| `clinical-llm-wiki/service/audit/` | 新建 append-only audit application service | ~350-550 |
+| `clinical-llm-wiki/frontend/src/features/processing/`、`candidates/` | 扩展状态并新建 Candidate Review | +1100-1600 |
+| `clinical-llm-wiki/frontend/src/features/relations/`、`audit/` | 新建有限关系浏览与审计视图 | +900-1400 |
+| `clinical-llm-wiki/tests/` | 增加迁移/治理/worker/并发/UI/live-boundary 测试 | +1800-2600 |
 
-### 关键决策
+### P2-B 关键决策
 
+- 主线：先治理合同，再 fake/replay 闭环，最后单一真实外部模型；模型接通本身不构成知识产品完成。
+- 状态：`evidence_ready` 与 `author_confirmation_required` 分离；前者无 Candidate，后者必须已有可确认 revision。
+- 迁移：状态 DDL 使用新 expand revision，历史数据修补使用独立 resumable backfill；不改写已应用 migration。
 - 两级人工 Gate：作者先确认机器候选，独立 Reviewer 再审核；平台管理员默认不绕过治理。
-- Graph：PostgreSQL typed relation 是权威数据模型；外部 graph index 只能是未来派生物。
+- Graph：PostgreSQL typed relation 是权威数据模型；P2-B2 先用证据表格，P2-B3 再完成有限 Relation Explorer。
 - GraphRAG：只作为未来设计参考，不建立 provider/adapter 或输出门禁。
-- Audit：append-only 业务事件；更强 WORM/签名存储属于部署增强，不在本 Phase。
 - 模型适配：embedded LiteLLM 只在 `ModelProviderPort` 后使用；供应商重试、fallback、任务状态和授权由平台自身控制。
-- P2 Gate：必须完成 Source → Evidence → AI Candidate → 作者确认 → 独立 Reviewer 的可回放闭环；`approved` 仍不等于 `released`。
 
 ---
 
@@ -757,6 +842,7 @@ P3 只消费 P2 已批准的 KnowledgeRevision。内部先构建可解释检索�
 | D12 | PostgreSQL constraint 名称是 schema 级对象；跨表复用通用 `object_key` 名称会使 `0004` migration 失败 | P2-A | 数据（已解决） | `source_versions`、`source_artifacts`、`object_write_intents` 使用表级唯一名称，并以 clean apply/downgrade/re-apply 实库 Gate 固定 |
 | D13 | P1 只读 fixture 曾用 `canonical_source`，P2-A 新模型改用 `original`；直接收紧会破坏已验收的 P1 读取链 | P2-A | 兼容（已解决） | 新写路径只产生 `original`，读取/迁移兼容 `canonical_source`，二者都不会与 `parser_output`/Evidence 混淆；P4 legacy migration 再显式 crosswalk |
 | D14 | Docling 未在同一受控临床 fixture 上测量，当前 synthetic benchmark 不能支持锁定新依赖 | P2-A | 选型（已解决） | P2-A 保留现有确定性 adapter，扫描 PDF 明确要求 OCR；只有满足受控 locator/table/formula/resource 对照样本时重开选型 |
+| D15 | P2-A 在尚无 Candidate 时把 Evidence 完成标记为 `author_confirmation_required`，会让后续 Enrichment 从人工等待状态回到模型处理并误导 UI | 计划复核 / P2-B1 | 语义（待执行） | 新增 `evidence_ready`；以新 expand revision 扩展状态约束，独立 resumable backfill 只转换“已有 Evidence 且无 Candidate”的历史 run；进入 `author_confirmation_required` 增加 Candidate revision 的应用事务前置条件 |
 
 ## 关键决策记录
 
@@ -790,6 +876,9 @@ P3 只消费 P2 已批准的 KnowledgeRevision。内部先构建可解释检索�
 | 2026-07-30 | P1 剩余切片 | 单一大 P1-C / 拆分 P1-C→P1-D→P1-E / 提前进入 P2 | 方案 B：拆分三个连续 Gate | 身份授权、真实 API 和运行基础可独立验收；不为追求 Demo 速度越过 P1 进入 P2 |
 | 2026-07-30 | P2-A 对象一致性 | 分布式事务 / 先写 DB / intent + compensation | PostgreSQL intent + ObjectStore 不可覆盖写 + 原子 publish + 可审计 reconcile | 保持可见 Source 原子性和失败证据，不为两个存储引入 Kafka 或伪造跨系统事务 |
 | 2026-07-30 | P2-A parser 依赖 | 直接采用 Docling / 现有 adapter / 全格式框架 | 暂不锁定 Docling，保留现有确定性 adapter | 当前受控证据能验证 locator/hash/公式与 fail-closed OCR，但没有同条件 Docling 临床样本优势证据 |
+| 2026-07-30 | P2-B 主线 | 模型效果优先 / 检索价值优先 / 可信闭环优先 | 可信闭环优先 | 先证明 Evidence 如何经 Candidate、作者和独立 Reviewer 成为 Approved Revision，避免模型或检索基础设施反客为主 |
+| 2026-07-30 | P2-B 切片 | 模型/治理/UI 一次性交付 / B1 合同→B2 replay→B3 live model | B1/B2/B3 三个连续 Gate | 先隔离状态和治理正确性，再以可重复 fixture 验证闭环，最后只接一个真实外部模型，降低返工和供应商不确定性 |
+| 2026-07-30 | Evidence 完成状态 | 继续复用 `author_confirmation_required` / 新增 `evidence_ready` | 新增 `evidence_ready` | 没有 Candidate 时不存在可执行的作者确认；Evidence checkpoint 与人工 Gate 必须可被 API、UI 和数据库约束区分 |
 
 ## 同步记录
 
@@ -806,3 +895,4 @@ P3 只消费 P2 已批准的 KnowledgeRevision。内部先构建可解释检索�
 | 2026-07-30 | `clinical-llm-wiki/service/platform_api/`、Knowledge OpenAPI、前端 contract/MSW/proxy、HTTP/PostgreSQL tests、README/USAGE/SPEC-12/13、P12 memory | P1-D 完成：真实只读 FastAPI、Bearer/RBAC、错误脱敏与实库 read adapter 通过；下一切片为 P1-E |
 | 2026-07-30 | `clinical-llm-wiki/service/object_store/`、`service/processing/`、`service/maintenance/`、`0003` migration、prerelease Schema、Compose/镜像、tests、README/USAGE/SPEC-12/13、P12 memory | P1-E 与 P1 Gate 完成：对象权威、durable ledger、三 pool 统一运行时、失败恢复、维护入口分离及本地容器骨架通过；P2 未启动 |
 | 2026-07-30 | `clinical-llm-wiki/service/sources/`、Document Worker/parser、`0004` migration、Source/Processing API、KUI-02/03、parser Gate 报告、tests、README/USAGE/SPEC-12/13、P12 memory | P2-A 完成：Source/Object 补偿、可审计孤儿清理、确定性 Source → Evidence DAG 和浏览器闭环通过；P2-B 未启动 |
+| 2026-07-30 | 本计划、`docs/dep/PLAN.md`、P12 memory | 用户批准重新定位主线为“可信知识闭环优先”；P2-B 拆为 B1 状态/治理合同、B2 fake/replay 闭环、B3 单一真实外部模型，下一 Gate 为 P2-B1 |
