@@ -14,6 +14,7 @@ from service.db.session import (
     create_session_factory,
     database_url_from_environment,
 )
+from service.demo_runtime import load_demo_identity_bundle
 from service.governance import (
     KnowledgeGovernanceService,
     SqlAlchemyGovernanceRepository,
@@ -40,25 +41,7 @@ def create_environment_app():
     if identity_mode != "local":
         raise RuntimeError("P1-D only wires local identity; provider-specific OIDC is not enabled")
 
-    token = _required_environment("KNOWLEDGE_LOCAL_BEARER_TOKEN")
-    subject = _required_environment("KNOWLEDGE_LOCAL_SUBJECT")
-    display_name = _required_environment("KNOWLEDGE_LOCAL_DISPLAY_NAME")
-    email = _required_environment("KNOWLEDGE_LOCAL_EMAIL")
-    issuer = os.environ.get("KNOWLEDGE_LOCAL_ISSUER", "local://knowledge-platform")
-    assertion_facts = f"local_test\n{issuer}\n{subject}\n{display_name}\n{email}"
-    identity_provider = LocalIdentityProvider(
-        environment="local",
-        token_assertions={
-            token: IdentityAssertion(
-                identity_source="local_test",
-                issuer=issuer,
-                subject=subject,
-                display_name=display_name,
-                email=email,
-                claims_sha256=sha256(assertion_facts.encode("utf-8")).hexdigest(),
-            )
-        },
-    )
+    identity_provider = _local_identity_provider()
     engine = create_database_engine(database_url_from_environment())
     sessions = create_session_factory(engine)
     repository = SqlAlchemyPlatformRepository(sessions)
@@ -83,6 +66,36 @@ def create_environment_app():
                 repository=SqlAlchemyGovernanceRepository(sessions)
             ),
         )
+    )
+
+
+def _local_identity_provider() -> LocalIdentityProvider:
+    identities_path = os.environ.get("KNOWLEDGE_LOCAL_IDENTITIES_PATH")
+    if identities_path:
+        bundle = load_demo_identity_bundle(Path(identities_path))
+        return LocalIdentityProvider(
+            environment="local",
+            token_assertions=bundle.token_assertions(),
+        )
+
+    token = _required_environment("KNOWLEDGE_LOCAL_BEARER_TOKEN")
+    subject = _required_environment("KNOWLEDGE_LOCAL_SUBJECT")
+    display_name = _required_environment("KNOWLEDGE_LOCAL_DISPLAY_NAME")
+    email = _required_environment("KNOWLEDGE_LOCAL_EMAIL")
+    issuer = os.environ.get("KNOWLEDGE_LOCAL_ISSUER", "local://knowledge-platform")
+    assertion_facts = f"local_test\n{issuer}\n{subject}\n{display_name}\n{email}"
+    return LocalIdentityProvider(
+        environment="local",
+        token_assertions={
+            token: IdentityAssertion(
+                identity_source="local_test",
+                issuer=issuer,
+                subject=subject,
+                display_name=display_name,
+                email=email,
+                claims_sha256=sha256(assertion_facts.encode("utf-8")).hexdigest(),
+            )
+        },
     )
 
 

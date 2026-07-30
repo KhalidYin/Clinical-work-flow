@@ -2,6 +2,131 @@
   min-height: 100vh;
 }
 
+.loginShell {
+  display: grid;
+  min-height: 100vh;
+  padding: 32px;
+  place-items: center;
+  background:
+    radial-gradient(circle at 75% 18%, rgba(153, 137, 80, 0.12), transparent 30%),
+    linear-gradient(135deg, var(--paper-50), var(--paper-100));
+}
+
+.loginPanel {
+  width: min(100%, 520px);
+  padding: clamp(30px, 6vw, 54px);
+  background: rgba(255, 254, 249, 0.92);
+  border: 1px solid var(--paper-300);
+  box-shadow: 0 24px 70px rgba(19, 34, 30, 0.12);
+}
+
+.loginMark {
+  display: grid;
+  width: 42px;
+  height: 48px;
+  margin-bottom: 28px;
+  place-items: center;
+  color: var(--paper-50);
+  background: var(--ink-950);
+  border-radius: var(--radius);
+  font-family: var(--serif);
+  font-size: 28px;
+}
+
+.loginEyebrow,
+.loginBoundary {
+  color: var(--ink-500);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.loginPanel h1 {
+  margin: 8px 0 12px;
+  font-family: var(--serif);
+  font-size: clamp(34px, 7vw, 52px);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+}
+
+.loginLead {
+  max-width: 440px;
+  margin: 0 0 30px;
+  color: var(--ink-500);
+  line-height: 1.7;
+}
+
+.loginForm {
+  display: grid;
+  gap: 9px;
+}
+
+.loginForm label {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.loginForm input {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 12px;
+  color: var(--ink-950);
+  background: var(--white);
+  border: 1px solid var(--paper-300);
+  border-radius: var(--radius);
+  font-family: var(--mono);
+}
+
+.loginForm input:focus {
+  outline: 2px solid color-mix(in srgb, var(--blue-700) 28%, transparent);
+  border-color: var(--blue-700);
+}
+
+.loginForm button {
+  min-height: 44px;
+  margin-top: 10px;
+  color: var(--paper-50);
+  background: var(--blue-700);
+  border: 1px solid var(--blue-700);
+  border-radius: var(--radius);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.loginForm button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.loginHelp,
+.loginError {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.loginHelp {
+  color: var(--ink-500);
+}
+
+.loginHelp code {
+  font-family: var(--mono);
+}
+
+.loginError {
+  color: var(--red-700);
+}
+
+.loginBoundary {
+  margin: 30px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--paper-300);
+}
+
 .skipLink {
   position: fixed;
   z-index: 1000;
@@ -223,7 +348,7 @@
 
 .identity {
   display: grid;
-  grid-template-columns: 34px auto;
+  grid-template-columns: 34px auto auto;
   gap: 9px;
   align-items: center;
 }
@@ -251,6 +376,22 @@
   color: var(--ink-500);
   font-family: var(--mono);
   font-size: 9px;
+}
+
+.changeIdentity {
+  padding: 6px 8px;
+  color: var(--ink-500);
+  background: transparent;
+  border: 1px solid var(--paper-300);
+  border-radius: var(--radius);
+  font-family: var(--mono);
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.changeIdentity:hover {
+  color: var(--ink-950);
+  border-color: var(--ink-500);
 }
 
 .mobileButton {
@@ -338,7 +479,8 @@
     grid-template-columns: 34px;
   }
 
-  .identityRole {
+  .identityRole,
+  .changeIdentity {
     display: none;
   }
 }

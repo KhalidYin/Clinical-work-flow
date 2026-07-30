@@ -274,7 +274,8 @@ class EnrichmentWorkerService:
 
     def extract_candidate(self, claim: ClaimedStepAttempt) -> StepOutcome:
         source = self._repository.load_context(run_id=claim.run_id)
-        request = ModelRequest(
+        request = build_enrichment_model_request(
+            source=source,
             attempt=StepAttemptContext(
                 run_id=claim.run_id,
                 step_id=claim.step_id,
@@ -284,29 +285,6 @@ class EnrichmentWorkerService:
             ),
             model_profile=self._model_profile,
             prompt_profile=self._prompt_profile,
-            data_boundary=source.data_boundary,
-            messages=[
-                {
-                    "role": "user",
-                    "content": json.dumps(
-                        {
-                            "source_version_id": source.source_version_id,
-                            "evidence": [
-                                {
-                                    "evidence_id": item.reference.evidence_id,
-                                    "locator": item.reference.locator,
-                                    "content_sha256": item.reference.content_sha256,
-                                    "content": item.content,
-                                }
-                                for item in source.evidence
-                            ],
-                        },
-                        ensure_ascii=False,
-                        sort_keys=True,
-                        separators=(",", ":"),
-                    ),
-                }
-            ],
         )
         try:
             invocation = self._provider.invoke(request)
@@ -355,6 +333,45 @@ class EnrichmentWorkerService:
             output_sha256=candidate.content_sha256,
             artifact_manifest=ArtifactManifest(),
         )
+
+
+def build_enrichment_model_request(
+    *,
+    source: EnrichmentContext,
+    attempt: StepAttemptContext,
+    model_profile: ModelProfile,
+    prompt_profile: PromptProfile,
+) -> ModelRequest:
+    """Build the one canonical provider request shared by workers and replay bootstrap."""
+
+    return ModelRequest(
+        attempt=attempt,
+        model_profile=model_profile,
+        prompt_profile=prompt_profile,
+        data_boundary=source.data_boundary,
+        messages=[
+            {
+                "role": "user",
+                "content": json.dumps(
+                    {
+                        "source_version_id": source.source_version_id,
+                        "evidence": [
+                            {
+                                "evidence_id": item.reference.evidence_id,
+                                "locator": item.reference.locator,
+                                "content_sha256": item.reference.content_sha256,
+                                "content": item.content,
+                            }
+                            for item in source.evidence
+                        ],
+                    },
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ),
+            }
+        ],
+    )
 
 
 def build_enrichment_step_definition(*, input_sha256: str) -> StepDefinition:
@@ -436,6 +453,7 @@ __all__ = [
     "EnrichmentWorkerService",
     "InMemoryEnrichmentRepository",
     "SqlAlchemyEnrichmentRepository",
+    "build_enrichment_model_request",
     "build_enrichment_step_definition",
     "enrichment_step_handlers",
     "load_enrichment_profiles",

@@ -29,6 +29,55 @@ function renderApp(initialEntry = "/sources?q=") {
 }
 
 describe("Knowledge Ledger App Shell", () => {
+  it("accepts an opaque local access token without offering a fake role switch", async () => {
+    server.use(
+      http.get(resolveApiPath(API_PATHS.session), ({ request }) => {
+        if (request.headers.get("Authorization") !== "Bearer demo-author-token") {
+          return HttpResponse.json(
+            {
+              error: {
+                code: "authentication_required",
+                message: "A bearer identity is required.",
+              },
+              meta: sourcesFixture.meta,
+            },
+            { status: 401 },
+          );
+        }
+        return HttpResponse.json({
+          data: {
+            actorId: "usr-demo-author",
+            displayName: "Demo Author",
+            principalType: "human",
+            roles: ["knowledge_curator"],
+            organization: "Clinical Knowledge Lab",
+            permissions: [
+              "candidate:read",
+              "candidate:write",
+              "candidate:submit",
+            ],
+          },
+          meta: sourcesFixture.meta,
+        });
+      }),
+    );
+    renderApp("/candidates");
+
+    expect(
+      await screen.findByRole("heading", { name: "连接本地产品" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Author|Reviewer/i })).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Local access token"), {
+      target: { value: "demo-author-token" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "验证并进入" }));
+
+    expect(await screen.findByText("Demo Author")).toBeInTheDocument();
+    expect(window.sessionStorage.getItem("knowledgeLedgerBearerToken")).toBe(
+      "demo-author-token",
+    );
+  });
+
   it("renders API-backed platform facts and registered sources", async () => {
     renderApp();
 

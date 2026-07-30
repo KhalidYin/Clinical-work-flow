@@ -1557,3 +1557,56 @@
 - `clinical-llm-wiki/frontend/src/api/`、`contracts/`、`mocks/`
 - `clinical-llm-wiki/frontend/src/test/candidate-review.test.tsx`
 - commit：本轮门禁后创建；未 push
+
+### R086 [00:44] [P12-knowledge-application-platform] P2-B2c: 建立可重复启动的完整本地产品
+
+#### Done
+
+- 以 4 个失败合同测试冻结 demo runtime：认证断言不携带内部角色；replay 输出只能引用
+  canonical Evidence；bootstrap 必须先于 API 和两个独立 Worker；启动脚本必须生成随机本地
+  凭据、等待健康并将 destructive reset 限定在固定 Compose project。
+- 新增单文件 `service/demo_runtime.py`，避免目录膨胀。bootstrap 只 seed 用户/RBAC、三类
+  ServiceAccount、版本化 Model/Prompt Profile 与目标 KnowledgeUnit；随后通过真实
+  SourceRegistry 注册 Markdown、真实 Document Worker 生成 Evidence，再按与 Enrichment
+  Worker 共用的 canonical request builder 写入精确 `input_sha256` replay record。它不直写
+  Candidate。
+- Compose 明确采用 `migration → bootstrap → API / document worker / enrichment worker`；
+  document 与 enrichment 默认启动且仍为独立异步 pool，不改造成流式 pipeline。release
+  worker 保持显式 profile，未提前进入本阶段。
+- API 本地认证支持 runtime-only 多身份文件；opaque token 只形成 authentication
+  assertion，角色仍从 PostgreSQL `role_bindings` 解析。保留原单身份环境变量 fallback，
+  不破坏已有 P1-D 用法。
+- production frontend 新增本地 token 登录面，凭据只存 sessionStorage；不提供角色模拟
+  切换。身份切换会重新经过 API 认证/RBAC。
+- 新增 `scripts/start-demo.ps1`：使用 `RandomNumberGenerator` 生成数据库、Worker 与两类
+  人工身份凭据，文件写入 gitignored `.demo-runtime/`，不回显 token；`-Reset` 只移除
+  `clinical-knowledge-demo` 的 volumes 和经过绝对路径校验的 runtime 目录。
+- 首次冷构建遇到 npm registry `ECONNRESET`，为 Docker build 增加有界 fetch retry；第二次
+  从同一命令成功构建并启动，没有跳过 production build。
+
+#### Validation
+
+- runtime/API/enrichment 合同：22 passed；Ruff 通过。
+- frontend AppShell：10 passed；TypeScript typecheck 与 production build 通过
+  （413 modules，JS gzip 126.21 kB）。
+- `docker compose config --quiet` 通过。
+- 空卷真实启动成功：PostgreSQL healthy，migration exited 0，bootstrap exited 0，
+  Document/Enrichment Worker running，FastAPI healthy，Nginx frontend running。
+- 实库 provenance：`Evidence=1`、`Candidate=1`、`ModelInvocation=1:replayed`、
+  `Release=0`；bootstrap 日志只报告 run ID 与 replay hash 前缀，不含凭据。
+
+#### Next
+
+1. 在 production frontend 使用独立 Author/Reviewer token 完成 request-change → revision 2
+   → reconfirm → approve。
+2. 用真实 API 覆盖 self-review、stale revision/hash 409 与未认证 401。
+3. 证明 approved-but-unreleased 不能进入生产 Query/REST/MCP，再同步计划与使用文档。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/service/demo_runtime.py`、`service/platform_api/main.py`
+- `clinical-llm-wiki/compose.yaml`、`scripts/start-demo.ps1`、`.gitignore`
+- `clinical-llm-wiki/frontend/src/app/`、`frontend/Dockerfile`
+- `clinical-llm-wiki/tests/test_demo_runtime_contract.py`
+- 已同步阶段提交：后端 `5292150`、KUI-04 `72a94c8`
+- 本轮可运行 demo 阶段：门禁后提交并 push

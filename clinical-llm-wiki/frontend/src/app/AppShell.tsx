@@ -1,8 +1,12 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { Link, Outlet } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { getJson } from "../api/client";
+import {
+  ApiRequestError,
+  getJson,
+  LOCAL_BEARER_STORAGE_KEY,
+} from "../api/client";
 import {
   API_PATHS,
   roleLabel,
@@ -35,6 +39,9 @@ function initials(name: string): string {
 
 export function AppShell() {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [tokenDraft, setTokenDraft] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const queryClient = useQueryClient();
   const session = useQuery({
     queryKey: ["session"],
     queryFn: ({ signal }) => getJson<Session>(API_PATHS.session, signal),
@@ -50,6 +57,74 @@ export function AppShell() {
     queryFn: ({ signal }) => getJson<CurrentRelease>(API_PATHS.currentRelease, signal),
     staleTime: 30_000,
   });
+
+  const authenticationRequired =
+    session.error instanceof ApiRequestError && session.error.status === 401;
+  const submitToken = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const token = tokenDraft.trim();
+    if (!token) {
+      setLoginError("请输入本地 access token。");
+      return;
+    }
+    window.sessionStorage.setItem(LOCAL_BEARER_STORAGE_KEY, token);
+    setLoginError("");
+    const result = await session.refetch();
+    if (result.error instanceof ApiRequestError && result.error.status === 401) {
+      window.sessionStorage.removeItem(LOCAL_BEARER_STORAGE_KEY);
+      setLoginError("Token 无效或已失效，请检查本地 access 文件。");
+    }
+  };
+  const changeIdentity = async () => {
+    window.sessionStorage.removeItem(LOCAL_BEARER_STORAGE_KEY);
+    setTokenDraft("");
+    setLoginError("");
+    await queryClient.cancelQueries();
+    queryClient.removeQueries();
+    await session.refetch();
+  };
+
+  if (authenticationRequired) {
+    return (
+      <main className={styles.loginShell}>
+        <section className={styles.loginPanel} aria-labelledby="local-login-title">
+          <div className={styles.loginMark} aria-hidden="true">
+            K
+          </div>
+          <p className={styles.loginEyebrow}>Knowledge Ledger · local runtime</p>
+          <h1 id="local-login-title">连接本地产品</h1>
+          <p className={styles.loginLead}>
+            身份由后端验证并映射为内部权限。界面不会模拟角色，也不会展示或保存到长期存储。
+          </p>
+          <form className={styles.loginForm} onSubmit={submitToken}>
+            <label htmlFor="local-access-token">Local access token</label>
+            <input
+              id="local-access-token"
+              type="password"
+              autoComplete="off"
+              value={tokenDraft}
+              onChange={(event) => setTokenDraft(event.target.value)}
+              aria-describedby={loginError ? "local-login-error" : "local-login-help"}
+            />
+            <p id="local-login-help" className={styles.loginHelp}>
+              从 <code>.demo-runtime/access.json</code> 复制 Author 或 Reviewer token。
+            </p>
+            {loginError ? (
+              <p id="local-login-error" className={styles.loginError} role="alert">
+                {loginError}
+              </p>
+            ) : null}
+            <button type="submit" disabled={session.isFetching}>
+              {session.isFetching ? "正在验证…" : "验证并进入"}
+            </button>
+          </form>
+          <p className={styles.loginBoundary}>
+            Opaque bearer · sessionStorage only · product-owned RBAC
+          </p>
+        </section>
+      </main>
+    );
+  }
 
   const healthState = health.data?.data.status;
   const healthLabel = health.isPending
@@ -173,6 +248,15 @@ export function AppShell() {
                 {sessionData?.roles.map(roleLabel).join(", ") ?? "unknown role"}
               </span>
             </span>
+            {sessionData ? (
+              <button
+                type="button"
+                className={styles.changeIdentity}
+                onClick={changeIdentity}
+              >
+                更换本地身份
+              </button>
+            ) : null}
           </div>
         </header>
 

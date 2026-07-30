@@ -5,13 +5,12 @@ x-application-environment: &application-environment
 x-worker: &worker
   build: .
   image: clinical-knowledge-platform:local
-  profiles: ["workers"]
   restart: unless-stopped
   depends_on:
-    migration:
+    bootstrap:
       condition: service_completed_successfully
   volumes:
-    - knowledge-objects:/var/lib/clinical-knowledge/objects
+    - knowledge-objects:/var/lib/clinical-knowledge
 
 services:
   postgres:
@@ -39,6 +38,28 @@ services:
         condition: service_healthy
     restart: "no"
 
+  bootstrap:
+    build: .
+    image: clinical-knowledge-platform:local
+    command: ["python", "-m", "service.demo_runtime"]
+    restart: "no"
+    environment:
+      <<: *application-environment
+      KNOWLEDGE_LOCAL_IDENTITIES_PATH: /run/knowledge/identities.json
+      KNOWLEDGE_ENRICHMENT_RECORDS_PATH: /var/lib/clinical-knowledge/demo/replay-records.json
+      KNOWLEDGE_DOCUMENT_WORKER_SERVICE_ACCOUNT_ID: ${KNOWLEDGE_DOCUMENT_WORKER_SERVICE_ACCOUNT_ID:-svc-demo-document}
+      KNOWLEDGE_ENRICHMENT_WORKER_SERVICE_ACCOUNT_ID: ${KNOWLEDGE_ENRICHMENT_WORKER_SERVICE_ACCOUNT_ID:-svc-demo-enrichment}
+      KNOWLEDGE_RELEASE_WORKER_SERVICE_ACCOUNT_ID: ${KNOWLEDGE_RELEASE_WORKER_SERVICE_ACCOUNT_ID:-svc-demo-release}
+      P12_DOCUMENT_WORKER_TOKEN: ${P12_DOCUMENT_WORKER_TOKEN:?set P12_DOCUMENT_WORKER_TOKEN}
+      P12_ENRICHMENT_WORKER_TOKEN: ${P12_ENRICHMENT_WORKER_TOKEN:?set P12_ENRICHMENT_WORKER_TOKEN}
+      P12_RELEASE_WORKER_TOKEN: ${P12_RELEASE_WORKER_TOKEN:?set P12_RELEASE_WORKER_TOKEN}
+    depends_on:
+      migration:
+        condition: service_completed_successfully
+    volumes:
+      - knowledge-objects:/var/lib/clinical-knowledge
+      - ./.demo-runtime:/run/knowledge:ro
+
   api:
     build: .
     image: clinical-knowledge-platform:local
@@ -50,13 +71,10 @@ services:
       KNOWLEDGE_API_PORT: "8788"
       KNOWLEDGE_API_BIND_SCOPE: compose_local
       KNOWLEDGE_IDENTITY_MODE: local
-      KNOWLEDGE_LOCAL_BEARER_TOKEN: ${KNOWLEDGE_LOCAL_BEARER_TOKEN:?set KNOWLEDGE_LOCAL_BEARER_TOKEN}
-      KNOWLEDGE_LOCAL_SUBJECT: ${KNOWLEDGE_LOCAL_SUBJECT:?set KNOWLEDGE_LOCAL_SUBJECT}
-      KNOWLEDGE_LOCAL_DISPLAY_NAME: ${KNOWLEDGE_LOCAL_DISPLAY_NAME:?set KNOWLEDGE_LOCAL_DISPLAY_NAME}
-      KNOWLEDGE_LOCAL_EMAIL: ${KNOWLEDGE_LOCAL_EMAIL:?set KNOWLEDGE_LOCAL_EMAIL}
+      KNOWLEDGE_LOCAL_IDENTITIES_PATH: /run/knowledge/identities.json
       KNOWLEDGE_ORGANIZATION_NAME: ${KNOWLEDGE_ORGANIZATION_NAME:-Clinical Knowledge Platform}
     depends_on:
-      migration:
+      bootstrap:
         condition: service_completed_successfully
     healthcheck:
       test:
@@ -71,7 +89,8 @@ services:
       retries: 12
     ports: ["127.0.0.1:8788:8788"]
     volumes:
-      - knowledge-objects:/var/lib/clinical-knowledge/objects
+      - knowledge-objects:/var/lib/clinical-knowledge
+      - ./.demo-runtime:/run/knowledge:ro
 
   frontend:
     build: ./frontend
@@ -97,9 +116,12 @@ services:
       <<: *application-environment
       KNOWLEDGE_ENRICHMENT_WORKER_SERVICE_ACCOUNT_ID: ${KNOWLEDGE_ENRICHMENT_WORKER_SERVICE_ACCOUNT_ID:?set enrichment service account}
       P12_ENRICHMENT_WORKER_TOKEN: ${P12_ENRICHMENT_WORKER_TOKEN:?set P12_ENRICHMENT_WORKER_TOKEN}
+      KNOWLEDGE_ENRICHMENT_PROVIDER_MODE: replay
+      KNOWLEDGE_ENRICHMENT_RECORDS_PATH: /var/lib/clinical-knowledge/demo/replay-records.json
 
   worker-release:
     <<: *worker
+    profiles: ["release"]
     command: ["python", "-m", "service.processing.worker", "--pool", "release"]
     environment:
       <<: *application-environment

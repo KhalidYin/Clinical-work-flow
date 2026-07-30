@@ -13,6 +13,7 @@ beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
 
 afterEach(() => {
   cleanup();
+  window.sessionStorage.clear();
   server.resetHandlers();
 });
 
