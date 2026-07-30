@@ -35,3 +35,6 @@ type: project
 - 页面显示的状态、计数、权限、rank、evaluation metric 和 release eligibility 必须来自 Knowledge API 合同，不能把 Demo fixture 或前端推导升级为生产事实。
 - 用户已于 2026-07-29 单独授权 P1；P1-A 已用 `app.html` 提取主题 token 并完成 React 产品骨架，D0 `index.html` 继续作为对照设计权威。
 - P1-A 的授权和完成不等于真实 API、数据库、worker、迁移或部署已完成；这些能力仍由 P1 后续 Gate 独立验收。
+- P2-A 已于 2026-07-30 把 `[KUI-02] Sources` 与 `[KUI-03] Processing Runs` 接入 prerelease API：Sources 可登记受控 TXT/MD/PDF/DOCX/XLSX 并显示 `202 + run_id` receipt；Processing Runs 展示 dependency、attempt、checkpoint、失败和安全 retry/cancel。
+- KUI-03 必须继续分开展示 Original、Derived 和 Evidence；active run 才进行 2 秒条件轮询，终态不轮询，也不模拟 token/chunk stream。
+- 桌面与 390px 窄屏真实浏览器已验证 Source 登记、Processing DAG、失败 step retry、状态文字和横向溢出边界。该 Gate 只证明 P2-A 交互，不代表 Candidate Review、Relation、Query、Evaluation 或 Release 已实现。

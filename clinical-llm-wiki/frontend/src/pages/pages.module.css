@@ -87,6 +87,105 @@
   font-size: 10px;
 }
 
+.intake {
+  margin-bottom: 18px;
+  padding: 14px;
+  background: rgba(222, 236, 241, 0.32);
+  border: 1px solid rgba(31, 92, 120, 0.2);
+  border-radius: var(--radius);
+}
+
+.intake summary {
+  color: var(--blue-700);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.intakeForm {
+  display: grid;
+  margin-top: 16px;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.intakeForm label,
+.fileField {
+  display: grid;
+  gap: 5px;
+}
+
+.intakeForm input,
+.intakeForm select {
+  min-height: 40px;
+  padding: 8px 10px;
+  color: var(--ink-900);
+  background: var(--white);
+  border: 1px solid var(--paper-300);
+  border-radius: var(--radius);
+}
+
+.fileField {
+  grid-column: 1 / -1;
+}
+
+.primaryButton,
+.secondaryButton,
+.dangerButton {
+  min-height: 38px;
+  padding: 8px 13px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.primaryButton {
+  justify-self: start;
+  color: var(--white);
+  background: var(--blue-700);
+  border: 1px solid var(--blue-700);
+}
+
+.secondaryButton {
+  color: var(--blue-700);
+  background: var(--blue-100);
+  border: 1px solid rgba(31, 92, 120, 0.24);
+}
+
+.dangerButton {
+  margin-top: 14px;
+  color: var(--red-700);
+  background: var(--red-100);
+  border: 1px solid rgba(166, 64, 42, 0.2);
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled,
+.dangerButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+.formError,
+.receipt {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  font-size: 12px;
+}
+
+.formError {
+  color: var(--red-700);
+  background: var(--red-100);
+}
+
+.receipt {
+  color: var(--olive-700);
+  background: var(--olive-100);
+}
+
 .panel {
   overflow: hidden;
   background: rgba(251, 250, 245, 0.9);
@@ -192,24 +291,114 @@
 
 .statusReleased,
 .statusApproved,
-.statusActive {
+.statusActive,
+.statusAuthorConfirmationRequired {
   color: var(--olive-700);
   background: var(--olive-100);
   border-color: rgba(83, 99, 63, 0.24);
 }
 
 .statusProcessing,
-.statusCandidate {
+.statusCandidate,
+.statusQueued {
   color: var(--blue-700);
   background: var(--blue-100);
   border-color: rgba(31, 92, 120, 0.2);
 }
 
 .statusRestricted,
-.statusDisabled {
+.statusDisabled,
+.statusFailed,
+.statusCancelled {
   color: var(--red-700);
   background: var(--red-100);
   border-color: rgba(166, 64, 42, 0.2);
+}
+
+.runList {
+  display: grid;
+  gap: 14px;
+}
+
+.runCard {
+  padding: 18px;
+  background: rgba(251, 250, 245, 0.9);
+  border: 1px solid var(--paper-300);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.runHeader {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.runTitle {
+  margin: 5px 0 0;
+  font-family: var(--serif);
+  font-size: 24px;
+}
+
+.artifactFacts {
+  display: grid;
+  margin: 16px 0;
+  gap: 1px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  background: var(--paper-300);
+  border: 1px solid var(--paper-300);
+}
+
+.artifactFacts div {
+  padding: 11px;
+  background: var(--paper-50);
+}
+
+.artifactFacts dt {
+  color: var(--ink-500);
+  font-family: var(--mono);
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.artifactFacts dd {
+  margin: 4px 0 0;
+  font-family: var(--serif);
+  font-size: 24px;
+}
+
+.stepList {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  gap: 1px;
+  list-style: none;
+  background: var(--paper-300);
+  border: 1px solid var(--paper-300);
+}
+
+.stepRow {
+  display: flex;
+  min-width: 0;
+  padding: 12px;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--white);
+}
+
+.checkpoint {
+  display: block;
+  overflow: hidden;
+  max-width: min(720px, 70vw);
+  margin-top: 7px;
+  padding: 6px 8px;
+  color: var(--ink-700);
+  background: var(--paper-200);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .statePanel,
@@ -294,6 +483,19 @@
   }
 
   .toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .intakeForm {
+    grid-template-columns: 1fr;
+  }
+
+  .artifactFacts {
+    grid-template-columns: 1fr;
+  }
+
+  .stepRow {
     align-items: stretch;
     flex-direction: column;
   }

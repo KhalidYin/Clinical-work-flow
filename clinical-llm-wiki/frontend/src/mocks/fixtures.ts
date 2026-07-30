@@ -3,8 +3,12 @@ import {
   type ApiResponse,
   type CurrentRelease,
   type PlatformHealth,
+  type ProcessingRunCollection,
   type Session,
+  type SourceRegistration,
   type SourceCollection,
+  type RetryReceipt,
+  type CancelReceipt,
   type UserCollection,
 } from "../contracts/knowledgeApi";
 
@@ -29,11 +33,15 @@ export const sessionFixture = response<Session>({
   actorId: "usr-ke-017",
   displayName: "Kevin Dean",
   principalType: "human",
-  roles: ["platform_admin"],
+  roles: ["platform_admin", "knowledge_curator"],
   organization: "Clinical Knowledge Lab",
   permissions: [
     "source:read",
+    "source:register",
+    "source:upload",
     "processing:read",
+    "processing:start",
+    "processing:retry",
     "evidence:read",
     "candidate:read",
     "query:released",
@@ -43,6 +51,94 @@ export const sessionFixture = response<Session>({
     "admin:manage_service_accounts",
     "audit:read",
   ],
+});
+
+export const sourceRegistrationFixture = response<SourceRegistration>({
+  sourceId: "src-ui-upload",
+  sourceVersionId: "srcv-ui-upload-v1",
+  runId: "run-ui-upload-v1",
+  status: "queued",
+  originalObject: {
+    objectKey: "sources/src-ui-upload/srcv-ui-upload-v1/source.md",
+    sha256: fixtureHash("0f0e0d0c0b0a"),
+    mediaType: "text/markdown",
+    sizeBytes: 24,
+    artifactRole: "original",
+  },
+});
+
+export const processingRunsFixture = response<ProcessingRunCollection>({
+  total: 2,
+  partial: false,
+  warnings: [],
+  items: [
+    {
+      runId: "run-active-001",
+      sourceVersionId: "srcv-ct-2026q2",
+      status: "processing",
+      createdAt: fixtureTime,
+      updatedAt: fixtureTime,
+      originalArtifactCount: 1,
+      derivedArtifactCount: 2,
+      evidenceCount: 0,
+      steps: [
+        {
+          stepId: "step-parse-tables",
+          stepKey: "document.parse_tables",
+          pool: "document",
+          status: "processing",
+          dependsOn: ["document.validate"],
+          latestAttempt: {
+            attemptId: "attempt-parse-tables-1",
+            attemptNumber: 1,
+            status: "leased",
+            errorType: null,
+            checkpoint: { sheet: "CT", row: 12 },
+            artifactCount: 1,
+          },
+        },
+      ],
+    },
+    {
+      runId: "run-failed-002",
+      sourceVersionId: "srcv-sap-001",
+      status: "failed",
+      createdAt: fixtureTime,
+      updatedAt: fixtureTime,
+      originalArtifactCount: 1,
+      derivedArtifactCount: 1,
+      evidenceCount: 0,
+      steps: [
+        {
+          stepId: "step-parse-text",
+          stepKey: "document.parse_text",
+          pool: "document",
+          status: "failed",
+          dependsOn: ["document.validate"],
+          latestAttempt: {
+            attemptId: "attempt-parse-text-1",
+            attemptNumber: 1,
+            status: "failed",
+            errorType: "handler_error",
+            checkpoint: { page: 4 },
+            artifactCount: 0,
+          },
+        },
+      ],
+    },
+  ],
+});
+
+export const retryReceiptFixture = response<RetryReceipt>({
+  runId: "run-failed-002",
+  stepId: "step-parse-text",
+  attemptId: "attempt-parse-text-2",
+  status: "queued",
+});
+
+export const cancelReceiptFixture = response<CancelReceipt>({
+  runId: "run-active-001",
+  status: "cancelled",
 });
 
 export const healthFixture = response<PlatformHealth>({

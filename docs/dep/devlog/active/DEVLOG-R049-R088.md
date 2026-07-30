@@ -1320,3 +1320,51 @@
 - `clinical-llm-wiki/compose.yaml`, backend/frontend Dockerfile、Nginx config、dockerignore
 - `clinical-llm-wiki/README.md`, `USAGE.md`, SPEC-12/13、P12 plan/PLAN/memory、DevLog/index
 - commit：本轮门禁后创建；未 push
+
+### R082 [16:34] [P12-knowledge-application-platform] P2-A: 落地 Source → Evidence 并关闭确定性摄取 Gate
+
+#### Done
+
+- 新增 `service/sources/`，以人工权限、rights/storage policy、data boundary、hash、文件签名和 media type 校验登记 Source；相同 idempotency 输入重放同一 receipt，新内容建立新 SourceVersion，不覆盖对象。
+- 实现 PostgreSQL `ObjectWriteIntent` + ObjectStore 不可覆盖写 + 原子 Source/SourceVersion/SourceArtifact/Audit publish。失败先补偿删除，删除失败保留 `compensation_required`；Document Worker 启动时按最小 age reconcile 并保留审计。
+- 新增 `0004` migration，固定 SourceVersion 版本唯一性、original/parser_output artifact lineage、write intent 与 Evidence parser provenance；新写路径只使用 `original`，P1 的 `canonical_source` 作为 legacy original 读取别名保留。
+- 实现 TXT/MD/PDF/DOCX/XLSX 确定性 parser 与 Document Worker DAG。parser 输出固定 source version/hash、parser profile/version、locator、derived hash；正文/表格/图片分支按 dependency/fan-in 汇合后才建立 Evidence。
+- 将 document handlers 接入 P1 durable ledger；安全 retry 复用已提交的同 hash 派生对象，成功分支不重复。完成后 run 只到 `author_confirmation_required`，不创建 Candidate、revision、release 或 index。
+- 扩展 prerelease API：Source multipart 登记返回 `202 + run_id`，Processing Runs 提供 collection/detail、step retry 和 cancel；RBAC、错误脱敏、OpenAPI 与 Pydantic/SQL adapter 分层保持不变。
+- 完成 KUI-02/03：Sources 页面计算浏览器 SHA-256 并登记，Processing 页面显示 DAG、attempt、checkpoint、Original/Derived/Evidence，只有 active run 进行 2 秒条件轮询。
+- 写入 parser selection Gate：当前 adapter 通过 synthetic locator/hash/formula/OCR-required 基线；Docling/Unstructured 因缺少同条件受控临床 fixture 不锁定，满足跨页表/公式/CT workbook/OCR 对照 Gate 后再重开。
+- 同步 README、USAGE、SPEC-12/13、P12 计划、PLAN 与 memory。P2-A Gate 关闭；P2-B 模型增强、Candidate 与两级人工 Gate 未启动。
+
+#### Issues / Blockers
+
+- `0004` 首次实库 migration 因不同表复用通用 constraint 名称失败。根因是 PostgreSQL constraint/index 名称在 schema 范围冲突；改为表级唯一名称后 clean apply/downgrade/re-apply 通过。
+- Source → Evidence 实库测试首次找不到 original artifact。根因是 P1 fixture 使用 `canonical_source`，而 P2-A 新写值为 `original`；读取层增加显式 legacy alias，新写路径不回退旧值，避免破坏 P1 同时保持分类清晰。
+- 前端上传测试首次无法读取文件，随后 MSW 解析 multipart 出现 realm 不兼容。根因是 JSDOM FileList `.item()` 与浏览器/undici FormData 构造器实现差异；生产代码改用标准索引读取，组件测试只验证请求语义，真实 multipart 形状由 FastAPI 合同测试覆盖。
+- 最终代码复核发现 Source list 会按最新时间误选 `parser_output`，以及已提交派生对象的重试仍进入补偿路径时存在误删风险。根因是读取查询未限定 original kind、prepare result 未表达 committed/reuse 状态；查询改为只选 original/legacy original，派生写显式返回 reuse 状态并补回归。
+- 单命令全量 pytest 在 424 秒工具上限被外层终止且没有留下子进程。根因是 legacy PDF/知识治理测试本身约 5 分钟以上，加上单进程收集/输出超过工具窗口；随后把全部 33 个测试文件分成三个互斥组，完整集合通过。
+- `npm audit` 未获得结果：本地 npmmirror 的 security endpoint 返回 404，官方 registry 两次 TLS 中断。没有把网络失败记录成“0 vulnerability”；lockfile 风险需在 registry 可用时重跑。
+- backend Docker rebuild 未完成：setuptools/Pillow 下载先后遇到 registry TLS EOF/无版本响应；相同项目 `.venv` 安装和 `pip check` 正常，frontend 镜像已重新构建。根因属于外部 Python registry 可用性，不用修改 Dockerfile 或放宽依赖掩盖。
+
+#### Validation
+
+- Wiki 默认测试文件全集按三个互斥组验收：97 passed/4 skipped + 78 passed + 80 passed，合计 255 passed、4 skipped；仅 Starlette/httpx2 迁移 warning。P2-A 定向 Source/Document/DB/API 合同增加修正回归后为 42 passed。
+- 全新 `pgvector/pgvector:0.8.1-pg17`：clean apply/downgrade/re-apply、ledger/API read 与真实 Source → Document Worker → Evidence 共 4 passed；临时数据库容器在验收后删除。
+- Ruff 全 Wiki通过；项目 `.venv` `pip check` 返回 `No broken requirements found`；Alembic head 为 `20260730_0004`；Compose config 通过。
+- 前端 typecheck、9 项组件/API mock 测试和 production build 通过（412 modules，JS gzip 120.76 kB）；frontend Docker image rebuild 成功。
+- 真实浏览器验证 Source 登记 202 receipt、Processing active polling、两条 run、dependency/checkpoint、Original/Derived/Evidence 和 failed step retry；390×844 窄屏无全局横向溢出。
+- 未调用外部模型，未安装 Docling/Unstructured，未修改 `clinical-workflow/`、Vault/SQLite 正式知识、Candidate/Review/Release 路径。
+
+#### Next
+
+1. 停在 P2-A Gate；P2-B 必须由用户单独授权，不能因已有 Evidence 自动开始模型增强。
+2. 若授权 P2-B，先冻结 Candidate/author-confirmation/independent-review 状态与 Evidence eligibility，再接 `ModelProviderPort`；模型仍不能确认、审核、批准或发布。
+3. 在进入真实临床来源前建立合法的跨页表、公式、CT workbook 与 OCR fixture pack，重跑 parser 选型；当前 synthetic 结果不能证明生产文档覆盖。
+4. registry 网络恢复后重跑 `npm audit --audit-level=high` 与 backend image rebuild；这是供应链验证风险，不影响已通过的 P2-A代码/实库/API/UI Gate。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/service/sources/`, `service/processing/document_worker.py`, `service/processing/parsers.py`
+- `clinical-llm-wiki/service/db/`, `service/platform_api/`, prerelease OpenAPI
+- `clinical-llm-wiki/frontend/src/`, P2-A backend/frontend/integration tests
+- `docs/reviews/P12-P2A-PARSER-BAKEOFF.md`, README/USAGE/SPEC-12/13、P12 plan/PLAN/memory、DevLog/index
+- commit：本轮门禁后创建；未 push

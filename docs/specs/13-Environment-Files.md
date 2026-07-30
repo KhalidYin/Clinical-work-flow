@@ -967,8 +967,9 @@ KNOWLEDGE_WORKER_LEASE_SECONDS=60                  # optional, positive integer
 ```
 
 数据库只保存 ID、pool、scope 和 secret reference，不保存这些值。local worker CLI 只解析
-`env://`；生产 `secret://` resolver 需在 P4 单独实现并验收。P1 worker 没有注册领域 handler，
-因此进程可以验证配置和身份，但不会领取 P2/P3 任务。
+`env://`；生产 `secret://` resolver 需在 P4 单独实现并验收。P1 交付时 worker 没有领域
+handler；P2-A 只为 document pool 注册确定性 Source → Evidence handler，enrichment/release
+仍不会领取 P2-B/P3 任务。
 
 API 默认仍只允许 loopback。容器内监听 `0.0.0.0` 仅在显式设置下开放：
 
@@ -992,3 +993,37 @@ python -m service.maintenance.legacy_migration   # legacy asset/crosswalk
 
 后两类 registry 在 P1 为空并对未知任务失败关闭；不能为了方便把 backfill 或 legacy 文件迁移
 塞入 Alembic revision。破坏性字段变化继续遵守 expand → migrate → switch → contract。
+
+## 15. P12 P2-A Source 与 Document Worker 环境
+
+P2-A 的 prerelease API 和 Document Worker 必须指向同一个 PostgreSQL schema 与同一个 local
+development ObjectStore root：
+
+```text
+KNOWLEDGE_DATABASE_URL
+KNOWLEDGE_OBJECT_STORE_ROOT=<explicit absolute local development path>
+KNOWLEDGE_OBJECT_CLEANUP_MIN_AGE_SECONDS=300  # optional, non-negative integer
+```
+
+`KNOWLEDGE_OBJECT_STORE_ROOT` 仍只属于 local adapter；它不能进入 SourceArtifact、Evidence、
+API 响应、日志或数据库。生产 S3-compatible adapter 仍属于 P4。
+
+API 进程需要 P1-D 的 identity 配置；Document Worker 继续使用 pool-specific Service Account：
+
+```text
+KNOWLEDGE_DOCUMENT_WORKER_SERVICE_ACCOUNT_ID=svc-document
+P12_DOCUMENT_WORKER_TOKEN=<injected-secret referenced by env://P12_DOCUMENT_WORKER_TOKEN>
+KNOWLEDGE_WORKER_ID=<deployment-instance-id>  # optional
+KNOWLEDGE_WORKER_LEASE_SECONDS=60             # optional
+```
+
+Document Worker 启动时执行 orphan reconcile。只有超过
+`KNOWLEDGE_OBJECT_CLEANUP_MIN_AGE_SECONDS` 的 pending/compensation-required intent 才可进入
+清理，避免删除仍在进行的对象写；结果只输出 scanned/deleted/missing/failed 数量，详细对象
+与 actor 事实留在 PostgreSQL audit，不回显绝对路径或 object bytes。负值或非整数配置必须
+导致启动失败，不能退回无年龄限制的清理。
+
+P2-A 只安装现有 `pdf`/document parser 依赖和 `python-multipart`。Docling、Unstructured、
+OCR provider、LiteLLM `models` extra 与外部模型密钥都不是 Document Worker 的运行依赖。
+Enrichment/Release worker 在 P2-A 仍无领域 handler，不能因为 Document Worker 启用而取得
+额外权限。

@@ -236,15 +236,15 @@ P1-E 将二进制对象与结构化记录分开：PostgreSQL 保存 `object_key`
 ```powershell
 Set-Location .\clinical-llm-wiki
 .\.venv\Scripts\python -m service.processing.worker --list-pools
-# P2/P3 注册领域 handler 后，部署进程使用：
+# P2-A Document handler 已可用；Enrichment/Release 仍待后续 Gate：
 # .\.venv\Scripts\python -m service.processing.worker --pool document
 ```
 
-P1 的入口故意没有注册正式 Document/Enrichment/Release handler；空 registry 不会领取未来
-任务。启动某一 pool 前，数据库中必须已有 active Service Account，并配置对应 ID 与其
-`env://` 引用，例如 `KNOWLEDGE_DOCUMENT_WORKER_SERVICE_ACCOUNT_ID` 和
-`P12_DOCUMENT_WORKER_TOKEN`。local CLI 暂不解析 `secret://`；生产 Secret Store adapter 留在
-部署阶段。
+P1 交付时三个 registry 都为空；P2-A 只注册 Document handler，Enrichment/Release 仍不会
+领取未来任务。启动某一 pool 前，数据库中必须已有 active Service Account，并配置对应 ID
+与其 `env://` 引用，例如 `KNOWLEDGE_DOCUMENT_WORKER_SERVICE_ACCOUNT_ID` 和
+`P12_DOCUMENT_WORKER_TOKEN`。local CLI 暂不解析 `secret://`；生产 Secret Store adapter
+留在部署阶段。
 
 本地 Compose 骨架包含 PostgreSQL/pgvector、一次性 migration、API、前端和可选 workers。
 所有发布端口只绑定 loopback。仓库不提供默认密码、Bearer token、用户或 Service Account；
@@ -262,8 +262,8 @@ docker compose up --build postgres migration api frontend
 ```
 
 只有三类 Service Account 都已预置并分别注入 credential 时才启用
-`docker compose --profile workers up`。开发 Compose 为后续 P2 handler 注入本地 adapter 预留
-named volume；P1 空 handler 不会写对象，该 volume 也不代表生产对象存储选型。
+`docker compose --profile workers up`。开发 Compose 的 named volume 供 P2-A Document
+handler 使用 local adapter；它不代表生产对象存储选型，Enrichment/Release 仍无领域 handler。
 
 三类变更入口保持分离：
 
@@ -281,6 +281,69 @@ P1-E 合同验证：
 ```powershell
 .\.venv\Scripts\python -m pytest tests/test_object_store_contract.py tests/test_processing_runtime_contract.py tests/test_p1e_deployment_contract.py -q
 ```
+
+### P12 Source Registry 与确定性 Document Worker（P2-A）
+
+P2-A 在同一 prerelease API 上增加受治理的 Source 写入和 Processing Run 查询。登记使用
+`multipart/form-data`，必须提供客户端计算的 SHA-256、合法的 rights/storage policy、
+data boundary 和至少 8 字符的 `Idempotency-Key`。服务端重新计算 hash、校验文件签名与声明
+media type；成功只返回 `202 Accepted + run_id`，不会同步生成 Knowledge Unit。
+
+前端 Sources 页面可以直接选择 TXT/MD/PDF/DOCX/XLSX，浏览器计算 SHA-256 后提交。真实 API
+启动时还必须显式配置同一个 local ObjectStore 根目录：
+
+```powershell
+Set-Location .\clinical-llm-wiki
+$env:KNOWLEDGE_DATABASE_URL = "postgresql+psycopg://<user>:<password>@127.0.0.1:<port>/<database>"
+$env:KNOWLEDGE_OBJECT_STORE_ROOT = "<absolute-local-development-object-root>"
+# 继续使用 P1-D 中显式的 local identity 变量
+.\.venv\Scripts\python -m service.platform_api.main
+```
+
+Source、SourceVersion、原始 SourceArtifact 和 Audit 只在一个数据库事务中对外可见。对象写入
+前先保存 write intent；数据库 publish 失败时尝试删除对象，删除失败则保留
+`compensation_required`，由 Document Worker 启动时的 reconcile 继续处理并记录审计。清理
+年龄下限默认 300 秒，可显式调整：
+
+```text
+KNOWLEDGE_OBJECT_CLEANUP_MIN_AGE_SECONDS=300
+```
+
+完成 migration、Source 登记和 Document Service Account 预置后启动 worker：
+
+```powershell
+$env:KNOWLEDGE_DOCUMENT_WORKER_SERVICE_ACCOUNT_ID = "svc-document"
+$env:P12_DOCUMENT_WORKER_TOKEN = "<injected-secret>"
+$env:KNOWLEDGE_OBJECT_STORE_ROOT = "<same-absolute-local-development-object-root>"
+$env:KNOWLEDGE_OBJECT_CLEANUP_MIN_AGE_SECONDS = "300"
+.\.venv\Scripts\python -m service.processing.worker --pool document
+```
+
+Document Worker 根据格式建立离散 DAG：MD/TXT 走正文分支，PDF 走正文/表格/图片分支，DOCX
+走正文/表格分支，XLSX 走表格/公式分支；声明的 dependency 完成后才 fan-in 为 Evidence。
+Original、parser output 和 Evidence 各自保存 lineage，不能相互替代。扫描 PDF 没有可抽取文本
+时明确失败并要求 OCR；P2-A 不提供 OCR 服务。
+
+Processing Runs 页面只对 `queued`/`processing` 状态每 2 秒轮询；终态停止轮询。失败 step
+可由具有 `processing:retry` 的 Curator 从安全 checkpoint 建立新 attempt，已成功 step 和已
+提交的 derived object 不会被无条件重复。Document Worker 最终只能把 run 推进到
+`author_confirmation_required`，不能创建 Candidate、approved revision、release 或生产索引。
+
+P2-A parser 选型报告位于
+`docs/reviews/P12-P2A-PARSER-BAKEOFF.md`。当前没有锁定 Docling/Unstructured；只有受控
+SDTM 跨页表、ADaM 公式、CT workbook 和 OCR fixture 在同一 Gate 下证明明显收益后才重开。
+
+P2-A 验证：
+
+```powershell
+Set-Location .\clinical-llm-wiki
+.\.venv\Scripts\python -m pytest tests/test_source_registry_contract.py tests/test_document_worker_p2a_contract.py tests/test_platform_api_contract.py tests/test_database_contract.py -q
+$env:KNOWLEDGE_TEST_DATABASE_URL = "postgresql+psycopg://<user>:<password>@127.0.0.1:<port>/<empty_test_database>"
+.\.venv\Scripts\python -m pytest tests/test_source_document_postgres_integration.py tests/test_database_migration_integration.py -q
+Remove-Item Env:KNOWLEDGE_TEST_DATABASE_URL
+```
+
+P2-A 不调用外部模型，不进入 P2-B Candidate/作者确认/独立审核。P2-B 必须另获授权。
 
 ## 3. 启动本地 Review Panel
 

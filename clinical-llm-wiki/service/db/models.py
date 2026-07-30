@@ -128,6 +128,11 @@ class SourceVersion(Base):
             "'external_allowed', 'prohibited')",
             name="data_boundary",
         ),
+        UniqueConstraint(
+            "source_id",
+            "version",
+            name="uq_source_versions_source_version",
+        ),
         UniqueConstraint("source_id", "version", "sha256", name="source_version_hash"),
         Index("ix_source_versions_source_id_version", "source_id", "version"),
     )
@@ -149,7 +154,27 @@ class SourceArtifact(Base):
     __tablename__ = "source_artifacts"
     __table_args__ = (
         CheckConstraint("size_bytes >= 0", name="size_bytes_nonnegative"),
+        CheckConstraint(
+            "artifact_kind IN ('original', 'canonical_source', 'parser_output')",
+            name="artifact_kind",
+        ),
+        CheckConstraint(
+            "status IN ('available', 'quarantined', 'missing')",
+            name="status",
+        ),
+        CheckConstraint(
+            "(artifact_kind IN ('original', 'canonical_source') "
+            "AND parent_artifact_id IS NULL "
+            "AND parser_profile_version IS NULL) OR "
+            "(artifact_kind = 'parser_output' AND parent_artifact_id IS NOT NULL "
+            "AND parser_profile_version IS NOT NULL)",
+            name="lineage_shape",
+        ),
         UniqueConstraint("source_version_id", "sha256", name="source_artifact_hash"),
+        UniqueConstraint(
+            "object_key",
+            name="uq_source_artifacts_object_key",
+        ),
     )
 
     artifact_id: Mapped[str] = _text_id()
@@ -157,11 +182,62 @@ class SourceArtifact(Base):
         ForeignKey("source_versions.source_version_id", ondelete="RESTRICT"), nullable=False
     )
     artifact_kind: Mapped[str] = mapped_column(String(60), nullable=False)
+    parent_artifact_id: Mapped[str | None] = mapped_column(
+        ForeignKey("source_artifacts.artifact_id", ondelete="RESTRICT")
+    )
     object_key: Mapped[str] = mapped_column(String(1024), nullable=False)
     sha256: Mapped[str] = mapped_column(String(64), nullable=False)
     media_type: Mapped[str] = mapped_column(String(255), nullable=False)
     size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    parser_profile_version: Mapped[str | None] = mapped_column(String(120))
+    status: Mapped[str] = mapped_column(String(40), nullable=False, server_default="available")
     created_at: Mapped[datetime] = _created_at()
+
+
+class ObjectWriteIntent(Base):
+    __tablename__ = "object_write_intents"
+    __table_args__ = (
+        CheckConstraint(
+            "purpose IN ('raw_source', 'parser_output')",
+            name="purpose",
+        ),
+        CheckConstraint("size_bytes >= 0", name="size_bytes_nonnegative"),
+        CheckConstraint(
+            "status IN ('pending', 'object_written', 'committed', "
+            "'compensation_required', 'compensated', 'failed')",
+            name="status",
+        ),
+        UniqueConstraint(
+            "actor_id",
+            "idempotency_key",
+            name="uq_object_write_intents_actor_idempotency",
+        ),
+        UniqueConstraint(
+            "object_key",
+            name="uq_object_write_intents_object_key",
+        ),
+        Index("ix_object_write_intents_status_updated_at", "status", "updated_at"),
+    )
+
+    write_intent_id: Mapped[str] = _text_id()
+    purpose: Mapped[str] = mapped_column(String(40), nullable=False)
+    owner_type: Mapped[str] = mapped_column(String(60), nullable=False)
+    owner_id: Mapped[str] = mapped_column(String(160), nullable=False)
+    source_id: Mapped[str] = mapped_column(String(160), nullable=False)
+    source_version_id: Mapped[str] = mapped_column(String(160), nullable=False)
+    source_version_label: Mapped[str] = mapped_column(String(120), nullable=False)
+    object_key: Mapped[str] = mapped_column(String(1024), nullable=False)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    media_type: Mapped[str] = mapped_column(String(255), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    actor_id: Mapped[str] = mapped_column(String(160), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(160), nullable=False)
+    status: Mapped[str] = mapped_column(String(40), nullable=False)
+    failure_code: Mapped[str | None] = mapped_column(String(120))
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
 
 class ProcessingRun(Base):
@@ -214,9 +290,7 @@ class JobStep(Base):
     step_key: Mapped[str] = mapped_column(String(160), nullable=False)
     pool: Mapped[str] = mapped_column(String(40), nullable=False)
     status: Mapped[str] = mapped_column(String(40), nullable=False, server_default="queued")
-    depends_on: Mapped[list[str]] = mapped_column(
-        JSONB, nullable=False, server_default="[]"
-    )
+    depends_on: Mapped[list[str]] = mapped_column(JSONB, nullable=False, server_default="[]")
     input_sha256: Mapped[str | None] = mapped_column(String(64))
     output_sha256: Mapped[str | None] = mapped_column(String(64))
     checkpoint: Mapped[dict[str, Any] | None] = mapped_column(JSONB(none_as_null=True))
@@ -277,9 +351,7 @@ class StepAttempt(Base):
     input_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
     output_sha256: Mapped[str | None] = mapped_column(String(64))
     checkpoint: Mapped[dict[str, Any] | None] = mapped_column(JSONB(none_as_null=True))
-    artifact_manifest: Mapped[dict[str, Any] | None] = mapped_column(
-        JSONB(none_as_null=True)
-    )
+    artifact_manifest: Mapped[dict[str, Any] | None] = mapped_column(JSONB(none_as_null=True))
     error_type: Mapped[str | None] = mapped_column(String(80))
     error_message: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = _created_at()
@@ -427,6 +499,12 @@ class Evidence(Base):
     source_artifact_id: Mapped[str | None] = mapped_column(
         ForeignKey("source_artifacts.artifact_id", ondelete="RESTRICT")
     )
+    derived_artifact_id: Mapped[str] = mapped_column(
+        ForeignKey("source_artifacts.artifact_id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    source_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    parser_profile_version: Mapped[str] = mapped_column(String(120), nullable=False)
     evidence_type: Mapped[str] = mapped_column(String(80), nullable=False)
     locator: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     locator_sha256: Mapped[str] = mapped_column(String(64), nullable=False)

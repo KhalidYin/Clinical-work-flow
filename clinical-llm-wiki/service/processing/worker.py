@@ -1,4 +1,4 @@
-"""Pool-parameterized worker runtime; domain handlers arrive in P2/P3."""
+"""Pool-parameterized worker runtime with P2-A document handlers."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import argparse
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 import os
+from pathlib import Path
 import time
 from typing import Any, Protocol
 
@@ -28,9 +29,20 @@ from service.db.session import (
     create_session_factory,
     database_url_from_environment,
 )
+from service.object_store import LocalObjectStore
+from service.sources import (
+    SourceRegistryService,
+    SqlAlchemySourceRegistryRepository,
+)
 
 from .contracts import ClaimedStepAttempt, StepOutcome
+from .document_worker import (
+    DocumentWorkerService,
+    SqlAlchemyDocumentRepository,
+    document_step_handlers,
+)
 from .ledger import PostgresProcessingLedger, ProcessingLedgerPort
+from .parsers import ParserRegistry
 
 
 class StepHandler(Protocol):
@@ -153,9 +165,7 @@ def load_service_account_actor(
 ) -> ActorContext:
     with session_factory() as session:
         record = session.scalar(
-            select(ServiceAccount).where(
-                ServiceAccount.service_account_id == service_account_id
-            )
+            select(ServiceAccount).where(ServiceAccount.service_account_id == service_account_id)
         )
     if record is None:
         raise RuntimeError("configured worker service account does not exist")
@@ -210,11 +220,43 @@ def main(argv: Sequence[str] | None = None) -> int:
         service_account_id=account_id,
         pool=pool,
     )
+    ledger = PostgresProcessingLedger(sessions)
+    handlers: Mapping[str, StepHandler] = {}
+    if pool is WorkerPool.DOCUMENT:
+        object_root = os.environ.get("KNOWLEDGE_OBJECT_STORE_ROOT")
+        if not object_root:
+            raise RuntimeError("KNOWLEDGE_OBJECT_STORE_ROOT is required for the document worker")
+        object_store = LocalObjectStore(root=Path(object_root))
+        cleanup = SourceRegistryService(
+            repository=SqlAlchemySourceRegistryRepository(sessions),
+            object_store=object_store,
+            ledger=ledger,
+        ).reconcile_orphans(
+            actor=actor,
+            minimum_age_seconds=int(
+                os.environ.get(
+                    "KNOWLEDGE_OBJECT_CLEANUP_MIN_AGE_SECONDS",
+                    "300",
+                )
+            ),
+        )
+        print(
+            "object cleanup "
+            f"scanned={cleanup.scanned} deleted={cleanup.deleted} "
+            f"missing={cleanup.missing} failed={cleanup.failed}"
+        )
+        document_service = DocumentWorkerService(
+            repository=SqlAlchemyDocumentRepository(sessions),
+            object_store=object_store,
+            parsers=ParserRegistry.default(),
+            actor_id=actor.actor_id,
+        )
+        handlers = document_step_handlers(document_service)
     runtime = WorkerRuntime(
-        ledger=PostgresProcessingLedger(sessions),
+        ledger=ledger,
         actor=actor,
         worker_id=os.environ.get("KNOWLEDGE_WORKER_ID", f"{pool.value}-{os.getpid()}"),
-        handlers={},  # P1 foundation only; P2/P3 register governed domain handlers.
+        handlers=handlers,
         pool=pool,
         lease_seconds=int(os.environ.get("KNOWLEDGE_WORKER_LEASE_SECONDS", "60")),
     )

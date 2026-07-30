@@ -3,7 +3,8 @@ info:
   title: Clinical Knowledge Ledger API
   version: knowledge-api.prerelease.v1
   description: >-
-    P12 P1 prerelease contract for App Shell, Source Registry and Admin identity mapping.
+    P12 P2-A prerelease contract for governed Source Registry, deterministic processing
+    runs, App Shell and Admin identity mapping.
     This contract does not authorize production data or expose Workflow/Agent/Project Memory fields.
 servers:
   - url: /api/prerelease/v1
@@ -71,6 +72,164 @@ paths:
           $ref: "#/components/responses/AuthorizationError"
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
+    post:
+      operationId: registerSource
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: { type: string, minLength: 8, maxLength: 160 }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - source_id
+                - title
+                - source_type
+                - version
+                - rights_classification
+                - storage_allowed
+                - data_boundary
+                - media_type
+                - expected_sha256
+                - file
+              properties:
+                source_id: { type: string }
+                title: { type: string }
+                source_type: { type: string }
+                version: { type: string }
+                rights_classification: { enum: [licensed, internal, restricted] }
+                storage_allowed: { type: boolean }
+                data_boundary:
+                  enum:
+                    - local_processing_only
+                    - enterprise_provider_only
+                    - external_allowed
+                    - prohibited
+                media_type: { type: string }
+                expected_sha256: { type: string, pattern: "^[0-9a-f]{64}$" }
+                file: { type: string, format: binary }
+      responses:
+        "202":
+          description: Source is canonically registered and a discrete processing run is queued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SourceRegistrationResponse"
+        "401":
+          $ref: "#/components/responses/AuthenticationError"
+        "403":
+          $ref: "#/components/responses/AuthorizationError"
+        "409":
+          $ref: "#/components/responses/ConflictError"
+        "415":
+          $ref: "#/components/responses/InvalidSourceError"
+        "422":
+          $ref: "#/components/responses/InvalidSourceError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /processing-runs:
+    get:
+      operationId: listProcessingRuns
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Discrete durable runs with step and latest-attempt state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProcessingRunCollectionResponse"
+        "401":
+          $ref: "#/components/responses/AuthenticationError"
+        "403":
+          $ref: "#/components/responses/AuthorizationError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /processing-runs/{run_id}:
+    get:
+      operationId: getProcessingRun
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: run_id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: One durable processing run.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProcessingRunResponse"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "401":
+          $ref: "#/components/responses/AuthenticationError"
+        "403":
+          $ref: "#/components/responses/AuthorizationError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /processing-runs/{run_id}/steps/{step_id}/retry:
+    post:
+      operationId: retryProcessingStep
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: run_id
+          required: true
+          schema: { type: string }
+        - in: path
+          name: step_id
+          required: true
+          schema: { type: string }
+      responses:
+        "202":
+          description: A new linked attempt is queued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RetryResponse"
+        "409":
+          $ref: "#/components/responses/ConflictError"
+        "401":
+          $ref: "#/components/responses/AuthenticationError"
+        "403":
+          $ref: "#/components/responses/AuthorizationError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /processing-runs/{run_id}/cancel:
+    post:
+      operationId: cancelProcessingRun
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: run_id
+          required: true
+          schema: { type: string }
+      responses:
+        "202":
+          description: The run and active work are cancelled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CancelResponse"
+        "409":
+          $ref: "#/components/responses/ConflictError"
+        "401":
+          $ref: "#/components/responses/AuthenticationError"
+        "403":
+          $ref: "#/components/responses/AuthorizationError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
   /admin/users:
     get:
       operationId: listPlatformUsers
@@ -110,6 +269,24 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
     ServiceUnavailable:
       description: A required internal repository is unavailable.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    ConflictError:
+      description: A version, idempotency or lifecycle conflict prevents the operation.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    InvalidSourceError:
+      description: Source bytes, hash, rights or media facts fail closed.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFoundError:
+      description: The requested durable record does not exist.
       content:
         application/json:
           schema:
@@ -217,6 +394,120 @@ components:
           enum: [registered, processing, candidate, approved, released, restricted, disabled]
         sourceHash: { type: string, pattern: "^[0-9a-f]{64}$" }
         updatedAt: { type: string, format: date-time }
+    ObjectReference:
+      type: object
+      additionalProperties: false
+      required: [objectKey, sha256, mediaType, sizeBytes, artifactRole]
+      properties:
+        objectKey: { type: string }
+        sha256: { type: string, pattern: "^[0-9a-f]{64}$" }
+        mediaType: { type: string }
+        sizeBytes: { type: integer, minimum: 0 }
+        artifactRole: { enum: [original, derived] }
+    SourceRegistration:
+      type: object
+      additionalProperties: false
+      required: [sourceId, sourceVersionId, runId, status, originalObject]
+      properties:
+        sourceId: { type: string }
+        sourceVersionId: { type: string }
+        runId: { type: string }
+        status: { const: queued }
+        originalObject: { $ref: "#/components/schemas/ObjectReference" }
+    ProcessingAttempt:
+      type: object
+      additionalProperties: false
+      required:
+        - attemptId
+        - attemptNumber
+        - status
+        - errorType
+        - checkpoint
+        - artifactCount
+      properties:
+        attemptId: { type: string }
+        attemptNumber: { type: integer, minimum: 1 }
+        status: { enum: [queued, leased, succeeded, failed, expired, cancelled] }
+        errorType: { type: [string, "null"] }
+        checkpoint: { type: [object, "null"] }
+        artifactCount: { type: integer, minimum: 0 }
+    ProcessingStep:
+      type: object
+      additionalProperties: false
+      required: [stepId, stepKey, pool, status, dependsOn, latestAttempt]
+      properties:
+        stepId: { type: string }
+        stepKey: { type: string }
+        pool: { enum: [document, enrichment, release] }
+        status: { enum: [queued, processing, succeeded, failed, cancelled] }
+        dependsOn:
+          type: array
+          items: { type: string }
+        latestAttempt: { $ref: "#/components/schemas/ProcessingAttempt" }
+    ProcessingRun:
+      type: object
+      additionalProperties: false
+      required:
+        - runId
+        - sourceVersionId
+        - status
+        - createdAt
+        - updatedAt
+        - originalArtifactCount
+        - derivedArtifactCount
+        - evidenceCount
+        - steps
+      properties:
+        runId: { type: string }
+        sourceVersionId: { type: string }
+        status:
+          enum:
+            - queued
+            - processing
+            - author_confirmation_required
+            - review_required
+            - approved
+            - release_blocked
+            - released
+            - failed
+            - cancelled
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        originalArtifactCount: { type: integer, minimum: 0 }
+        derivedArtifactCount: { type: integer, minimum: 0 }
+        evidenceCount: { type: integer, minimum: 0 }
+        steps:
+          type: array
+          items: { $ref: "#/components/schemas/ProcessingStep" }
+    ProcessingRunCollection:
+      type: object
+      additionalProperties: false
+      required: [items, total, partial, warnings]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ProcessingRun" }
+        total: { type: integer, minimum: 0 }
+        partial: { type: boolean }
+        warnings:
+          type: array
+          items: { type: string }
+    Retry:
+      type: object
+      additionalProperties: false
+      required: [runId, stepId, attemptId, status]
+      properties:
+        runId: { type: string }
+        stepId: { type: string }
+        attemptId: { type: string }
+        status: { const: queued }
+    Cancel:
+      type: object
+      additionalProperties: false
+      required: [runId, status]
+      properties:
+        runId: { type: string }
+        status: { const: cancelled }
     PlatformUser:
       type: object
       additionalProperties: false
@@ -283,6 +574,36 @@ components:
         - type: object
           properties:
             data: { $ref: "#/components/schemas/SourceCollection" }
+    SourceRegistrationResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/SourceRegistration" }
+    ProcessingRunResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/ProcessingRun" }
+    ProcessingRunCollectionResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/ProcessingRunCollection" }
+    RetryResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/Retry" }
+    CancelResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/Cancel" }
     UserCollectionResponse:
       allOf:
         - $ref: "#/components/schemas/Envelope"
@@ -300,7 +621,16 @@ components:
           required: [code, message]
           properties:
             code:
-              enum: [authentication_required, invalid_identity, permission_denied, service_unavailable]
+              enum:
+                - authentication_required
+                - invalid_identity
+                - permission_denied
+                - service_unavailable
+                - registration_conflict
+                - invalid_source
+                - unsupported_media
+                - run_not_found
+                - retry_not_allowed
             message: { type: string }
         meta: { $ref: "#/components/schemas/ResponseMeta" }
     Envelope:

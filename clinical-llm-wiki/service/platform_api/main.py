@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from hashlib import sha256
 import os
+from pathlib import Path
 
 import uvicorn
 
@@ -13,6 +14,9 @@ from service.db.session import (
     create_session_factory,
     database_url_from_environment,
 )
+from service.object_store import LocalObjectStore
+from service.processing.ledger import PostgresProcessingLedger
+from service.sources import SourceRegistryService, SqlAlchemySourceRegistryRepository
 
 from .app import PlatformApiServices, create_platform_app
 from .repository import SqlAlchemyPlatformRepository
@@ -52,7 +56,10 @@ def create_environment_app():
         },
     )
     engine = create_database_engine(database_url_from_environment())
-    repository = SqlAlchemyPlatformRepository(create_session_factory(engine))
+    sessions = create_session_factory(engine)
+    repository = SqlAlchemyPlatformRepository(sessions)
+    object_store = LocalObjectStore(root=Path(_required_environment("KNOWLEDGE_OBJECT_STORE_ROOT")))
+    ledger = PostgresProcessingLedger(sessions)
     return create_platform_app(
         PlatformApiServices(
             identity_provider=identity_provider,
@@ -61,6 +68,13 @@ def create_environment_app():
                 "KNOWLEDGE_ORGANIZATION_NAME",
                 "Clinical Knowledge Platform",
             ),
+            object_store_available=object_store.healthcheck(),
+            source_registry=SourceRegistryService(
+                repository=SqlAlchemySourceRegistryRepository(sessions),
+                object_store=object_store,
+                ledger=ledger,
+            ),
+            processing_ledger=ledger,
         )
     )
 

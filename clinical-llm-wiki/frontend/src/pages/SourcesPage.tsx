@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { type FormEvent, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createColumnHelper,
   flexRender,
@@ -7,10 +7,11 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 
-import { getJson } from "../api/client";
+import { getJson, postMultipart } from "../api/client";
 import {
   API_PATHS,
   type SourceCollection,
+  type SourceRegistration,
   type SourceSummary,
 } from "../contracts/knowledgeApi";
 import styles from "./pages.module.css";
@@ -69,6 +70,8 @@ interface SourcesPageProps {
 }
 
 export function SourcesPage({ query, onQueryChange }: SourcesPageProps) {
+  const queryClient = useQueryClient();
+  const [uploadResult, setUploadResult] = useState<SourceRegistration | null>(null);
   const sources = useQuery({
     queryKey: ["sources"],
     queryFn: ({ signal }) => getJson<SourceCollection>(API_PATHS.sources, signal),
@@ -94,6 +97,43 @@ export function SourcesPage({ query, onQueryChange }: SourcesPageProps) {
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
+
+  const registration = useMutation({
+    mutationFn: async ({
+      form,
+      idempotencyKey,
+    }: {
+      form: FormData;
+      idempotencyKey: string;
+    }) => postMultipart<SourceRegistration>(API_PATHS.sources, form, idempotencyKey),
+    onSuccess: async (response) => {
+      setUploadResult(response.data);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["sources"] }),
+        queryClient.invalidateQueries({ queryKey: ["processing-runs"] }),
+      ]);
+    },
+  });
+
+  async function handleRegistration(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setUploadResult(null);
+    const formElement = event.currentTarget;
+    const fileInput = formElement.elements.namedItem("file");
+    const file =
+      fileInput instanceof HTMLInputElement ? fileInput.files?.[0] : null;
+    if (!file || file.size === 0) {
+      return;
+    }
+    const form = new FormData(formElement);
+    const digest = await sha256File(file);
+    form.set("expected_sha256", digest);
+    form.set("media_type", file.type || mediaTypeFromName(file.name));
+    const sourceId = String(form.get("source_id") ?? "");
+    const version = String(form.get("version") ?? "");
+    const idempotencyKey = `ui:${sourceId}:${version}:${digest.slice(0, 24)}`;
+    registration.mutate({ form, idempotencyKey });
+  }
 
   return (
     <section className={styles.page} aria-labelledby="sources-title">
@@ -128,6 +168,72 @@ export function SourcesPage({ query, onQueryChange }: SourcesPageProps) {
           {sources.isPending ? "loading" : `${filtered.length} / ${sources.data?.data.total ?? 0}`}
         </span>
       </div>
+
+      <details className={styles.intake}>
+        <summary>登记新 SourceVersion</summary>
+        <form className={styles.intakeForm} onSubmit={handleRegistration}>
+          <label>
+            <span className={styles.asideLabel}>Source ID</span>
+            <input name="source_id" required pattern="src-[a-z0-9][a-z0-9._-]*" />
+          </label>
+          <label>
+            <span className={styles.asideLabel}>Title</span>
+            <input name="title" required />
+          </label>
+          <label>
+            <span className={styles.asideLabel}>Version</span>
+            <input name="version" required />
+          </label>
+          <label>
+            <span className={styles.asideLabel}>Rights</span>
+            <select name="rights_classification" defaultValue="internal">
+              <option value="licensed">licensed</option>
+              <option value="internal">internal</option>
+              <option value="restricted">restricted</option>
+            </select>
+          </label>
+          <label>
+            <span className={styles.asideLabel}>Data boundary</span>
+            <select name="data_boundary" defaultValue="local_processing_only">
+              <option value="local_processing_only">local processing only</option>
+              <option value="enterprise_provider_only">enterprise provider only</option>
+              <option value="external_allowed">external allowed</option>
+            </select>
+          </label>
+          <label className={styles.fileField}>
+            <span className={styles.asideLabel}>Source file</span>
+            <input
+              name="file"
+              type="file"
+              required
+              accept=".txt,.md,.pdf,.docx,.xlsx"
+            />
+          </label>
+          <input type="hidden" name="source_type" value="standard" />
+          <input type="hidden" name="storage_allowed" value="true" />
+          <input type="hidden" name="media_type" value="" />
+          <input type="hidden" name="expected_sha256" value={"0".repeat(64)} />
+          <button
+            className={styles.primaryButton}
+            type="submit"
+            disabled={registration.isPending}
+          >
+            {registration.isPending ? "正在登记…" : "登记并启动处理"}
+          </button>
+        </form>
+        {registration.isError ? (
+          <p className={styles.formError} role="alert">
+            登记失败；Source 不会以半发布状态出现在列表中。
+          </p>
+        ) : null}
+        {uploadResult ? (
+          <p className={styles.receipt} role="status">
+            已登记 <span className={styles.mono}>{uploadResult.sourceVersionId}</span>；
+            处理任务 <span className={styles.mono}>{uploadResult.runId}</span> 已排队。
+            原始对象仍不是 Evidence。
+          </p>
+        ) : null}
+      </details>
 
       <div className={styles.panel}>
         {sources.data?.data.partial ? (
@@ -187,6 +293,26 @@ export function SourcesPage({ query, onQueryChange }: SourcesPageProps) {
         ) : null}
       </div>
     </section>
+  );
+}
+
+async function sha256File(file: File): Promise<string> {
+  const digest = await window.crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function mediaTypeFromName(name: string): string {
+  const suffix = name.toLocaleLowerCase().split(".").pop();
+  return (
+    {
+      txt: "text/plain",
+      md: "text/markdown",
+      pdf: "application/pdf",
+      docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    }[suffix ?? ""] ?? "application/octet-stream"
   );
 }
 

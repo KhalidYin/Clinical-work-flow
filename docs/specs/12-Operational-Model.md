@@ -829,5 +829,43 @@ P1-D 只接入 local/test identity wiring；production Provider 专用 OIDC adap
 - P1 worker registry 为空，不领取 P2/P3 未实现任务。DDL、resumable data backfill 与 legacy
   asset migration 使用三个独立入口；本地 Compose 只提供 loopback 骨架，不等于生产部署。
 
-P1 Gate 已关闭，但 P2 知识生产尚未启动。该边界不恢复已废弃的 Workflow POC，也不把
-Project Memory、Study 规则或 Agent session 写入主知识库。
+P1 Gate 已关闭。该边界不恢复已废弃的 Workflow POC，也不把 Project Memory、Study 规则或
+Agent session 写入主知识库。
+
+## 12. P12 P2-A Source、对象补偿与 Document Worker
+
+P2-A 只建立 Source → SourceVersion → SourceArtifact → Evidence 的确定性路径。Source
+登记不是“上传成功即有知识”，运行边界如下：
+
+1. API 验证人工 `source:register` 权限、rights/storage policy、data boundary、声明的
+   media type、文件签名和客户端/服务端 SHA-256；
+2. PostgreSQL 先保存不可见 `ObjectWriteIntent`，ObjectStore 用 opaque key 和不可覆盖语义
+   写原始对象；
+3. 一个数据库事务同时发布 Source、SourceVersion、`original` SourceArtifact 和 AuditEvent；
+   事务提交前调用方不可见 Source；
+4. 提交后用确定性 run ID 建立 `DocumentProcessingRun`；若 ledger 暂时不可用，完整 Source
+   保持已登记但 API 返回失败，重复同一请求只补建同一个 run，不复制 Source 或对象；
+5. publish 失败时执行对象补偿删除；删除失败保留 `compensation_required`，后续 reconcile
+   按年龄下限重试并追加审计，不以“数据库里没有记录”静默忽略孤儿；
+6. 相同 actor + idempotency key + 相同输入返回同一 receipt；同 Source 新内容必须使用新
+   version/hash，不能覆盖既有 object。
+
+对象缺失或 hash/size/media type 与 manifest 不一致时，重放和 Document Worker 都失败关闭。
+PostgreSQL 是 rights、状态、版本、lineage 与审核权威；ObjectStore 只保存对象字节。
+
+Document Worker 使用 P1 durable ledger 和最小权限 Service Account，只领取 document pool 的
+声明 step。TXT/MD/PDF/DOCX/XLSX adapter 输出稳定 locator、parser profile/version、source
+version/hash 和 derived object hash。PDF、DOCX、XLSX 可以并行解析正文/表格/图片或公式，
+但 Evidence 只在 dependency/fan-in 全部满足后建立。失败分支只阻断依赖它的下游；安全重试
+建立新 attempt 并复用已经提交且 hash 相同的派生对象。
+
+新写路径使用 `original` 与 `parser_output` 两种 SourceArtifact；P1 的
+`canonical_source` 只作为 legacy original 读取别名保留，不能作为新的写入值。API/UI 必须
+分别报告 Original、Derived 和 Evidence 数量。Document Worker 没有 Candidate、confirm、
+review、approve、release 或 index 权限；run 在 Evidence 成功后只进入
+`author_confirmation_required`。
+
+P2-A 的 parser Gate 没有锁定 Docling 或 Unstructured。现有 adapter 只通过 synthetic
+locator/hash/formula 与 OCR-required 合同；扫描 PDF 无文本时显式失败。受控 SDTM 跨页表、
+ADaM 公式、CT workbook 与 OCR fixture 未完成同条件对照前，不能声明生产文档覆盖或引入新的
+parser 框架。

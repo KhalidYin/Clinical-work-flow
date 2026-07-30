@@ -11,6 +11,7 @@ import { AppShell } from "./app/AppShell";
 import { AdminPage } from "./pages/AdminPage";
 import { ScopePage } from "./pages/ScopePage";
 import { SourcesPage } from "./pages/SourcesPage";
+import { ProcessingPage } from "./pages/ProcessingPage";
 
 const rootRoute = createRootRoute({
   component: AppShell,
@@ -51,13 +52,6 @@ function SourcesRoute() {
 }
 
 const scopeRoutes = [
-  {
-    path: "/processing",
-    eyebrow: "Non-streaming document jobs",
-    title: "Processing",
-    description: "离散 run、step、attempt 与 checkpoint；不模拟 token 或 chunk stream。",
-    phase: "KUI-03 · implementation planned in P2",
-  },
   {
     path: "/candidates",
     eyebrow: "Evidence to governed knowledge",
@@ -102,6 +96,12 @@ const scopeRoutes = [
   },
 ] as const;
 
+const processingRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/processing",
+  component: ProcessingPage,
+});
+
 const generatedScopeRoutes = scopeRoutes.map((scope) =>
   createRoute({
     getParentRoute: () => rootRoute,
@@ -119,6 +119,7 @@ const adminRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   indexRoute,
   sourcesRoute,
+  processingRoute,
   ...generatedScopeRoutes,
   adminRoute,
 ]);

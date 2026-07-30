@@ -12,12 +12,16 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from service.auth import PlatformUserGrant
 from service.db.models import (
+    Evidence,
+    JobStep,
     PlatformUser,
+    ProcessingRun,
     Release,
     RoleBinding,
     Source,
     SourceArtifact,
     SourceVersion,
+    StepAttempt,
 )
 
 
@@ -53,6 +57,39 @@ class PlatformUserRecord:
     last_active_at: datetime | None
 
 
+@dataclass(frozen=True, slots=True)
+class ProcessingAttemptRecord:
+    attempt_id: str
+    attempt_number: int
+    status: str
+    error_type: str | None
+    checkpoint: dict[str, object] | None
+    artifact_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class ProcessingStepRecord:
+    step_id: str
+    step_key: str
+    pool: str
+    status: str
+    depends_on: tuple[str, ...]
+    latest_attempt: ProcessingAttemptRecord
+
+
+@dataclass(frozen=True, slots=True)
+class ProcessingRunRecord:
+    run_id: str
+    source_version_id: str
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    original_artifact_count: int
+    derived_artifact_count: int
+    evidence_count: int
+    steps: tuple[ProcessingStepRecord, ...]
+
+
 class PlatformReadRepository(Protocol):
     def resolve_user(self, *, issuer: str, subject: str) -> PlatformUserGrant | None: ...
 
@@ -65,6 +102,12 @@ class PlatformReadRepository(Protocol):
     def list_platform_users(
         self,
     ) -> tuple[Sequence[PlatformUserRecord], Sequence[str]]: ...
+
+    def list_processing_runs(
+        self,
+    ) -> tuple[Sequence[ProcessingRunRecord], Sequence[str]]: ...
+
+    def get_processing_run(self, *, run_id: str) -> ProcessingRunRecord | None: ...
 
 
 class SqlAlchemyPlatformRepository:
@@ -142,7 +185,9 @@ class SqlAlchemyPlatformRepository:
             )
             artifacts = list(
                 session.scalars(
-                    select(SourceArtifact).order_by(
+                    select(SourceArtifact)
+                    .where(SourceArtifact.artifact_kind.in_(("original", "canonical_source")))
+                    .order_by(
                         SourceArtifact.source_version_id,
                         SourceArtifact.created_at.desc(),
                     )
@@ -229,6 +274,108 @@ class SqlAlchemyPlatformRepository:
                 )
             )
         return items, warnings
+
+    def list_processing_runs(self) -> tuple[list[ProcessingRunRecord], list[str]]:
+        with self._session_factory() as session:
+            runs = list(
+                session.scalars(
+                    select(ProcessingRun)
+                    .order_by(ProcessingRun.created_at.desc(), ProcessingRun.run_id)
+                    .limit(100)
+                )
+            )
+        records: list[ProcessingRunRecord] = []
+        warnings: list[str] = []
+        for run in runs:
+            record = self.get_processing_run(run_id=run.run_id)
+            if record is None:
+                warnings.append(f"processing run {run.run_id} disappeared during read")
+            else:
+                records.append(record)
+        return records, warnings
+
+    def get_processing_run(self, *, run_id: str) -> ProcessingRunRecord | None:
+        with self._session_factory() as session:
+            run = session.get(ProcessingRun, run_id)
+            if run is None:
+                return None
+            steps = list(
+                session.scalars(
+                    select(JobStep)
+                    .where(JobStep.run_id == run_id)
+                    .order_by(JobStep.created_at, JobStep.step_key)
+                )
+            )
+            attempts = list(
+                session.scalars(
+                    select(StepAttempt)
+                    .where(StepAttempt.run_id == run_id)
+                    .order_by(
+                        StepAttempt.step_id,
+                        StepAttempt.attempt_number.desc(),
+                    )
+                )
+            )
+            artifacts = list(
+                session.scalars(
+                    select(SourceArtifact).where(
+                        SourceArtifact.source_version_id == run.source_version_id
+                    )
+                )
+            )
+            evidence_count = len(
+                list(
+                    session.scalars(
+                        select(Evidence.evidence_id).where(
+                            Evidence.source_version_id == run.source_version_id
+                        )
+                    )
+                )
+            )
+        latest_by_step: dict[str, StepAttempt] = {}
+        for attempt in attempts:
+            latest_by_step.setdefault(attempt.step_id, attempt)
+        step_records: list[ProcessingStepRecord] = []
+        for step in steps:
+            attempt = latest_by_step.get(step.step_id)
+            if attempt is None:
+                continue
+            manifest = attempt.artifact_manifest or {}
+            manifest_artifacts = manifest.get("artifacts", [])
+            step_records.append(
+                ProcessingStepRecord(
+                    step_id=step.step_id,
+                    step_key=step.step_key,
+                    pool=step.pool,
+                    status=step.status,
+                    depends_on=tuple(step.depends_on or ()),
+                    latest_attempt=ProcessingAttemptRecord(
+                        attempt_id=attempt.attempt_id,
+                        attempt_number=attempt.attempt_number,
+                        status=attempt.status,
+                        error_type=attempt.error_type,
+                        checkpoint=attempt.checkpoint,
+                        artifact_count=(
+                            len(manifest_artifacts) if isinstance(manifest_artifacts, list) else 0
+                        ),
+                    ),
+                )
+            )
+        return ProcessingRunRecord(
+            run_id=run.run_id,
+            source_version_id=run.source_version_id,
+            status=run.status,
+            created_at=run.created_at,
+            updated_at=run.updated_at,
+            original_artifact_count=sum(
+                artifact.artifact_kind in {"original", "canonical_source"} for artifact in artifacts
+            ),
+            derived_artifact_count=sum(
+                artifact.artifact_kind == "parser_output" for artifact in artifacts
+            ),
+            evidence_count=evidence_count,
+            steps=tuple(step_records),
+        )
 
 
 def _media_type_label(media_type: str, object_key: str) -> str | None:

@@ -21,6 +21,7 @@ dependencies = [
     "psycopg[binary]>=3.2,<4",
     "alembic>=1.17,<2",
     "pgvector>=0.4,<1",
+    "python-multipart>=0.0.20,<1",
 ]
 
 [project.optional-dependencies]

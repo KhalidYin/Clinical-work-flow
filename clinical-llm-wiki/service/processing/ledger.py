@@ -43,6 +43,15 @@ class RetryNotAllowedError(LedgerError):
 
 
 class ProcessingLedgerPort(Protocol):
+    def create_run(
+        self,
+        *,
+        source_version_id: str,
+        requested_by_subject: str,
+        steps: list[StepDefinition],
+        run_id: str | None = None,
+    ) -> str: ...
+
     def recover_expired_leases(
         self,
         *,
@@ -96,6 +105,10 @@ class ProcessingLedgerPort(Protocol):
         error_message: str,
     ) -> None: ...
 
+    def retry_step(self, *, actor: ActorContext, run_id: str, step_id: str) -> str: ...
+
+    def cancel_run(self, *, actor: ActorContext, run_id: str) -> None: ...
+
 
 class PostgresProcessingLedger:
     """Transactional claim/lease/checkpoint implementation using SKIP LOCKED."""
@@ -117,6 +130,36 @@ class PostgresProcessingLedger:
         resolved_run_id = run_id or f"run-{uuid4()}"
         now = _utcnow()
         with self._sessions.begin() as session:
+            existing = session.get(ProcessingRun, resolved_run_id)
+            if existing is not None:
+                if existing.source_version_id != source_version_id:
+                    raise LedgerError("run_id is already bound to another source version")
+                existing_steps = tuple(
+                    session.scalars(
+                        select(JobStep)
+                        .where(JobStep.run_id == resolved_run_id)
+                        .order_by(JobStep.created_at, JobStep.step_key)
+                    )
+                )
+                expected = {
+                    definition.step_key: (
+                        definition.pool.value,
+                        definition.input_sha256,
+                        tuple(definition.depends_on),
+                    )
+                    for definition in definitions
+                }
+                actual = {
+                    step.step_key: (
+                        step.pool,
+                        step.input_sha256,
+                        tuple(step.depends_on or ()),
+                    )
+                    for step in existing_steps
+                }
+                if actual != expected:
+                    raise LedgerError("run_id replay does not match the durable step graph")
+                return resolved_run_id
             session.add(
                 ProcessingRun(
                     run_id=resolved_run_id,
@@ -195,9 +238,7 @@ class PostgresProcessingLedger:
                     JobStep.status == StepStatus.QUEUED.value,
                     JobStep.pool == pool.value,
                     JobStep.step_key.in_(supported_step_keys),
-                    ProcessingRun.status.in_(
-                        [RunStatus.QUEUED.value, RunStatus.PROCESSING.value]
-                    ),
+                    ProcessingRun.status.in_([RunStatus.QUEUED.value, RunStatus.PROCESSING.value]),
                 )
                 .order_by(StepAttempt.created_at, StepAttempt.attempt_id)
                 .limit(50)
@@ -432,9 +473,7 @@ class PostgresProcessingLedger:
         now = _utcnow()
         with self._sessions.begin() as session:
             run = session.scalar(
-                select(ProcessingRun)
-                .where(ProcessingRun.run_id == run_id)
-                .with_for_update()
+                select(ProcessingRun).where(ProcessingRun.run_id == run_id).with_for_update()
             )
             if run is None:
                 raise LedgerError("run does not exist")
@@ -491,8 +530,7 @@ class PostgresProcessingLedger:
             select(StepAttempt, JobStep)
             .join(
                 JobStep,
-                (JobStep.step_id == StepAttempt.step_id)
-                & (JobStep.run_id == StepAttempt.run_id),
+                (JobStep.step_id == StepAttempt.step_id) & (JobStep.run_id == StepAttempt.run_id),
             )
             .where(StepAttempt.attempt_id == attempt_id)
             .with_for_update(of=StepAttempt)

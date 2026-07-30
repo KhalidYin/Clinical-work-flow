@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Annotated, Callable, TypeVar
 
-from fastapi import Depends, FastAPI, Request, Security
+from fastapi import Depends, FastAPI, File, Form, Header, Request, Security, UploadFile
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
@@ -19,28 +19,57 @@ from service.auth import (
     require_permission,
     resolve_human_actor,
 )
+from service.processing.ledger import (
+    LedgerError,
+    ProcessingLedgerPort,
+    RetryNotAllowedError,
+)
+from service.sources import (
+    DataBoundary,
+    RegistrationConflictError,
+    RightsClassification,
+    RightsPolicy,
+    SourceRegistrationCommand,
+    SourceRegistrationError,
+    SourceRegistryService,
+    UnsupportedSourceMediaError,
+)
 
 from .contracts import (
     CurrentReleaseData,
     CurrentReleaseResponse,
+    CancelData,
+    CancelResponse,
     ErrorData,
     ErrorResponse,
     HealthResponse,
     PlatformHealthData,
     PlatformUserData,
+    ObjectReferenceData,
+    ProcessingAttemptData,
+    ProcessingRunCollectionData,
+    ProcessingRunCollectionResponse,
+    ProcessingRunData,
+    ProcessingRunResponse,
+    ProcessingStepData,
     ResponseMeta,
+    RetryData,
+    RetryResponse,
     SessionData,
     SessionResponse,
     SourceCollectionData,
     SourceCollectionResponse,
+    SourceRegistrationData,
+    SourceRegistrationResponse,
     SourceSummaryData,
     UserCollectionData,
     UserCollectionResponse,
 )
-from .repository import PlatformReadRepository
+from .repository import PlatformReadRepository, ProcessingRunRecord
 
 
 API_PREFIX = "/api/prerelease/v1"
+MAX_SOURCE_BYTES = 64 * 1024 * 1024
 _bearer = HTTPBearer(auto_error=False, scheme_name="bearerAuth")
 _ResponseModel = TypeVar("_ResponseModel", bound=BaseModel)
 
@@ -54,6 +83,8 @@ class PlatformApiServices:
     organization_name: str
     object_store_available: bool = False
     semantic_index_available: bool = False
+    source_registry: SourceRegistryService | None = None
+    processing_ledger: ProcessingLedgerPort | None = None
 
 
 class PlatformApiError(RuntimeError):
@@ -144,6 +175,12 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
         401: {"model": ErrorResponse, "description": "Identity is missing or invalid."},
         403: {"model": ErrorResponse, "description": "Permission is denied."},
         503: {"model": ErrorResponse, "description": "A required service is unavailable."},
+    }
+    write_responses = {
+        **protected_responses,
+        409: {"model": ErrorResponse, "description": "A durable state conflict exists."},
+        415: {"model": ErrorResponse, "description": "The source media is unsupported."},
+        422: {"model": ErrorResponse, "description": "Source facts failed validation."},
     }
 
     @app.get(
@@ -279,6 +316,246 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
             meta=_meta(),
         )
 
+    @app.post(
+        f"{API_PREFIX}/sources",
+        operation_id="registerSource",
+        response_model=SourceRegistrationResponse,
+        status_code=202,
+        responses=write_responses,
+    )
+    async def register_source(
+        actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.SOURCE_REGISTER)),
+        ],
+        idempotency_key: Annotated[
+            str,
+            Header(alias="Idempotency-Key", min_length=8, max_length=160),
+        ],
+        source_id: Annotated[str, Form(min_length=5, max_length=160)],
+        title: Annotated[str, Form(min_length=1, max_length=500)],
+        source_type: Annotated[str, Form(min_length=1, max_length=80)],
+        version: Annotated[str, Form(min_length=1, max_length=120)],
+        rights_classification: Annotated[str, Form()],
+        storage_allowed: Annotated[bool, Form()],
+        data_boundary: Annotated[str, Form()],
+        media_type: Annotated[str, Form(min_length=1, max_length=255)],
+        expected_sha256: Annotated[
+            str,
+            Form(pattern=r"^[0-9a-f]{64}$"),
+        ],
+        file: Annotated[UploadFile, File()],
+    ) -> SourceRegistrationResponse:
+        if services.source_registry is None:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="Source registration is not configured.",
+            )
+        content = bytearray()
+        try:
+            while chunk := await file.read(1024 * 1024):
+                content.extend(chunk)
+                if len(content) > MAX_SOURCE_BYTES:
+                    raise PlatformApiError(
+                        status_code=422,
+                        code="invalid_source",
+                        message="Source exceeds the prerelease upload limit.",
+                    )
+        finally:
+            await file.close()
+        try:
+            command = SourceRegistrationCommand(
+                source_id=source_id,
+                title=title,
+                source_type=source_type,
+                version=version,
+                rights=RightsPolicy(
+                    classification=RightsClassification(rights_classification),
+                    storage_allowed=storage_allowed,
+                ),
+                data_boundary=DataBoundary(data_boundary),
+                media_type=media_type,
+                expected_sha256=expected_sha256,
+                idempotency_key=idempotency_key,
+            )
+            receipt = services.source_registry.register_and_start(
+                actor=actor,
+                command=command,
+                content=bytes(content),
+            )
+        except RegistrationConflictError as exc:
+            raise PlatformApiError(
+                status_code=409,
+                code="registration_conflict",
+                message="The source version or idempotency key conflicts with existing facts.",
+            ) from exc
+        except UnsupportedSourceMediaError as exc:
+            raise PlatformApiError(
+                status_code=415,
+                code="unsupported_media",
+                message="The declared media type is unsupported or mismatched.",
+            ) from exc
+        except (SourceRegistrationError, ValueError) as exc:
+            status_code = 503 if "processing run could not be started" in str(exc) else 422
+            code = "service_unavailable" if status_code == 503 else "invalid_source"
+            raise PlatformApiError(
+                status_code=status_code,
+                code=code,
+                message=(
+                    "The registered source could not start processing."
+                    if status_code == 503
+                    else "The source registration facts failed validation."
+                ),
+            ) from exc
+        return SourceRegistrationResponse(
+            data=SourceRegistrationData(
+                source_id=receipt.source_id,
+                source_version_id=receipt.source_version_id,
+                run_id=receipt.run_id,
+                status=receipt.status,
+                original_object=ObjectReferenceData(
+                    **receipt.original_object.model_dump(),
+                    artifact_role="original",
+                ),
+            ),
+            meta=_meta(),
+        )
+
+    @app.get(
+        f"{API_PREFIX}/processing-runs",
+        operation_id="listProcessingRuns",
+        response_model=ProcessingRunCollectionResponse,
+        responses=protected_responses,
+    )
+    def list_processing_runs(
+        _actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.PROCESSING_READ)),
+        ],
+    ) -> ProcessingRunCollectionResponse:
+        try:
+            records, warnings = services.repository.list_processing_runs()
+        except SQLAlchemyError as exc:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="The processing repository is unavailable.",
+            ) from exc
+        return ProcessingRunCollectionResponse(
+            data=ProcessingRunCollectionData(
+                items=[_processing_run_data(record) for record in records],
+                total=len(records),
+                partial=bool(warnings),
+                warnings=list(warnings),
+            ),
+            meta=_meta(),
+        )
+
+    @app.get(
+        f"{API_PREFIX}/processing-runs/{{run_id}}",
+        operation_id="getProcessingRun",
+        response_model=ProcessingRunResponse,
+        responses={
+            **protected_responses,
+            404: {"model": ErrorResponse, "description": "The run does not exist."},
+        },
+    )
+    def get_processing_run(
+        run_id: str,
+        _actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.PROCESSING_READ)),
+        ],
+    ) -> ProcessingRunResponse:
+        try:
+            record = services.repository.get_processing_run(run_id=run_id)
+        except SQLAlchemyError as exc:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="The processing repository is unavailable.",
+            ) from exc
+        if record is None:
+            raise PlatformApiError(
+                status_code=404,
+                code="run_not_found",
+                message="The processing run does not exist.",
+            )
+        return ProcessingRunResponse(data=_processing_run_data(record), meta=_meta())
+
+    @app.post(
+        f"{API_PREFIX}/processing-runs/{{run_id}}/steps/{{step_id}}/retry",
+        operation_id="retryProcessingStep",
+        response_model=RetryResponse,
+        status_code=202,
+        responses=write_responses,
+    )
+    def retry_processing_step(
+        run_id: str,
+        step_id: str,
+        actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.PROCESSING_RETRY)),
+        ],
+    ) -> RetryResponse:
+        if services.processing_ledger is None:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="Processing control is not configured.",
+            )
+        try:
+            attempt_id = services.processing_ledger.retry_step(
+                actor=actor,
+                run_id=run_id,
+                step_id=step_id,
+            )
+        except RetryNotAllowedError as exc:
+            raise PlatformApiError(
+                status_code=409,
+                code="retry_not_allowed",
+                message="The latest step attempt cannot be retried.",
+            ) from exc
+        return RetryResponse(
+            data=RetryData(
+                run_id=run_id,
+                step_id=step_id,
+                attempt_id=attempt_id,
+            ),
+            meta=_meta(),
+        )
+
+    @app.post(
+        f"{API_PREFIX}/processing-runs/{{run_id}}/cancel",
+        operation_id="cancelProcessingRun",
+        response_model=CancelResponse,
+        status_code=202,
+        responses=write_responses,
+    )
+    def cancel_processing_run(
+        run_id: str,
+        actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.PROCESSING_START)),
+        ],
+    ) -> CancelResponse:
+        if services.processing_ledger is None:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="Processing control is not configured.",
+            )
+        try:
+            services.processing_ledger.cancel_run(actor=actor, run_id=run_id)
+        except LedgerError as exc:
+            raise PlatformApiError(
+                status_code=409,
+                code="retry_not_allowed",
+                message="The processing run cannot be cancelled.",
+            ) from exc
+        return CancelResponse(data=CancelData(run_id=run_id), meta=_meta())
+
     @app.get(
         f"{API_PREFIX}/admin/users",
         operation_id="listPlatformUsers",
@@ -322,3 +599,34 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
         )
 
     return app
+
+
+def _processing_run_data(record: ProcessingRunRecord) -> ProcessingRunData:
+    return ProcessingRunData(
+        run_id=record.run_id,
+        source_version_id=record.source_version_id,
+        status=record.status,
+        created_at=record.created_at,
+        updated_at=record.updated_at,
+        original_artifact_count=record.original_artifact_count,
+        derived_artifact_count=record.derived_artifact_count,
+        evidence_count=record.evidence_count,
+        steps=[
+            ProcessingStepData(
+                step_id=step.step_id,
+                step_key=step.step_key,
+                pool=step.pool,
+                status=step.status,
+                depends_on=list(step.depends_on),
+                latest_attempt=ProcessingAttemptData(
+                    attempt_id=step.latest_attempt.attempt_id,
+                    attempt_number=step.latest_attempt.attempt_number,
+                    status=step.latest_attempt.status,
+                    error_type=step.latest_attempt.error_type,
+                    checkpoint=step.latest_attempt.checkpoint,
+                    artifact_count=step.latest_attempt.artifact_count,
+                ),
+            )
+            for step in record.steps
+        ],
+    )

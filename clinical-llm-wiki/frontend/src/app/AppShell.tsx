@@ -14,7 +14,7 @@ import styles from "./AppShell.module.css";
 
 const navigation = [
   { index: "01", label: "Sources", to: "/sources", badge: "05" },
-  { index: "02", label: "Processing", to: "/processing", badge: "03" },
+  { index: "02", label: "Processing", to: "/processing", badge: "live" },
   { index: "03", label: "Candidates", to: "/candidates", badge: "12" },
   { index: "04", label: "Relations", to: "/relations", badge: null },
   { index: "05", label: "Query Lab", to: "/query-lab", badge: null },

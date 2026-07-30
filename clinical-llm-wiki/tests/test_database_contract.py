@@ -34,7 +34,7 @@ def test_database_runtime_dependencies_are_explicit() -> None:
     ]
 
 
-def test_canonical_metadata_owns_the_p1_database_tables() -> None:
+def test_canonical_metadata_owns_the_p2a_database_tables() -> None:
     assert set(Base.metadata.tables) == {
         "audit_events",
         "candidate_evidence",
@@ -48,6 +48,7 @@ def test_canonical_metadata_owns_the_p1_database_tables() -> None:
         "knowledge_units",
         "model_invocations",
         "model_profiles",
+        "object_write_intents",
         "platform_users",
         "processing_runs",
         "prompt_profiles",
@@ -110,9 +111,7 @@ def test_ledger_and_model_tables_preserve_the_frozen_p1_b0_contract() -> None:
 
 def test_canonical_schema_keeps_secrets_paths_and_other_products_out() -> None:
     all_columns = {
-        column.name
-        for table in Base.metadata.tables.values()
-        for column in table.columns
+        column.name for table in Base.metadata.tables.values() for column in table.columns
     }
 
     assert {
@@ -127,10 +126,18 @@ def test_canonical_schema_keeps_secrets_paths_and_other_products_out() -> None:
         "project_memory_id",
     }.isdisjoint(all_columns)
     assert set(Base.metadata.tables["source_artifacts"].columns.keys()) >= {
+        "parent_artifact_id",
         "object_key",
+        "parser_profile_version",
         "sha256",
         "media_type",
         "size_bytes",
+        "status",
+    }
+    assert set(Base.metadata.tables["evidence"].columns.keys()) >= {
+        "derived_artifact_id",
+        "source_sha256",
+        "parser_profile_version",
     }
     assert "secret_ref" in Base.metadata.tables["model_profiles"].columns
     assert "secret_ref" in Base.metadata.tables["service_accounts"].columns
@@ -152,9 +159,7 @@ def test_identity_authorization_tables_preserve_p1_c_contract() -> None:
     role_binding_columns = set(Base.metadata.tables["role_bindings"].columns.keys())
     assert {"user_id", "role", "granted_by_actor_id", "created_at"} <= role_binding_columns
 
-    service_account_columns = set(
-        Base.metadata.tables["service_accounts"].columns.keys()
-    )
+    service_account_columns = set(Base.metadata.tables["service_accounts"].columns.keys())
     assert {
         "service_account_id",
         "display_name",
@@ -225,9 +230,7 @@ def test_sync_database_session_accepts_only_the_psycopg_postgres_dialect(
         "KNOWLEDGE_DATABASE_URL",
         "postgresql+psycopg://knowledge:example@localhost/knowledge",
     )
-    assert session_module.database_url_from_environment().startswith(
-        "postgresql+psycopg://"
-    )
+    assert session_module.database_url_from_environment().startswith("postgresql+psycopg://")
 
     engine = session_module.create_database_engine(
         "postgresql+psycopg://knowledge:example@localhost/knowledge"
@@ -253,8 +256,8 @@ def test_alembic_has_linear_reviewable_revisions(monkeypatch: pytest.MonkeyPatch
     assert script.get_heads() == [script.get_current_head()]
     head = script.get_revision(script.get_current_head())
     assert head is not None
-    assert head.revision == "20260730_0003"
-    assert head.down_revision == "20260730_0002"
+    assert head.revision == "20260730_0004"
+    assert head.down_revision == "20260730_0003"
     initial = script.get_revision("20260730_0001")
     assert initial is not None
     assert initial.down_revision is None
@@ -283,6 +286,7 @@ def test_linear_revision_columns_match_canonical_metadata(
         "20260730_0001",
         "20260730_0002",
         "20260730_0003",
+        "20260730_0004",
     ]
 
     class MigrationRecorder:
@@ -305,9 +309,7 @@ def test_linear_revision_columns_match_canonical_metadata(
                 element.name for element in elements if isinstance(element, Column)
             }
             self.constraints[name] = {
-                str(element.name)
-                for element in elements
-                if isinstance(element, Constraint)
+                str(element.name) for element in elements if isinstance(element, Constraint)
             }
 
         def create_index(
@@ -330,6 +332,38 @@ def test_linear_revision_columns_match_canonical_metadata(
             del condition
             self.constraints.setdefault(table_name, set()).add(name)
 
+        def create_unique_constraint(
+            self,
+            name: str,
+            table_name: str,
+            columns: list[str],
+        ) -> None:
+            del columns
+            self.constraints.setdefault(table_name, set()).add(name)
+
+        def create_foreign_key(
+            self,
+            name: str,
+            source_table: str,
+            referent_table: str,
+            local_cols: list[str],
+            remote_cols: list[str],
+            **kwargs: object,
+        ) -> None:
+            del referent_table, local_cols, remote_cols, kwargs
+            self.constraints.setdefault(source_table, set()).add(name)
+
+        def add_column(self, table_name: str, column: Column) -> None:
+            self.tables.setdefault(table_name, set()).add(column.name)
+
+        def alter_column(
+            self,
+            table_name: str,
+            column_name: str,
+            **kwargs: object,
+        ) -> None:
+            del table_name, column_name, kwargs
+
         def drop_constraint(
             self,
             name: str,
@@ -338,6 +372,12 @@ def test_linear_revision_columns_match_canonical_metadata(
             type_: str,
         ) -> None:
             del name, table_name, type_
+
+        def drop_index(self, name: str, *, table_name: str) -> None:
+            del name, table_name
+
+        def drop_column(self, table_name: str, column_name: str) -> None:
+            del table_name, column_name
 
         def drop_table(self, name: str) -> None:
             self.dropped.append(name)
@@ -366,9 +406,7 @@ def test_linear_revision_columns_match_canonical_metadata(
 
 def test_application_never_creates_or_mutates_schema_at_runtime() -> None:
     runtime_sources = [
-        path
-        for path in (ROOT / "service").rglob("*.py")
-        if "migrations" not in path.parts
+        path for path in (ROOT / "service").rglob("*.py") if "migrations" not in path.parts
     ]
     source_text = "\n".join(path.read_text(encoding="utf-8") for path in runtime_sources)
 

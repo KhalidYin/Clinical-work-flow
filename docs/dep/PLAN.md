@@ -8,13 +8,13 @@ updated: 2026-07-30
 
 | # | 当前 Gate | 子计划 | 状态 |
 |---|----------|--------|------|
-| P12 | P2 AI 知识生产（待授权） | [P12-knowledge-application-platform.md](plans/ongoing/P12-knowledge-application-platform.md) | P1 Gate 已关闭 · P2 pending · 下一步先冻结 P2-A Source Registry/ObjectStore 写入事务边界 |
+| P12 | P2 AI 知识生产 | [P12-knowledge-application-platform.md](plans/ongoing/P12-knowledge-application-platform.md) | P2-A Gate 已关闭 · P2-B pending/未授权 · 不自动进入模型增强 |
 
 ## 待开始
 
-P12 P2-P4 保持 pending；P1 完成不自动授权 P2，必须逐 Phase 通过 Gate，不能直接进入知识抽取、发布或迁移部署。
+P12 P2-B、P3、P4 保持 pending；P2-A 完成不自动授权模型增强、发布或迁移部署。
 
-P12 是唯一可执行主线：D0 Evidence Ledger HTML 是颜色、排版、布局、状态语义和核心交互基线。P1 已于 2026-07-30 关闭 Gate：React/Vite 与 prerelease API、外部模型边界、24 张 canonical table、PostgreSQL/pgvector/Alembic、内部 RBAC、真实只读 FastAPI、ObjectStorePort、durable ledger、三 pool WorkerRuntime、维护入口分离和本地 Compose/镜像均已建立。下一阶段是 P2 AI 知识生产，但尚未获得本轮实施授权；首个切片应先完成 Source Registry/ObjectStore 写入补偿与 Document Worker 的确定性 Source → Evidence 路径，不直接进入模型增强。整体仍为 P1 产品基础、P2 AI 知识生产、P3 检索/评估/发布、P4 产品闭环/迁移/部署；Workflow、Agent Runtime 和 Project Memory Service 不在当前开发周期，只保留接口边界。
+P12 是唯一可执行主线：D0 Evidence Ledger HTML 是颜色、排版、布局、状态语义和核心交互基线。P1 已于 2026-07-30 关闭产品基础 Gate。P2-A 同日关闭：Source Registry、对象写 intent/补偿/孤儿 reconcile、确定性 TXT/MD/PDF/DOCX/XLSX parser、Document Worker DAG/fan-in、Evidence lineage、`202 + run_id` API、KUI-02/03 与条件轮询已经建立。Docling 因缺少同条件受控临床样本证据未锁定；扫描 PDF 明确停在 OCR-required。P2 整体仍未完成，下一可选切片是 P2-B 外部模型增强、Candidate 与两级人工 Gate，必须另获授权。整体仍为 P1 产品基础、P2 AI 知识生产、P3 检索/评估/发布、P4 产品闭环/迁移/部署；Workflow、Agent Runtime 和 Project Memory Service 不在当前开发周期，只保留接口边界。
 
 ## 最近完成
 

@@ -118,6 +118,104 @@ describe("Knowledge Ledger App Shell", () => {
     ).toBeInTheDocument();
   });
 
+  it("registers a SourceVersion and reports the durable run without calling it Evidence", async () => {
+    let receivedIdempotencyKey: string | null = null;
+    server.use(
+      http.post(resolveApiPath(API_PATHS.sources), ({ request }) => {
+        receivedIdempotencyKey = request.headers.get("Idempotency-Key");
+        return HttpResponse.json(
+          {
+            data: {
+              sourceId: "src-ui-upload",
+              sourceVersionId: "srcv-ui-upload-v1",
+              runId: "run-ui-upload-v1",
+              status: "queued",
+              originalObject: {
+                objectKey: "sources/src-ui-upload/srcv-ui-upload-v1/source.md",
+                sha256: "1".repeat(64),
+                mediaType: "text/markdown",
+                sizeBytes: 6,
+                artifactRole: "original",
+              },
+            },
+            meta: sourcesFixture.meta,
+          },
+          { status: 202 },
+        );
+      }),
+    );
+    Object.defineProperty(window, "crypto", {
+      configurable: true,
+      value: {
+        subtle: {
+          digest: async () => new Uint8Array(32).fill(1).buffer,
+        },
+      },
+    });
+    Object.defineProperty(File.prototype, "arrayBuffer", {
+      configurable: true,
+      value: async () => new TextEncoder().encode("# Rule").buffer,
+    });
+    renderApp();
+
+    fireEvent.click(await screen.findByText("登记新 SourceVersion"));
+    fireEvent.change(screen.getByLabelText("Source ID"), {
+      target: { value: "src-ui-upload" },
+    });
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "UI upload" },
+    });
+    fireEvent.change(screen.getByLabelText("Version"), {
+      target: { value: "1.0" },
+    });
+    const file = new File(["# Rule"], "rule.md", { type: "text/markdown" });
+    fireEvent.change(screen.getByLabelText("Source file"), {
+      target: { files: [file] },
+    });
+    const submit = screen.getByRole("button", { name: "登记并启动处理" });
+    fireEvent.submit(submit.closest("form")!);
+
+    expect(await screen.findByText(/run-ui-upload-v1/)).toBeInTheDocument();
+    expect(receivedIdempotencyKey).toMatch(/^ui:src-ui-upload:1\.0:/);
+    expect(screen.getByText(/原始对象仍不是 Evidence/)).toBeInTheDocument();
+  });
+
+  it("renders durable processing DAG facts and retries only the failed step", async () => {
+    let retryCalls = 0;
+    server.use(
+      http.post(
+        resolveApiPath(
+          `${API_PATHS.processingRuns}/run-failed-002/steps/step-parse-text/retry`,
+        ),
+        () => {
+          retryCalls += 1;
+          return HttpResponse.json(
+            {
+              data: {
+                runId: "run-failed-002",
+                stepId: "step-parse-text",
+                attemptId: "attempt-parse-text-2",
+                status: "queued",
+              },
+              meta: sourcesFixture.meta,
+            },
+            { status: 202 },
+          );
+        },
+      ),
+    );
+    renderApp("/processing");
+
+    expect(await screen.findByRole("heading", { name: "Processing" })).toBeInTheDocument();
+    expect(await screen.findByText("document.parse_tables")).toBeInTheDocument();
+    expect(screen.getAllByText("Original")).toHaveLength(2);
+    expect(screen.getAllByText("Derived")).toHaveLength(2);
+    expect(screen.getAllByText("Evidence")).toHaveLength(2);
+    expect(screen.getAllByText(/checkpoint ·/)).toHaveLength(2);
+    fireEvent.click(screen.getByRole("button", { name: "Retry linked attempt" }));
+    await waitFor(() => expect(retryCalls).toBe(1));
+  });
+
   it("navigates to Admin and renders product roles without credentials", async () => {
     renderApp();
 

@@ -18,6 +18,8 @@ from service.auth import (
     LocalIdentityProvider,
     PlatformUserGrant,
 )
+from service.object_store import ObjectDescriptor
+from service.sources import SourceRegistrationReceipt
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -60,6 +62,35 @@ class FakePlatformRepository:
         )
         self.database_is_available = True
         self.source_read_fails = False
+        attempt = repository_module.ProcessingAttemptRecord(
+            attempt_id="attempt-api-001",
+            attempt_number=1,
+            status="queued",
+            error_type=None,
+            checkpoint=None,
+            artifact_count=0,
+        )
+        step = repository_module.ProcessingStepRecord(
+            step_id="step-api-001",
+            step_key="document.validate",
+            pool="document",
+            status="queued",
+            depends_on=(),
+            latest_attempt=attempt,
+        )
+        self.processing_runs = [
+            repository_module.ProcessingRunRecord(
+                run_id="run-api-001",
+                source_version_id="srcv-api-001",
+                status="queued",
+                created_at=now,
+                updated_at=now,
+                original_artifact_count=1,
+                derived_artifact_count=0,
+                evidence_count=0,
+                steps=(step,),
+            )
+        ]
 
     def add_grant(self, grant: PlatformUserGrant) -> None:
         self._grants[(grant.issuer, grant.subject)] = grant
@@ -80,6 +111,49 @@ class FakePlatformRepository:
 
     def list_platform_users(self):
         return self.users, []
+
+    def list_processing_runs(self):
+        return self.processing_runs, []
+
+    def get_processing_run(self, *, run_id: str):
+        return next(
+            (record for record in self.processing_runs if record.run_id == run_id),
+            None,
+        )
+
+
+class FakeSourceRegistry:
+    def __init__(self) -> None:
+        self.calls: list[dict[str, Any]] = []
+
+    def register_and_start(self, **kwargs: Any) -> SourceRegistrationReceipt:
+        self.calls.append(kwargs)
+        command = kwargs["command"]
+        content = kwargs["content"]
+        return SourceRegistrationReceipt(
+            source_id=command.source_id,
+            source_version_id="srcv-upload-001",
+            run_id="run-upload-001",
+            original_object=ObjectDescriptor(
+                object_key=(f"sources/src-upload/srcv-upload-001/{sha256(content).hexdigest()}.md"),
+                sha256=sha256(content).hexdigest(),
+                media_type=command.media_type,
+                size_bytes=len(content),
+            ),
+        )
+
+
+class FakeProcessingLedger:
+    def __init__(self) -> None:
+        self.retries: list[tuple[str, str]] = []
+        self.cancelled: list[str] = []
+
+    def retry_step(self, *, run_id: str, step_id: str, **_: object) -> str:
+        self.retries.append((run_id, step_id))
+        return "attempt-api-002"
+
+    def cancel_run(self, *, run_id: str, **_: object) -> None:
+        self.cancelled.append(run_id)
 
 
 def _identity(subject: str, display_name: str) -> IdentityAssertion:
@@ -146,6 +220,8 @@ def api_client():
         organization_name="Clinical Knowledge Lab",
         object_store_available=False,
         semantic_index_available=False,
+        source_registry=FakeSourceRegistry(),
+        processing_ledger=FakeProcessingLedger(),
     )
     return TestClient(app_module.create_platform_app(services)), repository
 
@@ -270,6 +346,95 @@ def test_real_read_routes_return_database_views_not_fixtures_or_secrets(api_clie
     )
 
 
+def test_source_registration_returns_202_run_and_never_confuses_object_with_evidence(
+    api_client,
+) -> None:
+    client, _ = api_client
+    content = b"# Source\n\nGoverned evidence."
+
+    response = client.post(
+        f"{API_PREFIX}/sources",
+        headers={
+            **_auth("curator-token"),
+            "Idempotency-Key": "source-upload-api-001",
+        },
+        data={
+            "source_id": "src-upload",
+            "title": "Uploaded Markdown",
+            "source_type": "standard",
+            "version": "1.0",
+            "rights_classification": "internal",
+            "storage_allowed": "true",
+            "data_boundary": "local_processing_only",
+            "media_type": "text/markdown",
+            "expected_sha256": sha256(content).hexdigest(),
+        },
+        files={"file": ("source.md", content, "text/markdown")},
+    )
+
+    assert response.status_code == 202
+    data = response.json()["data"]
+    assert data["runId"] == "run-upload-001"
+    assert data["status"] == "queued"
+    assert data["originalObject"]["artifactRole"] == "original"
+    assert {"evidence", "candidate", "knowledge", "release"}.isdisjoint(data)
+
+    forbidden = client.post(
+        f"{API_PREFIX}/sources",
+        headers={
+            **_auth("consumer-token"),
+            "Idempotency-Key": "source-upload-api-002",
+        },
+        data={
+            "source_id": "src-upload",
+            "title": "Uploaded Markdown",
+            "source_type": "standard",
+            "version": "1.0",
+            "rights_classification": "internal",
+            "storage_allowed": "true",
+            "data_boundary": "local_processing_only",
+            "media_type": "text/markdown",
+            "expected_sha256": sha256(content).hexdigest(),
+        },
+        files={"file": ("source.md", content, "text/markdown")},
+    )
+    assert forbidden.status_code == 403
+
+
+def test_processing_routes_expose_discrete_run_state_retry_and_cancel(api_client) -> None:
+    client, _ = api_client
+
+    collection = client.get(
+        f"{API_PREFIX}/processing-runs",
+        headers=_auth("curator-token"),
+    )
+    detail = client.get(
+        f"{API_PREFIX}/processing-runs/run-api-001",
+        headers=_auth("curator-token"),
+    )
+    retry = client.post(
+        (f"{API_PREFIX}/processing-runs/run-api-001/steps/step-api-001/retry"),
+        headers=_auth("curator-token"),
+    )
+    cancel = client.post(
+        f"{API_PREFIX}/processing-runs/run-api-001/cancel",
+        headers=_auth("curator-token"),
+    )
+
+    assert collection.status_code == 200
+    assert detail.status_code == 200
+    run = detail.json()["data"]
+    assert run["originalArtifactCount"] == 1
+    assert run["derivedArtifactCount"] == 0
+    assert run["evidenceCount"] == 0
+    assert run["steps"][0]["latestAttempt"]["status"] == "queued"
+    assert {"chunk", "watermark", "partition", "tokenStream"}.isdisjoint(run)
+    assert retry.status_code == 202
+    assert retry.json()["data"]["attemptId"] == "attempt-api-002"
+    assert cancel.status_code == 202
+    assert cancel.json()["data"]["status"] == "cancelled"
+
+
 def _openapi_component_schema(spec: dict[str, Any], name: str) -> dict[str, Any]:
     definitions = deepcopy(spec["components"]["schemas"])
 
@@ -313,6 +478,10 @@ def test_checked_in_openapi_matches_runtime_paths_roles_and_responses(api_client
             f"{API_PREFIX}/health",
             f"{API_PREFIX}/releases/current",
             f"{API_PREFIX}/sources",
+            f"{API_PREFIX}/processing-runs",
+            f"{API_PREFIX}/processing-runs/{{run_id}}",
+            (f"{API_PREFIX}/processing-runs/{{run_id}}/steps/{{step_id}}/retry"),
+            f"{API_PREFIX}/processing-runs/{{run_id}}/cancel",
             f"{API_PREFIX}/admin/users",
         }
     )
@@ -344,6 +513,20 @@ def test_checked_in_openapi_matches_runtime_paths_roles_and_responses(api_client
         (
             "SourceCollectionResponse",
             client.get(f"{API_PREFIX}/sources", headers=_auth("admin-token")),
+        ),
+        (
+            "ProcessingRunCollectionResponse",
+            client.get(
+                f"{API_PREFIX}/processing-runs",
+                headers=_auth("admin-token"),
+            ),
+        ),
+        (
+            "ProcessingRunResponse",
+            client.get(
+                f"{API_PREFIX}/processing-runs/run-api-001",
+                headers=_auth("admin-token"),
+            ),
         ),
         (
             "UserCollectionResponse",

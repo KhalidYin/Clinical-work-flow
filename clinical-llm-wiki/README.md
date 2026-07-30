@@ -21,7 +21,7 @@ P12 在本目录原地把 Wiki 演进为独立知识产品，不新增第三个�
 - live adapter 仅在 Enrichment Worker 后续显式配置时使用 embedded LiteLLM Python SDK，不部署 LiteLLM Proxy，也不进行静默 retry/fallback；
 - `local_processing_only` 与 `prohibited` 数据不能出站，`enterprise_provider_only` 只能发送到企业托管 deployment；
 - 调用固定为非流式 JSON Schema 输出；密钥只使用 `env://` 或受控 `secret://` 引用，审计记录不保存密钥、原始供应商异常或 chain-of-thought。
-- `service/db/` 的 SQLAlchemy 2 metadata 固定 Source/Evidence/Candidate/Revision/Relation/Review/Release/Audit、durable processing/model ledger 与身份授权记录共 24 张表；
+- `service/db/` 的 SQLAlchemy 2 metadata 固定 Source/Evidence/Candidate/Revision/Relation/Review/Release/Audit、durable processing/model ledger、身份授权与 P2-A object write intent 共 25 张表；
 - `alembic.ini` 与 `service/db/migrations/` 是唯一 DDL 入口，应用启动不调用 `create_all`；migration 要求 PostgreSQL 已安装 pgvector，缺失时失败关闭；
 - 数据库只保存对象 key、hash 和 secret reference，不保存本地绝对路径、供应商专有 URL、实际密钥或另一个 Workflow 产品的实体。
 - `service/auth/identity_authorization.py` 定义 `IdentityProviderPort`、local/test opaque-token adapter、平台内部 Actor/Role/Permission 和 fail-closed 授权检查；OIDC assertion 不能携带产品角色或权限；
@@ -37,8 +37,13 @@ P12 在本目录原地把 Wiki 演进为独立知识产品，不新增第三个�
 - `service/processing/worker.py` 是 Document、Enrichment、Release 三类 pool 共用的运行时和进程入口；单进程多 pool 与三个独立进程调用相同语义。P1 没有注册 P2/P3 领域 handler，因此空 worker 不会领取未来任务；
 - `service/maintenance/backfill.py` 与 `legacy_migration.py` 分别承接后续 resumable data backfill 和 P4 legacy crosswalk；DDL 仍只由 Alembic 执行；
 - `compose.yaml` 使用同一后端镜像承载 migration/API/worker，并以独立前端镜像、PostgreSQL/pgvector 和本地对象卷组成 loopback 开发骨架；worker 位于显式 `workers` profile，启用前必须预置最小权限 Service Account。
+- P2-A 的 `service/sources/` 已接通 Source 登记写路径：PostgreSQL write intent → 不可覆盖 ObjectStore 写 → 原子 Source/SourceVersion/SourceArtifact/Audit publish；失败执行补偿并保留可审计 reconcile 记录，不会暴露半发布 source；
+- `service/processing/parsers.py` 与 `document_worker.py` 已注册确定性 TXT/MD/PDF/DOCX/XLSX 分支。派生对象与 Evidence 都携带 source hash、parser version、locator 和 derived hash；只有 dependency/fan-in 完成才创建 Evidence；
+- `POST /api/prerelease/v1/sources` 返回 `202 + run_id`，Processing API 支持详情、retry 和 cancel；前端 KUI-02/03 只对 active run 条件轮询，并把 Original、Derived、Evidence 分开展示；
+- Document Worker 启动时按最小 age 清理未完成 object intent；它只能产生 parser output/Evidence，运行终点为 `author_confirmation_required`，不能创建 Candidate、approved revision、release 或索引；
+- P2-A parser Gate 暂不锁定 Docling/Unstructured。当前 adapter 只证明 synthetic locator/hash/formula/OCR-required 边界；受控临床跨页表和公式对照样本满足 Gate 后才重开选型。
 
-P1 不发起真实模型调用、不摄取正式知识，也不改变现有 Vault/SQLite 服务的运行路径。生产 Provider 专用 OIDC adapter 与生产 S3-compatible ObjectStore 实现仍属于后续部署阶段；P2 的 Document/Enrichment handler 尚未实现。正式启用 live model adapter 时，应在本目录隔离的 `.venv` 安装 `models` 可选依赖。
+P2-A 不发起真实模型调用、不创建 KnowledgeCandidate/KnowledgeRevision/Release，也不改变现有 Vault/SQLite 服务的运行路径。Enrichment/Release handler、生产 Provider 专用 OIDC adapter 与生产 S3-compatible ObjectStore 实现仍未实现。只有 P2-B 获得单独授权后才可以启用 live model adapter；届时应在本目录隔离的 `.venv` 安装 `models` 可选依赖。
 
 ## 本地使用
 

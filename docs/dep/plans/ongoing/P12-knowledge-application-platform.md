@@ -451,7 +451,7 @@ P1-A/P1-B0/P1-B/P1-C/P1-D/P1-E 已于 2026-07-30 全部完成，P1 Gate 关闭�
 
 P2 是一个完整的知识生产 Phase，不再把“解析”和“AI 建模/审核”拆成两个独立 Phase。内部按 P2-A/P2-B 切片交付，但共享同一 `ProcessingRun`、对象 lineage 和 Gate。
 
-**P2-A：Source/Object、解析分支与 Evidence**
+**P2-A：Source/Object、解析分支与 Evidence（2026-07-30 完成）**
 
 ### 输入条件
 
@@ -461,7 +461,7 @@ P2 是一个完整的知识生产 Phase，不再把“解析”和“AI 建模/�
 ### 产出
 
 - Source Registry、SourceVersion、ObjectManifest、rights/storage policy 和 hash 校验。
-- multipart/resumable upload（仅传输层）、去重、对象 key policy、派生对象 lineage 和安全预览。
+- multipart upload（仅传输层）、去重、对象 key policy、派生对象 lineage 和安全预览；在缺少对象尺寸与传输 benchmark 前不启用 resumable 协议。
 - durable `DocumentProcessingRun`、JobStep、StepAttempt、lease/checkpoint、失败/重试/取消和 artifact manifest。
 - 根据格式和质量条件形成正文/章节、表格、OCR/图片和附件分支；分支可独立失败、重试或跳过，汇合后才产生 Evidence。
 - Document Worker：hash/MIME/rights 校验、ParserAdapter 调用、结构规范化、locator/hash/schema QA。
@@ -471,16 +471,16 @@ P2 是一个完整的知识生产 Phase，不再把“解析”和“AI 建模/�
 
 ### 完成标准
 
-- [ ] 上传、重复上传、新版本、hash mismatch、媒体类型不支持、对象丢失和 rights 禁止路径均有 fail-closed 测试。
-- [ ] Source DB transaction 与 ObjectStore 写入失败不会产生可见的半发布 source；孤儿对象有可审计清理策略。
-- [ ] Parser 输出携带 source version/hash、parser version、locator 和 derived object hash。
-- [ ] Docling 是否进入锁定依赖由 locator 可追溯性、表格完整度、公式保真和资源消耗 Gate 决定，而不是因框架知名度直接采用。
-- [ ] 失败 job 可从安全 checkpoint 重试，成功步骤不被无条件重复；并发 worker 不重复领取同一 job。
-- [ ] API 返回 `202 + run_id`，UI 仅按状态条件轮询；系统不暴露 chunk stream、watermark、partition 或 token 流语义。
-- [ ] 不同解析分支通过声明的 dependency/fan-in 条件汇合；失败只使依赖它的下游失效，安全分支不被整条重跑。
-- [ ] 原始对象、派生对象和 Evidence 在 API/UI 中不混淆。
-- [ ] Document Worker 无权创建 approved revision、release 或生产索引。
-- [ ] `[KUI-02..03]` 与对应视觉/行为验收项通过组件、API integration 和真实浏览器核验。
+- [x] 上传、重复上传、新版本、hash mismatch、媒体类型不支持、对象丢失和 rights 禁止路径均有 fail-closed 测试。
+- [x] Source DB transaction 与 ObjectStore 写入失败不会产生可见的半发布 source；孤儿对象有可审计清理策略。
+- [x] Parser 输出携带 source version/hash、parser version、locator 和 derived object hash。
+- [x] Docling 是否进入锁定依赖由 locator 可追溯性、表格完整度、公式保真和资源消耗 Gate 决定，而不是因框架知名度直接采用。
+- [x] 失败 job 可从安全 checkpoint 重试，成功步骤不被无条件重复；并发 worker 不重复领取同一 job。
+- [x] API 返回 `202 + run_id`，UI 仅按状态条件轮询；系统不暴露 chunk stream、watermark、partition 或 token 流语义。
+- [x] 不同解析分支通过声明的 dependency/fan-in 条件汇合；失败只使依赖它的下游失效，安全分支不被整条重跑。
+- [x] 原始对象、派生对象和 Evidence 在 API/UI 中不混淆。
+- [x] Document Worker 无权创建 approved revision、release 或生产索引。
+- [x] `[KUI-02..03]` 与对应视觉/行为验收项通过组件、API integration 和真实浏览器核验。
 
 ### 边界（本 Phase 明确不做）
 
@@ -754,6 +754,9 @@ P3 只消费 P2 已批准的 KnowledgeRevision。内部先构建可解释检索�
 | D9 | 原 P1-C 同时包含身份授权、真实 API、worker、ObjectStore 和 Gate 关闭，无法以单一责任和独立证据验收 | 计划复核 / P1 | 计划（已解决） | 用户批准方案 B：拆成 P1-C 身份与授权、P1-D 真实 API、P1-E 运行基础与 Gate 关闭；P1 总预估调整为 8-11 轮 |
 | D10 | PostgreSQL JSONB 默认把 Python `None` 持久化为 JSON `null`，会绕过/违反以 SQL NULL 表达的 checkpoint 与失败记录约束 | P1-E | 数据（已解决） | 所有 nullable JSONB ORM 字段显式使用 `none_as_null=True`；JobStep checkpoint 由 DB 约束保持 SQL NULL，StepAttempt 是唯一 checkpoint 权威 |
 | D11 | 未定义 ORM relationship 时，SQLAlchemy 不保证同一 flush 中按 run → step → attempt 外键顺序插入 | P1-E | 运行（已解决） | create_run 在同一事务内显式 flush run 和每个 step 后再建立 attempt；实库外键 Gate 覆盖该顺序 |
+| D12 | PostgreSQL constraint 名称是 schema 级对象；跨表复用通用 `object_key` 名称会使 `0004` migration 失败 | P2-A | 数据（已解决） | `source_versions`、`source_artifacts`、`object_write_intents` 使用表级唯一名称，并以 clean apply/downgrade/re-apply 实库 Gate 固定 |
+| D13 | P1 只读 fixture 曾用 `canonical_source`，P2-A 新模型改用 `original`；直接收紧会破坏已验收的 P1 读取链 | P2-A | 兼容（已解决） | 新写路径只产生 `original`，读取/迁移兼容 `canonical_source`，二者都不会与 `parser_output`/Evidence 混淆；P4 legacy migration 再显式 crosswalk |
+| D14 | Docling 未在同一受控临床 fixture 上测量，当前 synthetic benchmark 不能支持锁定新依赖 | P2-A | 选型（已解决） | P2-A 保留现有确定性 adapter，扫描 PDF 明确要求 OCR；只有满足受控 locator/table/formula/resource 对照样本时重开选型 |
 
 ## 关键决策记录
 
@@ -785,6 +788,8 @@ P3 只消费 P2 已批准的 KnowledgeRevision。内部先构建可解释检索�
 | 2026-07-29 | Phase 结构 | P1-P6 细分 / D0+P1-P4 收束 | D0 + 四个实施 Phase | 保留全部 Gate 和技术细节，但让“生产知识—发布知识—产品闭环”边界清晰 |
 | 2026-07-29 | 计划权威 | 恢复旧计划 / 新旧并行 / P12 唯一主线 | P12 唯一可执行主线，P1-P11 旧计划废弃只读 | 避免 Workflow、Obsidian POC 与知识产品计划重新交叉，保持两个产品边界 |
 | 2026-07-30 | P1 剩余切片 | 单一大 P1-C / 拆分 P1-C→P1-D→P1-E / 提前进入 P2 | 方案 B：拆分三个连续 Gate | 身份授权、真实 API 和运行基础可独立验收；不为追求 Demo 速度越过 P1 进入 P2 |
+| 2026-07-30 | P2-A 对象一致性 | 分布式事务 / 先写 DB / intent + compensation | PostgreSQL intent + ObjectStore 不可覆盖写 + 原子 publish + 可审计 reconcile | 保持可见 Source 原子性和失败证据，不为两个存储引入 Kafka 或伪造跨系统事务 |
+| 2026-07-30 | P2-A parser 依赖 | 直接采用 Docling / 现有 adapter / 全格式框架 | 暂不锁定 Docling，保留现有确定性 adapter | 当前受控证据能验证 locator/hash/公式与 fail-closed OCR，但没有同条件 Docling 临床样本优势证据 |
 
 ## 同步记录
 
@@ -800,3 +805,4 @@ P3 只消费 P2 已批准的 KnowledgeRevision。内部先构建可解释检索�
 | 2026-07-30 | `clinical-llm-wiki/service/auth/`、identity prerelease Schema、identity/RBAC 数据表与 `0002` migration、合同测试、README/USAGE/SPEC-12/13、P12 memory | P1-C 完成：OIDC 只映射身份，产品授权内置；五类人工角色与 Service Account 分离，作者自审和 worker 越权失败关闭；下一切片为 P1-D |
 | 2026-07-30 | `clinical-llm-wiki/service/platform_api/`、Knowledge OpenAPI、前端 contract/MSW/proxy、HTTP/PostgreSQL tests、README/USAGE/SPEC-12/13、P12 memory | P1-D 完成：真实只读 FastAPI、Bearer/RBAC、错误脱敏与实库 read adapter 通过；下一切片为 P1-E |
 | 2026-07-30 | `clinical-llm-wiki/service/object_store/`、`service/processing/`、`service/maintenance/`、`0003` migration、prerelease Schema、Compose/镜像、tests、README/USAGE/SPEC-12/13、P12 memory | P1-E 与 P1 Gate 完成：对象权威、durable ledger、三 pool 统一运行时、失败恢复、维护入口分离及本地容器骨架通过；P2 未启动 |
+| 2026-07-30 | `clinical-llm-wiki/service/sources/`、Document Worker/parser、`0004` migration、Source/Processing API、KUI-02/03、parser Gate 报告、tests、README/USAGE/SPEC-12/13、P12 memory | P2-A 完成：Source/Object 补偿、可审计孤儿清理、确定性 Source → Evidence DAG 和浏览器闭环通过；P2-B 未启动 |

@@ -5,6 +5,7 @@ export const API_PATHS = {
   health: "/api/prerelease/v1/health",
   currentRelease: "/api/prerelease/v1/releases/current",
   sources: "/api/prerelease/v1/sources",
+  processingRuns: "/api/prerelease/v1/processing-runs",
   adminUsers: "/api/prerelease/v1/admin/users",
 } as const;
 
@@ -110,7 +111,7 @@ export interface SourceSummary {
   sourceId: string;
   title: string;
   version: string;
-  mediaType: "PDF" | "DOCX" | "XLSX" | "Markdown";
+  mediaType: "PDF" | "DOCX" | "XLSX" | "Markdown" | "TXT";
   rights: "licensed" | "internal" | "restricted";
   status: RecordStatus;
   sourceHash: string;
@@ -122,6 +123,82 @@ export interface SourceCollection {
   total: number;
   partial: boolean;
   warnings: string[];
+}
+
+export interface ObjectReference {
+  objectKey: string;
+  sha256: string;
+  mediaType: string;
+  sizeBytes: number;
+  artifactRole: "original" | "derived";
+}
+
+export interface SourceRegistration {
+  sourceId: string;
+  sourceVersionId: string;
+  runId: string;
+  status: "queued";
+  originalObject: ObjectReference;
+}
+
+export type ProcessingRunStatus =
+  | "queued"
+  | "processing"
+  | "author_confirmation_required"
+  | "review_required"
+  | "approved"
+  | "release_blocked"
+  | "released"
+  | "failed"
+  | "cancelled";
+
+export interface ProcessingAttempt {
+  attemptId: string;
+  attemptNumber: number;
+  status: "queued" | "leased" | "succeeded" | "failed" | "expired" | "cancelled";
+  errorType: string | null;
+  checkpoint: Record<string, unknown> | null;
+  artifactCount: number;
+}
+
+export interface ProcessingStep {
+  stepId: string;
+  stepKey: string;
+  pool: "document" | "enrichment" | "release";
+  status: "queued" | "processing" | "succeeded" | "failed" | "cancelled";
+  dependsOn: string[];
+  latestAttempt: ProcessingAttempt;
+}
+
+export interface ProcessingRun {
+  runId: string;
+  sourceVersionId: string;
+  status: ProcessingRunStatus;
+  createdAt: string;
+  updatedAt: string;
+  originalArtifactCount: number;
+  derivedArtifactCount: number;
+  evidenceCount: number;
+  steps: ProcessingStep[];
+}
+
+export interface ProcessingRunCollection {
+  items: ProcessingRun[];
+  total: number;
+  partial: boolean;
+  warnings: string[];
+}
+
+export interface RetryReceipt {
+  runId: string;
+  stepId: string;
+  attemptId: string;
+  status: "queued";
+}
+
+export interface CancelReceipt {
+  runId: string;
+  status: "cancelled";
 }
 
 export interface PlatformUser {
