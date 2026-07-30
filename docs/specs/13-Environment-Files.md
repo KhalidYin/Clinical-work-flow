@@ -937,3 +937,58 @@ secret://knowledge/workers/enrichment
 实际 secret 值由进程环境或受控 Secret Store 注入，不进入数据库、迁移、日志、前端、
 JSON Schema 或 Git。Document、Enrichment、Release pool 只能取得 P1-C 权限矩阵允许的
 scope；即使部署为单进程多 pool，也必须分别解析 Service Account，不能合并成万能凭据。
+
+## 14. P12 ObjectStore、worker 与本地 Compose 环境
+
+P1-E 的 `ObjectStorePort` 是 provider-neutral 合同。开发/测试 local adapter 只接受调用方显式
+注入的根目录；路径本身不能写入 SourceArtifact、ArtifactManifest、API DTO 或日志。Compose
+为该 adapter 预留以下容器内根目录和 named volume：
+
+```text
+KNOWLEDGE_OBJECT_STORE_ROOT=/var/lib/clinical-knowledge/objects
+```
+
+P1 没有把该变量当作生产 S3 fallback，也没有选择 endpoint、bucket、region 或 access key。
+生产 S3-compatible adapter、credential isolation、bucket policy 和备份恢复属于 P4 部署 Gate。
+
+Pool worker 使用同一模块和镜像，通过 `--pool document|enrichment|release` 分开运行。local
+entrypoint 需要 pool-specific Service Account ID；记录的 `secret_ref` 必须指向实际存在的
+`env://` 变量：
+
+```text
+KNOWLEDGE_DOCUMENT_WORKER_SERVICE_ACCOUNT_ID=svc-document
+KNOWLEDGE_ENRICHMENT_WORKER_SERVICE_ACCOUNT_ID=svc-enrichment
+KNOWLEDGE_RELEASE_WORKER_SERVICE_ACCOUNT_ID=svc-release
+P12_DOCUMENT_WORKER_TOKEN=<injected-secret>
+P12_ENRICHMENT_WORKER_TOKEN=<injected-secret>
+P12_RELEASE_WORKER_TOKEN=<injected-secret>
+KNOWLEDGE_WORKER_ID=<deployment-instance-id>       # optional
+KNOWLEDGE_WORKER_LEASE_SECONDS=60                  # optional, positive integer
+```
+
+数据库只保存 ID、pool、scope 和 secret reference，不保存这些值。local worker CLI 只解析
+`env://`；生产 `secret://` resolver 需在 P4 单独实现并验收。P1 worker 没有注册领域 handler，
+因此进程可以验证配置和身份，但不会领取 P2/P3 任务。
+
+API 默认仍只允许 loopback。容器内监听 `0.0.0.0` 仅在显式设置下开放：
+
+```text
+KNOWLEDGE_API_HOST=0.0.0.0
+KNOWLEDGE_API_BIND_SCOPE=compose_local
+```
+
+该模式只能与 Compose 的 `127.0.0.1:8788:8788` 端口发布同时使用，不是远程部署开关；其他
+非 loopback host/scope 组合失败关闭。`compose.yaml` 不提供默认 PostgreSQL password、Bearer
+token、PlatformUser、RoleBinding 或 Service Account。workers 位于显式 `workers` profile，
+未完成受控预置时不得启用。
+
+变更入口固定分离：
+
+```text
+alembic upgrade head                              # DDL revision
+python -m service.maintenance.backfill           # resumable data backfill
+python -m service.maintenance.legacy_migration   # legacy asset/crosswalk
+```
+
+后两类 registry 在 P1 为空并对未知任务失败关闭；不能为了方便把 backfill 或 legacy 文件迁移
+塞入 Alembic revision。破坏性字段变化继续遵守 expand → migrate → switch → contract。

@@ -219,6 +219,69 @@ $env:KNOWLEDGE_TEST_DATABASE_URL = "postgresql+psycopg://<user>:<password>@127.0
 Remove-Item Env:KNOWLEDGE_TEST_DATABASE_URL
 ```
 
+### P12 ObjectStore、durable worker 与本地 Compose（P1-E）
+
+P1-E 将二进制对象与结构化记录分开：PostgreSQL 保存 `object_key`、hash 和 manifest，
+`ObjectStorePort` 保存实际字节。`LocalObjectStore` 只用于开发/测试，根目录由调用方显式注入，
+返回合同永远不包含本地绝对路径或供应商 URL；相同 key + 相同 bytes 幂等，不同 bytes 拒绝
+覆盖。生产 S3-compatible adapter 留到 P4 部署选型。
+
+作业运行时使用 `ProcessingRun → JobStep → StepAttempt`。worker 领取任务时使用 PostgreSQL
+`SKIP LOCKED`、有限 lease 和 pool Service Account；checkpoint 只写当前 StepAttempt。lease 过期
+后创建新的、链接旧 attempt 的记录，不复用原 attempt；手工 retry 需要 Curator 的
+`processing:retry`，worker 本身无审核或发布权限。
+
+三个 pool 共用一个入口：
+
+```powershell
+Set-Location .\clinical-llm-wiki
+.\.venv\Scripts\python -m service.processing.worker --list-pools
+# P2/P3 注册领域 handler 后，部署进程使用：
+# .\.venv\Scripts\python -m service.processing.worker --pool document
+```
+
+P1 的入口故意没有注册正式 Document/Enrichment/Release handler；空 registry 不会领取未来
+任务。启动某一 pool 前，数据库中必须已有 active Service Account，并配置对应 ID 与其
+`env://` 引用，例如 `KNOWLEDGE_DOCUMENT_WORKER_SERVICE_ACCOUNT_ID` 和
+`P12_DOCUMENT_WORKER_TOKEN`。local CLI 暂不解析 `secret://`；生产 Secret Store adapter 留在
+部署阶段。
+
+本地 Compose 骨架包含 PostgreSQL/pgvector、一次性 migration、API、前端和可选 workers。
+所有发布端口只绑定 loopback。仓库不提供默认密码、Bearer token、用户或 Service Account；
+先以受控流程预置 identity/RBAC 记录，再设置所需环境变量：
+
+```powershell
+Set-Location .\clinical-llm-wiki
+$env:KNOWLEDGE_POSTGRES_PASSWORD = "<local-only-password>"
+$env:KNOWLEDGE_LOCAL_BEARER_TOKEN = "<opaque-local-token>"
+$env:KNOWLEDGE_LOCAL_SUBJECT = "<preprovisioned-subject>"
+$env:KNOWLEDGE_LOCAL_DISPLAY_NAME = "Local Platform User"
+$env:KNOWLEDGE_LOCAL_EMAIL = "local-user@example.test"
+docker compose config --quiet
+docker compose up --build postgres migration api frontend
+```
+
+只有三类 Service Account 都已预置并分别注入 credential 时才启用
+`docker compose --profile workers up`。开发 Compose 为后续 P2 handler 注入本地 adapter 预留
+named volume；P1 空 handler 不会写对象，该 volume 也不代表生产对象存储选型。
+
+三类变更入口保持分离：
+
+```powershell
+# DDL
+.\.venv\Scripts\alembic upgrade head
+# 可恢复数据 backfill（P1 registry 为空，未知任务失败关闭）
+.\.venv\Scripts\python -m service.maintenance.backfill --list
+# P4 legacy asset crosswalk（P1 registry 为空，默认只规划 dry-run）
+.\.venv\Scripts\python -m service.maintenance.legacy_migration --list
+```
+
+P1-E 合同验证：
+
+```powershell
+.\.venv\Scripts\python -m pytest tests/test_object_store_contract.py tests/test_processing_runtime_contract.py tests/test_p1e_deployment_contract.py -q
+```
+
 ## 3. 启动本地 Review Panel
 
 根目录轻量 Review Panel 是当前可直接使用的人工审核入口。它汇总根 `.review_queue/`、`clinical-llm-wiki/.review_queue/` 和 `clinical-studies/*/.review_queue/`，浏览器只提交 `queue_id/review_id`，不能传入磁盘路径。

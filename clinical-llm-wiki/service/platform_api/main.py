@@ -67,8 +67,13 @@ def create_environment_app():
 
 def main() -> None:
     host = os.environ.get("KNOWLEDGE_API_HOST", "127.0.0.1")
-    if host not in {"127.0.0.1", "localhost", "::1"}:
-        raise RuntimeError("P1-D prerelease API must bind to a loopback host")
+    bind_scope = os.environ.get("KNOWLEDGE_API_BIND_SCOPE", "loopback")
+    loopback = host in {"127.0.0.1", "localhost", "::1"}
+    local_compose = bind_scope == "compose_local" and host == "0.0.0.0"
+    if not loopback and not local_compose:
+        raise RuntimeError(
+            "prerelease API may bind only to loopback or explicit compose_local scope"
+        )
     port = int(os.environ.get("KNOWLEDGE_API_PORT", "8788"))
     uvicorn.run(create_environment_app(), host=host, port=port)
 

@@ -253,8 +253,8 @@ def test_alembic_has_linear_reviewable_revisions(monkeypatch: pytest.MonkeyPatch
     assert script.get_heads() == [script.get_current_head()]
     head = script.get_revision(script.get_current_head())
     assert head is not None
-    assert head.revision == "20260730_0002"
-    assert head.down_revision == "20260730_0001"
+    assert head.revision == "20260730_0003"
+    assert head.down_revision == "20260730_0002"
     initial = script.get_revision("20260730_0001")
     assert initial is not None
     assert initial.down_revision is None
@@ -282,6 +282,7 @@ def test_linear_revision_columns_match_canonical_metadata(
     assert [revision.revision for revision in revisions] == [
         "20260730_0001",
         "20260730_0002",
+        "20260730_0003",
     ]
 
     class MigrationRecorder:
@@ -319,6 +320,24 @@ def test_linear_revision_columns_match_canonical_metadata(
         ) -> None:
             del columns, unique
             self.indexes.setdefault(table_name, set()).add(name)
+
+        def create_check_constraint(
+            self,
+            name: str,
+            table_name: str,
+            condition: str,
+        ) -> None:
+            del condition
+            self.constraints.setdefault(table_name, set()).add(name)
+
+        def drop_constraint(
+            self,
+            name: str,
+            table_name: str,
+            *,
+            type_: str,
+        ) -> None:
+            del name, table_name, type_
 
         def drop_table(self, name: str) -> None:
             self.dropped.append(name)

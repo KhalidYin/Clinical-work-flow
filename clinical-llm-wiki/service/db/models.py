@@ -197,6 +197,11 @@ class JobStep(Base):
             "pool IN ('document', 'enrichment', 'release')",
             name="pool",
         ),
+        CheckConstraint(
+            "status IN ('queued', 'processing', 'succeeded', 'failed', 'cancelled')",
+            name="status",
+        ),
+        CheckConstraint("checkpoint IS NULL", name="attempt_checkpoint_authority"),
         UniqueConstraint("run_id", "step_key", name="run_step_key"),
         UniqueConstraint("step_id", "run_id", name="step_run_identity"),
         Index("ix_job_steps_run_id_status", "run_id", "status"),
@@ -214,7 +219,7 @@ class JobStep(Base):
     )
     input_sha256: Mapped[str | None] = mapped_column(String(64))
     output_sha256: Mapped[str | None] = mapped_column(String(64))
-    checkpoint: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    checkpoint: Mapped[dict[str, Any] | None] = mapped_column(JSONB(none_as_null=True))
     created_at: Mapped[datetime] = _created_at()
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
@@ -234,6 +239,19 @@ class StepAttempt(Base):
             "(attempt_number = 1 AND previous_attempt_id IS NULL) OR "
             "(attempt_number > 1 AND previous_attempt_id IS NOT NULL)",
             name="attempt_lineage",
+        ),
+        CheckConstraint(
+            "status IN ('queued', 'leased', 'succeeded', 'failed', 'expired', 'cancelled')",
+            name="status",
+        ),
+        CheckConstraint(
+            "(status = 'queued' AND worker_id IS NULL AND leased_until IS NULL "
+            "AND started_at IS NULL AND completed_at IS NULL) OR "
+            "(status = 'leased' AND worker_id IS NOT NULL AND leased_until IS NOT NULL "
+            "AND started_at IS NOT NULL AND completed_at IS NULL) OR "
+            "(status IN ('succeeded', 'failed', 'expired', 'cancelled') "
+            "AND leased_until IS NULL AND completed_at IS NOT NULL)",
+            name="status_shape",
         ),
         UniqueConstraint("step_id", "attempt_number", name="step_attempt_number"),
         UniqueConstraint(
@@ -258,8 +276,10 @@ class StepAttempt(Base):
     leased_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     input_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
     output_sha256: Mapped[str | None] = mapped_column(String(64))
-    checkpoint: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
-    artifact_manifest: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    checkpoint: Mapped[dict[str, Any] | None] = mapped_column(JSONB(none_as_null=True))
+    artifact_manifest: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONB(none_as_null=True)
+    )
     error_type: Mapped[str | None] = mapped_column(String(80))
     error_message: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = _created_at()
@@ -298,7 +318,7 @@ class ModelProfile(Base):
     capabilities: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
     timeout_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
     max_output_tokens: Mapped[int] = mapped_column(Integer, nullable=False)
-    cost_policy: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    cost_policy: Mapped[dict[str, Any] | None] = mapped_column(JSONB(none_as_null=True))
     created_at: Mapped[datetime] = _created_at()
 
 
@@ -385,7 +405,7 @@ class ModelInvocation(Base):
     total_tokens: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     cost_usd: Mapped[Decimal | None] = mapped_column(Numeric(18, 8))
     latency_ms: Mapped[int] = mapped_column(Integer, nullable=False)
-    output: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    output: Mapped[dict[str, Any] | None] = mapped_column(JSONB(none_as_null=True))
     error_type: Mapped[str | None] = mapped_column(String(80))
     error_message: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = _created_at()
@@ -436,7 +456,7 @@ class KnowledgeCandidate(Base):
     knowledge_type: Mapped[str] = mapped_column(String(100), nullable=False)
     claim: Mapped[str] = mapped_column(Text, nullable=False)
     scope: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
-    applicability: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    applicability: Mapped[dict[str, Any] | None] = mapped_column(JSONB(none_as_null=True))
     conditions: Mapped[list[dict[str, Any]]] = mapped_column(
         JSONB, nullable=False, server_default="[]"
     )
@@ -494,7 +514,7 @@ class KnowledgeRevision(Base):
     status: Mapped[str] = mapped_column(String(60), nullable=False)
     claim: Mapped[str] = mapped_column(Text, nullable=False)
     scope: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
-    applicability: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    applicability: Mapped[dict[str, Any] | None] = mapped_column(JSONB(none_as_null=True))
     conditions: Mapped[list[dict[str, Any]]] = mapped_column(
         JSONB, nullable=False, server_default="[]"
     )
@@ -568,7 +588,7 @@ class EvaluationRun(Base):
     )
     suite_version: Mapped[str] = mapped_column(String(120), nullable=False)
     status: Mapped[str] = mapped_column(String(60), nullable=False)
-    metrics: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    metrics: Mapped[dict[str, Any] | None] = mapped_column(JSONB(none_as_null=True))
     started_at: Mapped[datetime] = _created_at()
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 

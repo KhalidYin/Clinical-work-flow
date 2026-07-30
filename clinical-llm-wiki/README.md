@@ -14,7 +14,7 @@ Wiki 不控制 Pipeline 阶段顺序，也不执行任意命令。Study 必须�
 
 ## P12 知识应用平台边界
 
-P12 在本目录原地把 Wiki 演进为独立知识产品，不新增第三个项目目录。当前 P1-B0 已冻结外部模型调用合同，P1-B 已建立数据库迁移基线，P1-C 已冻结身份与授权合同，P1-D 已接通真实只读 prerelease API：
+P12 在本目录原地把 Wiki 演进为独立知识产品，不新增第三个项目目录。P1 已关闭产品基础 Gate：
 
 - `service/processing/model_provider.py` 是产品自有 `ModelProviderPort`、版本化 Model/Prompt/Profile、数据出站策略和 fake/replay adapter；
 - `schemas/application/model-provider.prerelease.schema.json` 是 request/invocation 持久化的 prerelease JSON Schema；
@@ -32,8 +32,13 @@ P12 在本目录原地把 Wiki 演进为独立知识产品，不新增第三个�
 - `/api/prerelease/v1/health` 可匿名读取，`/session`、`/releases/current`、`/sources`、`/admin/users` 必须使用 Bearer 身份并在后端按 P1-C permission 检查；未映射、disabled 或权限不足均失败关闭；
 - `schemas/application/knowledge-api.prerelease.yaml`、运行 DTO 与前端 TypeScript contract 使用相同内部角色枚举；显示标签只在前端映射，不成为授权事实；
 - 前端默认仍可使用显式 MSW fixture；设置 `VITE_ENABLE_MOCKS=false` 后通过 Vite proxy 接入真实 API。local Bearer 只存当前浏览器 tab 的 `sessionStorage`，不得当作生产认证方案。
+- `service/object_store/` 定义 provider-neutral `ObjectStorePort`；内存与本地 adapter 使用不可覆盖 object key、SHA-256、media type 和 size，业务合同不暴露绝对路径或 provider URL。生产 S3-compatible adapter 在 P4 选型；
+- `service/processing/ledger.py` 使用 PostgreSQL `FOR UPDATE SKIP LOCKED` 原子领取离散任务；lease、heartbeat、attempt checkpoint、artifact manifest、失败、过期恢复、显式 retry 和 cancel 都保留审计 lineage，成功 step 不被无条件重做；
+- `service/processing/worker.py` 是 Document、Enrichment、Release 三类 pool 共用的运行时和进程入口；单进程多 pool 与三个独立进程调用相同语义。P1 没有注册 P2/P3 领域 handler，因此空 worker 不会领取未来任务；
+- `service/maintenance/backfill.py` 与 `legacy_migration.py` 分别承接后续 resumable data backfill 和 P4 legacy crosswalk；DDL 仍只由 Alembic 执行；
+- `compose.yaml` 使用同一后端镜像承载 migration/API/worker，并以独立前端镜像、PostgreSQL/pgvector 和本地对象卷组成 loopback 开发骨架；worker 位于显式 `workers` profile，启用前必须预置最小权限 Service Account。
 
-P1-B0 至 P1-D 不发起真实模型调用、不摄取正式知识，也不改变现有 Vault/SQLite 服务的运行路径。P1-D 只提供 read boundary 和 local/test identity wiring；生产 Provider 专用 OIDC adapter、ObjectStore、worker claim/lease/checkpoint 和 Compose 仍未实现。正式启用 live model adapter 时，应在本目录隔离的 `.venv` 安装 `models` 可选依赖。
+P1 不发起真实模型调用、不摄取正式知识，也不改变现有 Vault/SQLite 服务的运行路径。生产 Provider 专用 OIDC adapter 与生产 S3-compatible ObjectStore 实现仍属于后续部署阶段；P2 的 Document/Enrichment handler 尚未实现。正式启用 live model adapter 时，应在本目录隔离的 `.venv` 安装 `models` 可选依赖。
 
 ## 本地使用
 

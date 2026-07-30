@@ -24,5 +24,8 @@ type: project
 - P1-C 的 `0002` revision 增加 `platform_users`、`role_bindings`、`service_accounts`，canonical metadata 共 24 张表。Service Account 只保存 `env://`/`secret://` 引用；运行时策略由 checked-in identity authorization JSON Schema 锁定。
 - P1-D 已于 2026-07-30 完成：`service/platform_api/` 提供独立真实 FastAPI read boundary，接通匿名 health 与 Bearer + 内部 permission 保护的 session/current release/Sources/Admin。API DTO、SQLAlchemy read model、P1-C identity policy 与 checked-in OpenAPI 分层；HTTP 正反合同、前端 TypeScript/MSW 对齐和 PostgreSQL 实库读取均已验证。
 - P1-D 只 wiring local/test opaque identity，默认无 token、无用户 bootstrap、仅绑定 loopback；production Provider 专用 OIDC adapter 未实现。legacy `/api/v1`、Vault/SQLite 路径与 `clinical-workflow/` 均未修改。
+- P1-E 已于 2026-07-30 完成并关闭 P1 Gate：`service/object_store/` 固定不可覆盖的 provider-neutral object key/hash 合同及 local/memory adapter；`service/processing/ledger.py` 固定 PostgreSQL `SKIP LOCKED` claim、lease/heartbeat、attempt-only checkpoint、过期恢复、新 attempt lineage、显式 retry/cancel；`worker.py` 让三 pool 共用同一运行时并保持各自 Service Account。
+- P1-E 的 `0003` revision 为 JobStep/StepAttempt 增加状态与 checkpoint 权威约束；所有 nullable JSONB ORM 字段使用 SQL NULL 语义。Alembic、resumable backfill、legacy asset migration 已有不同且 fail-closed 的入口。Compose/后端/前端镜像已构建并通过容器 smoke；P1 不注册领域 handler、不摄取正式知识。
+- 生产 S3-compatible adapter、Secret Store resolver 和 Provider 专用 OIDC 仍属于 P4；P1 的 local ObjectStore/Compose 只用于开发骨架，不应被解释为生产选型。
 
-**如何应用：** 当前下一任务是 P1-E：实现可替换 ObjectStorePort、ProcessingRun claim/lease/checkpoint、三类 worker 入口、本地 Compose 与 P1 集成 Gate。不得反向修改 P1-B0/P1-B/P1-C/P1-D 已冻结的模型、数据库、授权和 read API 语义，也不得提前进入 P2 知识生产。如果未来需要重启 Workflow、Agent、Project Memory 或多 Study 协作，必须基于 P12 当时已发布的外部合同新建计划，不能恢复旧 P1-P11 文件继续执行。
+**如何应用：** P1 Gate 已关闭，P2 尚未启动。下一任务在取得用户授权后应先冻结 P2-A Source Registry、对象写入补偿/孤儿清理和 Document Worker 的确定性 Source → Evidence 边界，再实现实际写路径；不得直接跳到模型增强，也不得反向修改 P1-B0/P1-B/P1-C/P1-D/P1-E 已冻结合同。如果未来需要重启 Workflow、Agent、Project Memory 或多 Study 协作，必须基于 P12 当时已发布的外部合同新建计划，不能恢复旧 P1-P11 文件继续执行。

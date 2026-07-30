@@ -815,5 +815,19 @@ checked-in OpenAPI 相互分层；外部 identity claim 不会出现在响应中
 内部枚举映射，不参与授权。
 
 P1-D 只接入 local/test identity wiring；production Provider 专用 OIDC adapter 仍需后续部署
-计划。worker claim/lease/checkpoint、ObjectStore 与部署形态属于 P1-E。该边界不恢复已废弃的
-Workflow POC，也不把 Project Memory 或 Study 规则写入主知识库。
+计划。P1-E 已建立以下运行边界：
+
+- PostgreSQL 是 run/step/attempt、checkpoint manifest 和治理状态的结构化权威；
+  `ObjectStorePort` 是原始/派生二进制的权威。业务记录只保存 object key/hash，不保存本地
+  绝对路径或供应商 URL；legacy Markdown/SQLite 保持只读，不参与新路径双写；
+- claim 使用 `FOR UPDATE SKIP LOCKED`，只有 pool 匹配且具有 `processing:execute` 的 Service
+  Account 能取得 lease。heartbeat/checkpoint/complete/fail 都要求同一 active worker lease；
+- checkpoint 只以 StepAttempt 为权威。lease 过期、显式 retry 或模型/profile 切换必须创建
+  增量 attempt 并连接 `previous_attempt_id`，成功 step 不被无条件重做；
+- Document、Enrichment、Release 可在一个本地进程内顺序消费，也可由同一镜像的三个进程
+  独立运行；二者复用同一 WorkerRuntime 和 ledger 语义，不能合并 Service Account 权限；
+- P1 worker registry 为空，不领取 P2/P3 未实现任务。DDL、resumable data backfill 与 legacy
+  asset migration 使用三个独立入口；本地 Compose 只提供 loopback 骨架，不等于生产部署。
+
+P1 Gate 已关闭，但 P2 知识生产尚未启动。该边界不恢复已废弃的 Workflow POC，也不把
+Project Memory、Study 规则或 Agent session 写入主知识库。

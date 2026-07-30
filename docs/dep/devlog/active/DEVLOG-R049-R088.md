@@ -1272,3 +1272,51 @@
 - `docs/dep/PLAN.md`, `docs/dep/plans/ongoing/P12-knowledge-application-platform.md`, `docs/main/memory/`
 - `docs/dep/devlog/active/DEVLOG-R049-R088.md`, `docs/dep/devlog/INDEX.md`
 - commit：本轮门禁后创建；未 push
+
+### R081 [13:18] [P12-knowledge-application-platform] P1-E: 建立运行基础并关闭 P1 Gate
+
+#### Done
+
+- 以 TDD 新增 provider-neutral `ObjectStorePort`、`ObjectDescriptor` 和 checked-in JSON Schema；内存/本地 adapter 统一执行 key 安全校验、SHA-256、media type、size、幂等写与不可覆盖语义，业务合同不暴露绝对路径或供应商 URL。
+- 本地 adapter 使用同卷临时文件和 create-if-absent hard link，避免多个本地 worker 静默覆盖同一 key；不完整写入保持不可见并失败关闭。P1 不绑定生产 S3 厂商，P4 再选择 S3-compatible adapter。
+- 新增 `PostgresProcessingLedger`：在事务内显式创建 run → step → attempt；用 `FOR UPDATE SKIP LOCKED` 按 pool/step key 原子 claim，依赖未成功的 step 不可领取；heartbeat/checkpoint/complete/fail 均校验同一 active lease。
+- 固定失败恢复：checkpoint 只写 StepAttempt，JobStep checkpoint 由 `0003` constraint 锁为空；过期 lease 标记旧 attempt 为 expired 并创建 `attempt_number + 1`/`previous_attempt_id` 新记录；人工 retry、cancel 和成功 step 不重复均有实库证据。
+- 新增统一 `WorkerRuntime`、`MultiPoolWorkerRuntime` 和 `--pool document|enrichment|release` 入口；三 pool 复用同一执行语义但分别解析 P1-C Service Account。空 handler registry 不 claim，模型/worker 仍无审核或发布权限。
+- 新增 `service/maintenance/backfill.py` 与 `legacy_migration.py` fail-closed 入口，和 Alembic DDL 完全分离；破坏性演进继续遵守 expand/migrate/switch/contract。
+- 新增 `0003` 线性 revision，约束 JobStep/StepAttempt 状态与 attempt checkpoint 权威；nullable JSONB ORM 字段统一使用 SQL NULL 语义，避免 JSON `null` 破坏数据库约束。
+- 建立本地 `compose.yaml`、同一后端镜像、独立前端镜像和三类可选 worker profile；API 只允许 loopback 或显式 `compose_local + 0.0.0.0`，宿主端口仍固定发布到 `127.0.0.1`。Compose 不自带 password/token/user/Service Account bootstrap；Dockerfile 将稳定依赖层与快速应用层分开，后续 service 修改不重复下载大型 PDF 依赖。
+- 同步 README、USAGE、SPEC-12/13、P12 唯一计划、PLAN 与 memory；P1-A/P1-B0/P1-B/P1-C/P1-D/P1-E 全部完成，P1 Gate 关闭，P2 仍 pending 且未启动。
+
+#### Issues / Blockers
+
+- 首轮 pgvector 容器 readiness 使用 `pg_isready`，在镜像初始化临时 server 阶段提前返回成功，随后初始化重启使连接收到 “database system is starting up”。根因是 readiness 只验证 server socket，不验证目标数据库；改为目标库执行 `SELECT 1` 后 clean integration 稳定通过。
+- ledger 首次实库写入被 `checkpoint IS NULL` 拒绝。根因是 PostgreSQL JSONB 默认把 Python `None` 写为 JSON `null`；nullable JSONB ORM 字段改为 `none_as_null=True`，数据库仍以 SQL NULL 表达缺失值。
+- 第二次实库写入出现 JobStep 外键早于 ProcessingRun。根因是未定义 ORM relationship 时 SQLAlchemy 不承诺同一 flush 的外键排序；create_run 改为显式两级 flush，没有引入 relationship 隐式级联。
+- `pgvector/pgvector:0.8.2-pg17` 首次拉取客户端 180 秒超时但 daemon 后续完成；Compose 仍固定使用此前 P1-B 已验收的 `0.8.1-pg17`，避免把未完成升级评审的镜像变化混入 P1-E。
+- 独立 `nginx -t` 首次无法解析 Compose 服务名 `api`；这是脱离 Compose 网络的 smoke 拓扑缺少 DNS，不是配置语法错误。加入测试 host mapping 后配置验证通过。
+- 单进程全量 pytest 在 300 秒工具上限附近被终止，且两次外层 timeout 一度留下子进程。清理后按 P1/runtime 与 legacy 两个互斥文件组运行，分别 77 passed/3 skipped 与 158 passed；合计覆盖与全量集合一致。
+- Starlette TestClient/httpx2 和 Node `--localstorage-file` 仍有既有 warning；不阻断 P1，但后续依赖升级应单独收敛。
+
+#### Validation
+
+- ObjectStore/worker/deployment/database 定向合同：31 passed；P1/runtime 组：77 passed、3 skipped；legacy Wiki/PDF/治理组：158 passed。无数据库默认回归合计 235 passed、3 skipped。
+- 全新 `pgvector/pgvector:0.8.1-pg17` 测试库：clean apply、Alembic drift/downgrade/re-apply、真实 API read adapter、依赖 claim/checkpoint/heartbeat/lease recovery/retry/cancel 共 3 passed；临时容器按 owner label 删除。
+- Ruff 全 Wiki通过；项目 `.venv` `pip check` 无损坏依赖；checked-in ObjectStore/processing runtime Schema 与运行时模型精确一致。
+- 前端 typecheck 通过；2 个测试文件、7 项测试通过；本地和 Docker 内 Vite production build 均通过（411 modules，JS gzip 117.53 kB）；官方 npm registry audit 为 0 vulnerabilities。
+- `docker compose config --quiet` 通过；后端 Python 3.13 与前端 Node 22/Nginx 1.28 镜像构建成功。容器内 worker 列出三 pool、Alembic current 为 `20260730_0003 (head)`、Nginx config test 通过。
+- `git diff --check` 通过；未修改 `clinical-workflow/`、legacy Vault/SQLite 写路径或任何正式知识资产，未发起外部模型调用。
+
+#### Next
+
+1. P2 尚未获得本轮实施授权；下一轮先确认是否启动 P2-A，不自动进入知识抽取。
+2. 若启动 P2-A，先冻结 Source Registry 写 API、ObjectStore/DB 失败补偿和孤儿对象清理，再实现确定性 Document Worker Source → Evidence；不得先接模型增强。
+3. 主要风险是对象写入与 DB transaction 之间无法形成分布式原子事务、parser locator 稳定性和 rights/data-boundary 校验；需要 outbox/compensation 与 Gold fixture 证明，不引入 Kafka。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/service/object_store/`, `service/processing/`, `service/maintenance/`
+- `clinical-llm-wiki/service/db/models.py`, `service/db/migrations/versions/20260730_0003_processing_runtime.py`
+- `clinical-llm-wiki/schemas/application/`, `clinical-llm-wiki/tests/test_*runtime*`, ObjectStore/deployment/database tests
+- `clinical-llm-wiki/compose.yaml`, backend/frontend Dockerfile、Nginx config、dockerignore
+- `clinical-llm-wiki/README.md`, `USAGE.md`, SPEC-12/13、P12 plan/PLAN/memory、DevLog/index
+- commit：本轮门禁后创建；未 push

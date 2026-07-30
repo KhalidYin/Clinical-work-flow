@@ -1,0 +1,111 @@
+x-application-environment: &application-environment
+  KNOWLEDGE_DATABASE_URL: postgresql+psycopg://knowledge:${KNOWLEDGE_POSTGRES_PASSWORD:?set KNOWLEDGE_POSTGRES_PASSWORD}@postgres:5432/knowledge
+  KNOWLEDGE_OBJECT_STORE_ROOT: /var/lib/clinical-knowledge/objects
+
+x-worker: &worker
+  build: .
+  image: clinical-knowledge-platform:local
+  profiles: ["workers"]
+  restart: unless-stopped
+  depends_on:
+    migration:
+      condition: service_completed_successfully
+  volumes:
+    - knowledge-objects:/var/lib/clinical-knowledge/objects
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.1-pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: knowledge
+      POSTGRES_USER: knowledge
+      POSTGRES_PASSWORD: ${KNOWLEDGE_POSTGRES_PASSWORD:?set KNOWLEDGE_POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U knowledge -d knowledge"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - knowledge-postgres:/var/lib/postgresql/data
+
+  migration:
+    build: .
+    image: clinical-knowledge-platform:local
+    command: ["alembic", "upgrade", "head"]
+    environment: *application-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build: .
+    image: clinical-knowledge-platform:local
+    command: ["python", "-m", "service.platform_api.main"]
+    restart: unless-stopped
+    environment:
+      <<: *application-environment
+      KNOWLEDGE_API_HOST: 0.0.0.0
+      KNOWLEDGE_API_PORT: "8788"
+      KNOWLEDGE_API_BIND_SCOPE: compose_local
+      KNOWLEDGE_IDENTITY_MODE: local
+      KNOWLEDGE_LOCAL_BEARER_TOKEN: ${KNOWLEDGE_LOCAL_BEARER_TOKEN:?set KNOWLEDGE_LOCAL_BEARER_TOKEN}
+      KNOWLEDGE_LOCAL_SUBJECT: ${KNOWLEDGE_LOCAL_SUBJECT:?set KNOWLEDGE_LOCAL_SUBJECT}
+      KNOWLEDGE_LOCAL_DISPLAY_NAME: ${KNOWLEDGE_LOCAL_DISPLAY_NAME:?set KNOWLEDGE_LOCAL_DISPLAY_NAME}
+      KNOWLEDGE_LOCAL_EMAIL: ${KNOWLEDGE_LOCAL_EMAIL:?set KNOWLEDGE_LOCAL_EMAIL}
+      KNOWLEDGE_ORGANIZATION_NAME: ${KNOWLEDGE_ORGANIZATION_NAME:-Clinical Knowledge Platform}
+    depends_on:
+      migration:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8788/api/prerelease/v1/health', timeout=2)",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+    ports: ["127.0.0.1:8788:8788"]
+    volumes:
+      - knowledge-objects:/var/lib/clinical-knowledge/objects
+
+  frontend:
+    build: ./frontend
+    image: clinical-knowledge-frontend:local
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports: ["127.0.0.1:4173:80"]
+
+  worker-document:
+    <<: *worker
+    command: ["python", "-m", "service.processing.worker", "--pool", "document"]
+    environment:
+      <<: *application-environment
+      KNOWLEDGE_DOCUMENT_WORKER_SERVICE_ACCOUNT_ID: ${KNOWLEDGE_DOCUMENT_WORKER_SERVICE_ACCOUNT_ID:?set document service account}
+      P12_DOCUMENT_WORKER_TOKEN: ${P12_DOCUMENT_WORKER_TOKEN:?set P12_DOCUMENT_WORKER_TOKEN}
+
+  worker-enrichment:
+    <<: *worker
+    command: ["python", "-m", "service.processing.worker", "--pool", "enrichment"]
+    environment:
+      <<: *application-environment
+      KNOWLEDGE_ENRICHMENT_WORKER_SERVICE_ACCOUNT_ID: ${KNOWLEDGE_ENRICHMENT_WORKER_SERVICE_ACCOUNT_ID:?set enrichment service account}
+      P12_ENRICHMENT_WORKER_TOKEN: ${P12_ENRICHMENT_WORKER_TOKEN:?set P12_ENRICHMENT_WORKER_TOKEN}
+
+  worker-release:
+    <<: *worker
+    command: ["python", "-m", "service.processing.worker", "--pool", "release"]
+    environment:
+      <<: *application-environment
+      KNOWLEDGE_RELEASE_WORKER_SERVICE_ACCOUNT_ID: ${KNOWLEDGE_RELEASE_WORKER_SERVICE_ACCOUNT_ID:?set release service account}
+      P12_RELEASE_WORKER_TOKEN: ${P12_RELEASE_WORKER_TOKEN:?set P12_RELEASE_WORKER_TOKEN}
+
+volumes:
+  knowledge-postgres:
+  knowledge-objects:
