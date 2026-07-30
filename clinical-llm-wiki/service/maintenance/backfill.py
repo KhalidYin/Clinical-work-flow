@@ -8,8 +8,19 @@ from collections.abc import Callable, Sequence
 
 BackfillCallable = Callable[[int, str | None], tuple[int, str | None]]
 
-# Tasks are registered only when an expand migration introduces a concrete backfill.
-REGISTERED_BACKFILLS: dict[str, BackfillCallable] = {}
+
+def _run_evidence_ready_backfill(
+    batch_size: int,
+    after_key: str | None,
+) -> tuple[int, str | None]:
+    from .evidence_ready import run_from_environment
+
+    return run_from_environment(batch_size, after_key)
+
+
+REGISTERED_BACKFILLS: dict[str, BackfillCallable] = {
+    "p2b1-evidence-ready": _run_evidence_ready_backfill,
+}
 
 
 def _parser() -> argparse.ArgumentParser:

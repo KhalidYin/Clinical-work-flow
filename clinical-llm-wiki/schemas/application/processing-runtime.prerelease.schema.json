@@ -149,6 +149,7 @@
       "enum": [
         "queued",
         "processing",
+        "evidence_ready",
         "author_confirmation_required",
         "review_required",
         "approved",

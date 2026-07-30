@@ -8,13 +8,13 @@ updated: 2026-07-30
 
 | # | 当前 Gate | 子计划 | 状态 |
 |---|----------|--------|------|
-| P12 | P2-B1 状态语义与治理合同 | [P12-knowledge-application-platform.md](plans/ongoing/P12-knowledge-application-platform.md) | 主线已重定位为可信知识闭环 · P2-A done · P2-B1 next/已批准 |
+| P12 | P2-B2 fake/replay 可回放知识治理闭环 | [P12-knowledge-application-platform.md](plans/ongoing/P12-knowledge-application-platform.md) | P2-A/P2-B1 done · P2-B2 next；未授权真实模型 |
 
 ## 待开始
 
-P12 P2-B2、P2-B3、P3、P4 按 Gate 保持 pending；P2-B1 完成不自动进入 fake/replay Candidate、真实模型、发布或迁移部署。
+P12 P2-B2 是下一 Gate；P2-B3、P3、P4 保持 pending。P2-B1 完成不自动授权真实模型、发布或迁移部署。
 
-P12 是唯一可执行主线，产品结果固定为“受控 Source → Evidence → AI Candidate → 作者确认 → 独立审核 → 检索评估 → immutable Release → REST/MCP 消费”。D0 Evidence Ledger HTML 继续作为颜色、排版、布局和核心交互基线。P1 已于 2026-07-30 关闭产品基础 Gate；P2-A 同日关闭 Source Registry、对象一致性、确定性解析、Document Worker DAG/fan-in、Evidence lineage、`202 + run_id` API 与 KUI-02/03。当前不再横向补平台能力，下一 Gate 是 P2-B1：新增 `evidence_ready`，把“Evidence 已完成”和“已有 Candidate 待作者确认”分开，并冻结 Candidate/Governance/两级人工 Gate 合同。P2-B2 再以 fake/replay 完成可回放闭环，P2-B3 最后只接一个真实外部模型。Docling/OCR、完整生产 OIDC/S3、GraphRAG/Neo4j、Workflow、Agent Runtime 和 Project Memory 均不牵引当前主线。
+P12 是唯一可执行主线，产品结果固定为“受控 Source → Evidence → AI Candidate → 作者确认 → 独立审核 → 检索评估 → immutable Release → REST/MCP 消费”。D0 Evidence Ledger HTML 继续作为颜色、排版、布局和核心交互基线。P1 已关闭产品基础 Gate；P2-A 已关闭 Source Registry、对象一致性、确定性解析、Document Worker DAG/fan-in、Evidence lineage、`202 + run_id` API 与 KUI-02/03。P2-B1 已新增 `evidence_ready` 与独立 backfill，并冻结 Candidate eligibility、edge evidence、作者确认、独立审核、stale/idempotency、released immutability 和 worker/admin 越权合同。下一 Gate P2-B2 只用 fake/replay ModelProvider 接通 Enrichment → Candidate → 作者/Reviewer 的可回放闭环；P2-B3 最后只接一个真实外部模型。Docling/OCR、完整生产 OIDC/S3、GraphRAG/Neo4j、Workflow、Agent Runtime 和 Project Memory 均不牵引当前主线。
 
 ## 最近完成
 

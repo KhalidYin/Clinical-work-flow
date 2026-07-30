@@ -45,6 +45,7 @@ def test_ddl_backfill_and_legacy_migration_have_distinct_fail_closed_entrypoints
 
     assert "alembic" not in backfill_source.lower()
     assert "legacy" not in backfill.REGISTERED_BACKFILLS
+    assert set(backfill.REGISTERED_BACKFILLS) == {"p2b1-evidence-ready"}
     assert "alembic" not in legacy_source.lower()
     assert backfill.main(["--list"]) == 0
     assert legacy_migration.main(["--list"]) == 0

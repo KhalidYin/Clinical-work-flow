@@ -1368,3 +1368,71 @@
 - `clinical-llm-wiki/frontend/src/`, P2-A backend/frontend/integration tests
 - `docs/reviews/P12-P2A-PARSER-BAKEOFF.md`, README/USAGE/SPEC-12/13、P12 plan/PLAN/memory、DevLog/index
 - commit：本轮门禁后创建；未 push
+
+### R083 [23:45] [P12-knowledge-application-platform] P2-B1: 关闭状态语义与知识治理合同 Gate
+
+#### Done
+
+- 新增 `evidence_ready`，将“确定性 Evidence 已完成、尚无 Candidate”与
+  `author_confirmation_required` 人工 Gate 分开；Document Worker 的终点同步校正。
+- 新增 `0005` 状态 expand revision 与独立 `p2b1-evidence-ready` backfill。backfill 只转换
+  “已有 Evidence、没有 Candidate”的旧 run，使用 batch/cursor、`FOR UPDATE SKIP LOCKED`
+  和同事务更新，可中断续跑和安全重放；未修改 `0001..0004`。
+- 新增 `0006` Candidate/Governance expand revision，冻结 stable candidate group、content
+  revision/hash、Evidence eligibility、Applicability、typed Relation proposal、edge Evidence、
+  Author confirmation、Independent Review、ReviewDecision idempotency 与 append-only Audit
+  合同；canonical metadata 增至 27 张表。
+- 实现 `service/knowledge/`、`service/governance/` 和 PostgreSQL repository。作者确认在同一
+  事务建立 KnowledgeUnit、`review_required` KnowledgeRevision 与 AuditEvent；独立 Reviewer
+  才能 approve/reject/request-change。作者自审、过期/重复决定、worker/admin 隐式越权和
+  released 原地修改均失败关闭。
+- 扩展 prerelease OpenAPI/FastAPI：Candidate collection、Author confirmation、Review
+  decision；expected revision/hash 与 Idempotency-Key 成为写入前置条件，错误映射保持脱敏。
+- 完成 KUI-03/04 最小状态投影：Processing 默认演示 `evidence_ready` 且没有确认操作；
+  Candidates 区分待作者确认与待独立审核，并明确 approved 仍不是 production release。
+- 同步 README、USAGE、SPEC-12/13、P12 唯一计划、PLAN 与 memory；下一 Gate 为 P2-B2
+  fake/replay 可回放治理闭环，P2-B3 真实外部模型仍未授权。
+
+#### Issues / Blockers
+
+- 最终浏览器复核发现 Processing 默认 fixture 没有 `evidence_ready`，导致新状态只在测试中
+  可见。补入一条 Evidence-ready run 后，原 Processing 组件测试的总数断言随之更新。
+- 当前项目 `.venv` 缺少 pyproject 已声明的 `python-multipart`，FastAPI 注册既有 Source
+  multipart 路由时产生 14 个初始化错误。经官方 PyPI 核对后只在该 `.venv` 安装
+  `python-multipart 0.0.32`，`pip check` 通过；没有修改全局 Python 或放宽依赖。
+- 仓库全量 legacy 测试仍受未纳入 Git/受许可限制的 SDTMIG 原始/派生文件与既有 stale
+  snapshot/workflow projection 影响。P2-B1 定向集合和实库 Gate 已独立全绿；没有通过改 hash、
+  伪造源文件或重生成历史受治理资产掩盖基线问题。
+- Starlette TestClient/httpx2 迁移 warning 仍存在，不阻断本 Gate。
+
+#### Validation
+
+- P1/P2-A/P2-B1 定向后端集合：106 passed、5 skipped；Ruff 全部通过，项目 `.venv`
+  `pip check` 返回 `No broken requirements found`。
+- 全新 PostgreSQL/pgvector：clean apply、`alembic check`、downgrade base、re-apply、backfill
+  replay、Source → Evidence 和治理事务共 5 项实库测试通过；临时容器验收后删除。
+- 前端 typecheck 通过；2 个测试文件、11 项测试通过；production build 通过（413 modules，
+  JS gzip 121.34 kB）。
+- 真实浏览器验证 Candidates 桌面状态、Processing `evidence_ready` 文案与无确认操作；
+  390×844 窄屏无全局横向溢出，console 无错误。
+- 未调用 fake/replay 或真实模型，未实现 Relation Explorer、检索/评估/release，未修改
+  `clinical-workflow/`、Vault/SQLite 正式知识或旧 migration。
+
+#### Next
+
+1. P2-B2 先写 fake/replay RED 合同：同一 Evidence + profile + prompt + input hash 必须产生
+   可重复 Candidate revision/edge Evidence，不得把 replay fixture 伪装为模型事实。
+2. 接入 Enrichment Worker，从 `evidence_ready` 进入离散 processing step，成功持久化 Candidate
+   后才进入 `author_confirmation_required`；失败/retry 必须沿用 StepAttempt lineage。
+3. 完成 Candidate 编辑、作者确认、独立 Reviewer approve/reject/request-change 与 stale conflict
+   的 API 驱动 UI；仍不进入真实模型、索引、评估或 release。
+4. 主要风险是 replay input hash 漂移、Candidate 新 revision 覆盖旧 revision，以及为了演示
+   便捷绕过 Evidence/四眼 Gate；B2 必须以 immutable revision 和同事务状态跃迁阻断。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/service/knowledge/`、`service/governance/`、`service/maintenance/`
+- `clinical-llm-wiki/service/db/`、`service/platform_api/`、prerelease OpenAPI/processing Schema
+- `clinical-llm-wiki/frontend/src/`、P2-B1 backend/frontend/PostgreSQL tests
+- README/USAGE/SPEC-12/13、P12 plan/PLAN/memory、DevLog/index
+- commit：本轮门禁后创建；未 push

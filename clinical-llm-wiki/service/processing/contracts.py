@@ -18,6 +18,7 @@ class StrictContractModel(BaseModel):
 class RunStatus(str, Enum):
     QUEUED = "queued"
     PROCESSING = "processing"
+    EVIDENCE_READY = "evidence_ready"
     AUTHOR_CONFIRMATION_REQUIRED = "author_confirmation_required"
     REVIEW_REQUIRED = "review_required"
     APPROVED = "approved"
@@ -89,9 +90,7 @@ def validate_step_graph(steps: Sequence[StepDefinition]) -> tuple[StepDefinition
     for step in normalized:
         for dependency in step.depends_on:
             if dependency not in by_key:
-                raise ValueError(
-                    f"unknown dependency {dependency!r} for step {step.step_key!r}"
-                )
+                raise ValueError(f"unknown dependency {dependency!r} for step {step.step_key!r}")
             if dependency == step.step_key:
                 raise ValueError(f"step graph cycle includes {step.step_key!r}")
 

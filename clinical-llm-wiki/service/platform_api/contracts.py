@@ -117,6 +117,7 @@ class ProcessingRunData(ApiModel):
     status: Literal[
         "queued",
         "processing",
+        "evidence_ready",
         "author_confirmation_required",
         "review_required",
         "approved",
@@ -138,6 +139,76 @@ class ProcessingRunCollectionData(ApiModel):
     total: int = Field(ge=0)
     partial: bool
     warnings: list[str]
+
+
+class CandidateSummaryData(ApiModel):
+    candidate_id: str
+    candidate_group_id: str
+    run_id: str
+    revision_number: int = Field(ge=1)
+    status: Literal[
+        "author_confirmation_required",
+        "author_confirmed",
+        "superseded",
+    ]
+    knowledge_type: str
+    claim: str
+    scope: dict[str, Any]
+    applicability: dict[str, Any]
+    content_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    evidence_count: int = Field(ge=1)
+    relation_proposal_count: int = Field(ge=0)
+    author_actor_id: str | None
+    knowledge_revision_id: str | None
+    review_status: (
+        Literal[
+            "review_required",
+            "approved",
+            "rejected",
+            "changes_requested",
+            "released",
+            "superseded",
+            "retired",
+        ]
+        | None
+    )
+
+
+class CandidateCollectionData(ApiModel):
+    items: list[CandidateSummaryData]
+    total: int = Field(ge=0)
+    partial: bool
+    warnings: list[str]
+
+
+class AuthorConfirmationRequest(ApiModel):
+    expected_revision_number: int = Field(ge=1)
+    expected_content_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    idempotency_key: str = Field(min_length=8, max_length=160)
+
+
+class AuthorConfirmationData(ApiModel):
+    candidate_id: str
+    candidate_status: Literal["author_confirmed"]
+    knowledge_revision_id: str
+    revision_status: Literal["review_required"]
+    decision_id: str
+
+
+class ReviewDecisionRequest(ApiModel):
+    candidate_id: str
+    expected_revision_number: int = Field(ge=1)
+    expected_content_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    decision: Literal["approved", "rejected", "changes_requested"]
+    idempotency_key: str = Field(min_length=8, max_length=160)
+    rationale: str | None = Field(default=None, max_length=4000)
+
+
+class ReviewDecisionData(ApiModel):
+    candidate_id: str
+    knowledge_revision_id: str
+    revision_status: Literal["approved", "rejected", "changes_requested"]
+    decision_id: str
 
 
 class RetryData(ApiModel):
@@ -187,6 +258,10 @@ class ErrorData(ApiModel):
         "unsupported_media",
         "run_not_found",
         "retry_not_allowed",
+        "candidate_not_found",
+        "invalid_governance_transition",
+        "stale_revision",
+        "duplicate_decision",
     ]
     message: str
 
@@ -223,6 +298,21 @@ class ProcessingRunResponse(ApiModel):
 
 class ProcessingRunCollectionResponse(ApiModel):
     data: ProcessingRunCollectionData
+    meta: ResponseMeta
+
+
+class CandidateCollectionResponse(ApiModel):
+    data: CandidateCollectionData
+    meta: ResponseMeta
+
+
+class AuthorConfirmationResponse(ApiModel):
+    data: AuthorConfirmationData
+    meta: ResponseMeta
+
+
+class ReviewDecisionResponse(ApiModel):
+    data: ReviewDecisionData
     meta: ResponseMeta
 
 

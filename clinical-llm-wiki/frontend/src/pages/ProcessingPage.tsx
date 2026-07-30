@@ -134,6 +134,11 @@ function RunCard({
           <dd>{run.evidenceCount}</dd>
         </div>
       </dl>
+      {run.status === "evidence_ready" ? (
+        <p className={styles.gateNote}>
+          Evidence 已就绪；尚无可供作者确认的 Candidate。
+        </p>
+      ) : null}
       <ol className={styles.stepList}>
         {run.steps.map((step) => (
           <li className={styles.stepRow} key={step.stepId}>

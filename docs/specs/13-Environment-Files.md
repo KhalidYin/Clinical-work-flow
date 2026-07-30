@@ -1027,3 +1027,39 @@ P2-A 只安装现有 `pdf`/document parser 依赖和 `python-multipart`。Doclin
 OCR provider、LiteLLM `models` extra 与外部模型密钥都不是 Document Worker 的运行依赖。
 Enrichment/Release worker 在 P2-A 仍无领域 handler，不能因为 Document Worker 启用而取得
 额外权限。
+
+## 16. P12 P2-B1 migration、backfill 与治理 API
+
+P2-B1 不增加模型、Provider 或 secret 环境变量。API 继续使用 P1-D 的
+`KNOWLEDGE_DATABASE_URL` 与 identity 配置；Candidate author/reviewer 权限来自 PostgreSQL
+内部 role binding，不从环境变量、Bearer claim 或前端标签推断。
+
+部署顺序必须保持 DDL 与数据修正分离：
+
+```powershell
+Set-Location .\clinical-llm-wiki
+.\.venv\Scripts\alembic upgrade head
+.\.venv\Scripts\python -m service.maintenance.backfill --list
+.\.venv\Scripts\python -m service.maintenance.backfill `
+  --task p2b1-evidence-ready `
+  --batch-size 500
+```
+
+命令输出 `processed=<count> next_key=<run_id>`。如果 `next_key` 非空，下一批使用
+`--after-key <run_id>`；中断后可从最后一次已提交的 key 继续。任务只更新符合 P2-B1 条件的
+run，不创建 Candidate，不调用模型，也不把 Evidence 写入知识修订。
+
+API 进程必须运行 Alembic head `20260730_0006`。`0005` 是状态 expand revision，`0006`
+是 Candidate/Governance expand revision；应用启动仍不得自动迁移。P2-B1 没有 Enrichment
+worker handler，因此不要启动 enrichment pool 来期待自动生成 Candidate。
+
+写治理路由需要：
+
+- mapped active human user；
+- `candidate:submit` 或 `review:decide` 的显式内部 permission；
+- `Idempotency-Key`、期望 revision number 与 content hash；
+- author 与 reviewer 使用不同内部 actor ID。
+
+Service Account secret、Provider API key、模型 payload、source bytes 与原始异常都不得出现在
+这些请求、响应或 AuditEvent 中。P2-B2 才定义 fake/replay Enrichment handler 的运行配置，
+P2-B3 才启用单一真实外部模型。

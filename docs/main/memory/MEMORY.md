@@ -9,4 +9,4 @@
 - [P9.1 AE 规则治理边界](p9-rule-governance-boundary.md) — P5 已完成 Study-local Review Gate 与测试用 Wiki Release Gate；发布必须声明 `p9-poc-test-only`，不是生产正式知识。
 - [P9.1 Workbench 流程基线](p9-workbench-flow-baseline.md) — P9.1 已由用户关闭；保留 Runner/Review 边界及 prerelease schema 不污染 released bundle 的约束。
 - [P12 Knowledge Ledger 设计基线](p12-knowledge-ledger-design-baseline.md) — 已批准的颜色、排版、布局、状态语义与五段交互；P1 前端实现必须以该 HTML 为基线。
-- [P12 唯一计划权威](p12-plan-authority.md) — P12 是唯一可执行主线；D0+P1-P4、AI 候选→人工治理→发布流转、外部模型、身份授权和真实 read API 边界已冻结，当前下一切片是 P1-E，P1-P11 旧计划仅作只读追溯。
+- [P12 唯一计划权威](p12-plan-authority.md) — P12 是唯一可执行主线；P1、P2-A、P2-B1 已完成，Evidence/Candidate/作者/Reviewer 治理边界已冻结，当前下一 Gate 是 P2-B2 fake/replay 可回放闭环，P1-P11 旧计划仅作只读追溯。

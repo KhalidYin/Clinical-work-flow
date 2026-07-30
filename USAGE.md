@@ -270,8 +270,10 @@ handler 使用 local adapter；它不代表生产对象存储选型，Enrichment
 ```powershell
 # DDL
 .\.venv\Scripts\alembic upgrade head
-# 可恢复数据 backfill（P1 registry 为空，未知任务失败关闭）
+# 可恢复数据 backfill（P2-B1 已登记 evidence-ready 修正，未知任务失败关闭）
 .\.venv\Scripts\python -m service.maintenance.backfill --list
+# 可用 --batch-size 与返回的 next_key 作为 --after-key 断点续跑
+.\.venv\Scripts\python -m service.maintenance.backfill --task p2b1-evidence-ready
 # P4 legacy asset crosswalk（P1 registry 为空，默认只规划 dry-run）
 .\.venv\Scripts\python -m service.maintenance.legacy_migration --list
 ```
@@ -327,7 +329,7 @@ Original、parser output 和 Evidence 各自保存 lineage，不能相互替代�
 Processing Runs 页面只对 `queued`/`processing` 状态每 2 秒轮询；终态停止轮询。失败 step
 可由具有 `processing:retry` 的 Curator 从安全 checkpoint 建立新 attempt，已成功 step 和已
 提交的 derived object 不会被无条件重复。Document Worker 最终只能把 run 推进到
-`author_confirmation_required`，不能创建 Candidate、approved revision、release 或生产索引。
+`evidence_ready`，不能创建 Candidate、approved revision、release 或生产索引。
 
 P2-A parser 选型报告位于
 `docs/reviews/P12-P2A-PARSER-BAKEOFF.md`。当前没有锁定 Docling/Unstructured；只有受控
@@ -343,7 +345,63 @@ $env:KNOWLEDGE_TEST_DATABASE_URL = "postgresql+psycopg://<user>:<password>@127.0
 Remove-Item Env:KNOWLEDGE_TEST_DATABASE_URL
 ```
 
-P2-A 不调用外部模型，不进入 P2-B Candidate/作者确认/独立审核。P2-B 必须另获授权。
+P2-A 不调用外部模型，也不会因 Evidence 完成而假装已经存在 Candidate。
+
+### P12 Candidate 与两级人工治理合同（P2-B1）
+
+P2-B1 把 Evidence checkpoint 与人工 Gate 分开：
+
+```text
+Evidence complete → evidence_ready
+Candidate revision persisted → author_confirmation_required
+human author confirms → review_required
+independent human reviewer approves → approved
+```
+
+`approved` 仍不是生产可检索状态；只有后续 immutable Release 才可进入生产消费。Candidate
+必须引用带 SourceVersion、非空 locator、content hash 和允许存储 rights 的 Evidence，并声明
+applicability。Relation proposal 只能使用 allow-list 类型，且每条边必须附着 Candidate 已引用
+的 edge Evidence。缺少任一项都不能进入作者确认。
+
+先升级 DDL，再独立执行数据修正；不要把 backfill 塞进 Alembic：
+
+```powershell
+Set-Location .\clinical-llm-wiki
+.\.venv\Scripts\alembic upgrade head
+.\.venv\Scripts\python -m service.maintenance.backfill --task p2b1-evidence-ready
+```
+
+该 backfill 只把“已有 Evidence 且没有 Candidate”的旧
+`author_confirmation_required` run 改为 `evidence_ready`；使用 batch/cursor、
+`FOR UPDATE SKIP LOCKED` 和同事务更新，可重复执行。`0005` 只扩展状态约束，`0006` 只扩展
+Candidate/Governance 数据合同；历史 `0001..0004` 不修改。
+
+prerelease API 新增：
+
+```text
+GET  /api/prerelease/v1/candidates
+POST /api/prerelease/v1/candidates/{candidate_id}/author-confirmation
+POST /api/prerelease/v1/knowledge-revisions/{revision_id}/review-decision
+```
+
+写请求必须携带映射后的 Bearer 身份、`Idempotency-Key`、期望 revision/hash。作者必须是具备
+`candidate:submit` 的人工用户，Reviewer 必须是另一名具备 `review:decide` 的人工用户；Service
+Account、作者自审、过期 revision、重复决定和 Platform Admin 隐式越权全部失败关闭。前端
+Candidates 页面在 P2-B1 只展示治理状态，不提供尚未实现的 Enrichment 编辑闭环。
+
+P2-B1 验证：
+
+```powershell
+Set-Location .\clinical-llm-wiki
+.\.venv\Scripts\python -m pytest tests/test_evidence_ready_backfill_contract.py tests/test_knowledge_governance_contract.py tests/test_platform_api_contract.py tests/test_database_contract.py -q
+$env:KNOWLEDGE_TEST_DATABASE_URL = "postgresql+psycopg://<user>:<password>@127.0.0.1:<port>/<empty_test_database>"
+.\.venv\Scripts\python -m pytest tests/test_evidence_ready_backfill_postgres_integration.py tests/test_knowledge_governance_postgres_integration.py tests/test_database_migration_integration.py -q
+Remove-Item Env:KNOWLEDGE_TEST_DATABASE_URL
+```
+
+本 Gate 没有模型调用、Relation Explorer、检索索引、评估或 release。下一 Gate P2-B2 才允许
+fake/replay Enrichment Worker 从 `evidence_ready` 生成可回放 Candidate；真实外部模型继续留在
+P2-B3。
 
 ## 3. 启动本地 Review Panel
 

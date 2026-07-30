@@ -3,8 +3,8 @@ info:
   title: Clinical Knowledge Ledger API
   version: knowledge-api.prerelease.v1
   description: >-
-    P12 P2-A prerelease contract for governed Source Registry, deterministic processing
-    runs, App Shell and Admin identity mapping.
+    P12 P2-B1 prerelease contract for governed Source Registry, deterministic processing
+    runs, evidence-backed candidates, two-person governance and Admin identity mapping.
     This contract does not authorize production data or expose Workflow/Agent/Project Memory fields.
 servers:
   - url: /api/prerelease/v1
@@ -228,6 +228,86 @@ paths:
           $ref: "#/components/responses/AuthenticationError"
         "403":
           $ref: "#/components/responses/AuthorizationError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /candidates:
+    get:
+      operationId: listCandidates
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Evidence-backed candidate revisions and their current human gate.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CandidateCollectionResponse"
+        "401":
+          $ref: "#/components/responses/AuthenticationError"
+        "403":
+          $ref: "#/components/responses/AuthorizationError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /candidates/{candidate_id}/author-confirmation:
+    post:
+      operationId: confirmCandidateAuthor
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: candidate_id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AuthorConfirmationRequest" }
+      responses:
+        "200":
+          description: The human author confirms one exact candidate revision.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthorConfirmationResponse" }
+        "401":
+          $ref: "#/components/responses/AuthenticationError"
+        "403":
+          $ref: "#/components/responses/AuthorizationError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "409":
+          $ref: "#/components/responses/ConflictError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /knowledge-revisions/{revision_id}/review-decision:
+    post:
+      operationId: decideKnowledgeRevision
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: revision_id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReviewDecisionRequest" }
+      responses:
+        "200":
+          description: An independent Reviewer decides one exact knowledge revision.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReviewDecisionResponse" }
+        "401":
+          $ref: "#/components/responses/AuthenticationError"
+        "403":
+          $ref: "#/components/responses/AuthorizationError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "409":
+          $ref: "#/components/responses/ConflictError"
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
   /admin/users:
@@ -464,6 +544,7 @@ components:
           enum:
             - queued
             - processing
+            - evidence_ready
             - author_confirmation_required
             - review_required
             - approved
@@ -492,6 +573,113 @@ components:
         warnings:
           type: array
           items: { type: string }
+    CandidateSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - candidateId
+        - candidateGroupId
+        - runId
+        - revisionNumber
+        - status
+        - knowledgeType
+        - claim
+        - scope
+        - applicability
+        - contentSha256
+        - evidenceCount
+        - relationProposalCount
+        - authorActorId
+        - knowledgeRevisionId
+        - reviewStatus
+      properties:
+        candidateId: { type: string }
+        candidateGroupId: { type: string }
+        runId: { type: string }
+        revisionNumber: { type: integer, minimum: 1 }
+        status:
+          enum: [author_confirmation_required, author_confirmed, superseded]
+        knowledgeType: { type: string }
+        claim: { type: string }
+        scope: { type: object }
+        applicability: { type: object }
+        contentSha256: { type: string, pattern: "^[0-9a-f]{64}$" }
+        evidenceCount: { type: integer, minimum: 1 }
+        relationProposalCount: { type: integer, minimum: 0 }
+        authorActorId: { type: [string, "null"] }
+        knowledgeRevisionId: { type: [string, "null"] }
+        reviewStatus:
+          type: [string, "null"]
+          enum:
+            - review_required
+            - approved
+            - rejected
+            - changes_requested
+            - released
+            - superseded
+            - retired
+            - null
+    CandidateCollection:
+      type: object
+      additionalProperties: false
+      required: [items, total, partial, warnings]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/CandidateSummary" }
+        total: { type: integer, minimum: 0 }
+        partial: { type: boolean }
+        warnings:
+          type: array
+          items: { type: string }
+    AuthorConfirmationRequest:
+      type: object
+      additionalProperties: false
+      required: [expectedRevisionNumber, expectedContentSha256, idempotencyKey]
+      properties:
+        expectedRevisionNumber: { type: integer, minimum: 1 }
+        expectedContentSha256: { type: string, pattern: "^[0-9a-f]{64}$" }
+        idempotencyKey: { type: string, minLength: 8, maxLength: 160 }
+    AuthorConfirmation:
+      type: object
+      additionalProperties: false
+      required:
+        - candidateId
+        - candidateStatus
+        - knowledgeRevisionId
+        - revisionStatus
+        - decisionId
+      properties:
+        candidateId: { type: string }
+        candidateStatus: { const: author_confirmed }
+        knowledgeRevisionId: { type: string }
+        revisionStatus: { const: review_required }
+        decisionId: { type: string }
+    ReviewDecisionRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - candidateId
+        - expectedRevisionNumber
+        - expectedContentSha256
+        - decision
+        - idempotencyKey
+      properties:
+        candidateId: { type: string }
+        expectedRevisionNumber: { type: integer, minimum: 1 }
+        expectedContentSha256: { type: string, pattern: "^[0-9a-f]{64}$" }
+        decision: { enum: [approved, rejected, changes_requested] }
+        idempotencyKey: { type: string, minLength: 8, maxLength: 160 }
+        rationale: { type: [string, "null"], maxLength: 4000 }
+    ReviewDecision:
+      type: object
+      additionalProperties: false
+      required: [candidateId, knowledgeRevisionId, revisionStatus, decisionId]
+      properties:
+        candidateId: { type: string }
+        knowledgeRevisionId: { type: string }
+        revisionStatus: { enum: [approved, rejected, changes_requested] }
+        decisionId: { type: string }
     Retry:
       type: object
       additionalProperties: false
@@ -592,6 +780,24 @@ components:
         - type: object
           properties:
             data: { $ref: "#/components/schemas/ProcessingRunCollection" }
+    CandidateCollectionResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/CandidateCollection" }
+    AuthorConfirmationResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/AuthorConfirmation" }
+    ReviewDecisionResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/ReviewDecision" }
     RetryResponse:
       allOf:
         - $ref: "#/components/schemas/Envelope"
@@ -631,6 +837,10 @@ components:
                 - unsupported_media
                 - run_not_found
                 - retry_not_allowed
+                - candidate_not_found
+                - invalid_governance_transition
+                - stale_revision
+                - duplicate_decision
             message: { type: string }
         meta: { $ref: "#/components/schemas/ResponseMeta" }
     Envelope:

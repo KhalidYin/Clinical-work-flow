@@ -21,6 +21,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -244,9 +245,9 @@ class ProcessingRun(Base):
     __tablename__ = "processing_runs"
     __table_args__ = (
         CheckConstraint(
-            "status IN ('queued', 'processing', 'author_confirmation_required', "
-            "'review_required', 'approved', 'release_blocked', 'released', "
-            "'failed', 'cancelled')",
+            "status IN ('queued', 'processing', 'evidence_ready', "
+            "'author_confirmation_required', 'review_required', 'approved', "
+            "'release_blocked', 'released', 'failed', 'cancelled')",
             name="status",
         ),
         Index("ix_processing_runs_status_created_at", "status", "created_at"),
@@ -519,13 +520,31 @@ class KnowledgeCandidate(Base):
     __table_args__ = (
         CheckConstraint("revision_number >= 1", name="revision_number_positive"),
         CheckConstraint(
+            "status IN ('author_confirmation_required', 'author_confirmed', 'superseded')",
+            name="status",
+        ),
+        CheckConstraint(
+            "(candidate_group_id IS NULL AND content_sha256 IS NULL) OR "
+            "(candidate_group_id IS NOT NULL AND content_sha256 IS NOT NULL)",
+            name="revision_identity_shape",
+        ),
+        CheckConstraint(
             "confidence IS NULL OR (confidence >= 0 AND confidence <= 1)",
             name="confidence_range",
+        ),
+        UniqueConstraint(
+            "candidate_group_id",
+            "revision_number",
+            name="candidate_group_revision",
         ),
         Index("ix_knowledge_candidates_status_updated_at", "status", "updated_at"),
     )
 
     candidate_id: Mapped[str] = _text_id()
+    candidate_group_id: Mapped[str | None] = mapped_column(String(160))
+    parent_candidate_id: Mapped[str | None] = mapped_column(
+        ForeignKey("knowledge_candidates.candidate_id", ondelete="RESTRICT")
+    )
     run_id: Mapped[str] = mapped_column(
         ForeignKey("processing_runs.run_id", ondelete="CASCADE"), nullable=False
     )
@@ -542,6 +561,10 @@ class KnowledgeCandidate(Base):
         JSONB, nullable=False, server_default="[]"
     )
     confidence: Mapped[Decimal | None] = mapped_column(Numeric(5, 4))
+    content_sha256: Mapped[str | None] = mapped_column(String(64))
+    author_actor_id: Mapped[str | None] = mapped_column(String(160))
+    # Compatibility column from the P1 prerelease schema. New governance writes
+    # use the internal actor ID above; P4 legacy migration owns old data cleanup.
     author_subject: Mapped[str | None] = mapped_column(String(255))
     created_at: Mapped[datetime] = _created_at()
     updated_at: Mapped[datetime] = mapped_column(
@@ -564,6 +587,59 @@ class CandidateEvidence(Base):
     )
 
 
+class CandidateRelationProposal(Base):
+    __tablename__ = "candidate_relation_proposals"
+    __table_args__ = (
+        CheckConstraint(
+            "relation_type IN ('applies_to', 'conflicts_with', 'depends_on', "
+            "'derived_from', 'supersedes', 'supports', 'used_by')",
+            name="relation_type",
+        ),
+        CheckConstraint(
+            "status IN ('proposed', 'accepted', 'rejected', 'superseded')",
+            name="status",
+        ),
+        UniqueConstraint(
+            "candidate_id",
+            "relation_type",
+            "target_knowledge_unit_id",
+            name="candidate_relation_edge",
+        ),
+        Index(
+            "ix_candidate_relation_proposals_candidate_status",
+            "candidate_id",
+            "status",
+        ),
+    )
+
+    proposal_id: Mapped[str] = _text_id()
+    candidate_id: Mapped[str] = mapped_column(
+        ForeignKey("knowledge_candidates.candidate_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    relation_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    target_knowledge_unit_id: Mapped[str] = mapped_column(
+        ForeignKey("knowledge_units.knowledge_unit_id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    status: Mapped[str] = mapped_column(String(60), nullable=False)
+    created_at: Mapped[datetime] = _created_at()
+
+
+class RelationProposalEvidence(Base):
+    __tablename__ = "relation_proposal_evidence"
+    __table_args__ = (PrimaryKeyConstraint("proposal_id", "evidence_id"),)
+
+    proposal_id: Mapped[str] = mapped_column(
+        ForeignKey("candidate_relation_proposals.proposal_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    evidence_id: Mapped[str] = mapped_column(
+        ForeignKey("evidence.evidence_id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+
+
 class KnowledgeUnit(Base):
     __tablename__ = "knowledge_units"
 
@@ -577,6 +653,11 @@ class KnowledgeRevision(Base):
     __tablename__ = "knowledge_revisions"
     __table_args__ = (
         CheckConstraint("revision_number >= 1", name="revision_number_positive"),
+        CheckConstraint(
+            "status IN ('review_required', 'approved', 'rejected', "
+            "'changes_requested', 'released', 'superseded', 'retired')",
+            name="status",
+        ),
         UniqueConstraint("knowledge_unit_id", "revision_number", name="unit_revision"),
         Index("ix_knowledge_revisions_status_created_at", "status", "created_at"),
     )
@@ -600,6 +681,7 @@ class KnowledgeRevision(Base):
         JSONB, nullable=False, server_default="[]"
     )
     content_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    author_actor_id: Mapped[str | None] = mapped_column(String(160))
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = _created_at()
 
@@ -637,7 +719,30 @@ class ReviewDecision(Base):
             "decision IN ('author_confirmed', 'approved', 'rejected', 'changes_requested')",
             name="decision",
         ),
+        CheckConstraint(
+            "(decision = 'author_confirmed' AND knowledge_revision_id IS NULL) OR "
+            "(decision IN ('approved', 'rejected', 'changes_requested') "
+            "AND knowledge_revision_id IS NOT NULL)",
+            name="target_shape",
+        ),
+        UniqueConstraint(
+            "actor_subject",
+            "idempotency_key",
+            name="actor_idempotency",
+        ),
         Index("ix_review_decisions_candidate_id_created_at", "candidate_id", "created_at"),
+        Index(
+            "uq_review_decisions_author_confirmation",
+            "candidate_id",
+            unique=True,
+            postgresql_where=text("decision = 'author_confirmed'"),
+        ),
+        Index(
+            "uq_review_decisions_revision_decision",
+            "knowledge_revision_id",
+            unique=True,
+            postgresql_where=text("knowledge_revision_id IS NOT NULL"),
+        ),
     )
 
     decision_id: Mapped[str] = _text_id()
@@ -648,6 +753,9 @@ class ReviewDecision(Base):
         ForeignKey("knowledge_revisions.knowledge_revision_id", ondelete="RESTRICT")
     )
     decision: Mapped[str] = mapped_column(String(60), nullable=False)
+    candidate_revision_number: Mapped[int | None] = mapped_column(Integer)
+    content_sha256: Mapped[str | None] = mapped_column(String(64))
+    idempotency_key: Mapped[str | None] = mapped_column(String(160))
     actor_subject: Mapped[str] = mapped_column(String(255), nullable=False)
     actor_role: Mapped[str] = mapped_column(String(80), nullable=False)
     rationale: Mapped[str | None] = mapped_column(Text)

@@ -6,6 +6,7 @@ export const API_PATHS = {
   currentRelease: "/api/prerelease/v1/releases/current",
   sources: "/api/prerelease/v1/sources",
   processingRuns: "/api/prerelease/v1/processing-runs",
+  candidates: "/api/prerelease/v1/candidates",
   adminUsers: "/api/prerelease/v1/admin/users",
 } as const;
 
@@ -144,6 +145,7 @@ export interface SourceRegistration {
 export type ProcessingRunStatus =
   | "queued"
   | "processing"
+  | "evidence_ready"
   | "author_confirmation_required"
   | "review_required"
   | "approved"
@@ -184,6 +186,45 @@ export interface ProcessingRun {
 
 export interface ProcessingRunCollection {
   items: ProcessingRun[];
+  total: number;
+  partial: boolean;
+  warnings: string[];
+}
+
+export type CandidateStatus =
+  | "author_confirmation_required"
+  | "author_confirmed"
+  | "superseded";
+
+export type KnowledgeReviewStatus =
+  | "review_required"
+  | "approved"
+  | "rejected"
+  | "changes_requested"
+  | "released"
+  | "superseded"
+  | "retired";
+
+export interface CandidateSummary {
+  candidateId: string;
+  candidateGroupId: string;
+  runId: string;
+  revisionNumber: number;
+  status: CandidateStatus;
+  knowledgeType: string;
+  claim: string;
+  scope: Record<string, unknown>;
+  applicability: Record<string, unknown>;
+  contentSha256: string;
+  evidenceCount: number;
+  relationProposalCount: number;
+  authorActorId: string | null;
+  knowledgeRevisionId: string | null;
+  reviewStatus: KnowledgeReviewStatus | null;
+}
+
+export interface CandidateCollection {
+  items: CandidateSummary[];
   total: number;
   partial: boolean;
   warnings: string[];

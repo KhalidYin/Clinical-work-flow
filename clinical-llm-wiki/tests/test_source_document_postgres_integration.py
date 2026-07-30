@@ -179,7 +179,7 @@ def test_postgres_source_registration_and_document_fan_in_are_idempotent(
                 )
             )
             assert run is not None
-            assert run.status == "author_confirmation_required"
+            assert run.status == "evidence_ready"
             assert {artifact.artifact_kind for artifact in artifacts} == {
                 "original",
                 "parser_output",

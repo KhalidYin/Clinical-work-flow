@@ -14,6 +14,10 @@ from service.db.session import (
     create_session_factory,
     database_url_from_environment,
 )
+from service.governance import (
+    KnowledgeGovernanceService,
+    SqlAlchemyGovernanceRepository,
+)
 from service.object_store import LocalObjectStore
 from service.processing.ledger import PostgresProcessingLedger
 from service.sources import SourceRegistryService, SqlAlchemySourceRegistryRepository
@@ -75,6 +79,9 @@ def create_environment_app():
                 ledger=ledger,
             ),
             processing_ledger=ledger,
+            governance=KnowledgeGovernanceService(
+                repository=SqlAlchemyGovernanceRepository(sessions)
+            ),
         )
     )
 

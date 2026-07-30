@@ -208,12 +208,58 @@ describe("Knowledge Ledger App Shell", () => {
 
     expect(await screen.findByRole("heading", { name: "Processing" })).toBeInTheDocument();
     expect(await screen.findByText("document.parse_tables")).toBeInTheDocument();
-    expect(screen.getAllByText("Original")).toHaveLength(2);
-    expect(screen.getAllByText("Derived")).toHaveLength(2);
-    expect(screen.getAllByText("Evidence")).toHaveLength(2);
-    expect(screen.getAllByText(/checkpoint ·/)).toHaveLength(2);
+    expect(screen.getAllByText("Original")).toHaveLength(3);
+    expect(screen.getAllByText("Derived")).toHaveLength(3);
+    expect(screen.getAllByText("Evidence")).toHaveLength(3);
+    expect(screen.getAllByText(/checkpoint ·/)).toHaveLength(3);
     fireEvent.click(screen.getByRole("button", { name: "Retry linked attempt" }));
     await waitFor(() => expect(retryCalls).toBe(1));
+  });
+
+  it("keeps evidence_ready distinct from author confirmation when no Candidate exists", async () => {
+    server.use(
+      http.get(resolveApiPath(API_PATHS.processingRuns), () =>
+        HttpResponse.json({
+          ...sourcesFixture,
+          data: {
+            total: 1,
+            partial: false,
+            warnings: [],
+            items: [
+              {
+                runId: "run-evidence-ready-001",
+                sourceVersionId: "srcv-evidence-ready-001",
+                status: "evidence_ready",
+                createdAt: "2026-07-30T10:00:00Z",
+                updatedAt: "2026-07-30T10:05:00Z",
+                originalArtifactCount: 1,
+                derivedArtifactCount: 1,
+                evidenceCount: 4,
+                steps: [],
+              },
+            ],
+          },
+        }),
+      ),
+    );
+    renderApp("/processing");
+
+    expect(
+      await screen.findByText("Evidence 已就绪；尚无可供作者确认的 Candidate。"),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /确认 Candidate/i })).not.toBeInTheDocument();
+  });
+
+  it("projects Candidate author and independent review gates without claiming release", async () => {
+    renderApp("/candidates");
+
+    expect(await screen.findByRole("heading", { name: "Candidates" })).toBeInTheDocument();
+    expect(
+      await screen.findByText("AESEQ is the sequence identifier within the AE domain."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("待作者确认")).toBeInTheDocument();
+    expect(screen.getByText("待独立审核")).toBeInTheDocument();
+    expect(screen.getByText(/approved 仍不可供生产检索/)).toBeInTheDocument();
   });
 
   it("navigates to Admin and renders product roles without credentials", async () => {

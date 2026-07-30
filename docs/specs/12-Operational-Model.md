@@ -862,10 +862,56 @@ version/hash 和 derived object hash。PDF、DOCX、XLSX 可以并行解析正�
 新写路径使用 `original` 与 `parser_output` 两种 SourceArtifact；P1 的
 `canonical_source` 只作为 legacy original 读取别名保留，不能作为新的写入值。API/UI 必须
 分别报告 Original、Derived 和 Evidence 数量。Document Worker 没有 Candidate、confirm、
-review、approve、release 或 index 权限；run 在 Evidence 成功后只进入
-`author_confirmation_required`。
+review、approve、release 或 index 权限；run 在 Evidence 成功后只进入 `evidence_ready`。
 
 P2-A 的 parser Gate 没有锁定 Docling 或 Unstructured。现有 adapter 只通过 synthetic
 locator/hash/formula 与 OCR-required 合同；扫描 PDF 无文本时显式失败。受控 SDTM 跨页表、
 ADaM 公式、CT workbook 与 OCR fixture 未完成同条件对照前，不能声明生产文档覆盖或引入新的
 parser 框架。
+
+## 13. P12 P2-B1 Candidate 与治理状态
+
+P2-B1 只建立治理合同，不执行模型生成。状态边界固定为：
+
+```text
+Evidence complete
+  -> evidence_ready
+Candidate revision persisted
+  -> author_confirmation_required
+human author confirmation
+  -> review_required
+independent human review
+  -> approved | rejected | changes_requested
+```
+
+`approved` 仍不等于 released 或可供生产检索。发布必须由 P3 immutable Release Gate 另行完成。
+
+`0005` Alembic revision 只扩展 `evidence_ready` 状态约束；历史 P2-A run 的数据修正由独立
+`p2b1-evidence-ready` backfill 执行。它用 batch/cursor、`FOR UPDATE SKIP LOCKED` 和同事务更新，
+仅处理“已有 Evidence、没有 Candidate、旧状态为 `author_confirmation_required`”的 run，
+允许安全重放。`0006` 只扩展 Candidate/Governance 表、字段与完整性约束；`0001..0004`
+历史 revision 保持不变。
+
+Candidate 是 immutable content revision，使用稳定 `candidate_group_id`、单调
+`revision_number` 与 `content_sha256`。进入作者确认前必须满足：
+
+- 每个 Evidence reference 都能解析到 SourceVersion，具有非空 locator、content hash 和允许
+  平台存储的 rights；
+- claim、type、scope 和 applicability 完整；
+- Relation proposal 的类型属于 allow-list，端点存在，且每条边都引用该 Candidate 已附着的
+  Evidence；
+- 期望 revision/hash 与当前记录一致，幂等 key 没有被不同 payload 重用。
+
+Enrichment Service Account 可以在后续 Gate 建立符合合同的 Candidate，但不能代表作者确认。
+Author 必须是具备 `candidate:submit` 的人工 actor；Reviewer 必须是另一名具备
+`review:decide` 的人工 actor。作者自审、worker decision、过期 revision/hash、重复决定和
+Platform Admin 隐式权限全部失败关闭。
+
+作者确认在一个事务内建立 KnowledgeUnit、KnowledgeRevision(`review_required`) 与 AuditEvent。
+审核 approve 更新 revision/run 为 `approved`；reject/change request 返回 run 到
+`evidence_ready`，等待 P2-B2 建立新的 Candidate revision。released revision 不允许原地修改；
+supersede/retire 必须追加新治理事实。
+
+prerelease API 提供 Candidate collection、Author confirmation 与 Review decision 路由；KUI-03
+明确展示无 Candidate 的 `evidence_ready`，KUI-04 区分待作者确认和待独立审核。P2-B1 不提供
+Enrichment editor、Relation Explorer、索引、评估或 release。

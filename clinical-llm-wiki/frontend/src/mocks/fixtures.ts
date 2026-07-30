@@ -9,6 +9,7 @@ import {
   type SourceCollection,
   type RetryReceipt,
   type CancelReceipt,
+  type CandidateCollection,
   type UserCollection,
 } from "../contracts/knowledgeApi";
 
@@ -68,7 +69,7 @@ export const sourceRegistrationFixture = response<SourceRegistration>({
 });
 
 export const processingRunsFixture = response<ProcessingRunCollection>({
-  total: 2,
+  total: 3,
   partial: false,
   warnings: [],
   items: [
@@ -95,6 +96,33 @@ export const processingRunsFixture = response<ProcessingRunCollection>({
             errorType: null,
             checkpoint: { sheet: "CT", row: 12 },
             artifactCount: 1,
+          },
+        },
+      ],
+    },
+    {
+      runId: "run-evidence-ready-003",
+      sourceVersionId: "srcv-sdtmig-34",
+      status: "evidence_ready",
+      createdAt: fixtureTime,
+      updatedAt: fixtureTime,
+      originalArtifactCount: 1,
+      derivedArtifactCount: 3,
+      evidenceCount: 18,
+      steps: [
+        {
+          stepId: "step-build-evidence",
+          stepKey: "document.build_evidence",
+          pool: "document",
+          status: "succeeded",
+          dependsOn: ["document.parse_text", "document.parse_tables"],
+          latestAttempt: {
+            attemptId: "attempt-build-evidence-1",
+            attemptNumber: 1,
+            status: "succeeded",
+            errorType: null,
+            checkpoint: { evidenceCount: 18 },
+            artifactCount: 18,
           },
         },
       ],
@@ -139,6 +167,48 @@ export const retryReceiptFixture = response<RetryReceipt>({
 export const cancelReceiptFixture = response<CancelReceipt>({
   runId: "run-active-001",
   status: "cancelled",
+});
+
+export const candidatesFixture = response<CandidateCollection>({
+  total: 2,
+  partial: false,
+  warnings: [],
+  items: [
+    {
+      candidateId: "cand-ui-aeseq-001",
+      candidateGroupId: "candgrp-ui-aeseq",
+      runId: "run-ui-aeseq",
+      revisionNumber: 1,
+      status: "author_confirmation_required",
+      knowledgeType: "variable_definition",
+      claim: "AESEQ is the sequence identifier within the AE domain.",
+      scope: { standard: "SDTM", domain: "AE" },
+      applicability: { standardVersion: "3.4" },
+      contentSha256: fixtureHash("aeseq-candidate"),
+      evidenceCount: 2,
+      relationProposalCount: 1,
+      authorActorId: null,
+      knowledgeRevisionId: null,
+      reviewStatus: null,
+    },
+    {
+      candidateId: "cand-ui-teae-001",
+      candidateGroupId: "candgrp-ui-teae",
+      runId: "run-ui-teae",
+      revisionNumber: 1,
+      status: "author_confirmed",
+      knowledgeType: "clinical_rule",
+      claim: "TEAE applicability is bounded by the confirmed analysis scope.",
+      scope: { standard: "ADaM", dataset: "ADAE" },
+      applicability: { analysis: "safety" },
+      contentSha256: fixtureHash("teae-candidate"),
+      evidenceCount: 3,
+      relationProposalCount: 2,
+      authorActorId: "usr-author-004",
+      knowledgeRevisionId: "krev-ui-teae-001",
+      reviewStatus: "review_required",
+    },
+  ],
 });
 
 export const healthFixture = response<PlatformHealth>({

@@ -187,7 +187,7 @@ clinical-llm-wiki/
 Demo 是真实前端的生产兼容种子，不建额外 prototype 目录。高保真纵向切片固定为：
 
 1. `Sources`：登记一个 CDISC SourceVersion；上传完成只得到 source，不得到 knowledge。
-2. `Processing Runs`：展示 queued → processing → `author_confirmation_required`，并演示 locator normalization 失败、从 checkpoint 重试和 parser/version/hash 证据。
+2. `Processing Runs`：展示 queued → processing → `evidence_ready`，并演示 locator normalization 失败、从 checkpoint 重试和 parser/version/hash 证据；只有已持久化 Candidate revision 才进入 `author_confirmation_required`。
 3. `Candidate Review`：作者确认 claim/scope/locator/relation proposal 后提交；独立 Reviewer 审核，作者自审被后端拒绝。
 4. `Query Lab`：只检索 released revision，分别展示 metadata/FTS/vector/relation 贡献和 degraded capability。
 5. `Release Center`：演示 citation/hash/review/evaluation Gate 阻断，修复后生成 immutable release。
@@ -346,8 +346,8 @@ Docling 是否进入锁定依赖，必须先用 SDTM IG 多栏与跨页表、ADa
 
 ## 视觉与行为验收清单
 
-- [ ] `[KUI-01]` 首屏导航、identity、release/index health 和默认 Sources 页面与基线一致，深链可恢复。
-- [ ] `[KUI-02..03]` Source 上传/版本、非流式 processing 状态/失败/checkpoint 重试均由 API 证据驱动；`evidence_ready` 不被误标为 Candidate 或待作者确认。
+- [x] `[KUI-01]` 首屏导航、identity、release/index health 和默认 Sources 页面与基线一致，深链可恢复。
+- [x] `[KUI-02..03]` Source 上传/版本、非流式 processing 状态/失败/checkpoint 重试均由 API 证据驱动；`evidence_ready` 不被误标为 Candidate 或待作者确认。
 - [ ] `[KUI-04]` Candidate revision、evidence 对照、作者确认、独立 approve/reject/request-change、stale conflict 和作者自审拒绝行为闭合。
 - [ ] `[KUI-05]` Relation 节点/边都有 typed evidence，candidate/released 不混淆，展开有上限且 URL 可恢复。
 - [ ] `[KUI-06]` Query Lab 分开展示 metadata/FTS/vector/relation 贡献和 degraded 状态，Context Package citation 可追溯。
@@ -387,7 +387,7 @@ Docling 是否进入锁定依赖，必须先用 SDTM IG 多栏与跨页表、ADa
 |-------|------|----------|------|------|
 | D0 | 大改前可运行前端 Demo Gate | 2-3 | - | done |
 | P1 | 产品基础：数据库迁移、身份权限、作业账本、模型与合同基线 | 8-11 | D0 | done |
-| P2 | AI 知识生产：Source → Evidence → Candidate → 作者确认 → 独立审核 | 12-17 | P1 | in-progress（P2-A done；P2-B1 next） |
+| P2 | AI 知识生产：Source → Evidence → Candidate → 作者确认 → 独立审核 | 12-17 | P1 | in-progress（P2-A/P2-B1 done；P2-B2 next） |
 | P3 | 发布与检索：Approved Revision → 索引/评估 → immutable Release | 8-11 | P2 | pending |
 | P4 | 产品闭环：完整前端、外部接口、既有 Wiki 迁移、部署与运维验收 | 7-10 | P3 | pending |
 
@@ -538,7 +538,7 @@ P2 是一个完整的知识生产 Phase，不再把“解析”和“AI 建模/�
 
 P2-B 不再作为一次性“大模型 + 关系图 + 全部审核 UI”交付。按 B1/B2/B3 三个连续 Gate 推进，先证明治理状态正确，再证明闭环可回放，最后才接真实外部模型。
 
-### P2-B1：状态语义与治理合同
+### P2-B1：状态语义与治理合同（completed 2026-07-30）
 
 #### 输入条件
 
@@ -555,12 +555,12 @@ P2-B 不再作为一次性“大模型 + 关系图 + 全部审核 UI”交付。
 
 #### 完成标准
 
-- [ ] 没有 Candidate 的 P2-A run 只能停在 `evidence_ready`；没有持久化 Candidate revision 时进入 `author_confirmation_required` 必须被应用事务/状态合同拒绝，数据库继续负责状态枚举、FK、unique 和 revision 完整性，不为跨表存在性引入隐式 trigger。
-- [ ] DDL revision、可恢复 backfill 和业务写入保持三个入口；clean apply、已有数据库 upgrade、backfill 重放和 metadata drift Gate 通过。
-- [ ] Candidate 缺少 Evidence、locator、SourceVersion、rights 或适用范围时不能进入作者确认；Relation proposal 缺少合法类型、端点或 edge evidence 时失败关闭。
-- [ ] 作者确认后才进入 `review_required`；作者自审、过期 revision decision、重复 decision、越权 decision 和直接修改 released revision 全部拒绝。
-- [ ] Enrichment/Document/Release worker 均不能 confirm、review、approve 或发布；平台管理员不隐式绕过四眼原则。
-- [ ] `[KUI-03..04]` 合同能区分 `evidence_ready`、待作者确认和待独立审核；无 Candidate 时 UI 不显示确认操作。
+- [x] 没有 Candidate 的 P2-A run 只能停在 `evidence_ready`；没有持久化 Candidate revision 时进入 `author_confirmation_required` 必须被应用事务/状态合同拒绝，数据库继续负责状态枚举、FK、unique 和 revision 完整性，不为跨表存在性引入隐式 trigger。
+- [x] DDL revision、可恢复 backfill 和业务写入保持三个入口；clean apply、已有数据库 upgrade、backfill 重放和 metadata drift Gate 通过。
+- [x] Candidate 缺少 Evidence、locator、SourceVersion、rights 或适用范围时不能进入作者确认；Relation proposal 缺少合法类型、端点或 edge evidence 时失败关闭。
+- [x] 作者确认后才进入 `review_required`；作者自审、过期 revision decision、重复 decision、越权 decision 和直接修改 released revision 全部拒绝。
+- [x] Enrichment/Document/Release worker 均不能 confirm、review、approve 或发布；平台管理员不隐式绕过四眼原则。
+- [x] `[KUI-03..04]` 合同能区分 `evidence_ready`、待作者确认和待独立审核；无 Candidate 时 UI 不显示确认操作。
 
 #### 边界（本切片明确不做）
 
@@ -842,7 +842,7 @@ P3 只消费 P2 已批准的 KnowledgeRevision。内部先构建可解释检索�
 | D12 | PostgreSQL constraint 名称是 schema 级对象；跨表复用通用 `object_key` 名称会使 `0004` migration 失败 | P2-A | 数据（已解决） | `source_versions`、`source_artifacts`、`object_write_intents` 使用表级唯一名称，并以 clean apply/downgrade/re-apply 实库 Gate 固定 |
 | D13 | P1 只读 fixture 曾用 `canonical_source`，P2-A 新模型改用 `original`；直接收紧会破坏已验收的 P1 读取链 | P2-A | 兼容（已解决） | 新写路径只产生 `original`，读取/迁移兼容 `canonical_source`，二者都不会与 `parser_output`/Evidence 混淆；P4 legacy migration 再显式 crosswalk |
 | D14 | Docling 未在同一受控临床 fixture 上测量，当前 synthetic benchmark 不能支持锁定新依赖 | P2-A | 选型（已解决） | P2-A 保留现有确定性 adapter，扫描 PDF 明确要求 OCR；只有满足受控 locator/table/formula/resource 对照样本时重开选型 |
-| D15 | P2-A 在尚无 Candidate 时把 Evidence 完成标记为 `author_confirmation_required`，会让后续 Enrichment 从人工等待状态回到模型处理并误导 UI | 计划复核 / P2-B1 | 语义（待执行） | 新增 `evidence_ready`；以新 expand revision 扩展状态约束，独立 resumable backfill 只转换“已有 Evidence 且无 Candidate”的历史 run；进入 `author_confirmation_required` 增加 Candidate revision 的应用事务前置条件 |
+| D15 | P2-A 在尚无 Candidate 时把 Evidence 完成标记为 `author_confirmation_required`，会让后续 Enrichment 从人工等待状态回到模型处理并误导 UI | 计划复核 / P2-B1 | 语义（已解决） | `0005` 新增 `evidence_ready`，独立 `p2b1-evidence-ready` resumable backfill 只转换“已有 Evidence 且无 Candidate”的历史 run；应用事务要求 Candidate revision 存在后才进入 `author_confirmation_required` |
 
 ## 关键决策记录
 
@@ -896,3 +896,4 @@ P3 只消费 P2 已批准的 KnowledgeRevision。内部先构建可解释检索�
 | 2026-07-30 | `clinical-llm-wiki/service/object_store/`、`service/processing/`、`service/maintenance/`、`0003` migration、prerelease Schema、Compose/镜像、tests、README/USAGE/SPEC-12/13、P12 memory | P1-E 与 P1 Gate 完成：对象权威、durable ledger、三 pool 统一运行时、失败恢复、维护入口分离及本地容器骨架通过；P2 未启动 |
 | 2026-07-30 | `clinical-llm-wiki/service/sources/`、Document Worker/parser、`0004` migration、Source/Processing API、KUI-02/03、parser Gate 报告、tests、README/USAGE/SPEC-12/13、P12 memory | P2-A 完成：Source/Object 补偿、可审计孤儿清理、确定性 Source → Evidence DAG 和浏览器闭环通过；P2-B 未启动 |
 | 2026-07-30 | 本计划、`docs/dep/PLAN.md`、P12 memory | 用户批准重新定位主线为“可信知识闭环优先”；P2-B 拆为 B1 状态/治理合同、B2 fake/replay 闭环、B3 单一真实外部模型，下一 Gate 为 P2-B1 |
+| 2026-07-30 | `0005`/`0006` migrations、`service/knowledge/`、`service/governance/`、evidence-ready backfill、Candidate/Governance API、KUI-03/04、tests、README/USAGE/SPEC-12/13、P12 memory | P2-B1 完成：Evidence checkpoint 与人工 Gate 分离，Candidate eligibility、edge evidence、作者确认、独立审核、stale/idempotency、released immutability 和 worker/admin 越权门禁通过；下一 Gate 为 P2-B2 fake/replay 可回放闭环 |

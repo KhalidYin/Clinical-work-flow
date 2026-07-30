@@ -213,7 +213,7 @@ class InMemoryDocumentRepository:
                 hashes.append(fragment.content_sha256)
         if not hashes:
             raise ValueError("fan-in produced no evidence")
-        self.run_status = "author_confirmation_required"
+        self.run_status = "evidence_ready"
         return sha256("\n".join(sorted(hashes)).encode("utf-8")).hexdigest()
 
 
@@ -720,7 +720,7 @@ class SqlAlchemyDocumentRepository:
                     hashes.append(fragment.content_sha256)
             if not hashes:
                 raise ValueError("fan-in produced no evidence")
-            run.status = "author_confirmation_required"
+            run.status = "evidence_ready"
             run.updated_at = _utcnow()
             session.add(
                 AuditEvent(

@@ -19,6 +19,15 @@ from service.auth import (
     require_permission,
     resolve_human_actor,
 )
+from service.governance import KnowledgeGovernanceService
+from service.governance.service import (
+    CandidateNotFoundError,
+    DuplicateDecisionError,
+    InvalidGovernanceTransitionError,
+    RevisionNotFoundError,
+    StaleRevisionError,
+)
+from service.knowledge import AuthorConfirmationCommand, ReviewDecisionCommand
 from service.processing.ledger import (
     LedgerError,
     ProcessingLedgerPort,
@@ -36,6 +45,12 @@ from service.sources import (
 )
 
 from .contracts import (
+    AuthorConfirmationData,
+    AuthorConfirmationRequest,
+    AuthorConfirmationResponse,
+    CandidateCollectionData,
+    CandidateCollectionResponse,
+    CandidateSummaryData,
     CurrentReleaseData,
     CurrentReleaseResponse,
     CancelData,
@@ -52,6 +67,9 @@ from .contracts import (
     ProcessingRunData,
     ProcessingRunResponse,
     ProcessingStepData,
+    ReviewDecisionData,
+    ReviewDecisionRequest,
+    ReviewDecisionResponse,
     ResponseMeta,
     RetryData,
     RetryResponse,
@@ -85,6 +103,7 @@ class PlatformApiServices:
     semantic_index_available: bool = False
     source_registry: SourceRegistryService | None = None
     processing_ledger: ProcessingLedgerPort | None = None
+    governance: KnowledgeGovernanceService | None = None
 
 
 class PlatformApiError(RuntimeError):
@@ -484,6 +503,143 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
             )
         return ProcessingRunResponse(data=_processing_run_data(record), meta=_meta())
 
+    @app.get(
+        f"{API_PREFIX}/candidates",
+        operation_id="listCandidates",
+        response_model=CandidateCollectionResponse,
+        responses=protected_responses,
+    )
+    def list_candidates(
+        _actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.CANDIDATE_READ)),
+        ],
+    ) -> CandidateCollectionResponse:
+        try:
+            records, warnings = services.repository.list_candidates()
+        except SQLAlchemyError as exc:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="The candidate repository is unavailable.",
+            ) from exc
+        return CandidateCollectionResponse(
+            data=CandidateCollectionData(
+                items=[
+                    CandidateSummaryData(
+                        candidate_id=record.candidate_id,
+                        candidate_group_id=record.candidate_group_id,
+                        run_id=record.run_id,
+                        revision_number=record.revision_number,
+                        status=record.status,
+                        knowledge_type=record.knowledge_type,
+                        claim=record.claim,
+                        scope=record.scope,
+                        applicability=record.applicability,
+                        content_sha256=record.content_sha256,
+                        evidence_count=record.evidence_count,
+                        relation_proposal_count=record.relation_proposal_count,
+                        author_actor_id=record.author_actor_id,
+                        knowledge_revision_id=record.knowledge_revision_id,
+                        review_status=record.review_status,
+                    )
+                    for record in records
+                ],
+                total=len(records),
+                partial=bool(warnings),
+                warnings=list(warnings),
+            ),
+            meta=_meta(),
+        )
+
+    @app.post(
+        f"{API_PREFIX}/candidates/{{candidate_id}}/author-confirmation",
+        operation_id="confirmCandidateAuthor",
+        response_model=AuthorConfirmationResponse,
+        responses=write_responses,
+    )
+    def confirm_candidate_author(
+        candidate_id: str,
+        request: AuthorConfirmationRequest,
+        actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.CANDIDATE_SUBMIT)),
+        ],
+    ) -> AuthorConfirmationResponse:
+        if services.governance is None:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="Knowledge governance is not configured.",
+            )
+        try:
+            receipt = services.governance.confirm_candidate(
+                actor=actor,
+                command=AuthorConfirmationCommand(
+                    candidate_id=candidate_id,
+                    expected_revision_number=request.expected_revision_number,
+                    expected_content_sha256=request.expected_content_sha256,
+                    idempotency_key=request.idempotency_key,
+                ),
+            )
+        except Exception as exc:
+            _raise_governance_api_error(exc)
+        return AuthorConfirmationResponse(
+            data=AuthorConfirmationData(
+                candidate_id=receipt.candidate.candidate_id,
+                candidate_status=receipt.candidate.status,
+                knowledge_revision_id=receipt.revision.knowledge_revision_id,
+                revision_status=receipt.revision.status,
+                decision_id=receipt.decision_id,
+            ),
+            meta=_meta(),
+        )
+
+    @app.post(
+        f"{API_PREFIX}/knowledge-revisions/{{revision_id}}/review-decision",
+        operation_id="decideKnowledgeRevision",
+        response_model=ReviewDecisionResponse,
+        responses=write_responses,
+    )
+    def decide_knowledge_revision(
+        revision_id: str,
+        request: ReviewDecisionRequest,
+        actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.REVIEW_DECIDE)),
+        ],
+    ) -> ReviewDecisionResponse:
+        if services.governance is None:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="Knowledge governance is not configured.",
+            )
+        try:
+            receipt = services.governance.review_revision(
+                actor=actor,
+                command=ReviewDecisionCommand(
+                    candidate_id=request.candidate_id,
+                    knowledge_revision_id=revision_id,
+                    expected_revision_number=request.expected_revision_number,
+                    expected_content_sha256=request.expected_content_sha256,
+                    decision=request.decision,
+                    idempotency_key=request.idempotency_key,
+                    rationale=request.rationale,
+                ),
+            )
+        except Exception as exc:
+            _raise_governance_api_error(exc)
+        return ReviewDecisionResponse(
+            data=ReviewDecisionData(
+                candidate_id=receipt.revision.candidate_id,
+                knowledge_revision_id=receipt.revision.knowledge_revision_id,
+                revision_status=receipt.revision.status,
+                decision_id=receipt.decision_id,
+            ),
+            meta=_meta(),
+        )
+
     @app.post(
         f"{API_PREFIX}/processing-runs/{{run_id}}/steps/{{step_id}}/retry",
         operation_id="retryProcessingStep",
@@ -630,3 +786,37 @@ def _processing_run_data(record: ProcessingRunRecord) -> ProcessingRunData:
             for step in record.steps
         ],
     )
+
+
+def _raise_governance_api_error(error: Exception) -> None:
+    if isinstance(error, CandidateNotFoundError | RevisionNotFoundError):
+        raise PlatformApiError(
+            status_code=404,
+            code="candidate_not_found",
+            message="The governed candidate or revision does not exist.",
+        ) from error
+    if isinstance(error, StaleRevisionError):
+        raise PlatformApiError(
+            status_code=409,
+            code="stale_revision",
+            message="The candidate or revision changed before this decision.",
+        ) from error
+    if isinstance(error, DuplicateDecisionError):
+        raise PlatformApiError(
+            status_code=409,
+            code="duplicate_decision",
+            message="This governance decision was already submitted.",
+        ) from error
+    if isinstance(error, InvalidGovernanceTransitionError | AuthorizationError):
+        raise PlatformApiError(
+            status_code=409,
+            code="invalid_governance_transition",
+            message="The current governance state does not permit this decision.",
+        ) from error
+    if isinstance(error, SQLAlchemyError):
+        raise PlatformApiError(
+            status_code=503,
+            code="service_unavailable",
+            message="The governance repository is unavailable.",
+        ) from error
+    raise error

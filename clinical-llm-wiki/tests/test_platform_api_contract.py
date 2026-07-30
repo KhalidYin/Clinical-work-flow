@@ -91,6 +91,25 @@ class FakePlatformRepository:
                 steps=(step,),
             )
         ]
+        self.candidates = [
+            repository_module.CandidateSummaryRecord(
+                candidate_id="cand-api-001",
+                candidate_group_id="candgrp-api-aeseq",
+                run_id="run-api-001",
+                revision_number=1,
+                status="author_confirmation_required",
+                knowledge_type="variable_definition",
+                claim="AESEQ is the sequence identifier within the AE domain.",
+                scope={"standard": "SDTM", "domain": "AE"},
+                applicability={"standard_version": "3.4"},
+                content_sha256="b" * 64,
+                evidence_count=1,
+                relation_proposal_count=1,
+                author_actor_id=None,
+                knowledge_revision_id=None,
+                review_status=None,
+            )
+        ]
 
     def add_grant(self, grant: PlatformUserGrant) -> None:
         self._grants[(grant.issuer, grant.subject)] = grant
@@ -120,6 +139,9 @@ class FakePlatformRepository:
             (record for record in self.processing_runs if record.run_id == run_id),
             None,
         )
+
+    def list_candidates(self):
+        return self.candidates, []
 
 
 class FakeSourceRegistry:
@@ -156,6 +178,81 @@ class FakeProcessingLedger:
         self.cancelled.append(run_id)
 
 
+class FakeGovernanceService:
+    def __init__(self) -> None:
+        self.author_calls: list[dict[str, Any]] = []
+        self.review_calls: list[dict[str, Any]] = []
+
+    def confirm_candidate(self, **kwargs: Any):
+        from service.knowledge import (
+            AuthorConfirmationReceipt,
+            KnowledgeCandidateRecord,
+            KnowledgeRevisionRecord,
+        )
+
+        self.author_calls.append(kwargs)
+        return AuthorConfirmationReceipt(
+            candidate=KnowledgeCandidateRecord(
+                candidate_id="cand-api-001",
+                candidate_group_id="candgrp-api-aeseq",
+                run_id="run-api-001",
+                revision_number=1,
+                status="author_confirmed",
+                knowledge_type="variable_definition",
+                claim="AESEQ is the sequence identifier within the AE domain.",
+                scope={"standard": "SDTM", "domain": "AE"},
+                applicability={"standard_version": "3.4"},
+                evidence=[
+                    {
+                        "evidence_id": "ev-api-001",
+                        "source_version_id": "srcv-api-001",
+                        "locator": {"page": 35},
+                        "content_sha256": "a" * 64,
+                        "rights": {
+                            "classification": "licensed",
+                            "storage_allowed": True,
+                        },
+                    }
+                ],
+                content_sha256="b" * 64,
+                author_actor_id=kwargs["actor"].actor_id,
+            ),
+            revision=KnowledgeRevisionRecord(
+                knowledge_revision_id="krev-api-001",
+                knowledge_unit_id="ku-api-aeseq",
+                candidate_id="cand-api-001",
+                revision_number=1,
+                status="review_required",
+                claim="AESEQ is the sequence identifier within the AE domain.",
+                scope={"standard": "SDTM", "domain": "AE"},
+                applicability={"standard_version": "3.4"},
+                content_sha256="b" * 64,
+                author_actor_id=kwargs["actor"].actor_id,
+            ),
+            decision_id="decision-api-author-001",
+        )
+
+    def review_revision(self, **kwargs: Any):
+        from service.knowledge import KnowledgeRevisionRecord, ReviewDecisionReceipt
+
+        self.review_calls.append(kwargs)
+        return ReviewDecisionReceipt(
+            revision=KnowledgeRevisionRecord(
+                knowledge_revision_id="krev-api-001",
+                knowledge_unit_id="ku-api-aeseq",
+                candidate_id="cand-api-001",
+                revision_number=1,
+                status=kwargs["command"].decision.value,
+                claim="AESEQ is the sequence identifier within the AE domain.",
+                scope={"standard": "SDTM", "domain": "AE"},
+                applicability={"standard_version": "3.4"},
+                content_sha256="b" * 64,
+                author_actor_id="usr-curator",
+            ),
+            decision_id="decision-api-review-001",
+        )
+
+
 def _identity(subject: str, display_name: str) -> IdentityAssertion:
     return IdentityAssertion(
         identity_source="local_test",
@@ -187,6 +284,7 @@ def api_client():
         "admin-token": _identity("admin", "Platform Admin"),
         "curator-token": _identity("curator", "Knowledge Curator"),
         "consumer-token": _identity("consumer", "Knowledge Consumer"),
+        "reviewer-token": _identity("reviewer", "Knowledge Reviewer"),
         "disabled-token": _identity("disabled", "Disabled User"),
         "unmapped-token": _identity("unmapped", "Unmapped User"),
     }
@@ -199,6 +297,7 @@ def api_client():
         _grant("admin", "Platform Admin", "platform_admin"),
         _grant("curator", "Knowledge Curator", "knowledge_curator"),
         _grant("consumer", "Knowledge Consumer", "consumer"),
+        _grant("reviewer", "Knowledge Reviewer", "reviewer"),
         _grant("disabled", "Disabled User", "consumer", status="disabled"),
     ]
     for grant in grants:
@@ -222,6 +321,7 @@ def api_client():
         semantic_index_available=False,
         source_registry=FakeSourceRegistry(),
         processing_ledger=FakeProcessingLedger(),
+        governance=FakeGovernanceService(),
     )
     return TestClient(app_module.create_platform_app(services)), repository
 
@@ -435,6 +535,61 @@ def test_processing_routes_expose_discrete_run_state_retry_and_cancel(api_client
     assert cancel.json()["data"]["status"] == "cancelled"
 
 
+def test_candidate_routes_project_gate_state_and_enforce_separate_permissions(
+    api_client,
+) -> None:
+    client, _ = api_client
+
+    collection = client.get(
+        f"{API_PREFIX}/candidates",
+        headers=_auth("curator-token"),
+    )
+    assert collection.status_code == 200
+    item = collection.json()["data"]["items"][0]
+    assert item["status"] == "author_confirmation_required"
+    assert item["reviewStatus"] is None
+    assert item["evidenceCount"] == 1
+
+    confirmation = client.post(
+        f"{API_PREFIX}/candidates/cand-api-001/author-confirmation",
+        headers=_auth("curator-token"),
+        json={
+            "expectedRevisionNumber": 1,
+            "expectedContentSha256": "b" * 64,
+            "idempotencyKey": "api-author-confirm-001",
+        },
+    )
+    assert confirmation.status_code == 200
+    assert confirmation.json()["data"]["candidateStatus"] == "author_confirmed"
+    assert confirmation.json()["data"]["revisionStatus"] == "review_required"
+
+    forbidden_author = client.post(
+        f"{API_PREFIX}/candidates/cand-api-001/author-confirmation",
+        headers=_auth("reviewer-token"),
+        json={
+            "expectedRevisionNumber": 1,
+            "expectedContentSha256": "b" * 64,
+            "idempotencyKey": "api-author-forbidden-001",
+        },
+    )
+    assert forbidden_author.status_code == 403
+
+    review = client.post(
+        f"{API_PREFIX}/knowledge-revisions/krev-api-001/review-decision",
+        headers=_auth("reviewer-token"),
+        json={
+            "candidateId": "cand-api-001",
+            "expectedRevisionNumber": 1,
+            "expectedContentSha256": "b" * 64,
+            "decision": "approved",
+            "idempotencyKey": "api-review-approve-001",
+            "rationale": "Evidence and applicability confirmed.",
+        },
+    )
+    assert review.status_code == 200
+    assert review.json()["data"]["revisionStatus"] == "approved"
+
+
 def _openapi_component_schema(spec: dict[str, Any], name: str) -> dict[str, Any]:
     definitions = deepcopy(spec["components"]["schemas"])
 
@@ -482,6 +637,9 @@ def test_checked_in_openapi_matches_runtime_paths_roles_and_responses(api_client
             f"{API_PREFIX}/processing-runs/{{run_id}}",
             (f"{API_PREFIX}/processing-runs/{{run_id}}/steps/{{step_id}}/retry"),
             f"{API_PREFIX}/processing-runs/{{run_id}}/cancel",
+            f"{API_PREFIX}/candidates",
+            f"{API_PREFIX}/candidates/{{candidate_id}}/author-confirmation",
+            f"{API_PREFIX}/knowledge-revisions/{{revision_id}}/review-decision",
             f"{API_PREFIX}/admin/users",
         }
     )
@@ -525,6 +683,13 @@ def test_checked_in_openapi_matches_runtime_paths_roles_and_responses(api_client
             "ProcessingRunResponse",
             client.get(
                 f"{API_PREFIX}/processing-runs/run-api-001",
+                headers=_auth("admin-token"),
+            ),
+        ),
+        (
+            "CandidateCollectionResponse",
+            client.get(
+                f"{API_PREFIX}/candidates",
                 headers=_auth("admin-token"),
             ),
         ),

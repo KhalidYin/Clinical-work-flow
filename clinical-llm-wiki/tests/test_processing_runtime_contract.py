@@ -269,19 +269,14 @@ def test_handler_failure_is_recorded_without_exception_content() -> None:
     )
 
     assert runtime.run_once() is True
-    assert ledger.failed == [
-        ("attempt-1", "handler_error", "handler_error: RuntimeError")
-    ]
+    assert ledger.failed == [("attempt-1", "handler_error", "handler_error: RuntimeError")]
 
 
 def test_checked_in_processing_runtime_schema_matches_runtime_contract() -> None:
     checked_in = json.loads(
-        (
-            ROOT
-            / "schemas"
-            / "application"
-            / "processing-runtime.prerelease.schema.json"
-        ).read_text(encoding="utf-8")
+        (ROOT / "schemas" / "application" / "processing-runtime.prerelease.schema.json").read_text(
+            encoding="utf-8"
+        )
     )
     runtime = processing_runtime_contract_json_schema()
 
@@ -291,6 +286,7 @@ def test_checked_in_processing_runtime_schema_matches_runtime_contract() -> None
     assert set(checked_in["$defs"]["RunStatus"]["enum"]) == {
         "queued",
         "processing",
+        "evidence_ready",
         "author_confirmation_required",
         "review_required",
         "approved",

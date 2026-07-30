@@ -4,6 +4,7 @@ import { API_PATHS, resolveApiPath } from "../contracts/knowledgeApi";
 import {
   healthFixture,
   cancelReceiptFixture,
+  candidatesFixture,
   processingRunsFixture,
   releaseFixture,
   retryReceiptFixture,
@@ -23,6 +24,9 @@ export const handlers = [
   ),
   http.get(resolveApiPath(API_PATHS.processingRuns), () =>
     HttpResponse.json(processingRunsFixture),
+  ),
+  http.get(resolveApiPath(API_PATHS.candidates), () =>
+    HttpResponse.json(candidatesFixture),
   ),
   http.post(
     resolveApiPath(`${API_PATHS.processingRuns}/run-failed-002/steps/step-parse-text/retry`),

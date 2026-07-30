@@ -266,7 +266,7 @@ def test_document_handlers_write_derived_artifact_then_evidence_only_at_fan_in()
     assert evidence["source_artifact_kind"] == "original"
     assert evidence["derived_artifact_kind"] == "parser_output"
     assert evidence["parser_profile_version"] == DOCUMENT_PARSER_PROFILE_VERSION
-    assert repository.run_status == "author_confirmation_required"
+    assert repository.run_status == "evidence_ready"
     assert repository.candidates == []
     assert repository.releases == []
 

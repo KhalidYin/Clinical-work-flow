@@ -6,14 +6,18 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol, Sequence
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
 from service.auth import PlatformUserGrant
 from service.db.models import (
+    CandidateEvidence,
+    CandidateRelationProposal,
     Evidence,
     JobStep,
+    KnowledgeCandidate,
+    KnowledgeRevision,
     PlatformUser,
     ProcessingRun,
     Release,
@@ -90,6 +94,25 @@ class ProcessingRunRecord:
     steps: tuple[ProcessingStepRecord, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class CandidateSummaryRecord:
+    candidate_id: str
+    candidate_group_id: str
+    run_id: str
+    revision_number: int
+    status: str
+    knowledge_type: str
+    claim: str
+    scope: dict[str, object]
+    applicability: dict[str, object]
+    content_sha256: str
+    evidence_count: int
+    relation_proposal_count: int
+    author_actor_id: str | None
+    knowledge_revision_id: str | None
+    review_status: str | None
+
+
 class PlatformReadRepository(Protocol):
     def resolve_user(self, *, issuer: str, subject: str) -> PlatformUserGrant | None: ...
 
@@ -108,6 +131,10 @@ class PlatformReadRepository(Protocol):
     ) -> tuple[Sequence[ProcessingRunRecord], Sequence[str]]: ...
 
     def get_processing_run(self, *, run_id: str) -> ProcessingRunRecord | None: ...
+
+    def list_candidates(
+        self,
+    ) -> tuple[Sequence[CandidateSummaryRecord], Sequence[str]]: ...
 
 
 class SqlAlchemyPlatformRepository:
@@ -376,6 +403,69 @@ class SqlAlchemyPlatformRepository:
             evidence_count=evidence_count,
             steps=tuple(step_records),
         )
+
+    def list_candidates(self) -> tuple[list[CandidateSummaryRecord], list[str]]:
+        with self._session_factory() as session:
+            candidates = list(
+                session.scalars(
+                    select(KnowledgeCandidate)
+                    .order_by(
+                        KnowledgeCandidate.updated_at.desc(),
+                        KnowledgeCandidate.candidate_id,
+                    )
+                    .limit(100)
+                )
+            )
+            records: list[CandidateSummaryRecord] = []
+            warnings: list[str] = []
+            for candidate in candidates:
+                if (
+                    candidate.candidate_group_id is None
+                    or candidate.content_sha256 is None
+                    or candidate.applicability is None
+                ):
+                    warnings.append(
+                        f"candidate {candidate.candidate_id} lacks P2-B1 governance facts"
+                    )
+                    continue
+                evidence_count = session.scalar(
+                    select(func.count(CandidateEvidence.evidence_id)).where(
+                        CandidateEvidence.candidate_id == candidate.candidate_id
+                    )
+                )
+                proposal_count = session.scalar(
+                    select(func.count(CandidateRelationProposal.proposal_id)).where(
+                        CandidateRelationProposal.candidate_id == candidate.candidate_id
+                    )
+                )
+                revision = session.scalar(
+                    select(KnowledgeRevision)
+                    .where(KnowledgeRevision.candidate_id == candidate.candidate_id)
+                    .order_by(KnowledgeRevision.revision_number.desc())
+                    .limit(1)
+                )
+                records.append(
+                    CandidateSummaryRecord(
+                        candidate_id=candidate.candidate_id,
+                        candidate_group_id=candidate.candidate_group_id,
+                        run_id=candidate.run_id,
+                        revision_number=candidate.revision_number,
+                        status=candidate.status,
+                        knowledge_type=candidate.knowledge_type,
+                        claim=candidate.claim,
+                        scope=candidate.scope,
+                        applicability=candidate.applicability,
+                        content_sha256=candidate.content_sha256,
+                        evidence_count=evidence_count or 0,
+                        relation_proposal_count=proposal_count or 0,
+                        author_actor_id=candidate.author_actor_id,
+                        knowledge_revision_id=(
+                            revision.knowledge_revision_id if revision is not None else None
+                        ),
+                        review_status=(revision.status if revision is not None else None),
+                    )
+                )
+        return records, warnings
 
 
 def _media_type_label(media_type: str, object_key: str) -> str | None:

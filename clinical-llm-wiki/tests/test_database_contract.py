@@ -38,6 +38,7 @@ def test_canonical_metadata_owns_the_p2a_database_tables() -> None:
     assert set(Base.metadata.tables) == {
         "audit_events",
         "candidate_evidence",
+        "candidate_relation_proposals",
         "evidence",
         "evaluation_runs",
         "index_manifests",
@@ -54,6 +55,7 @@ def test_canonical_metadata_owns_the_p2a_database_tables() -> None:
         "prompt_profiles",
         "release_items",
         "releases",
+        "relation_proposal_evidence",
         "review_decisions",
         "role_bindings",
         "service_accounts",
@@ -107,6 +109,41 @@ def test_ledger_and_model_tables_preserve_the_frozen_p1_b0_contract() -> None:
         "error_type",
         "error_message",
     } <= invocation_columns
+
+
+def test_p2b1_governance_tables_preserve_revision_and_decision_identity() -> None:
+    candidate_columns = set(Base.metadata.tables["knowledge_candidates"].columns.keys())
+    assert {
+        "candidate_id",
+        "candidate_group_id",
+        "parent_candidate_id",
+        "revision_number",
+        "content_sha256",
+        "author_actor_id",
+    } <= candidate_columns
+
+    revision_columns = set(Base.metadata.tables["knowledge_revisions"].columns.keys())
+    assert "author_actor_id" in revision_columns
+
+    decision_columns = set(Base.metadata.tables["review_decisions"].columns.keys())
+    assert {
+        "candidate_revision_number",
+        "content_sha256",
+        "idempotency_key",
+    } <= decision_columns
+
+    proposal_columns = set(Base.metadata.tables["candidate_relation_proposals"].columns.keys())
+    assert {
+        "proposal_id",
+        "candidate_id",
+        "relation_type",
+        "target_knowledge_unit_id",
+        "status",
+    } <= proposal_columns
+    assert set(Base.metadata.tables["relation_proposal_evidence"].columns.keys()) == {
+        "proposal_id",
+        "evidence_id",
+    }
 
 
 def test_canonical_schema_keeps_secrets_paths_and_other_products_out() -> None:
@@ -256,8 +293,8 @@ def test_alembic_has_linear_reviewable_revisions(monkeypatch: pytest.MonkeyPatch
     assert script.get_heads() == [script.get_current_head()]
     head = script.get_revision(script.get_current_head())
     assert head is not None
-    assert head.revision == "20260730_0004"
-    assert head.down_revision == "20260730_0003"
+    assert head.revision == "20260730_0006"
+    assert head.down_revision == "20260730_0005"
     initial = script.get_revision("20260730_0001")
     assert initial is not None
     assert initial.down_revision is None
@@ -287,6 +324,8 @@ def test_linear_revision_columns_match_canonical_metadata(
         "20260730_0002",
         "20260730_0003",
         "20260730_0004",
+        "20260730_0005",
+        "20260730_0006",
     ]
 
     class MigrationRecorder:
@@ -319,8 +358,9 @@ def test_linear_revision_columns_match_canonical_metadata(
             columns: list[str],
             *,
             unique: bool,
+            **kwargs: object,
         ) -> None:
-            del columns, unique
+            del columns, unique, kwargs
             self.indexes.setdefault(table_name, set()).add(name)
 
         def create_check_constraint(
