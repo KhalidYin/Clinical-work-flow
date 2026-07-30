@@ -240,10 +240,21 @@ def test_governance_transitions_are_atomic_and_append_only(
             stored = session.get(KnowledgeCandidate, candidate.candidate_id)
             assert stored is not None
             assert stored.content_sha256 == candidate.content_sha256
-            proposal = session.scalar(select(CandidateRelationProposal))
+            proposal = session.scalar(
+                select(CandidateRelationProposal).where(
+                    CandidateRelationProposal.candidate_id == candidate.candidate_id
+                )
+            )
             assert proposal is not None
             assert proposal.target_knowledge_unit_id == "ku-gov-sdtm-ae"
-            assert session.scalar(select(RelationProposalEvidence)) is not None
+            assert (
+                session.scalar(
+                    select(RelationProposalEvidence).where(
+                        RelationProposalEvidence.proposal_id == proposal.proposal_id
+                    )
+                )
+                is not None
+            )
 
         confirmation_command = AuthorConfirmationCommand(
             candidate_id=candidate.candidate_id,
@@ -292,7 +303,11 @@ def test_governance_transitions_are_atomic_and_append_only(
                 == "approved"
             )
             decisions = list(
-                session.scalars(select(ReviewDecision).order_by(ReviewDecision.created_at))
+                session.scalars(
+                    select(ReviewDecision)
+                    .where(ReviewDecision.candidate_id == candidate.candidate_id)
+                    .order_by(ReviewDecision.created_at)
+                )
             )
             assert [decision.decision for decision in decisions] == [
                 "author_confirmed",

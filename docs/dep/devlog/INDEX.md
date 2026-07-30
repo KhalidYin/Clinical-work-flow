@@ -80,5 +80,6 @@
 | R084 | 2026-07-31 | 01:35 | P12-knowledge-application-platform | P2-B2a | 接通 fake/replay Enrichment、retry lineage、Candidate detail/revision API 与实库治理闭环 | `clinical-llm-wiki/service/`, `clinical-llm-wiki/schemas/application/`, `clinical-llm-wiki/tests/`, `docs/dep/` | active/DEVLOG-R049-R088.md |
 | R085 | 2026-07-31 | 00:27 | P12-knowledge-application-platform | P2-B2b | 完成 KUI-04 证据对照、版本化编辑、作者确认、独立审核与 stale 恢复 | `clinical-llm-wiki/frontend/src/`, `docs/dep/` | active/DEVLOG-R049-R088.md |
 | R086 | 2026-07-31 | 00:44 | P12-knowledge-application-platform | P2-B2c | 建立真实 Source→Evidence→replay Candidate 与多身份完整本地前后端启动路径 | `clinical-llm-wiki/service/`, `clinical-llm-wiki/frontend/`, `clinical-llm-wiki/compose.yaml`, `docs/dep/` | active/DEVLOG-R049-R088.md |
+| R087 | 2026-07-31 | 00:56 | P12-knowledge-application-platform | P2-B2d | 关闭真实浏览器 revision/request-change/独立审核、负向门禁与批准未发布 Gate | `clinical-llm-wiki/frontend/src/`, `clinical-llm-wiki/tests/`, `docs/dep/` | active/DEVLOG-R049-R088.md |
 
 > Legacy rounds R001-R008 remain immutable in [DEVLOG-legacy.md](archive/DEVLOG-legacy.md). They predate the searchable index and were intentionally not rewritten during adoption.

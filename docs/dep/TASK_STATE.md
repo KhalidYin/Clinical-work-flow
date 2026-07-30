@@ -1,7 +1,7 @@
 ---
 status: in-progress
 created: 2026-07-31 00:00
-updated: 2026-07-31 00:44
+updated: 2026-07-31 00:56
 ---
 
 # Current Task
@@ -20,13 +20,14 @@ P2-B2 — 完成 fake/replay 可回放知识治理闭环与完整前后端 E2E�
 - [x] 实现 Candidate Review 完整 API 驱动前端并通过组件/构建/浏览器 Gate
 - [x] 前端阶段提交并同步远端（`72a94c8`）
 - [x] 建立可重复 demo bootstrap 与完整前后端启动路径
-- [ ] 执行真实 API、PostgreSQL、浏览器 E2E、窄屏与负向门禁
+- [x] 可运行产品阶段提交并同步远端（`7953331`）
+- [x] 执行真实 API、PostgreSQL、浏览器 E2E、窄屏与负向门禁
 - [ ] 同步 P12/PLAN/规范/USAGE/memory/DEVLOG，删除本文件并最终提交推送
 
 ## Working Context
 
 - **Files being edited**: `clinical-llm-wiki/service/processing/`、`service/governance/`、`service/platform_api/`、`frontend/src/`、`tests/`、Compose/bootstrap/E2E 与 P12 文档
-- **Last command run**: 空卷执行 `scripts/start-demo.ps1 -Reset`；PostgreSQL、migration、bootstrap、Document/Enrichment Worker、API 与 Nginx frontend 全部健康；数据库为 Evidence=1、Candidate=1、ModelInvocation=`replayed`、Release=0
+- **Last command run**: 从空 `knowledge_test` 数据库执行 P2-B2 replay/governance/API PostgreSQL 矩阵，31 passed；前端 19 passed，Ruff/typecheck/build 通过；真实浏览器完成 request-change → revision 2 → reconfirm → approve
 - **Key decisions**: `input_sha256` 只覆盖真实模型输入，Attempt lineage 独立留痕；Source 注册的 DAG 自动加入独立 enrichment pool；B2 不增加数据库字段，复用 P2-B1 的 0006 schema，避免无依据 migration
 - **Blocker**: None
 
@@ -41,4 +42,4 @@ P2-B2 — 完成 fake/replay 可回放知识治理闭环与完整前后端 E2E�
 
 ## Resume From
 
-提交并 push 可运行 demo 阶段；随后使用真实 token 在 production frontend 完成 Author → Reviewer → revision 2 → approve 浏览器 E2E 与负向门禁。
+提交并 push E2E 修复阶段；随后同步 P12/PLAN/规范/USAGE/memory，删除本文件，执行最终运行态健康检查并提交推送。

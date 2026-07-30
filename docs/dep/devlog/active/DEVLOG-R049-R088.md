@@ -1610,3 +1610,66 @@
 - `clinical-llm-wiki/tests/test_demo_runtime_contract.py`
 - 已同步阶段提交：后端 `5292150`、KUI-04 `72a94c8`
 - 本轮可运行 demo 阶段：门禁后提交并 push
+
+### R087 [00:56] [P12-knowledge-application-platform] P2-B2d: 关闭真实浏览器治理与批准未发布 Gate
+
+#### Done
+
+- 在 production frontend、真实 FastAPI/PostgreSQL 和两个独立异步 Worker 上完成完整人工闭环：
+  Author 确认 revision 1 → 独立 Reviewer request-change → Author 建立并重新确认 revision 2
+  → 独立 Reviewer approve；全程通过本地 opaque token 重新认证并由数据库 RBAC 解析角色。
+- 真实 E2E 暴露 request-change 后 UI 仍按 Candidate `author_confirmed` 判断为不可编辑。先增加
+  失败组件测试，再把 `reviewStatus=changes_requested` 明确送回作者修订 Gate；旧 revision
+  保留为 `changes_requested`，新 Candidate 通过 parent lineage 建立，不在原对象上覆盖。
+- 真实 API 负向门禁通过：无认证读返回 401，Author 调 Reviewer API 返回
+  `403 permission_denied`，Reviewer 携带错误 content hash 返回 `409 stale_revision`；
+  三次负向调用均未改变有效审核事实。
+- 批准后数据库保持 `Release=0`、`ReleaseItem=0`；released REST 返回
+  `status=not_released/releaseId=null`。P3/P4 之前未暴露的 MCP/Query surface 均 fail closed
+  为 404，Candidate/approved revision 不形成旁路。
+- 强化 PostgreSQL acceptance：明确断言 approved revision 不创建 Release/ReleaseItem，
+  released-read repository 返回空；同时修复既有治理测试的全表首条 relation/decision 查询，
+  改为按当前 Candidate/proposal 定位，消除测试顺序依赖。
+
+#### Issues / Blockers
+
+- 当前浏览器的 `127.0.0.1:4173` origin 遗留旧开发 MSW service worker，不能作为真实 E2E
+  证据；改用同一 Nginx 容器的 `localhost:4173` 新 origin 后确认所有数据来自 FastAPI 与
+  PostgreSQL，没有把 fixture 页面冒充产品。
+- 第一次后端组合 Gate 因复用测试库的固定 ID fixture 失败；清空明确命名的独立
+  `p12-p2b2-test-postgres/knowledge_test` 后，又暴露一处 relation proposal 全表首条断言。
+  修正作用域并再次从空库执行后全绿；演示产品数据库和其他项目容器均未触碰。
+- Starlette TestClient/httpx2 deprecation warning 仍存在，不阻断 P2-B2；真实外部模型、
+  Release、索引、Query Lab 和 MCP 仍按计划留在后续阶段。
+
+#### Validation
+
+- 真实浏览器：Evidence、locator、rights、Candidate、relation proposal、revision 1/2、
+  request-change、reconfirm、independent approve 均来自生产构建和真实 API；最终页面明确显示
+  “审核已批准，但尚未发布”。
+- 390×844 实测 `innerWidth=390`、document/body `scrollWidth=386`，无横向溢出；
+  Evidence top 226.1、Candidate top 727.6，保持证据优先阅读顺序。
+- 真实实库：Evidence=1、Candidate=2、ModelInvocation=1 (`replayed`)、
+  ReviewDecision=4、Release=0、ReleaseItem=0；run=`approved`，revision 1
+  `changes_requested`、revision 2 `approved`。
+- 从空 PostgreSQL 执行 replay/governance/API 矩阵 31 passed；前端 3 个测试文件、
+  19 passed；Ruff、TypeScript typecheck 与 production build 通过
+  （413 modules，JS gzip 126.23 kB）。
+
+#### Next
+
+1. 同步 P12 唯一计划、PLAN、SPEC-12/13、README/USAGE 与 project memory，逐项关闭
+   P2-B2 completion criteria。
+2. 保留当前完整产品运行态，执行 Compose/HTTP 最终健康检查后删除临时 `TASK_STATE.md`，
+   提交并 push 文档收口。
+3. 下一阶段仍是 P2-B3 单一真实外部模型；主要风险是将 B2 的 replay 成功误当成真实模型质量
+   或提前实现 P3/P4 的 MCP、Query/索引能力。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/frontend/src/pages/CandidatesPage.tsx`
+- `clinical-llm-wiki/frontend/src/test/candidate-review.test.tsx`
+- `clinical-llm-wiki/tests/test_enrichment_governance_postgres_integration.py`
+- `clinical-llm-wiki/tests/test_knowledge_governance_postgres_integration.py`
+- `docs/dep/TASK_STATE.md`、DevLog/index
+- commit：本轮门禁后创建并 push

@@ -380,7 +380,10 @@ function CandidateReviewPanel({
   const canWrite = Boolean(session?.permissions.includes("candidate:write"));
   const canSubmit = Boolean(session?.permissions.includes("candidate:submit"));
   const canReview = Boolean(session?.permissions.includes("review:decide"));
-  const authorGate = candidate.status === "author_confirmation_required";
+  const authorGate =
+    candidate.status === "author_confirmation_required" ||
+    (candidate.status === "author_confirmed" &&
+      candidate.reviewStatus === "changes_requested");
   const reviewerGate =
     candidate.status === "author_confirmed" &&
     candidate.reviewStatus === "review_required" &&
@@ -700,7 +703,9 @@ function preferredCandidate(items: CandidateSummary[], session: Session): Candid
     session.permissions.includes("candidate:submit")
   ) {
     const authorable = items.find(
-      (candidate) => candidate.status === "author_confirmation_required",
+      (candidate) =>
+        candidate.status === "author_confirmation_required" ||
+        candidate.reviewStatus === "changes_requested",
     );
     if (authorable) {
       return authorable;
@@ -712,6 +717,9 @@ function preferredCandidate(items: CandidateSummary[], session: Session): Candid
 function gateLabel(candidate: CandidateSummary): string {
   if (candidate.status === "author_confirmation_required") {
     return "待作者确认";
+  }
+  if (candidate.reviewStatus === "changes_requested") {
+    return "待作者修订";
   }
   if (candidate.reviewStatus === "review_required") {
     return "待独立审核";

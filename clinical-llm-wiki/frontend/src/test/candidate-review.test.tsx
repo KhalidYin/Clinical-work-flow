@@ -157,6 +157,31 @@ describe("KUI-04 Candidate governance workbench", () => {
     expect(screen.getByRole("button", { name: "编辑候选" })).toBeInTheDocument();
   });
 
+  it("returns a changes-requested confirmed revision to the author editing gate", async () => {
+    server.use(
+      http.get(resolveApiPath(API_PATHS.session), () => HttpResponse.json(authorSession)),
+      http.get(
+        resolveApiPath(`${API_PATHS.candidates}/cand-ui-aeseq-001`),
+        () =>
+          HttpResponse.json(
+            authorDetail({
+              status: "author_confirmed",
+              authorActorId: "usr-author-ui",
+              knowledgeRevisionId: "krev-ui-aeseq-001",
+              reviewStatus: "changes_requested",
+            }),
+          ),
+      ),
+    );
+    renderCandidates();
+
+    expect(await screen.findByText("作者确认 Gate")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "编辑候选" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "审核通过" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("creates revision N+1 from an edited claim and opens the returned candidate", async () => {
     useAuthorDetailHandler();
     let requestBody: Record<string, unknown> | null = null;

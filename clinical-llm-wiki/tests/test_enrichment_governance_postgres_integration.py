@@ -35,6 +35,8 @@ from service.db.models import (
     ModelProfile,
     ProcessingRun,
     PromptProfile,
+    Release,
+    ReleaseItem,
     Source,
     SourceArtifact,
     SourceVersion,
@@ -62,6 +64,7 @@ from service.processing.model_provider import (
     ReplayModelProvider,
 )
 from service.processing.worker import WorkerRuntime
+from service.platform_api.repository import SqlAlchemyPlatformRepository
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -471,6 +474,13 @@ def test_replay_retry_candidate_revision_and_independent_approval_are_durable(
             assert session.get(KnowledgeRevision, approved.revision.knowledge_revision_id).status == (
                 "approved"
             )
+            assert session.scalar(select(func.count(Release.release_id))) == 0
+            assert (
+                session.scalar(
+                    select(func.count()).select_from(ReleaseItem)
+                )
+                == 0
+            )
             events = list(
                 session.scalars(select(AuditEvent).where(AuditEvent.run_id == run_id))
             )
@@ -498,5 +508,6 @@ def test_replay_retry_candidate_revision_and_independent_approval_are_durable(
                     "output_sha256",
                     "result",
                 } <= event.details.keys()
+        assert SqlAlchemyPlatformRepository(sessions).get_current_release() is None
     finally:
         engine.dispose()
