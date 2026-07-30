@@ -1436,3 +1436,68 @@
 - `clinical-llm-wiki/frontend/src/`、P2-B1 backend/frontend/PostgreSQL tests
 - README/USAGE/SPEC-12/13、P12 plan/PLAN/memory、DevLog/index
 - commit：本轮门禁后创建；未 push
+
+---
+
+## 2026-07-31
+
+### R084 [01:35] [P12-knowledge-application-platform] P2-B2a: 接通可回放 Enrichment 与版本化治理后端
+
+#### Done
+
+- 以 RED 测试修正 replay identity：`ModelRequest.input_sha256` 只由版本化模型、Prompt、
+  Schema、data boundary 和真实消息决定；`StepAttempt` 继续独立记录 attempt ID、序号和
+  previous lineage，因此重试既能精确回放，又不会丢失一次新的执行事实。
+- 新增独立 Enrichment Worker：从 canonical Evidence 构建严格 JSON 请求，fake/replay
+  adapter 只接受显式本地 JSON，不允许 live fallback；模型输出经 Schema 和 Evidence ID
+  校验后只能建立 Candidate 与 typed relation proposal。
+- Source 注册建立的 durable DAG 现在在 Document fan-in 后附加独立 enrichment pool step。
+  `evidence_ready` 只允许 Enrichment Worker claim；失败只重试该 step，不重跑已成功的
+  Document step。
+- Candidate 创建支持处理态幂等重放；provider 成功、Candidate 已写但 ledger completion
+  中断时，新 Attempt 可复用完全相同的 Candidate，不重复建立 revision。
+- 新增 Candidate detail 与 revision API。detail 返回 Evidence 内容、locator、rights、条件、
+  例外和 typed relation proposal；作者编辑或 Reviewer request-change 后创建 Candidate N+1，
+  parent 标记 superseded，旧 Candidate、KnowledgeRevision 与 ReviewDecision 保持不可覆盖。
+- 强化 append-only Audit：模型调用、Candidate 创建/修订、作者确认与 Reviewer 决策均记录
+  actor、permission、对象/修订、result、correlation ID、input/output hash。
+- 更新 prerelease OpenAPI；本阶段复用 P2-B1 已冻结的 27 表/`0006` schema，没有为了
+  application behavior 增加空迁移。
+
+#### Issues / Blockers
+
+- 首次 replay RED 失败暴露 input hash 混入 Attempt identity；根因是把执行事实误当成了
+  provider payload。修正后同一输入在 Attempt 1/2 hash 相同，而 invocation 仍分别关联各自
+  attempt。
+- 实库组合测试首次受固定 fixture 和全表断言污染：旧 Source/ Candidate 会导致后续用例
+  误判。把 Document 测试改为按当前 run 查询，并以全新临时数据库运行完整定向集合；
+  未删除或篡改其他测试事实。
+- 仓库 legacy 全量仍有 19 个与本阶段无关的失败：受许可 SDTMIG 原件/派生文件未纳入 Git，
+  以及历史 snapshot/workflow projection 已 stale。定向 P1/P2 Gate 全绿；没有伪造受限资产
+  或重建旧治理输出掩盖现状。
+
+#### Validation
+
+- fake/replay、Source/Document、ledger、治理、OpenAPI/API 等单元与合同测试通过。
+- 全新 `pgvector/pgvector:0.8.1-pg17` 数据库执行 clean migration、P1/P2-A 回归与
+  P2-B2 replay miss → retry → Candidate → author → request-change → revision 2 →
+  independent approve，共 100 passed。
+- 实库断言 Document step 只有 1 个 Attempt、Enrichment 有 2 个 linked Attempt、Candidate
+  初次只 1 条、旧 revision 为 `changes_requested`、新 revision 为 `approved`；审计字段齐全。
+- Ruff 对后端、合同与新增测试通过；没有外部网络模型调用，也没有真实 API key。
+
+#### Next
+
+1. 用组件 RED 测试冻结 KUI-04 的 Evidence 对照、可编辑修订、作者确认、Reviewer 决策和
+   explicit stale conflict；不能只验证静态标题。
+2. 将 Candidate 页面接入 detail/revision/confirmation/review API，并覆盖 loading、empty、
+   error、partial、stale 与 390px 窄屏。
+3. 后续 demo bootstrap 必须使用真实 PostgreSQL、Document/Enrichment worker 和 replay
+   fixture；不能用 MSW 页面冒充完整产品。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/service/processing/`、`service/knowledge/`、`service/governance/`
+- `clinical-llm-wiki/service/platform_api/`、`schemas/application/knowledge-api.prerelease.yaml`
+- `clinical-llm-wiki/tests/test_*p2b2*` 与相关 P1/P2 回归
+- commit：本轮门禁后创建；未 push

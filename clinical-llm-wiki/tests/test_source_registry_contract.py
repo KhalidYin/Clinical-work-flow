@@ -133,11 +133,11 @@ def test_register_is_idempotent_and_new_version_is_distinct() -> None:
     assert first.original_object.sha256 == sha256(PDF).hexdigest()
     assert len(repository.visible_source_versions()) == 2
     assert len(ledger.created) == 2
-    assert all(
-        step.pool is WorkerPool.DOCUMENT
-        for invocation in ledger.created
-        for step in invocation["steps"]  # type: ignore[index]
-    )
+    for invocation in ledger.created:
+        steps = invocation["steps"]  # type: ignore[index]
+        assert [step.step_key for step in steps][-1] == "enrichment.extract_candidate"
+        assert steps[-1].pool is WorkerPool.ENRICHMENT
+        assert steps[-1].depends_on == ("document.persist_evidence",)
 
 
 def test_registered_source_replay_repairs_a_transient_run_creation_failure() -> None:

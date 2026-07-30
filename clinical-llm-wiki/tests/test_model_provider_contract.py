@@ -362,6 +362,32 @@ def test_fake_and_replay_adapters_validate_output_without_network_fallback() -> 
         replay.invoke(changed_request)
 
 
+def test_retry_attempt_replays_the_same_versioned_model_input_without_network() -> None:
+    contract = _model_provider_module()
+    first = _request(contract)
+    retry = first.model_copy(
+        update={
+            "attempt": contract.StepAttemptContext(
+                run_id=first.attempt.run_id,
+                step_id=first.attempt.step_id,
+                attempt_id="attempt-002",
+                attempt_number=2,
+                previous_attempt_id=first.attempt.attempt_id,
+            )
+        }
+    )
+    output = {"claim": "AESEQ is a sequence identifier."}
+    replay = contract.ReplayModelProvider(records={first.input_sha256: output})
+
+    replayed = replay.invoke(retry)
+
+    assert retry.attempt.attempt_id != first.attempt.attempt_id
+    assert retry.input_sha256 == first.input_sha256
+    assert replayed.attempt == retry.attempt
+    assert replayed.status == contract.InvocationStatus.REPLAYED
+    assert replayed.provider_request_id == f"replay:{first.input_sha256[:16]}"
+
+
 def test_checked_in_model_contract_schema_matches_runtime_models() -> None:
     contract = _model_provider_module()
     checked_in = json.loads(

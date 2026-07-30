@@ -11,12 +11,14 @@ from service.auth import (
     AuthorizationError,
     Permission,
     PrincipalType,
+    WorkerPool,
     require_independent_review,
     require_permission,
 )
 from service.knowledge import (
     AuthorConfirmationCommand,
     AuthorConfirmationReceipt,
+    CandidateRevisionCommand,
     CandidateStatus,
     KnowledgeCandidateDraft,
     KnowledgeCandidateRecord,
@@ -87,6 +89,15 @@ class GovernanceRepository(Protocol):
         actor_id: str,
     ) -> None: ...
 
+    def create_candidate_revision(
+        self,
+        *,
+        parent: KnowledgeCandidateRecord,
+        candidate: KnowledgeCandidateRecord,
+        actor_id: str,
+        idempotency_key: str,
+    ) -> None: ...
+
     def confirm_candidate(
         self,
         *,
@@ -122,9 +133,35 @@ class KnowledgeGovernanceService:
         require_permission(actor, Permission.CANDIDATE_WRITE)
         if draft.relation_proposals:
             require_permission(actor, Permission.RELATION_PROPOSE)
-        if self._repository.run_status(draft.run_id) != "evidence_ready":
+        candidate_id = _stable_id(
+            "cand",
+            f"{draft.candidate_group_id}:{draft.revision_number}",
+        )
+        existing = self._repository.get_candidate(candidate_id)
+        if existing is not None:
+            proposed = KnowledgeCandidateRecord(
+                **draft.model_dump(),
+                candidate_id=candidate_id,
+                content_sha256=candidate_content_sha256(draft),
+                status=CandidateStatus.AUTHOR_CONFIRMATION_REQUIRED,
+            )
+            if (
+                existing.content_sha256 == proposed.content_sha256
+                and existing.run_id == proposed.run_id
+            ):
+                return existing
+            raise InvalidGovernanceTransitionError("candidate revision already exists")
+        run_status = self._repository.run_status(draft.run_id)
+        if run_status not in {"evidence_ready", "processing"}:
             raise InvalidGovernanceTransitionError(
-                "candidate can be registered only from evidence_ready"
+                "candidate can be registered only from evidence_ready or enrichment processing"
+            )
+        if run_status == "processing" and (
+            actor.principal_type is not PrincipalType.SERVICE_ACCOUNT
+            or actor.worker_pool is not WorkerPool.ENRICHMENT
+        ):
+            raise InvalidGovernanceTransitionError(
+                "only the enrichment worker may register during processing"
             )
         for reference in draft.evidence:
             if not self._repository.evidence_exists(reference.evidence_id):
@@ -137,10 +174,6 @@ class KnowledgeGovernanceService:
                     f"relation target {proposal.target_knowledge_unit_id} does not exist"
                 )
 
-        candidate_id = _stable_id(
-            "cand",
-            f"{draft.candidate_group_id}:{draft.revision_number}",
-        )
         candidate = KnowledgeCandidateRecord(
             **draft.model_dump(),
             candidate_id=candidate_id,
@@ -148,6 +181,58 @@ class KnowledgeGovernanceService:
             status=CandidateStatus.AUTHOR_CONFIRMATION_REQUIRED,
         )
         self._repository.create_candidate(candidate=candidate, actor_id=actor.actor_id)
+        return candidate
+
+    def revise_candidate(
+        self,
+        *,
+        actor: ActorContext,
+        command: CandidateRevisionCommand,
+    ) -> KnowledgeCandidateRecord:
+        _require_human(actor, Permission.CANDIDATE_WRITE)
+        parent = self._repository.get_candidate(command.candidate_id)
+        if parent is None:
+            raise CandidateNotFoundError(command.candidate_id)
+        if (
+            parent.revision_number != command.expected_revision_number
+            or parent.content_sha256 != command.expected_content_sha256
+        ):
+            raise StaleRevisionError("candidate revision or content hash is stale")
+        if parent.status not in {
+            CandidateStatus.AUTHOR_CONFIRMATION_REQUIRED,
+            CandidateStatus.AUTHOR_CONFIRMED,
+        }:
+            raise InvalidGovernanceTransitionError("candidate cannot create another revision")
+        draft = KnowledgeCandidateDraft(
+            candidate_group_id=parent.candidate_group_id,
+            parent_candidate_id=parent.candidate_id,
+            run_id=parent.run_id,
+            revision_number=parent.revision_number + 1,
+            knowledge_type=parent.knowledge_type,
+            claim=command.claim,
+            scope=command.scope,
+            applicability=command.applicability,
+            conditions=command.conditions,
+            exceptions=command.exceptions,
+            evidence=parent.evidence,
+            relation_proposals=parent.relation_proposals,
+            confidence=parent.confidence,
+        )
+        candidate = KnowledgeCandidateRecord(
+            **draft.model_dump(),
+            candidate_id=_stable_id(
+                "cand",
+                f"{draft.candidate_group_id}:{draft.revision_number}",
+            ),
+            content_sha256=candidate_content_sha256(draft),
+            status=CandidateStatus.AUTHOR_CONFIRMATION_REQUIRED,
+        )
+        self._repository.create_candidate_revision(
+            parent=parent,
+            candidate=candidate,
+            actor_id=actor.actor_id,
+            idempotency_key=command.idempotency_key,
+        )
         return candidate
 
     def confirm_candidate(
@@ -274,6 +359,10 @@ class InMemoryGovernanceRepository:
         self._decisions: set[tuple[str, str]] = set()
         self.audit_events: list[AuditRecord] = []
 
+    @property
+    def candidates(self) -> tuple[KnowledgeCandidateRecord, ...]:
+        return tuple(self._candidates.values())
+
     def run_status(self, run_id: str) -> str | None:
         return self._runs.get(run_id)
 
@@ -300,8 +389,8 @@ class InMemoryGovernanceRepository:
     ) -> None:
         if candidate.candidate_id in self._candidates:
             raise InvalidGovernanceTransitionError("candidate revision already exists")
-        if self._runs.get(candidate.run_id) != "evidence_ready":
-            raise InvalidGovernanceTransitionError("run is not evidence_ready")
+        if self._runs.get(candidate.run_id) not in {"evidence_ready", "processing"}:
+            raise InvalidGovernanceTransitionError("run is not eligible for enrichment")
         self._candidates[candidate.candidate_id] = candidate
         self._runs[candidate.run_id] = "author_confirmation_required"
         self.audit_events.append(
@@ -315,6 +404,55 @@ class InMemoryGovernanceRepository:
                     "candidate_group_id": candidate.candidate_group_id,
                     "revision_number": candidate.revision_number,
                     "content_sha256": candidate.content_sha256,
+                    "permission": Permission.CANDIDATE_WRITE.value,
+                    "correlation_id": candidate.run_id,
+                    "input_sha256": candidate.evidence[0].content_sha256,
+                    "output_sha256": candidate.content_sha256,
+                    "result": candidate.status.value,
+                },
+            )
+        )
+
+    def create_candidate_revision(
+        self,
+        *,
+        parent: KnowledgeCandidateRecord,
+        candidate: KnowledgeCandidateRecord,
+        actor_id: str,
+        idempotency_key: str,
+    ) -> None:
+        current = self._candidates.get(parent.candidate_id)
+        if current != parent:
+            raise StaleRevisionError("candidate revision or content hash is stale")
+        if candidate.candidate_id in self._candidates:
+            raise InvalidGovernanceTransitionError("candidate revision already exists")
+        if parent.status is CandidateStatus.AUTHOR_CONFIRMED:
+            revision = self._revisions.get(_stable_id("krev", parent.candidate_id))
+            if revision is None or revision.status is not KnowledgeRevisionStatus.CHANGES_REQUESTED:
+                raise InvalidGovernanceTransitionError("confirmed candidate has no change request")
+        elif parent.status is not CandidateStatus.AUTHOR_CONFIRMATION_REQUIRED:
+            raise InvalidGovernanceTransitionError("candidate cannot be revised")
+        self._candidates[parent.candidate_id] = parent.model_copy(
+            update={"status": CandidateStatus.SUPERSEDED}
+        )
+        self._candidates[candidate.candidate_id] = candidate
+        self._runs[candidate.run_id] = "author_confirmation_required"
+        self._decisions.add((actor_id, idempotency_key))
+        self.audit_events.append(
+            AuditRecord(
+                actor_id=actor_id,
+                action="candidate.revised",
+                entity_type="knowledge_candidate",
+                entity_id=candidate.candidate_id,
+                run_id=candidate.run_id,
+                details={
+                    "parent_candidate_id": parent.candidate_id,
+                    "revision_number": candidate.revision_number,
+                    "input_sha256": parent.content_sha256,
+                    "output_sha256": candidate.content_sha256,
+                    "correlation_id": idempotency_key,
+                    "permission": Permission.CANDIDATE_WRITE.value,
+                    "result": candidate.status.value,
                 },
             )
         )
@@ -349,6 +487,11 @@ class InMemoryGovernanceRepository:
                     "knowledge_revision_id": revision.knowledge_revision_id,
                     "revision_number": revision.revision_number,
                     "content_sha256": revision.content_sha256,
+                    "permission": Permission.CANDIDATE_SUBMIT.value,
+                    "correlation_id": idempotency_key,
+                    "input_sha256": candidate.content_sha256,
+                    "output_sha256": revision.content_sha256,
+                    "result": revision.status.value,
                 },
             )
         )
@@ -389,6 +532,11 @@ class InMemoryGovernanceRepository:
                     "revision_number": revision.revision_number,
                     "content_sha256": revision.content_sha256,
                     "rationale": rationale,
+                    "permission": Permission.REVIEW_DECIDE.value,
+                    "correlation_id": idempotency_key,
+                    "input_sha256": revision.content_sha256,
+                    "output_sha256": revision.content_sha256,
+                    "result": decision.value,
                 },
             )
         )

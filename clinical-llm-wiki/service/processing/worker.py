@@ -30,6 +30,7 @@ from service.db.session import (
     database_url_from_environment,
 )
 from service.object_store import LocalObjectStore
+from service.governance import KnowledgeGovernanceService, SqlAlchemyGovernanceRepository
 from service.sources import (
     SourceRegistryService,
     SqlAlchemySourceRegistryRepository,
@@ -42,6 +43,13 @@ from .document_worker import (
     document_step_handlers,
 )
 from .ledger import PostgresProcessingLedger, ProcessingLedgerPort
+from .enrichment import (
+    EnrichmentWorkerService,
+    SqlAlchemyEnrichmentRepository,
+    enrichment_step_handlers,
+    load_enrichment_profiles,
+    offline_provider_from_config,
+)
 from .parsers import ParserRegistry
 
 
@@ -252,6 +260,43 @@ def main(argv: Sequence[str] | None = None) -> int:
             actor_id=actor.actor_id,
         )
         handlers = document_step_handlers(document_service)
+    elif pool is WorkerPool.ENRICHMENT:
+        model_profile, prompt_profile = load_enrichment_profiles(
+            sessions,
+            model_profile_id=os.environ.get(
+                "KNOWLEDGE_ENRICHMENT_MODEL_PROFILE_ID",
+                "demo-extractor",
+            ),
+            model_profile_version=os.environ.get(
+                "KNOWLEDGE_ENRICHMENT_MODEL_PROFILE_VERSION",
+                "1.0.0",
+            ),
+            prompt_profile_id=os.environ.get(
+                "KNOWLEDGE_ENRICHMENT_PROMPT_PROFILE_ID",
+                "atomic-candidate",
+            ),
+            prompt_profile_version=os.environ.get(
+                "KNOWLEDGE_ENRICHMENT_PROMPT_PROFILE_VERSION",
+                "1.0.0",
+            ),
+        )
+        fixture_path = os.environ.get("KNOWLEDGE_ENRICHMENT_RECORDS_PATH")
+        if not fixture_path:
+            raise RuntimeError("KNOWLEDGE_ENRICHMENT_RECORDS_PATH is required")
+        enrichment_service = EnrichmentWorkerService(
+            repository=SqlAlchemyEnrichmentRepository(sessions),
+            governance=KnowledgeGovernanceService(
+                repository=SqlAlchemyGovernanceRepository(sessions)
+            ),
+            provider=offline_provider_from_config(
+                mode=os.environ.get("KNOWLEDGE_ENRICHMENT_PROVIDER_MODE", "replay"),
+                records_path=Path(fixture_path),
+            ),
+            model_profile=model_profile,
+            prompt_profile=prompt_profile,
+            actor=actor,
+        )
+        handlers = enrichment_step_handlers(enrichment_service)
     runtime = WorkerRuntime(
         ledger=ledger,
         actor=actor,

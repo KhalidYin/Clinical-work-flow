@@ -113,8 +113,8 @@ class SqlAlchemyGovernanceRepository:
                 .where(ProcessingRun.run_id == candidate.run_id)
                 .with_for_update()
             )
-            if run is None or run.status != "evidence_ready":
-                raise InvalidGovernanceTransitionError("run is not evidence_ready")
+            if run is None or run.status not in {"evidence_ready", "processing"}:
+                raise InvalidGovernanceTransitionError("run is not eligible for enrichment")
             if session.get(KnowledgeCandidate, candidate.candidate_id) is not None:
                 raise InvalidGovernanceTransitionError("candidate revision already exists")
             self._validate_candidate_facts(session, run=run, candidate=candidate)
@@ -123,7 +123,7 @@ class SqlAlchemyGovernanceRepository:
                 KnowledgeCandidate(
                     candidate_id=candidate.candidate_id,
                     candidate_group_id=candidate.candidate_group_id,
-                    parent_candidate_id=None,
+                    parent_candidate_id=candidate.parent_candidate_id,
                     run_id=candidate.run_id,
                     revision_number=candidate.revision_number,
                     status=candidate.status.value,
@@ -183,6 +183,131 @@ class SqlAlchemyGovernanceRepository:
                         "candidate_group_id": candidate.candidate_group_id,
                         "revision_number": candidate.revision_number,
                         "content_sha256": candidate.content_sha256,
+                        "permission": "candidate:write",
+                        "correlation_id": candidate.run_id,
+                        "input_sha256": candidate.evidence[0].content_sha256,
+                        "output_sha256": candidate.content_sha256,
+                        "result": candidate.status.value,
+                    },
+                )
+            )
+
+    def create_candidate_revision(
+        self,
+        *,
+        parent: KnowledgeCandidateRecord,
+        candidate: KnowledgeCandidateRecord,
+        actor_id: str,
+        idempotency_key: str,
+    ) -> None:
+        with self._session_factory.begin() as session:
+            stored = session.scalar(
+                select(KnowledgeCandidate)
+                .where(KnowledgeCandidate.candidate_id == parent.candidate_id)
+                .with_for_update()
+            )
+            if stored is None:
+                raise CandidateNotFoundError(parent.candidate_id)
+            _reject_stale_candidate(stored, parent)
+            run = session.scalar(
+                select(ProcessingRun)
+                .where(ProcessingRun.run_id == parent.run_id)
+                .with_for_update()
+            )
+            if run is None:
+                raise InvalidGovernanceTransitionError("processing run does not exist")
+            if stored.status == CandidateStatus.AUTHOR_CONFIRMED.value:
+                revision = session.scalar(
+                    select(KnowledgeRevision).where(
+                        KnowledgeRevision.candidate_id == stored.candidate_id
+                    )
+                )
+                if (
+                    revision is None
+                    or revision.status != KnowledgeRevisionStatus.CHANGES_REQUESTED.value
+                    or run.status != "evidence_ready"
+                ):
+                    raise InvalidGovernanceTransitionError(
+                        "confirmed candidate has no current change request"
+                    )
+            elif (
+                stored.status != CandidateStatus.AUTHOR_CONFIRMATION_REQUIRED.value
+                or run.status != "author_confirmation_required"
+            ):
+                raise InvalidGovernanceTransitionError("candidate cannot be revised")
+            if session.get(KnowledgeCandidate, candidate.candidate_id) is not None:
+                raise InvalidGovernanceTransitionError("candidate revision already exists")
+            self._validate_candidate_facts(session, run=run, candidate=candidate)
+
+            stored.status = CandidateStatus.SUPERSEDED.value
+            session.add(
+                KnowledgeCandidate(
+                    candidate_id=candidate.candidate_id,
+                    candidate_group_id=candidate.candidate_group_id,
+                    parent_candidate_id=parent.candidate_id,
+                    run_id=candidate.run_id,
+                    revision_number=candidate.revision_number,
+                    status=candidate.status.value,
+                    knowledge_type=candidate.knowledge_type,
+                    claim=candidate.claim,
+                    scope=candidate.scope,
+                    applicability=candidate.applicability,
+                    conditions=list(candidate.conditions),
+                    exceptions=list(candidate.exceptions),
+                    confidence=candidate.confidence,
+                    content_sha256=candidate.content_sha256,
+                    author_actor_id=None,
+                    author_subject=None,
+                )
+            )
+            session.flush()
+            for reference in candidate.evidence:
+                session.add(
+                    CandidateEvidence(
+                        candidate_id=candidate.candidate_id,
+                        evidence_id=reference.evidence_id,
+                        evidence_role="supports",
+                    )
+                )
+            for proposal in candidate.relation_proposals:
+                proposal_id = _stable_id(
+                    "relprop",
+                    f"{candidate.candidate_id}:{proposal.relation_type.value}:"
+                    f"{proposal.target_knowledge_unit_id}",
+                )
+                session.add(
+                    CandidateRelationProposal(
+                        proposal_id=proposal_id,
+                        candidate_id=candidate.candidate_id,
+                        relation_type=proposal.relation_type.value,
+                        target_knowledge_unit_id=proposal.target_knowledge_unit_id,
+                        status="proposed",
+                    )
+                )
+                for evidence_id in proposal.evidence_ids:
+                    session.add(
+                        RelationProposalEvidence(
+                            proposal_id=proposal_id,
+                            evidence_id=evidence_id,
+                        )
+                    )
+            run.status = "author_confirmation_required"
+            run.updated_at = datetime.now(timezone.utc)
+            session.add(
+                _audit_event(
+                    actor_id=actor_id,
+                    action="candidate.revised",
+                    entity_type="knowledge_candidate",
+                    entity_id=candidate.candidate_id,
+                    run_id=candidate.run_id,
+                    details={
+                        "parent_candidate_id": parent.candidate_id,
+                        "revision_number": candidate.revision_number,
+                        "permission": "candidate:write",
+                        "correlation_id": idempotency_key,
+                        "input_sha256": parent.content_sha256,
+                        "output_sha256": candidate.content_sha256,
+                        "result": candidate.status.value,
                     },
                 )
             )
@@ -284,6 +409,11 @@ class SqlAlchemyGovernanceRepository:
                         "knowledge_revision_id": revision.knowledge_revision_id,
                         "revision_number": revision.revision_number,
                         "content_sha256": revision.content_sha256,
+                        "permission": "candidate:submit",
+                        "correlation_id": idempotency_key,
+                        "input_sha256": candidate.content_sha256,
+                        "output_sha256": revision.content_sha256,
+                        "result": revision.status.value,
                     },
                 )
             )
@@ -362,6 +492,11 @@ class SqlAlchemyGovernanceRepository:
                         "revision_number": stored.revision_number,
                         "content_sha256": stored.content_sha256,
                         "rationale": rationale,
+                        "permission": "review:decide",
+                        "correlation_id": idempotency_key,
+                        "input_sha256": stored.content_sha256,
+                        "output_sha256": stored.content_sha256,
+                        "result": decision.value,
                     },
                 )
             )
@@ -486,6 +621,7 @@ def _candidate_record(
     return KnowledgeCandidateRecord(
         candidate_id=candidate.candidate_id,
         candidate_group_id=candidate.candidate_group_id,
+        parent_candidate_id=candidate.parent_candidate_id,
         run_id=candidate.run_id,
         revision_number=candidate.revision_number,
         status=candidate.status,

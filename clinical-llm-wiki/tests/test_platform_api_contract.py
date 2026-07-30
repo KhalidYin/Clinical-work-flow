@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from dataclasses import asdict
 from datetime import datetime, timezone
 from hashlib import sha256
 from importlib import import_module
@@ -143,6 +144,44 @@ class FakePlatformRepository:
     def list_candidates(self):
         return self.candidates, []
 
+    def get_candidate_detail(self, *, candidate_id: str):
+        summary = next(
+            (record for record in self.candidates if record.candidate_id == candidate_id),
+            None,
+        )
+        if summary is None:
+            return None
+        from service.platform_api.repository import (
+            CandidateDetailRecord,
+            CandidateEvidenceRecord,
+            CandidateRelationProposalRecord,
+        )
+
+        return CandidateDetailRecord(
+            **asdict(summary),
+            parent_candidate_id=None,
+            conditions=(),
+            exceptions=(),
+            evidence=(
+                CandidateEvidenceRecord(
+                    evidence_id="ev-api-001",
+                    source_version_id="srcv-api-001",
+                    locator={"page": 35, "section": "6.2 AE"},
+                    content="AESEQ is the sequence identifier within the AE domain.",
+                    content_sha256="a" * 64,
+                    rights={"classification": "licensed", "storage_allowed": True},
+                ),
+            ),
+            relation_proposals=(
+                CandidateRelationProposalRecord(
+                    relation_type="applies_to",
+                    target_knowledge_unit_id="ku-sdtm-ae",
+                    evidence_ids=("ev-api-001",),
+                    status="proposed",
+                ),
+            ),
+        )
+
 
 class FakeSourceRegistry:
     def __init__(self) -> None:
@@ -182,6 +221,7 @@ class FakeGovernanceService:
     def __init__(self) -> None:
         self.author_calls: list[dict[str, Any]] = []
         self.review_calls: list[dict[str, Any]] = []
+        self.revision_calls: list[dict[str, Any]] = []
 
     def confirm_candidate(self, **kwargs: Any):
         from service.knowledge import (
@@ -250,6 +290,36 @@ class FakeGovernanceService:
                 author_actor_id="usr-curator",
             ),
             decision_id="decision-api-review-001",
+        )
+
+    def revise_candidate(self, **kwargs: Any):
+        from service.knowledge import KnowledgeCandidateRecord
+
+        self.revision_calls.append(kwargs)
+        return KnowledgeCandidateRecord(
+            candidate_id="cand-api-002",
+            candidate_group_id="candgrp-api-aeseq",
+            parent_candidate_id="cand-api-001",
+            run_id="run-api-001",
+            revision_number=2,
+            status="author_confirmation_required",
+            knowledge_type="variable_definition",
+            claim=kwargs["command"].claim,
+            scope=kwargs["command"].scope,
+            applicability=kwargs["command"].applicability,
+            evidence=[
+                {
+                    "evidence_id": "ev-api-001",
+                    "source_version_id": "srcv-api-001",
+                    "locator": {"page": 35},
+                    "content_sha256": "a" * 64,
+                    "rights": {
+                        "classification": "licensed",
+                        "storage_allowed": True,
+                    },
+                }
+            ],
+            content_sha256="c" * 64,
         )
 
 
@@ -590,6 +660,43 @@ def test_candidate_routes_project_gate_state_and_enforce_separate_permissions(
     assert review.json()["data"]["revisionStatus"] == "approved"
 
 
+def test_candidate_detail_exposes_evidence_and_revision_write_is_versioned(api_client) -> None:
+    client, _ = api_client
+
+    detail = client.get(
+        f"{API_PREFIX}/candidates/cand-api-001",
+        headers=_auth("curator-token"),
+    )
+    assert detail.status_code == 200
+    data = detail.json()["data"]
+    assert data["evidence"][0]["locator"] == {"page": 35, "section": "6.2 AE"}
+    assert data["evidence"][0]["rights"]["classification"] == "licensed"
+    assert data["relationProposals"][0]["relationType"] == "applies_to"
+
+    revision = client.post(
+        f"{API_PREFIX}/candidates/cand-api-001/revisions",
+        headers=_auth("curator-token"),
+        json={
+            "expectedRevisionNumber": 1,
+            "expectedContentSha256": "b" * 64,
+            "claim": "AESEQ identifies records in the SDTM AE domain.",
+            "scope": {"standard": "SDTM", "domain": "AE"},
+            "applicability": {"standard_version": "3.4"},
+            "conditions": [],
+            "exceptions": [],
+            "idempotencyKey": "api-candidate-revision-002",
+        },
+    )
+    assert revision.status_code == 201
+    assert revision.json()["data"] == {
+        "candidateId": "cand-api-002",
+        "parentCandidateId": "cand-api-001",
+        "revisionNumber": 2,
+        "contentSha256": "c" * 64,
+        "status": "author_confirmation_required",
+    }
+
+
 def _openapi_component_schema(spec: dict[str, Any], name: str) -> dict[str, Any]:
     definitions = deepcopy(spec["components"]["schemas"])
 
@@ -638,6 +745,8 @@ def test_checked_in_openapi_matches_runtime_paths_roles_and_responses(api_client
             (f"{API_PREFIX}/processing-runs/{{run_id}}/steps/{{step_id}}/retry"),
             f"{API_PREFIX}/processing-runs/{{run_id}}/cancel",
             f"{API_PREFIX}/candidates",
+            f"{API_PREFIX}/candidates/{{candidate_id}}",
+            f"{API_PREFIX}/candidates/{{candidate_id}}/revisions",
             f"{API_PREFIX}/candidates/{{candidate_id}}/author-confirmation",
             f"{API_PREFIX}/knowledge-revisions/{{revision_id}}/review-decision",
             f"{API_PREFIX}/admin/users",

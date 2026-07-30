@@ -174,11 +174,62 @@ class CandidateSummaryData(ApiModel):
     )
 
 
+class CandidateEvidenceData(ApiModel):
+    evidence_id: str
+    source_version_id: str
+    locator: dict[str, Any]
+    content: str
+    content_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    rights: dict[str, Any]
+
+
+class CandidateRelationProposalData(ApiModel):
+    relation_type: Literal[
+        "applies_to",
+        "conflicts_with",
+        "depends_on",
+        "derived_from",
+        "supersedes",
+        "supports",
+        "used_by",
+    ]
+    target_knowledge_unit_id: str
+    evidence_ids: list[str]
+    status: Literal["proposed", "accepted", "rejected", "superseded"]
+
+
+class CandidateDetailData(CandidateSummaryData):
+    parent_candidate_id: str | None
+    conditions: list[dict[str, Any]]
+    exceptions: list[dict[str, Any]]
+    evidence: list[CandidateEvidenceData]
+    relation_proposals: list[CandidateRelationProposalData]
+
+
 class CandidateCollectionData(ApiModel):
     items: list[CandidateSummaryData]
     total: int = Field(ge=0)
     partial: bool
     warnings: list[str]
+
+
+class CandidateRevisionRequest(ApiModel):
+    expected_revision_number: int = Field(ge=1)
+    expected_content_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    claim: str = Field(min_length=1)
+    scope: dict[str, Any] = Field(min_length=1)
+    applicability: dict[str, Any] = Field(min_length=1)
+    conditions: list[dict[str, Any]] = []
+    exceptions: list[dict[str, Any]] = []
+    idempotency_key: str = Field(min_length=8, max_length=160)
+
+
+class CandidateRevisionData(ApiModel):
+    candidate_id: str
+    parent_candidate_id: str
+    revision_number: int = Field(ge=2)
+    content_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    status: Literal["author_confirmation_required"]
 
 
 class AuthorConfirmationRequest(ApiModel):
@@ -303,6 +354,16 @@ class ProcessingRunCollectionResponse(ApiModel):
 
 class CandidateCollectionResponse(ApiModel):
     data: CandidateCollectionData
+    meta: ResponseMeta
+
+
+class CandidateDetailResponse(ApiModel):
+    data: CandidateDetailData
+    meta: ResponseMeta
+
+
+class CandidateRevisionResponse(ApiModel):
+    data: CandidateRevisionData
     meta: ResponseMeta
 
 

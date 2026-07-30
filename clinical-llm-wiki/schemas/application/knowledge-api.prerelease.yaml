@@ -248,6 +248,61 @@ paths:
           $ref: "#/components/responses/AuthorizationError"
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
+  /candidates/{candidate_id}:
+    get:
+      operationId: getCandidate
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: candidate_id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Candidate content, canonical evidence and typed relation proposals.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CandidateDetailResponse" }
+        "401":
+          $ref: "#/components/responses/AuthenticationError"
+        "403":
+          $ref: "#/components/responses/AuthorizationError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /candidates/{candidate_id}/revisions:
+    post:
+      operationId: reviseCandidate
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: candidate_id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CandidateRevisionRequest" }
+      responses:
+        "201":
+          description: A new Candidate revision supersedes the editable parent.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CandidateRevisionResponse" }
+        "401":
+          $ref: "#/components/responses/AuthenticationError"
+        "403":
+          $ref: "#/components/responses/AuthorizationError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "409":
+          $ref: "#/components/responses/ConflictError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
   /candidates/{candidate_id}/author-confirmation:
     post:
       operationId: confirmCandidateAuthor
@@ -632,6 +687,101 @@ components:
         warnings:
           type: array
           items: { type: string }
+    CandidateEvidence:
+      type: object
+      additionalProperties: false
+      required: [evidenceId, sourceVersionId, locator, content, contentSha256, rights]
+      properties:
+        evidenceId: { type: string }
+        sourceVersionId: { type: string }
+        locator: { type: object }
+        content: { type: string }
+        contentSha256: { type: string, pattern: "^[0-9a-f]{64}$" }
+        rights: { type: object }
+    CandidateRelationProposal:
+      type: object
+      additionalProperties: false
+      required: [relationType, targetKnowledgeUnitId, evidenceIds, status]
+      properties:
+        relationType:
+          enum:
+            - applies_to
+            - conflicts_with
+            - depends_on
+            - derived_from
+            - supersedes
+            - supports
+            - used_by
+        targetKnowledgeUnitId: { type: string }
+        evidenceIds:
+          type: array
+          items: { type: string }
+        status: { enum: [proposed, accepted, rejected, superseded] }
+    CandidateDetail:
+      allOf:
+        - $ref: "#/components/schemas/CandidateSummary"
+        - type: object
+          required:
+            - parentCandidateId
+            - conditions
+            - exceptions
+            - evidence
+            - relationProposals
+          properties:
+            parentCandidateId: { type: [string, "null"] }
+            conditions:
+              type: array
+              items: { type: object }
+            exceptions:
+              type: array
+              items: { type: object }
+            evidence:
+              type: array
+              minItems: 1
+              items: { $ref: "#/components/schemas/CandidateEvidence" }
+            relationProposals:
+              type: array
+              items: { $ref: "#/components/schemas/CandidateRelationProposal" }
+    CandidateRevisionRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - expectedRevisionNumber
+        - expectedContentSha256
+        - claim
+        - scope
+        - applicability
+        - conditions
+        - exceptions
+        - idempotencyKey
+      properties:
+        expectedRevisionNumber: { type: integer, minimum: 1 }
+        expectedContentSha256: { type: string, pattern: "^[0-9a-f]{64}$" }
+        claim: { type: string, minLength: 1 }
+        scope: { type: object, minProperties: 1 }
+        applicability: { type: object, minProperties: 1 }
+        conditions:
+          type: array
+          items: { type: object }
+        exceptions:
+          type: array
+          items: { type: object }
+        idempotencyKey: { type: string, minLength: 8, maxLength: 160 }
+    CandidateRevision:
+      type: object
+      additionalProperties: false
+      required:
+        - candidateId
+        - parentCandidateId
+        - revisionNumber
+        - contentSha256
+        - status
+      properties:
+        candidateId: { type: string }
+        parentCandidateId: { type: string }
+        revisionNumber: { type: integer, minimum: 2 }
+        contentSha256: { type: string, pattern: "^[0-9a-f]{64}$" }
+        status: { const: author_confirmation_required }
     AuthorConfirmationRequest:
       type: object
       additionalProperties: false
@@ -786,6 +936,18 @@ components:
         - type: object
           properties:
             data: { $ref: "#/components/schemas/CandidateCollection" }
+    CandidateDetailResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/CandidateDetail" }
+    CandidateRevisionResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/CandidateRevision" }
     AuthorConfirmationResponse:
       allOf:
         - $ref: "#/components/schemas/Envelope"

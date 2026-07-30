@@ -14,6 +14,7 @@ from service.auth import PlatformUserGrant
 from service.db.models import (
     CandidateEvidence,
     CandidateRelationProposal,
+    RelationProposalEvidence,
     Evidence,
     JobStep,
     KnowledgeCandidate,
@@ -113,6 +114,33 @@ class CandidateSummaryRecord:
     review_status: str | None
 
 
+@dataclass(frozen=True, slots=True)
+class CandidateEvidenceRecord:
+    evidence_id: str
+    source_version_id: str
+    locator: dict[str, object]
+    content: str
+    content_sha256: str
+    rights: dict[str, object]
+
+
+@dataclass(frozen=True, slots=True)
+class CandidateRelationProposalRecord:
+    relation_type: str
+    target_knowledge_unit_id: str
+    evidence_ids: tuple[str, ...]
+    status: str
+
+
+@dataclass(frozen=True, slots=True)
+class CandidateDetailRecord(CandidateSummaryRecord):
+    parent_candidate_id: str | None
+    conditions: tuple[dict[str, object], ...]
+    exceptions: tuple[dict[str, object], ...]
+    evidence: tuple[CandidateEvidenceRecord, ...]
+    relation_proposals: tuple[CandidateRelationProposalRecord, ...]
+
+
 class PlatformReadRepository(Protocol):
     def resolve_user(self, *, issuer: str, subject: str) -> PlatformUserGrant | None: ...
 
@@ -135,6 +163,8 @@ class PlatformReadRepository(Protocol):
     def list_candidates(
         self,
     ) -> tuple[Sequence[CandidateSummaryRecord], Sequence[str]]: ...
+
+    def get_candidate_detail(self, *, candidate_id: str) -> CandidateDetailRecord | None: ...
 
 
 class SqlAlchemyPlatformRepository:
@@ -466,6 +496,101 @@ class SqlAlchemyPlatformRepository:
                     )
                 )
         return records, warnings
+
+    def get_candidate_detail(self, *, candidate_id: str) -> CandidateDetailRecord | None:
+        with self._session_factory() as session:
+            candidate = session.get(KnowledgeCandidate, candidate_id)
+            if candidate is None:
+                return None
+            if (
+                candidate.candidate_group_id is None
+                or candidate.content_sha256 is None
+                or candidate.applicability is None
+            ):
+                return None
+            evidence_rows = list(
+                session.execute(
+                    select(Evidence, SourceVersion)
+                    .join(
+                        CandidateEvidence,
+                        CandidateEvidence.evidence_id == Evidence.evidence_id,
+                    )
+                    .join(
+                        SourceVersion,
+                        SourceVersion.source_version_id == Evidence.source_version_id,
+                    )
+                    .where(CandidateEvidence.candidate_id == candidate_id)
+                    .order_by(Evidence.evidence_id)
+                )
+            )
+            proposals = list(
+                session.scalars(
+                    select(CandidateRelationProposal)
+                    .where(CandidateRelationProposal.candidate_id == candidate_id)
+                    .order_by(CandidateRelationProposal.proposal_id)
+                )
+            )
+            revision = session.scalar(
+                select(KnowledgeRevision)
+                .where(KnowledgeRevision.candidate_id == candidate_id)
+                .order_by(KnowledgeRevision.revision_number.desc())
+                .limit(1)
+            )
+            proposal_records = []
+            for proposal in proposals:
+                evidence_ids = tuple(
+                    session.scalars(
+                        select(RelationProposalEvidence.evidence_id)
+                        .where(RelationProposalEvidence.proposal_id == proposal.proposal_id)
+                        .order_by(RelationProposalEvidence.evidence_id)
+                    )
+                )
+                proposal_records.append(
+                    CandidateRelationProposalRecord(
+                        relation_type=proposal.relation_type,
+                        target_knowledge_unit_id=proposal.target_knowledge_unit_id,
+                        evidence_ids=evidence_ids,
+                        status=proposal.status,
+                    )
+                )
+            rights_by_version = {
+                version.source_version_id: version.rights for _, version in evidence_rows
+            }
+            evidence_records = tuple(
+                CandidateEvidenceRecord(
+                    evidence_id=evidence.evidence_id,
+                    source_version_id=evidence.source_version_id,
+                    locator=evidence.locator,
+                    content=evidence.content,
+                    content_sha256=evidence.content_sha256,
+                    rights=rights_by_version[evidence.source_version_id],
+                )
+                for evidence, _ in evidence_rows
+            )
+        return CandidateDetailRecord(
+            candidate_id=candidate.candidate_id,
+            candidate_group_id=candidate.candidate_group_id,
+            run_id=candidate.run_id,
+            revision_number=candidate.revision_number,
+            status=candidate.status,
+            knowledge_type=candidate.knowledge_type,
+            claim=candidate.claim,
+            scope=candidate.scope,
+            applicability=candidate.applicability,
+            content_sha256=candidate.content_sha256,
+            evidence_count=len(evidence_records),
+            relation_proposal_count=len(proposal_records),
+            author_actor_id=candidate.author_actor_id,
+            knowledge_revision_id=(
+                revision.knowledge_revision_id if revision is not None else None
+            ),
+            review_status=(revision.status if revision is not None else None),
+            parent_candidate_id=candidate.parent_candidate_id,
+            conditions=tuple(candidate.conditions),
+            exceptions=tuple(candidate.exceptions),
+            evidence=evidence_records,
+            relation_proposals=tuple(proposal_records),
+        )
 
 
 def _media_type_label(media_type: str, object_key: str) -> str | None:

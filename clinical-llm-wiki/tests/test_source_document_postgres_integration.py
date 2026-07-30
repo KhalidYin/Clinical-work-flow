@@ -188,7 +188,14 @@ def test_postgres_source_registration_and_document_fan_in_are_idempotent(
             assert evidence[0].source_sha256 == command_model.expected_sha256
             assert evidence[0].derived_artifact_id
             assert {intent.status for intent in intents} == {"committed"}
-            assert session.scalar(select(KnowledgeCandidate).limit(1)) is None
+            assert (
+                session.scalar(
+                    select(KnowledgeCandidate)
+                    .where(KnowledgeCandidate.run_id == receipt.run_id)
+                    .limit(1)
+                )
+                is None
+            )
             assert session.scalar(select(Release).limit(1)) is None
         listed_sources, warnings = SqlAlchemyPlatformRepository(sessions).list_sources()
         listed = next(item for item in listed_sources if item.source_id == command_model.source_id)

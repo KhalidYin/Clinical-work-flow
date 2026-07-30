@@ -239,10 +239,14 @@ class SourceRegistryService:
         command: SourceRegistrationCommand,
     ) -> None:
         from service.processing.document_worker import build_document_step_definitions
+        from service.processing.enrichment import build_enrichment_step_definition
 
         steps: list[StepDefinition] = build_document_step_definitions(
             media_type=command.media_type,
             input_sha256=command.expected_sha256,
+        )
+        steps.append(
+            build_enrichment_step_definition(input_sha256=command.expected_sha256)
         )
         self._ledger.create_run(
             source_version_id=receipt.source_version_id,

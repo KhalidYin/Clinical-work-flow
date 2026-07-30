@@ -224,6 +224,9 @@ class PostgresProcessingLedger:
         if lease_seconds < 1:
             raise ValueError("lease_seconds must be positive")
         now = _utcnow()
+        eligible_run_statuses = [RunStatus.QUEUED.value, RunStatus.PROCESSING.value]
+        if pool is WorkerPool.ENRICHMENT:
+            eligible_run_statuses.append(RunStatus.EVIDENCE_READY.value)
         with self._sessions.begin() as session:
             candidates = session.execute(
                 select(StepAttempt, JobStep, ProcessingRun)
@@ -238,7 +241,7 @@ class PostgresProcessingLedger:
                     JobStep.status == StepStatus.QUEUED.value,
                     JobStep.pool == pool.value,
                     JobStep.step_key.in_(supported_step_keys),
-                    ProcessingRun.status.in_([RunStatus.QUEUED.value, RunStatus.PROCESSING.value]),
+                    ProcessingRun.status.in_(eligible_run_statuses),
                 )
                 .order_by(StepAttempt.created_at, StepAttempt.attempt_id)
                 .limit(50)

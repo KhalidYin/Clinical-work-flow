@@ -27,7 +27,11 @@ from service.governance.service import (
     RevisionNotFoundError,
     StaleRevisionError,
 )
-from service.knowledge import AuthorConfirmationCommand, ReviewDecisionCommand
+from service.knowledge import (
+    AuthorConfirmationCommand,
+    CandidateRevisionCommand,
+    ReviewDecisionCommand,
+)
 from service.processing.ledger import (
     LedgerError,
     ProcessingLedgerPort,
@@ -50,6 +54,13 @@ from .contracts import (
     AuthorConfirmationResponse,
     CandidateCollectionData,
     CandidateCollectionResponse,
+    CandidateDetailData,
+    CandidateDetailResponse,
+    CandidateEvidenceData,
+    CandidateRelationProposalData,
+    CandidateRevisionData,
+    CandidateRevisionRequest,
+    CandidateRevisionResponse,
     CandidateSummaryData,
     CurrentReleaseData,
     CurrentReleaseResponse,
@@ -548,6 +559,129 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
                 total=len(records),
                 partial=bool(warnings),
                 warnings=list(warnings),
+            ),
+            meta=_meta(),
+        )
+
+    @app.get(
+        f"{API_PREFIX}/candidates/{{candidate_id}}",
+        operation_id="getCandidate",
+        response_model=CandidateDetailResponse,
+        responses={
+            **protected_responses,
+            404: {"model": ErrorResponse, "description": "The candidate does not exist."},
+        },
+    )
+    def get_candidate(
+        candidate_id: str,
+        _actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.CANDIDATE_READ)),
+        ],
+    ) -> CandidateDetailResponse:
+        try:
+            record = services.repository.get_candidate_detail(candidate_id=candidate_id)
+        except SQLAlchemyError as exc:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="The candidate repository is unavailable.",
+            ) from exc
+        if record is None:
+            raise PlatformApiError(
+                status_code=404,
+                code="candidate_not_found",
+                message="The governed candidate does not exist.",
+            )
+        return CandidateDetailResponse(
+            data=CandidateDetailData(
+                candidate_id=record.candidate_id,
+                candidate_group_id=record.candidate_group_id,
+                run_id=record.run_id,
+                revision_number=record.revision_number,
+                status=record.status,
+                knowledge_type=record.knowledge_type,
+                claim=record.claim,
+                scope=record.scope,
+                applicability=record.applicability,
+                content_sha256=record.content_sha256,
+                evidence_count=record.evidence_count,
+                relation_proposal_count=record.relation_proposal_count,
+                author_actor_id=record.author_actor_id,
+                knowledge_revision_id=record.knowledge_revision_id,
+                review_status=record.review_status,
+                parent_candidate_id=record.parent_candidate_id,
+                conditions=list(record.conditions),
+                exceptions=list(record.exceptions),
+                evidence=[
+                    CandidateEvidenceData(
+                        evidence_id=item.evidence_id,
+                        source_version_id=item.source_version_id,
+                        locator=item.locator,
+                        content=item.content,
+                        content_sha256=item.content_sha256,
+                        rights=item.rights,
+                    )
+                    for item in record.evidence
+                ],
+                relation_proposals=[
+                    CandidateRelationProposalData(
+                        relation_type=item.relation_type,
+                        target_knowledge_unit_id=item.target_knowledge_unit_id,
+                        evidence_ids=list(item.evidence_ids),
+                        status=item.status,
+                    )
+                    for item in record.relation_proposals
+                ],
+            ),
+            meta=_meta(),
+        )
+
+    @app.post(
+        f"{API_PREFIX}/candidates/{{candidate_id}}/revisions",
+        operation_id="reviseCandidate",
+        response_model=CandidateRevisionResponse,
+        status_code=201,
+        responses=write_responses,
+    )
+    def revise_candidate(
+        candidate_id: str,
+        request: CandidateRevisionRequest,
+        actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.CANDIDATE_WRITE)),
+        ],
+    ) -> CandidateRevisionResponse:
+        if services.governance is None:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="Knowledge governance is not configured.",
+            )
+        try:
+            candidate = services.governance.revise_candidate(
+                actor=actor,
+                command=CandidateRevisionCommand(
+                    candidate_id=candidate_id,
+                    expected_revision_number=request.expected_revision_number,
+                    expected_content_sha256=request.expected_content_sha256,
+                    claim=request.claim,
+                    scope=request.scope,
+                    applicability=request.applicability,
+                    conditions=request.conditions,
+                    exceptions=request.exceptions,
+                    idempotency_key=request.idempotency_key,
+                ),
+            )
+        except Exception as exc:
+            _raise_governance_api_error(exc)
+        return CandidateRevisionResponse(
+            data=CandidateRevisionData(
+                candidate_id=candidate.candidate_id,
+                parent_candidate_id=candidate.parent_candidate_id,
+                revision_number=candidate.revision_number,
+                content_sha256=candidate.content_sha256,
+                status=candidate.status,
             ),
             meta=_meta(),
         )

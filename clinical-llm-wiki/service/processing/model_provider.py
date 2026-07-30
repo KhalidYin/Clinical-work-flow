@@ -161,9 +161,11 @@ class ModelRequest(StrictContractModel):
     @computed_field
     @property
     def input_sha256(self) -> str:
+        # Attempt lineage is persisted beside the invocation, but it is not part
+        # of the provider payload. Keeping it out of this digest lets a retry
+        # create a new StepAttempt while replaying the exact same versioned input.
         return _canonical_sha256(
             {
-                "attempt": self.attempt.model_dump(mode="json"),
                 "model_profile": {
                     "profile_id": self.model_profile.profile_id,
                     "version": self.model_profile.version,

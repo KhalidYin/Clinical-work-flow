@@ -76,6 +76,7 @@ class RelationProposal(StrictKnowledgeModel):
 
 class KnowledgeCandidateDraft(StrictKnowledgeModel):
     candidate_group_id: str = Field(min_length=1, max_length=160)
+    parent_candidate_id: str | None = Field(default=None, max_length=160)
     run_id: str = Field(min_length=1, max_length=160)
     revision_number: int = Field(ge=1)
     knowledge_type: str = Field(min_length=1, max_length=100)
@@ -90,6 +91,10 @@ class KnowledgeCandidateDraft(StrictKnowledgeModel):
 
     @model_validator(mode="after")
     def validate_edge_evidence(self) -> "KnowledgeCandidateDraft":
+        if self.revision_number == 1 and self.parent_candidate_id is not None:
+            raise ValueError("first candidate revision cannot have a parent")
+        if self.revision_number > 1 and self.parent_candidate_id is None:
+            raise ValueError("later candidate revision requires a parent")
         candidate_evidence = {reference.evidence_id for reference in self.evidence}
         if len(candidate_evidence) != len(self.evidence):
             raise ValueError("candidate evidence IDs must be unique")
@@ -137,6 +142,18 @@ class ReviewDecisionCommand(StrictKnowledgeModel):
     decision: ReviewOutcome
     idempotency_key: str = Field(min_length=8, max_length=160)
     rationale: str | None = Field(default=None, max_length=4000)
+
+
+class CandidateRevisionCommand(StrictKnowledgeModel):
+    candidate_id: str = Field(min_length=1, max_length=160)
+    expected_revision_number: int = Field(ge=1)
+    expected_content_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    claim: str = Field(min_length=1)
+    scope: dict[str, Any] = Field(min_length=1)
+    applicability: dict[str, Any] = Field(min_length=1)
+    conditions: tuple[dict[str, Any], ...] = ()
+    exceptions: tuple[dict[str, Any], ...] = ()
+    idempotency_key: str = Field(min_length=8, max_length=160)
 
 
 class AuthorConfirmationReceipt(StrictKnowledgeModel):

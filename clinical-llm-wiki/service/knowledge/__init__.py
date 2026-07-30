@@ -3,6 +3,7 @@
 from .contracts import (
     AuthorConfirmationCommand,
     AuthorConfirmationReceipt,
+    CandidateRevisionCommand,
     CandidateStatus,
     EvidenceReference,
     KnowledgeCandidateDraft,
@@ -22,6 +23,7 @@ from .contracts import (
 __all__ = [
     "AuthorConfirmationCommand",
     "AuthorConfirmationReceipt",
+    "CandidateRevisionCommand",
     "CandidateStatus",
     "EvidenceReference",
     "KnowledgeCandidateDraft",

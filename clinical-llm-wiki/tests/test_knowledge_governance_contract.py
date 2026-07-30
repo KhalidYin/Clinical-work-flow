@@ -321,3 +321,78 @@ def test_released_revision_is_immutable_and_retirement_is_a_new_governance_fact(
         contract.require_revision_mutable(released)
     assert contract.KnowledgeRevisionStatus.RETIRED.value == "retired"
     assert contract.KnowledgeRevisionStatus.SUPERSEDED.value == "superseded"
+
+
+def test_change_request_creates_a_new_candidate_revision_without_overwriting_history() -> None:
+    contract = _contracts()
+    governance = _governance()
+    repository = governance.InMemoryGovernanceRepository(
+        runs={"run-ae": "evidence_ready"},
+        evidence_ids={"ev-ae-1"},
+        knowledge_unit_ids={"ku-sdtm-ae"},
+    )
+    service = governance.KnowledgeGovernanceService(repository=repository)
+    enrichment = _worker(
+        pool=WorkerPool.ENRICHMENT,
+        permissions={Permission.CANDIDATE_WRITE, Permission.RELATION_PROPOSE},
+    )
+    author = _human(
+        actor_id="usr-author",
+        role=ProductRole.KNOWLEDGE_CURATOR,
+        permissions={
+            Permission.CANDIDATE_WRITE,
+            Permission.CANDIDATE_SUBMIT,
+            Permission.RELATION_PROPOSE,
+        },
+    )
+    reviewer = _human(
+        actor_id="usr-reviewer",
+        role=ProductRole.REVIEWER,
+        permissions={Permission.REVIEW_DECIDE},
+    )
+    first = service.register_candidate(actor=enrichment, draft=_eligible_draft())
+    confirmed = service.confirm_candidate(
+        actor=author,
+        command=contract.AuthorConfirmationCommand(
+            candidate_id=first.candidate_id,
+            expected_revision_number=1,
+            expected_content_sha256=first.content_sha256,
+            idempotency_key="author-confirm-change-1",
+        ),
+    )
+    service.review_revision(
+        actor=reviewer,
+        command=contract.ReviewDecisionCommand(
+            candidate_id=first.candidate_id,
+            knowledge_revision_id=confirmed.revision.knowledge_revision_id,
+            expected_revision_number=1,
+            expected_content_sha256=confirmed.revision.content_sha256,
+            decision="changes_requested",
+            idempotency_key="review-change-1",
+            rationale="Clarify the scope.",
+        ),
+    )
+
+    second = service.revise_candidate(
+        actor=author,
+        command=contract.CandidateRevisionCommand(
+            candidate_id=first.candidate_id,
+            expected_revision_number=1,
+            expected_content_sha256=first.content_sha256,
+            claim="AESEQ is the sequence identifier for records in the SDTM AE domain.",
+            scope={"standard": "SDTM", "domain": "AE"},
+            applicability={"standard_version": "3.4"},
+            conditions=[],
+            exceptions=[],
+            idempotency_key="author-revise-change-2",
+        ),
+    )
+
+    assert second.revision_number == 2
+    assert second.parent_candidate_id == first.candidate_id
+    assert repository.get_candidate(first.candidate_id).status is contract.CandidateStatus.SUPERSEDED
+    assert repository.get_revision(confirmed.revision.knowledge_revision_id).status is (
+        contract.KnowledgeRevisionStatus.CHANGES_REQUESTED
+    )
+    assert repository.run_status("run-ae") == "author_confirmation_required"
+    assert len(repository.candidates) == 2
