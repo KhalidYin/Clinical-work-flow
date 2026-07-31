@@ -27,7 +27,11 @@ dependencies = [
 [project.optional-dependencies]
 pdf = ["reportlab>=4.0", "pdfplumber>=0.11", "pytesseract>=0.3"]
 models = ["litellm>=1.92,<2"]
+mcp = ["mcp>=1.28,<2"]
 dev = ["pytest>=7.0,<10", "httpx>=0.27", "ruff>=0.8,<0.16"]
+
+[project.scripts]
+clinical-knowledge-mcp = "service.mcp.server:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

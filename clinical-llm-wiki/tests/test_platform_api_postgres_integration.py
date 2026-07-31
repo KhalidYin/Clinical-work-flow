@@ -14,8 +14,10 @@ import pytest
 from sqlalchemy import delete
 
 from service.auth import IdentityAssertion, LocalIdentityProvider
+from service.context import ContextPackageBuilder
 from service.db.models import (
     AuditEvent,
+    CandidateEvidence,
     CandidateRelationProposal,
     Evidence,
     KnowledgeCandidate,
@@ -34,6 +36,7 @@ from service.db.models import (
 from service.db.session import create_database_engine, create_session_factory
 from service.platform_api.app import PlatformApiServices, create_platform_app
 from service.platform_api.repository import SqlAlchemyPlatformRepository
+from service.retrieval import HybridRetrievalService, SqlAlchemyRetrievalRepository
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -207,6 +210,12 @@ def test_real_postgres_repository_serves_authorized_read_routes(
         )
         session.flush()
         session.add(
+            CandidateEvidence(
+                candidate_id="cand-p1d-integration",
+                evidence_id="evidence-p1d-integration",
+            )
+        )
+        session.add(
             KnowledgeRevision(
                 knowledge_revision_id="krev-p1d-integration",
                 knowledge_unit_id="ku-p1d-source",
@@ -266,6 +275,10 @@ def test_real_postgres_repository_serves_authorized_read_routes(
                 identity_provider=provider,
                 repository=SqlAlchemyPlatformRepository(session_factory),
                 organization_name="Clinical Knowledge Lab",
+                retrieval=HybridRetrievalService(
+                    repository=SqlAlchemyRetrievalRepository(session_factory)
+                ),
+                context_builder=ContextPackageBuilder(),
             )
         )
     )
@@ -282,9 +295,28 @@ def test_real_postgres_repository_serves_authorized_read_routes(
             params={"node_id": "ku-p1d-source", "depth": 1},
         )
         audit = client.get("/api/prerelease/v1/audit-events", headers=headers)
+        retrieval = client.post(
+            "/api/prerelease/v1/queries",
+            headers=headers,
+            json={
+                "query": "AESEQ",
+                "visibility": "released",
+                "includeVector": True,
+            },
+        )
+        context = client.post(
+            "/api/prerelease/v1/contexts",
+            headers=headers,
+            json={
+                "query": "AESEQ",
+                "visibility": "released",
+                "includeVector": False,
+            },
+        )
 
         assert session.status_code == sources.status_code == users.status_code == 200
         assert release.status_code == relations.status_code == audit.status_code == 200
+        assert retrieval.status_code == context.status_code == 200
         assert session.json()["data"]["roles"] == ["platform_admin"]
         assert any(
             item["sourceId"] == "src-p1d-integration" for item in sources.json()["data"]["items"]
@@ -306,8 +338,29 @@ def test_real_postgres_repository_serves_authorized_read_routes(
         assert audit_event["correlationId"] == "integration-review-001"
         assert "details" not in audit_event
         assert "rationale" not in audit_event
+        retrieval_data = retrieval.json()["data"]
+        assert retrieval_data["hits"][0]["knowledgeRevisionId"] == (
+            "krev-p1d-integration"
+        )
+        assert retrieval_data["hits"][0]["citations"][0]["evidenceId"] == (
+            "evidence-p1d-integration"
+        )
+        assert retrieval_data["plan"]["releaseScope"]["releaseId"] == (
+            "rel-p1d-integration"
+        )
+        assert any(
+            gap["code"] == "vector_disabled" for gap in retrieval_data["gaps"]
+        )
+        assert context.json()["data"]["items"][0]["citations"][0]["sourceId"] == (
+            "src-p1d-integration"
+        )
     finally:
         with session_factory.begin() as database_session:
+            database_session.execute(
+                delete(CandidateEvidence).where(
+                    CandidateEvidence.candidate_id == "cand-p1d-integration"
+                )
+            )
             database_session.execute(
                 delete(RelationProposalEvidence).where(
                     RelationProposalEvidence.proposal_id == "proposal-p1d-integration"

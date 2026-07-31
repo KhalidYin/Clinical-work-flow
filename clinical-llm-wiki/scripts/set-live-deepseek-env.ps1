@@ -26,12 +26,12 @@ $encryptedSecretPath = Join-Path $runtimePath "deepseek-api-key.dpapi"
 $settings = [ordered]@{
     KNOWLEDGE_ENRICHMENT_PROVIDER_MODE = "live"
     KNOWLEDGE_ENRICHMENT_MODEL_PROFILE_ID = "deepseek-v4-flash-extractor"
-    KNOWLEDGE_ENRICHMENT_MODEL_PROFILE_VERSION = "1.0.0"
+    KNOWLEDGE_ENRICHMENT_MODEL_PROFILE_VERSION = "1.0.1"
     KNOWLEDGE_ENRICHMENT_PROMPT_PROFILE_ID = "atomic-candidate"
     KNOWLEDGE_ENRICHMENT_PROMPT_PROFILE_VERSION = "1.1.0"
     KNOWLEDGE_LIVE_MODEL_ENABLED = "true"
     KNOWLEDGE_LIVE_MODEL_PROFILE_ID = "deepseek-v4-flash-extractor"
-    KNOWLEDGE_LIVE_MODEL_PROFILE_VERSION = "1.0.0"
+    KNOWLEDGE_LIVE_MODEL_PROFILE_VERSION = "1.0.1"
     KNOWLEDGE_LIVE_MODEL_ALLOWED_DATA_BOUNDARIES = "external_allowed"
     KNOWLEDGE_LIVE_MODEL_MAX_CALLS = "1"
     KNOWLEDGE_MODEL_ENDPOINT = "https://api.deepseek.com"
@@ -103,7 +103,7 @@ if ($SaveEncryptedSecret) {
 
 $secureValue = $null
 Write-Host "DeepSeek live model environment configured for this PowerShell process."
-Write-Host "profile=deepseek-v4-flash-extractor@1.0.0 model=deepseek-v4-flash"
+Write-Host "profile=deepseek-v4-flash-extractor@1.0.1 model=deepseek-v4-flash"
 Write-Host "endpoint=https://api.deepseek.com boundary=external_allowed max_calls=1"
 Write-Host "secret=$($secretConfigured ? 'configured' : 'not configured')"
 Write-Host "encrypted_handoff=$($SaveEncryptedSecret ? 'saved' : ($UseEncryptedSecret ? 'loaded' : 'unchanged'))"

@@ -4,6 +4,9 @@ export const API_PATHS = {
   session: "/api/prerelease/v1/session",
   health: "/api/prerelease/v1/health",
   currentRelease: "/api/prerelease/v1/releases/current",
+  queries: "/api/prerelease/v1/queries",
+  contexts: "/api/prerelease/v1/contexts",
+  candidateSubmissions: "/api/prerelease/v1/candidate-submissions",
   sources: "/api/prerelease/v1/sources",
   processingRuns: "/api/prerelease/v1/processing-runs",
   candidates: "/api/prerelease/v1/candidates",
@@ -109,6 +112,109 @@ export interface CurrentRelease {
   status: "released" | "not_released";
   indexVersion: string | null;
   releasedAt: string | null;
+}
+
+export type RetrievalVisibility = "released" | "evaluation";
+export type RetrievalChannel = "metadata" | "fts" | "vector" | "relation";
+export type RetrievalCapabilityState =
+  | "available"
+  | "degraded"
+  | "disabled"
+  | "unavailable";
+
+export interface RetrievalFilters {
+  knowledgeTypes: string[];
+  scope: Record<string, string>;
+  sourceVersionIds: string[];
+  rightsClassifications: string[];
+}
+
+export interface RetrievalQueryRequest {
+  query: string;
+  visibility: RetrievalVisibility;
+  filters: RetrievalFilters;
+  limit: number;
+  relationDepth: number;
+  includeVector: boolean;
+}
+
+export interface RetrievalReleaseScope {
+  releaseId: string;
+  version: string;
+  indexVersion: string;
+}
+
+export interface RetrievalChannelCapability {
+  channel: RetrievalChannel;
+  state: RetrievalCapabilityState;
+  version: string | null;
+  reason: string | null;
+  candidateCount: number;
+}
+
+export interface RetrievalQueryPlan {
+  queryId: string;
+  normalizedQuery: string;
+  visibility: RetrievalVisibility;
+  releaseScope: RetrievalReleaseScope | null;
+  policyVersion: string;
+  requestedLimit: number;
+  relationDepth: number;
+  channels: RetrievalChannelCapability[];
+  indexVersion: string | null;
+}
+
+export interface RetrievalCitation {
+  evidenceId: string;
+  sourceId: string;
+  sourceTitle: string;
+  sourceVersionId: string;
+  sourceVersion: string;
+  locator: Record<string, unknown>;
+  contentSha256: string;
+  sourceSha256: string;
+  rightsClassification: string;
+  citationRequired: boolean;
+}
+
+export interface RetrievalChannelContribution {
+  channel: RetrievalChannel;
+  rank: number;
+  rawScore: number;
+  fusionScore: number;
+}
+
+export interface RetrievalHit {
+  knowledgeUnitId: string;
+  stableKey: string;
+  knowledgeType: string;
+  knowledgeRevisionId: string;
+  revisionNumber: number;
+  visibility: RetrievalVisibility;
+  releaseIds: string[];
+  claim: string;
+  scope: Record<string, unknown>;
+  applicability: Record<string, unknown>;
+  finalScore: number;
+  rank: number;
+  channelContributions: RetrievalChannelContribution[];
+  relationPaths: string[][];
+  citations: RetrievalCitation[];
+}
+
+export interface ExplicitGap {
+  code: string;
+  kind: "visibility" | "capability" | "no_result" | "limit" | "rights";
+  message: string;
+  channel: RetrievalChannel | null;
+}
+
+export interface RetrievalQuery {
+  plan: RetrievalQueryPlan;
+  hits: RetrievalHit[];
+  gaps: ExplicitGap[];
+  partial: boolean;
+  warnings: string[];
 }
 
 export interface SourceSummary {
@@ -416,7 +522,12 @@ export type ApiErrorCode =
   | "candidate_not_found"
   | "invalid_governance_transition"
   | "stale_revision"
-  | "duplicate_decision";
+  | "duplicate_decision"
+  | "retrieval_not_found"
+  | "retrieval_visibility_denied"
+  | "retrieval_unavailable"
+  | "unsafe_candidate_payload"
+  | "candidate_inbox_unavailable";
 
 export interface ErrorResponse {
   error: {

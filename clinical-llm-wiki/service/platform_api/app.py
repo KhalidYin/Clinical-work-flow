@@ -19,6 +19,13 @@ from service.auth import (
     require_permission,
     resolve_human_actor,
 )
+from service.candidate_inbox import (
+    CandidateSubmissionCommand,
+    CandidateSubmissionService,
+    CandidateSubmissionType,
+    UnsafeCandidatePayloadError,
+)
+from service.context import ContextPackage, ContextPackageBuilder
 from service.governance import KnowledgeGovernanceService
 from service.governance.service import (
     CandidateNotFoundError,
@@ -36,6 +43,17 @@ from service.processing.ledger import (
     LedgerError,
     ProcessingLedgerPort,
     RetryNotAllowedError,
+)
+from service.retrieval import (
+    HybridRetrievalService,
+    RetrievalFilters,
+    RetrievalHit,
+    RetrievalNotFoundError,
+    RetrievalRequest,
+    RetrievalResult,
+    RetrievalVisibility,
+    RetrievalVisibilityError,
+    RevisionTrace,
 )
 from service.sources import (
     DataBoundary,
@@ -67,12 +85,20 @@ from .contracts import (
     CandidateRevisionRequest,
     CandidateRevisionResponse,
     CandidateSummaryData,
+    CandidateSubmissionData,
+    CandidateSubmissionRequest,
+    CandidateSubmissionResponse,
+    ContextBuildRequest,
+    ContextItemData,
+    ContextPackageData,
+    ContextPackageResponse,
     CurrentReleaseData,
     CurrentReleaseResponse,
     CancelData,
     CancelResponse,
     ErrorData,
     ErrorResponse,
+    ExplicitGapData,
     HealthResponse,
     PlatformHealthData,
     PlatformUserData,
@@ -83,14 +109,25 @@ from .contracts import (
     ProcessingRunData,
     ProcessingRunResponse,
     ProcessingStepData,
+    QueryPlanData,
     RelationEdgeData,
     RelationEvidenceData,
     RelationNodeData,
     RelationQueryData,
     RelationQueryResponse,
+    ReleaseScopeData,
+    RetrievalChannelCapabilityData,
+    RetrievalChannelContributionData,
+    RetrievalCitationData,
+    RetrievalHitData,
+    RetrievalQueryData,
+    RetrievalQueryRequest,
+    RetrievalQueryResponse,
     ReviewDecisionData,
     ReviewDecisionRequest,
     ReviewDecisionResponse,
+    RevisionTraceData,
+    RevisionTraceResponse,
     ResponseMeta,
     RetryData,
     RetryResponse,
@@ -125,6 +162,9 @@ class PlatformApiServices:
     source_registry: SourceRegistryService | None = None
     processing_ledger: ProcessingLedgerPort | None = None
     governance: KnowledgeGovernanceService | None = None
+    retrieval: HybridRetrievalService | None = None
+    context_builder: ContextPackageBuilder | None = None
+    candidate_inbox: CandidateSubmissionService | None = None
 
 
 class PlatformApiError(RuntimeError):
@@ -312,6 +352,180 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
             )
         )
         return CurrentReleaseResponse(data=data, meta=_meta())
+
+    @app.post(
+        f"{API_PREFIX}/queries",
+        operation_id="queryKnowledge",
+        response_model=RetrievalQueryResponse,
+        responses=protected_responses,
+    )
+    def query_knowledge(
+        request_data: RetrievalQueryRequest,
+        actor: Annotated[ActorContext, Depends(get_actor)],
+    ) -> RetrievalQueryResponse:
+        retrieval = _require_retrieval_service(services)
+        try:
+            result = retrieval.search(
+                actor=actor,
+                request=_retrieval_request(request_data),
+            )
+        except (AuthorizationError, RetrievalVisibilityError) as exc:
+            raise PlatformApiError(
+                status_code=403,
+                code="retrieval_visibility_denied",
+                message="The current actor cannot use this retrieval visibility.",
+            ) from exc
+        except SQLAlchemyError as exc:
+            raise PlatformApiError(
+                status_code=503,
+                code="retrieval_unavailable",
+                message="The retrieval repository is unavailable.",
+            ) from exc
+        return RetrievalQueryResponse(data=_retrieval_query_data(result), meta=_meta())
+
+    @app.post(
+        f"{API_PREFIX}/contexts",
+        operation_id="buildKnowledgeContext",
+        response_model=ContextPackageResponse,
+        responses=protected_responses,
+    )
+    def build_knowledge_context(
+        request_data: ContextBuildRequest,
+        actor: Annotated[ActorContext, Depends(get_actor)],
+    ) -> ContextPackageResponse:
+        retrieval = _require_retrieval_service(services)
+        builder = services.context_builder
+        if builder is None:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="The context builder is not configured.",
+            )
+        try:
+            result = retrieval.search(
+                actor=actor,
+                request=_retrieval_request(request_data),
+            )
+            package = builder.build(
+                result,
+                max_hits=request_data.max_hits,
+                max_characters=request_data.max_characters,
+            )
+        except (AuthorizationError, RetrievalVisibilityError) as exc:
+            raise PlatformApiError(
+                status_code=403,
+                code="retrieval_visibility_denied",
+                message="The current actor cannot use this context visibility.",
+            ) from exc
+        except SQLAlchemyError as exc:
+            raise PlatformApiError(
+                status_code=503,
+                code="retrieval_unavailable",
+                message="The retrieval repository is unavailable.",
+            ) from exc
+        return ContextPackageResponse(data=_context_package_data(package), meta=_meta())
+
+    @app.post(
+        f"{API_PREFIX}/candidate-submissions",
+        operation_id="submitCandidate",
+        response_model=CandidateSubmissionResponse,
+        status_code=202,
+        responses=write_responses,
+    )
+    def submit_candidate(
+        request: CandidateSubmissionRequest,
+        actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.CANDIDATE_SUBMIT)),
+        ],
+    ) -> CandidateSubmissionResponse:
+        if services.candidate_inbox is None:
+            raise PlatformApiError(
+                status_code=503,
+                code="candidate_inbox_unavailable",
+                message="The prerelease candidate-submission inbox is unavailable.",
+            )
+        try:
+            receipt = services.candidate_inbox.submit(
+                actor=actor,
+                command=CandidateSubmissionCommand(
+                    submission_type=CandidateSubmissionType(request.submission_type),
+                    origin_system=request.origin_system,
+                    origin_record_ref=request.origin_record_ref,
+                    summary=request.summary,
+                    proposed_claim=request.proposed_claim,
+                    scope=request.scope,
+                    source_references=tuple(request.source_references),
+                    deidentified=request.deidentified,
+                    idempotency_key=request.idempotency_key,
+                ),
+            )
+        except UnsafeCandidatePayloadError as exc:
+            raise PlatformApiError(
+                status_code=422,
+                code="unsafe_candidate_payload",
+                message=str(exc),
+            ) from exc
+        except SQLAlchemyError as exc:
+            raise PlatformApiError(
+                status_code=503,
+                code="candidate_inbox_unavailable",
+                message="The prerelease candidate-submission inbox is unavailable.",
+            ) from exc
+        return CandidateSubmissionResponse(
+            data=CandidateSubmissionData(
+                submission_id=receipt.submission_id,
+                status="received",
+                payload_sha256=receipt.payload_sha256,
+                duplicate=receipt.duplicate,
+                created_at=receipt.created_at,
+            ),
+            meta=_meta(),
+        )
+
+    @app.get(
+        f"{API_PREFIX}/knowledge-revisions/{{knowledge_revision_id}}",
+        operation_id="getKnowledgeRevision",
+        response_model=RevisionTraceResponse,
+        responses=protected_responses,
+    )
+    def get_knowledge_revision(
+        knowledge_revision_id: str,
+        actor: Annotated[ActorContext, Depends(get_actor)],
+        visibility: Annotated[
+            RetrievalVisibility,
+            Query(),
+        ] = RetrievalVisibility.RELEASED,
+    ) -> RevisionTraceResponse:
+        trace = _get_revision_trace(
+            services,
+            actor=actor,
+            knowledge_revision_id=knowledge_revision_id,
+            visibility=visibility,
+        )
+        return RevisionTraceResponse(data=_revision_trace_data(trace), meta=_meta())
+
+    @app.get(
+        f"{API_PREFIX}/knowledge-revisions/{{knowledge_revision_id}}/trace",
+        operation_id="traceKnowledgeRevision",
+        response_model=RevisionTraceResponse,
+        responses=protected_responses,
+    )
+    def trace_knowledge_revision(
+        knowledge_revision_id: str,
+        actor: Annotated[ActorContext, Depends(get_actor)],
+        visibility: Annotated[
+            RetrievalVisibility,
+            Query(),
+        ] = RetrievalVisibility.RELEASED,
+    ) -> RevisionTraceResponse:
+        trace = _get_revision_trace(
+            services,
+            actor=actor,
+            knowledge_revision_id=knowledge_revision_id,
+            visibility=visibility,
+        )
+        return RevisionTraceResponse(data=_revision_trace_data(trace), meta=_meta())
 
     @app.get(
         f"{API_PREFIX}/sources",
@@ -1085,6 +1299,217 @@ def _processing_run_data(record: ProcessingRunRecord) -> ProcessingRunData:
             )
             for step in record.steps
         ],
+    )
+
+
+def _require_retrieval_service(
+    services: PlatformApiServices,
+) -> HybridRetrievalService:
+    if services.retrieval is None:
+        raise PlatformApiError(
+            status_code=503,
+            code="service_unavailable",
+            message="The retrieval service is not configured.",
+        )
+    return services.retrieval
+
+
+def _retrieval_request(
+    request: RetrievalQueryRequest,
+) -> RetrievalRequest:
+    return RetrievalRequest(
+        query=request.query,
+        visibility=RetrievalVisibility(request.visibility),
+        filters=RetrievalFilters(
+            knowledge_types=tuple(request.filters.knowledge_types),
+            scope=dict(request.filters.scope),
+            source_version_ids=tuple(request.filters.source_version_ids),
+            rights_classifications=tuple(
+                request.filters.rights_classifications
+            ),
+        ),
+        limit=request.limit,
+        relation_depth=request.relation_depth,
+        include_vector=request.include_vector,
+    )
+
+
+def _release_scope_data(scope) -> ReleaseScopeData | None:
+    if scope is None:
+        return None
+    return ReleaseScopeData(
+        release_id=scope.release_id,
+        version=scope.version,
+        index_version=scope.index_version,
+    )
+
+
+def _citation_data(citation) -> RetrievalCitationData:
+    return RetrievalCitationData(
+        evidence_id=citation.evidence_id,
+        source_id=citation.source_id,
+        source_title=citation.source_title,
+        source_version_id=citation.source_version_id,
+        source_version=citation.source_version,
+        locator=dict(citation.locator),
+        content_sha256=citation.content_sha256,
+        source_sha256=citation.source_sha256,
+        rights_classification=citation.rights_classification,
+        citation_required=citation.citation_required,
+    )
+
+
+def _retrieval_hit_data(hit: RetrievalHit) -> RetrievalHitData:
+    return RetrievalHitData(
+        knowledge_unit_id=hit.knowledge_unit_id,
+        stable_key=hit.stable_key,
+        knowledge_type=hit.knowledge_type,
+        knowledge_revision_id=hit.knowledge_revision_id,
+        revision_number=hit.revision_number,
+        visibility=hit.visibility.value,
+        release_ids=list(hit.release_ids),
+        claim=hit.claim,
+        scope=dict(hit.scope),
+        applicability=dict(hit.applicability),
+        final_score=hit.final_score,
+        rank=hit.rank,
+        channel_contributions=[
+            RetrievalChannelContributionData(
+                channel=contribution.channel.value,
+                rank=contribution.rank,
+                raw_score=contribution.raw_score,
+                fusion_score=contribution.fusion_score,
+            )
+            for contribution in hit.channel_contributions
+        ],
+        relation_paths=[list(path) for path in hit.relation_paths],
+        citations=[_citation_data(citation) for citation in hit.citations],
+    )
+
+
+def _query_plan_data(plan) -> QueryPlanData:
+    return QueryPlanData(
+        query_id=plan.query_id,
+        normalized_query=plan.normalized_query,
+        visibility=plan.visibility.value,
+        release_scope=_release_scope_data(plan.release_scope),
+        policy_version=plan.policy_version,
+        requested_limit=plan.requested_limit,
+        relation_depth=plan.relation_depth,
+        channels=[
+            RetrievalChannelCapabilityData(
+                channel=capability.channel.value,
+                state=capability.state.value,
+                version=capability.version,
+                reason=capability.reason,
+                candidate_count=capability.candidate_count,
+            )
+            for capability in plan.channels
+        ],
+        index_version=plan.index_version,
+    )
+
+
+def _gap_data(gap) -> ExplicitGapData:
+    return ExplicitGapData(
+        code=gap.code,
+        kind=gap.kind.value,
+        message=gap.message,
+        channel=gap.channel.value if gap.channel else None,
+    )
+
+
+def _retrieval_query_data(result: RetrievalResult) -> RetrievalQueryData:
+    return RetrievalQueryData(
+        plan=_query_plan_data(result.plan),
+        hits=[_retrieval_hit_data(hit) for hit in result.hits],
+        gaps=[_gap_data(gap) for gap in result.gaps],
+        partial=result.partial,
+        warnings=list(result.warnings),
+    )
+
+
+def _context_package_data(package: ContextPackage) -> ContextPackageData:
+    return ContextPackageData(
+        context_id=package.context_id,
+        plan=_query_plan_data(package.query_plan),
+        visibility=package.visibility.value,
+        items=[
+            ContextItemData(
+                knowledge_revision_id=item.knowledge_revision_id,
+                stable_key=item.stable_key,
+                claim=item.claim,
+                rank=item.rank,
+                citations=[
+                    _citation_data(citation) for citation in item.citations
+                ],
+            )
+            for item in package.items
+        ],
+        gaps=[_gap_data(gap) for gap in package.gaps],
+        rendered_text=package.rendered_text,
+        truncated=package.truncated,
+        partial=package.partial,
+        max_characters=package.max_characters,
+    )
+
+
+def _get_revision_trace(
+    services: PlatformApiServices,
+    *,
+    actor: ActorContext,
+    knowledge_revision_id: str,
+    visibility: RetrievalVisibility,
+) -> RevisionTrace:
+    retrieval = _require_retrieval_service(services)
+    try:
+        return retrieval.get_revision(
+            actor=actor,
+            knowledge_revision_id=knowledge_revision_id,
+            visibility=visibility,
+        )
+    except RetrievalNotFoundError as exc:
+        raise PlatformApiError(
+            status_code=404,
+            code="retrieval_not_found",
+            message="The knowledge revision is not visible in this boundary.",
+        ) from exc
+    except (AuthorizationError, RetrievalVisibilityError) as exc:
+        raise PlatformApiError(
+            status_code=403,
+            code="retrieval_visibility_denied",
+            message="The current actor cannot use this retrieval visibility.",
+        ) from exc
+    except SQLAlchemyError as exc:
+        raise PlatformApiError(
+            status_code=503,
+            code="retrieval_unavailable",
+            message="The retrieval repository is unavailable.",
+        ) from exc
+
+
+def _revision_trace_data(trace: RevisionTrace) -> RevisionTraceData:
+    document = trace.document
+    hit = RetrievalHit(
+        knowledge_unit_id=document.knowledge_unit_id,
+        stable_key=document.stable_key,
+        knowledge_type=document.knowledge_type,
+        knowledge_revision_id=document.knowledge_revision_id,
+        revision_number=document.revision_number,
+        visibility=trace.visibility,
+        release_ids=document.release_ids,
+        claim=document.claim,
+        scope=document.scope,
+        applicability=document.applicability,
+        final_score=1.0,
+        rank=1,
+        channel_contributions=(),
+        relation_paths=(),
+        citations=document.citations,
+    )
+    return RevisionTraceData(
+        hit=_retrieval_hit_data(hit),
+        release_scope=_release_scope_data(trace.release_scope),
     )
 
 

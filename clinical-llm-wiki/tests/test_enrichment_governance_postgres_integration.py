@@ -387,6 +387,23 @@ def test_replay_retry_candidate_revision_and_independent_approval_are_durable(
             run_id=run_id,
             step_id=enrichment_step_id,
         )
+        retry_preflight = preflight_live_vertical(
+            sessions,
+            run_id=run_id,
+            model_profile=model_profile,
+            prompt_profile=prompt_profile,
+            authorization=LiveModelAuthorization(
+                profile_id=model_profile.profile_id,
+                profile_version=model_profile.version,
+                allowed_data_boundaries={"enterprise_provider_only"},
+                max_calls=1,
+            ),
+            environ={"P12_ENRICHMENT_WORKER_TOKEN": "configured-for-test"},
+        )
+        assert retry_preflight["ready"] is True
+        assert retry_preflight["attempt_number"] == 2
+        assert retry_preflight["retry_of_attempt_id"] == failed_attempt.attempt_id
+        assert retry_preflight["prior_invocation_count"] == 1
 
         output = {
             "candidate_group_id": f"sdtm.ae.aeseq.{suffix}",

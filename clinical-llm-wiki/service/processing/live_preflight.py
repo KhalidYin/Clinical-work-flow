@@ -70,9 +70,9 @@ def preflight_live_vertical(
         run = session.get(ProcessingRun, run_id)
         if run is None:
             raise LiveVerticalPreflightError("target processing run does not exist")
-        if run.status != "evidence_ready":
+        if run.status not in {"evidence_ready", "queued"}:
             raise LiveVerticalPreflightError(
-                "target processing run must be in evidence_ready status"
+                "target processing run must be evidence_ready or an explicitly queued retry"
             )
         source_version = session.get(SourceVersion, run.source_version_id)
         if source_version is None:
@@ -118,15 +118,55 @@ def preflight_live_vertical(
             raise LiveVerticalPreflightError(
                 "target enrichment step has no queued StepAttempt"
             )
-        invocation_count = session.scalar(
+        current_invocation_count = session.scalar(
             select(func.count(ModelInvocation.invocation_id)).where(
-                ModelInvocation.run_id == run_id
+                ModelInvocation.run_id == run_id,
+                ModelInvocation.attempt_id == attempt.attempt_id,
             )
         )
-        if invocation_count:
+        if current_invocation_count:
             raise LiveVerticalPreflightError(
-                "target run already has a model invocation; choose a fresh P2-B3 run"
+                "target queued attempt already has a model invocation"
             )
+        prior_invocation_count = session.scalar(
+            select(func.count(ModelInvocation.invocation_id)).where(
+                ModelInvocation.run_id == run_id,
+                ModelInvocation.attempt_id != attempt.attempt_id,
+            )
+        )
+        retry_of_attempt_id: str | None = None
+        if attempt.attempt_number == 1:
+            if run.status != "evidence_ready" or prior_invocation_count:
+                raise LiveVerticalPreflightError(
+                    "first live attempt requires evidence_ready and zero prior invocations"
+                )
+        else:
+            if run.status != "queued" or attempt.previous_attempt_id is None:
+                raise LiveVerticalPreflightError(
+                    "live retry requires an explicitly queued linked attempt"
+                )
+            previous_attempt = session.get(StepAttempt, attempt.previous_attempt_id)
+            if (
+                previous_attempt is None
+                or previous_attempt.run_id != run_id
+                or previous_attempt.step_id != step.step_id
+                or previous_attempt.status != "failed"
+            ):
+                raise LiveVerticalPreflightError(
+                    "live retry must link the failed previous attempt"
+                )
+            previous_failed_invocations = session.scalar(
+                select(func.count(ModelInvocation.invocation_id)).where(
+                    ModelInvocation.run_id == run_id,
+                    ModelInvocation.attempt_id == previous_attempt.attempt_id,
+                    ModelInvocation.status == "failed",
+                )
+            )
+            if previous_failed_invocations != 1:
+                raise LiveVerticalPreflightError(
+                    "live retry requires exactly one failed invocation on the previous attempt"
+                )
+            retry_of_attempt_id = previous_attempt.attempt_id
 
     return {
         "ready": True,
@@ -137,6 +177,8 @@ def preflight_live_vertical(
         "step_id": step.step_id,
         "attempt_id": attempt.attempt_id,
         "attempt_number": attempt.attempt_number,
+        "retry_of_attempt_id": retry_of_attempt_id,
+        "prior_invocation_count": int(prior_invocation_count),
         "model_profile_id": model_profile.profile_id,
         "model_profile_version": model_profile.version,
         "prompt_profile_id": prompt_profile.profile_id,

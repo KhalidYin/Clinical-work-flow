@@ -258,6 +258,52 @@ def test_litellm_adapter_uses_one_non_streaming_structured_call_and_records_prov
     assert "resolved-secret" not in invocation.model_dump_json()
 
 
+def test_deepseek_adapter_uses_json_object_and_keeps_local_schema_validation() -> None:
+    contract = _model_provider_module()
+    calls: list[dict] = []
+    request = _request(contract, data_boundary="external_allowed").model_copy(
+        update={
+            "model_profile": contract.ModelProfile(
+                profile_id="deepseek-extractor",
+                version="1.0.0",
+                provider="deepseek",
+                model="deepseek-v4-flash",
+                deployment_class="external_api",
+                secret_ref="env://DEEPSEEK_API_KEY",
+                endpoint_ref="env://DEEPSEEK_ENDPOINT",
+                allowed_data_boundaries=["external_allowed"],
+                capabilities=["structured_generation"],
+            )
+        }
+    )
+
+    def completion(**kwargs):
+        calls.append(kwargs)
+        return {
+            "id": "deepseek-request-001",
+            "choices": [{"message": {"content": '{"claim":"Evidence-grounded claim."}'}}],
+        }
+
+    provider = contract.LiteLLMModelProvider(
+        completion_fn=completion,
+        secret_resolver=lambda ref: {
+            "env://DEEPSEEK_API_KEY": "resolved-secret",
+            "env://DEEPSEEK_ENDPOINT": "https://api.deepseek.com",
+        }[ref],
+    )
+    invocation = provider.invoke(request)
+
+    assert len(calls) == 1
+    assert calls[0]["response_format"] == {"type": "json_object"}
+    system_content = calls[0]["messages"][0]["content"]
+    assert "valid JSON object" in system_content
+    assert json.dumps(request.prompt_profile.output_schema, sort_keys=True) in system_content
+    assert calls[0]["stream"] is False
+    assert calls[0]["num_retries"] == 0
+    assert invocation.status == contract.InvocationStatus.SUCCEEDED
+    assert invocation.output == {"claim": "Evidence-grounded claim."}
+
+
 @pytest.mark.parametrize(
     ("provider_error", "error_type"),
     [

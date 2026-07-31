@@ -395,6 +395,152 @@ class UserCollectionData(ApiModel):
     warnings: list[str]
 
 
+class RetrievalFiltersData(ApiModel):
+    knowledge_types: list[str] = []
+    scope: dict[str, str] = {}
+    source_version_ids: list[str] = []
+    rights_classifications: list[str] = []
+
+
+class RetrievalQueryRequest(ApiModel):
+    query: str = Field(min_length=1, max_length=2000)
+    visibility: Literal["released", "evaluation"] = "released"
+    filters: RetrievalFiltersData = RetrievalFiltersData()
+    limit: int = Field(default=10, ge=1, le=50)
+    relation_depth: int = Field(default=1, ge=0, le=2)
+    include_vector: bool = True
+
+
+class ContextBuildRequest(RetrievalQueryRequest):
+    max_hits: int = Field(default=8, ge=1, le=50)
+    max_characters: int = Field(default=12_000, ge=500, le=100_000)
+
+
+class CandidateSubmissionRequest(ApiModel):
+    schema_version: Literal["1.0.0"] = "1.0.0"
+    submission_type: Literal["correction", "observation", "rule_gap", "proposed_rule"]
+    origin_system: str = Field(min_length=1, max_length=160)
+    origin_record_ref: str = Field(min_length=1, max_length=240)
+    summary: str = Field(min_length=1, max_length=4000)
+    proposed_claim: str | None = Field(default=None, max_length=8000)
+    scope: dict[str, str] = Field(default_factory=dict)
+    source_references: list[str] = Field(default_factory=list, max_length=50)
+    deidentified: Literal[True]
+    idempotency_key: str = Field(min_length=8, max_length=160)
+
+
+class CandidateSubmissionData(ApiModel):
+    submission_id: str
+    status: Literal["received"]
+    payload_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    duplicate: bool
+    created_at: datetime
+
+
+class ReleaseScopeData(ApiModel):
+    release_id: str
+    version: str
+    index_version: str
+
+
+class RetrievalChannelCapabilityData(ApiModel):
+    channel: Literal["metadata", "fts", "vector", "relation"]
+    state: Literal["available", "degraded", "disabled", "unavailable"]
+    version: str | None
+    reason: str | None
+    candidate_count: int = Field(ge=0)
+
+
+class QueryPlanData(ApiModel):
+    query_id: str
+    normalized_query: str
+    visibility: Literal["released", "evaluation"]
+    release_scope: ReleaseScopeData | None
+    policy_version: str
+    requested_limit: int = Field(ge=1, le=50)
+    relation_depth: int = Field(ge=0, le=2)
+    channels: list[RetrievalChannelCapabilityData]
+    index_version: str | None
+
+
+class RetrievalCitationData(ApiModel):
+    evidence_id: str
+    source_id: str
+    source_title: str
+    source_version_id: str
+    source_version: str
+    locator: dict[str, Any]
+    content_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    source_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    rights_classification: str
+    citation_required: bool
+
+
+class RetrievalChannelContributionData(ApiModel):
+    channel: Literal["metadata", "fts", "vector", "relation"]
+    rank: int = Field(ge=1)
+    raw_score: float
+    fusion_score: float
+
+
+class RetrievalHitData(ApiModel):
+    knowledge_unit_id: str
+    stable_key: str
+    knowledge_type: str
+    knowledge_revision_id: str
+    revision_number: int = Field(ge=1)
+    visibility: Literal["released", "evaluation"]
+    release_ids: list[str]
+    claim: str
+    scope: dict[str, Any]
+    applicability: dict[str, Any]
+    final_score: float
+    rank: int = Field(ge=1)
+    channel_contributions: list[RetrievalChannelContributionData]
+    relation_paths: list[list[str]]
+    citations: list[RetrievalCitationData] = Field(min_length=1)
+
+
+class ExplicitGapData(ApiModel):
+    code: str
+    kind: Literal["visibility", "capability", "no_result", "limit", "rights"]
+    message: str
+    channel: Literal["metadata", "fts", "vector", "relation"] | None
+
+
+class RetrievalQueryData(ApiModel):
+    plan: QueryPlanData
+    hits: list[RetrievalHitData]
+    gaps: list[ExplicitGapData]
+    partial: bool
+    warnings: list[str]
+
+
+class ContextItemData(ApiModel):
+    knowledge_revision_id: str
+    stable_key: str
+    claim: str
+    rank: int = Field(ge=1)
+    citations: list[RetrievalCitationData] = Field(min_length=1)
+
+
+class ContextPackageData(ApiModel):
+    context_id: str
+    plan: QueryPlanData
+    visibility: Literal["released", "evaluation"]
+    items: list[ContextItemData]
+    gaps: list[ExplicitGapData]
+    rendered_text: str
+    truncated: bool
+    partial: bool
+    max_characters: int = Field(ge=500, le=100_000)
+
+
+class RevisionTraceData(ApiModel):
+    hit: RetrievalHitData
+    release_scope: ReleaseScopeData | None
+
+
 class ErrorData(ApiModel):
     code: Literal[
         "authentication_required",
@@ -410,6 +556,11 @@ class ErrorData(ApiModel):
         "invalid_governance_transition",
         "stale_revision",
         "duplicate_decision",
+        "retrieval_not_found",
+        "retrieval_visibility_denied",
+        "retrieval_unavailable",
+        "unsafe_candidate_payload",
+        "candidate_inbox_unavailable",
     ]
     message: str
 
@@ -496,6 +647,26 @@ class CancelResponse(ApiModel):
 
 class UserCollectionResponse(ApiModel):
     data: UserCollectionData
+    meta: ResponseMeta
+
+
+class RetrievalQueryResponse(ApiModel):
+    data: RetrievalQueryData
+    meta: ResponseMeta
+
+
+class ContextPackageResponse(ApiModel):
+    data: ContextPackageData
+    meta: ResponseMeta
+
+
+class RevisionTraceResponse(ApiModel):
+    data: RevisionTraceData
+    meta: ResponseMeta
+
+
+class CandidateSubmissionResponse(ApiModel):
+    data: CandidateSubmissionData
     meta: ResponseMeta
 
 

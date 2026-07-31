@@ -119,6 +119,23 @@ services:
       KNOWLEDGE_ENRICHMENT_PROVIDER_MODE: replay
       KNOWLEDGE_ENRICHMENT_RECORDS_PATH: /var/lib/clinical-knowledge/demo/replay-records.json
 
+  worker-enrichment-live:
+    <<: *worker
+    profiles: ["live"]
+    restart: "no"
+    command:
+      [
+        "sh",
+        "-c",
+        "python -m service.processing.worker --pool enrichment --run-id \"$${KNOWLEDGE_LIVE_RUN_ID}\" --once",
+      ]
+    env_file:
+      - ./.env.local
+    environment:
+      <<: *application-environment
+      KNOWLEDGE_ENRICHMENT_WORKER_SERVICE_ACCOUNT_ID: ${KNOWLEDGE_ENRICHMENT_WORKER_SERVICE_ACCOUNT_ID:?set enrichment service account}
+      P12_ENRICHMENT_WORKER_TOKEN: ${P12_ENRICHMENT_WORKER_TOKEN:?set P12_ENRICHMENT_WORKER_TOKEN}
+
   worker-release:
     <<: *worker
     profiles: ["release"]

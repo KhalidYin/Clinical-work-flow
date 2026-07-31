@@ -12,6 +12,7 @@ import {
   type CandidateCollection,
   type CandidateDetail,
   type RelationQuery,
+  type RetrievalQuery,
   type AuditEventCollection,
   type UserCollection,
 } from "../contracts/knowledgeApi";
@@ -391,6 +392,108 @@ export const relationQueryFixture = response<RelationQuery>({
   totalNodes: relationNodes.length,
   truncated: false,
   partial: false,
+  warnings: [],
+});
+
+export const queryFixture = response<RetrievalQuery>({
+  plan: {
+    queryId: "query-ui-aeseq-001",
+    normalizedQuery: "AESEQ",
+    visibility: "released",
+    releaseScope: {
+      releaseId: "rel-2026-07-29-001",
+      version: "2026.07-d0",
+      indexVersion: "idx-0007",
+    },
+    policyVersion: "rrf-neutral@1.0.0",
+    requestedLimit: 10,
+    relationDepth: 1,
+    channels: [
+      {
+        channel: "metadata",
+        state: "available",
+        version: "metadata@1",
+        reason: null,
+        candidateCount: 1,
+      },
+      {
+        channel: "fts",
+        state: "available",
+        version: "postgres-fts@1",
+        reason: null,
+        candidateCount: 1,
+      },
+      {
+        channel: "vector",
+        state: "disabled",
+        version: null,
+        reason: "embedding_profile_not_configured",
+        candidateCount: 0,
+      },
+      {
+        channel: "relation",
+        state: "available",
+        version: "bounded-relation@1",
+        reason: null,
+        candidateCount: 0,
+      },
+    ],
+    indexVersion: "idx-0007",
+  },
+  hits: [
+    {
+      knowledgeUnitId: "KU-SDTM-AESEQ",
+      stableKey: "sdtm.ae.aeseq",
+      knowledgeType: "variable_definition",
+      knowledgeRevisionId: "KREV-SDTM-AESEQ-002",
+      revisionNumber: 2,
+      visibility: "released",
+      releaseIds: ["rel-2026-07-29-001"],
+      claim: "AESEQ identifies a record within the AE domain.",
+      scope: { standard: "SDTM", domain: "AE" },
+      applicability: { standardVersion: "3.4" },
+      finalScore: 0.032522,
+      rank: 1,
+      channelContributions: [
+        {
+          channel: "metadata",
+          rank: 1,
+          rawScore: 1,
+          fusionScore: 0.016393,
+        },
+        {
+          channel: "fts",
+          rank: 1,
+          rawScore: 0.82,
+          fusionScore: 0.016393,
+        },
+      ],
+      relationPaths: [],
+      citations: [
+        {
+          evidenceId: "evidence-ui-aeseq-001",
+          sourceId: "src-sdtmig-34",
+          sourceTitle: "Study Data Tabulation Model Implementation Guide",
+          sourceVersionId: "srcv-sdtmig-34",
+          sourceVersion: "3.4",
+          locator: { page: 35, section: "6.2 AE" },
+          contentSha256: "e".repeat(64),
+          sourceSha256: "f".repeat(64),
+          rightsClassification: "licensed",
+          citationRequired: true,
+        },
+      ],
+    },
+  ],
+  gaps: [
+    {
+      code: "vector_disabled",
+      kind: "capability",
+      message: "Vector retrieval is disabled because no embedding profile is configured.",
+      channel: "vector",
+    },
+  ],
+  partial: true,
   warnings: [],
 });
 

@@ -52,7 +52,7 @@ from service.sources import (
 
 
 LIVE_MODEL_PROFILE_ID = "deepseek-v4-flash-extractor"
-LIVE_MODEL_PROFILE_VERSION = "1.0.0"
+LIVE_MODEL_PROFILE_VERSION = "1.0.1"
 LIVE_PROMPT_PROFILE_ID = "atomic-candidate"
 LIVE_PROMPT_PROFILE_VERSION = "1.1.0"
 LIVE_SOURCE_ID = "src-p2b3-live-synthetic-teae"
@@ -139,7 +139,11 @@ def _ensure_live_profile(session_factory) -> None:
         "capabilities": sorted(capability.value for capability in profile.capabilities),
         "timeout_seconds": profile.timeout_seconds,
         "max_output_tokens": profile.max_output_tokens,
-        "cost_policy": {"currency": "USD", "mode": "metered_external_api"},
+        "cost_policy": {
+            "currency": "USD",
+            "mode": "metered_external_api",
+            "structured_output_transport": "json_object+local_json_schema_v1",
+        },
     }
     with session_factory.begin() as session:
         prompt = session.get(

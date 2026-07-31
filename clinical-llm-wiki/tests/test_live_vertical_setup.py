@@ -9,7 +9,7 @@ def test_deepseek_profile_matches_runtime_environment_contract() -> None:
     profile = deepseek_model_profile()
 
     assert profile.profile_id == "deepseek-v4-flash-extractor"
-    assert profile.version == "1.0.0"
+    assert profile.version == "1.0.1"
     assert profile.provider == "deepseek"
     assert profile.model == "deepseek-v4-flash"
     assert profile.deployment_class.value == "external_api"

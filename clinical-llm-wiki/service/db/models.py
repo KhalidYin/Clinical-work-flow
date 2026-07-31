@@ -841,6 +841,37 @@ class ReleaseItem(Base):
     content_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
 
 
+class CandidateSubmission(Base):
+    __tablename__ = "candidate_submissions"
+    __table_args__ = (
+        CheckConstraint(
+            "submission_type IN ('correction', 'observation', 'rule_gap', 'proposed_rule')",
+            name="submission_type",
+        ),
+        CheckConstraint(
+            "status IN ('received', 'triaged', 'rejected', 'promoted')",
+            name="submission_status",
+        ),
+        UniqueConstraint(
+            "submitted_by_actor_id",
+            "idempotency_key",
+            name="candidate_submission_actor_idempotency",
+        ),
+        Index("ix_candidate_submissions_status_created_at", "status", "created_at"),
+    )
+
+    submission_id: Mapped[str] = _text_id()
+    submitted_by_actor_id: Mapped[str] = mapped_column(String(160), nullable=False)
+    submission_type: Mapped[str] = mapped_column(String(60), nullable=False)
+    origin_system: Mapped[str] = mapped_column(String(160), nullable=False)
+    origin_record_ref: Mapped[str] = mapped_column(String(240), nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    payload_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(160), nullable=False)
+    status: Mapped[str] = mapped_column(String(60), nullable=False)
+    created_at: Mapped[datetime] = _created_at()
+
+
 class AuditEvent(Base):
     __tablename__ = "audit_events"
     __table_args__ = (

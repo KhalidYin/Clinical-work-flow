@@ -8,6 +8,7 @@ import {
   candidateDetailsFixture,
   candidatesFixture,
   processingRunsFixture,
+  queryFixture,
   releaseFixture,
   relationDirectoryFixture,
   relationQueryFixture,
@@ -22,6 +23,32 @@ export const handlers = [
   http.get(resolveApiPath(API_PATHS.session), () => HttpResponse.json(sessionFixture)),
   http.get(resolveApiPath(API_PATHS.health), () => HttpResponse.json(healthFixture)),
   http.get(resolveApiPath(API_PATHS.currentRelease), () => HttpResponse.json(releaseFixture)),
+  http.post(resolveApiPath(API_PATHS.queries), async ({ request }) => {
+    const body = (await request.json()) as { query?: string };
+    if (body.query?.toLocaleLowerCase().includes("missing")) {
+      return HttpResponse.json({
+        ...queryFixture,
+        data: {
+          ...queryFixture.data,
+          plan: {
+            ...queryFixture.data.plan,
+            normalizedQuery: body.query,
+          },
+          hits: [],
+          gaps: [
+            {
+              code: "no_matching_released_knowledge",
+              kind: "no_result",
+              message: "No governed knowledge matched the query and filters.",
+              channel: null,
+            },
+          ],
+          partial: false,
+        },
+      });
+    }
+    return HttpResponse.json(queryFixture);
+  }),
   http.get(resolveApiPath(API_PATHS.sources), () => HttpResponse.json(sourcesFixture)),
   http.post(resolveApiPath(API_PATHS.sources), () =>
     HttpResponse.json(sourceRegistrationFixture, { status: 202 }),

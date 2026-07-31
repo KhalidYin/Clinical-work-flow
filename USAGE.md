@@ -93,7 +93,9 @@ ModelProfile 只保存 `env://NAME` 或受控 Secret Store 引用，不保存实
 数据边界必须是 `local_processing_only`、`enterprise_provider_only`、`external_allowed` 或
 `prohibited`；前两类限制和禁止项在解析证据出站前 fail closed。所有生成调用固定
 `stream=false` 并要求版本化 JSON Schema，非法结构化输出只产生脱敏失败记录，不能写入
-KnowledgeCandidate。
+KnowledgeCandidate。供应商传输格式不等于治理 Schema：支持原生 `json_schema` 的 provider
+使用 strict schema transport；DeepSeek Chat Completions 只发送 `json_object`，同时把版本化
+Schema 放入 prompt，并在本地用同一 Schema 严格校验后才允许写 Candidate。
 
 P1-B0 的 fake/replay 合同测试不需要 API Key，也不会访问供应商：
 
@@ -102,7 +104,7 @@ Set-Location .\clinical-llm-wiki
 .\.venv\Scripts\python -m pytest tests/test_model_provider_contract.py -q
 ```
 
-只有准备启用 live external adapter 时，才在同一项目 `.venv` 安装：
+本地 `.venv` 只有准备启用 live external adapter 时才需要安装模型适配 extra：
 
 ```powershell
 .\.venv\Scripts\python -m pip install -e ".[models]"
@@ -134,9 +136,33 @@ $env:KNOWLEDGE_MODEL_ENDPOINT = "<injected-endpoint-if-required>"
 ```
 
 当前受控 DeepSeek 配置使用 `deepseek-v4-flash`、`https://api.deepseek.com` 和
-`deepseek-v4-flash-extractor@1.0.0`。在将要执行 preflight/Worker 的同一个 PowerShell
-进程中运行以下脚本；密钥通过隐藏提示只注入当前进程，不写入文件、用户级环境变量或命令
-历史，也不回显：
+`deepseek-v4-flash-extractor@1.0.1`。该版本固定
+`json_object + local JSON Schema validation` 传输合同。本地 Compose 可以把 live 配置直接写入 gitignored
+`clinical-llm-wiki/.env.local`。该文件同时被 `.dockerignore` 排除，只注入
+profile-gated `worker-enrichment-live`；FastAPI、React/Nginx、Document Worker 和默认 replay
+Enrichment Worker 都不会读取模型密钥。后端镜像统一安装 embedded LiteLLM 依赖，但没有
+live profile 和 secret 注入时不会调用外部模型。文件至少包含：
+
+```text
+KNOWLEDGE_ENRICHMENT_PROVIDER_MODE=live
+KNOWLEDGE_ENRICHMENT_MODEL_PROFILE_ID=deepseek-v4-flash-extractor
+KNOWLEDGE_ENRICHMENT_MODEL_PROFILE_VERSION=1.0.1
+KNOWLEDGE_ENRICHMENT_PROMPT_PROFILE_ID=atomic-candidate
+KNOWLEDGE_ENRICHMENT_PROMPT_PROFILE_VERSION=1.1.0
+KNOWLEDGE_LIVE_MODEL_ENABLED=true
+KNOWLEDGE_LIVE_MODEL_PROFILE_ID=deepseek-v4-flash-extractor
+KNOWLEDGE_LIVE_MODEL_PROFILE_VERSION=1.0.1
+KNOWLEDGE_LIVE_MODEL_ALLOWED_DATA_BOUNDARIES=external_allowed
+KNOWLEDGE_LIVE_MODEL_MAX_CALLS=1
+KNOWLEDGE_LIVE_RUN_ID=<fresh-run-id>
+KNOWLEDGE_MODEL_ENDPOINT=https://api.deepseek.com
+KNOWLEDGE_MODEL_API_KEY=<local-secret>
+```
+
+这是本地 P2-B3 便利入口；明文文件不属于生产 Secret Store。生产部署仍必须使用
+`env://`/`secret://` 注入并限制运行身份和文件权限。
+
+不希望写明文文件时，仍可在将执行 preflight/Worker 的 PowerShell 进程运行以下脚本：
 
 ```powershell
 Set-Location .\clinical-llm-wiki
@@ -182,23 +208,32 @@ docker compose --project-name clinical-knowledge-demo `
 进程级硬上限；provider 超时或失败也消耗一次。P2-B3 固定为 `1`，失败后的再次 live 调用既
 需要人工 retry 建立新 StepAttempt，也需要重新建立显式进程授权。
 
-真实调用前只允许对一个全新的 `evidence_ready` run 做只读预检。预检要求该 run 有 canonical
-Evidence、queued Enrichment StepAttempt、零历史 ModelInvocation、准确的 profile/prompt/
-boundary、已配置但不回显的 `env://` reference，并且不会解析密钥值或访问供应商：
+首次真实调用前只允许对一个全新的 `evidence_ready` run 做只读预检。预检要求该 run 有
+canonical Evidence、queued Enrichment StepAttempt、零历史 ModelInvocation、准确的
+profile/prompt/boundary、已配置但不回显的 `env://` reference，并且不会解析密钥值或访问
+供应商。人工 retry 后同一入口只接受 `queued` run、递增且链接 previous failed attempt 的
+queued attempt、previous attempt 恰好一个 failed ModelInvocation，以及当前 attempt 零
+invocation；因此历史失败不会被误当作 fresh run，也不会阻止受控 retry：
 
 ```powershell
 $runId = "<fresh-evidence-ready-run-id>"
-.\.venv\Scripts\python -m service.processing.live_preflight --run-id $runId
+docker compose --project-name clinical-knowledge-demo `
+  --env-file .demo-runtime/demo.env `
+  --file compose.yaml `
+  --profile live `
+  run --rm --no-deps worker-enrichment-live `
+  python -m service.processing.live_preflight --run-id $runId
 ```
 
 只有预检返回 `"ready": true` 且用户再次确认允许该 synthetic Evidence 出站后，才执行一次
 定向 Worker。`--run-id` 防止 `--once` 领取另一个排队任务：
 
 ```powershell
-.\.venv\Scripts\python -m service.processing.worker `
-  --pool enrichment `
-  --run-id $runId `
-  --once
+docker compose --project-name clinical-knowledge-demo `
+  --env-file .demo-runtime/demo.env `
+  --file compose.yaml `
+  --profile live `
+  run --rm --no-deps worker-enrichment-live
 ```
 
 上述命令还需要既有的 Enrichment Service Account ID/credential 和

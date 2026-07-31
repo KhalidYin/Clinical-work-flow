@@ -940,8 +940,16 @@ live adapter 的 timeout、rate limit、非法结构化输出和 provider error 
 进入 ModelInvocation 和其所属 StepAttempt，不能统一折叠成通用 handler error。SDK 始终
 `num_retries=0`；只有具备 retry 权限的人工动作可建立带 `previous_attempt_id` 的新 attempt。
 P2-B3 通过进程级 `max_calls=1` 和定向 `--run-id` 限制单次 vertical；只读 preflight 要求
-fresh `evidence_ready` run、canonical Evidence、queued attempt、零历史 invocation 和准确
-profile/prompt/data-boundary，且不访问供应商。
+首次调用是 fresh `evidence_ready` run、canonical Evidence、queued attempt 和零历史
+invocation；人工 retry 则必须是 `queued` run、新 attempt 链接 previous failed attempt、
+previous attempt 恰好一个 failed ModelInvocation 且当前 attempt 零 invocation。两种模式都
+要求准确 profile/prompt/data-boundary，且 preflight 不访问供应商。
+
+版本化 JSON Schema 是本地治理权威，不假定每个 provider 都支持 OpenAI
+`response_format=json_schema`。DeepSeek Chat Completions 的 transport 使用
+`response_format={"type":"json_object"}`，并把同一 Schema 作为明确 JSON 指令加入 system
+prompt；返回内容仍必须通过本地 JSON Schema 校验。transport 变化必须升级 ModelProfile，
+不能在相同 profile/version 下静默改变实际请求。
 
 结构化输出必须先通过 JSON Schema、Evidence ID、relation type/endpoint/edge evidence 与
 rights/data-boundary 校验，随后才能在一个事务内建立 Candidate 和 relation proposal。模型与
@@ -985,7 +993,7 @@ P2-B2 Gate 的生产可见性是 fail closed：
 - 后续 Query、MCP、索引与 Release 实现必须继续以 current immutable release membership 为
   唯一生产消费边界。
 
-P2-B2 只使用合成或允许本地测试的数据，不配置真实 API key，不证明生产 parser/model
-coverage。P2-B3 的离线授权、失败、Candidate/Relation eligibility 与 lineage Gate 已完成；
-下一步只允许接一个经授权的外部 ModelProfile 完成 live/人工治理 vertical slice。P3 才建立
-生产检索、评估与 immutable Release。
+P2-B2 只使用合成或允许本地测试的数据，不证明生产 parser/model coverage。P2-B3 已用
+单一 DeepSeek ModelProfile 1.0.1 和允许出站的 synthetic Evidence 完成 live/人工治理
+vertical slice：Author 与 Reviewer 为不同 actor，run/revision 为 `approved`，但
+Release/ReleaseItem 仍为零。P3 才建立生产检索、评估与 immutable Release。

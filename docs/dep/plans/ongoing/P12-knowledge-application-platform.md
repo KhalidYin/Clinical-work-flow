@@ -387,7 +387,7 @@ Docling 是否进入锁定依赖，必须先用 SDTM IG 多栏与跨页表、ADa
 |-------|------|----------|------|------|
 | D0 | 大改前可运行前端 Demo Gate | 2-3 | - | done |
 | P1 | 产品基础：数据库迁移、身份权限、作业账本、模型与合同基线 | 8-11 | D0 | done |
-| P2 | AI 知识生产：Source → Evidence → Candidate → 作者确认 → 独立审核 | 12-17 | P1 | in-progress（P2-A/P2-B1/P2-B2 done；P2-B3 离线授权、失败、Candidate/Relation 资格门与 KUI-05/10 done，live vertical pending） |
+| P2 | AI 知识生产：Source → Evidence → Candidate → 作者确认 → 独立审核 | 12-17 | P1 | done |
 | P3 | 发布与检索：Approved Revision → 索引/评估 → immutable Release | 8-11 | P2 | pending |
 | P4 | 产品闭环：完整前端、外部接口、既有 Wiki 迁移、部署与运维验收 | 7-10 | P3 | pending |
 
@@ -638,7 +638,8 @@ P2-B 不再作为一次性“大模型 + 关系图 + 全部审核 UI”交付。
 - live 授权新增进程级调用预算；P2-B3 固定 `max_calls=1`，失败调用也消耗预算。只读
   `live_preflight` 要求 fresh `evidence_ready` run、canonical Evidence、queued attempt、
   零历史 invocation 和已配置 secret reference；实际 Worker 可用 `--run-id` 定向领取，避免
-  `--once` 误取另一个 run。上述能力均未触发外部调用。
+  `--once` 误取另一个 run。人工 retry 模式进一步要求 queued attempt 链接 previous failed
+  attempt、previous attempt 恰好一个 failed invocation 且当前 attempt 零 invocation。
 - KUI-05/KUI-10 已接通真实 PostgreSQL read adapter、prerelease API 与内部 RBAC：
   Relation Explorer 只返回带 Evidence 的 typed edge，展开限制为两跳，且只呈现 Knowledge
   Unit 当前 revision 的 proposal；Audit 只返回 actor/action/object/version/result/correlation
@@ -656,9 +657,16 @@ P2-B 不再作为一次性“大模型 + 关系图 + 全部审核 UI”交付。
 - Candidate 持久化 `origin_model_invocation_id` 并在 prerelease API、UI 与 append-only Audit
   保留 invocation → run/attempt → Evidence → Candidate 的离线可验证链。Enrichment schema
   因新增 advisory contract 升级为 prompt profile `atomic-candidate@1.1.0`。
-- 用户尚未提供获授权的 ModelProfile/Secret reference、允许出站 Evidence 或 live 调用预算，
-  因此本 Phase 输入条件仍未完全满足；所有不依赖出站的 P2-B3 Gate 已关闭，但 live
-  invocation 和端到端 P2 Gate 仍保持 open。
+- 用户已提供 DeepSeek secret，并授予本项目持续出站授权；授权不覆盖数据边界、单进程调用
+  预算、失败重试或人工治理。第一次调用以 `BadRequestError` fail closed，0 tokens、无
+  Candidate；根因是 DeepSeek 只接受 `response_format=json_object`，而 adapter 发送了
+  OpenAI 风格 `json_schema`。修复后 ModelProfile 升为
+  `deepseek-v4-flash-extractor@1.0.1`，保留本地 JSON Schema 严格校验。
+- 真实 attempt 2 已通过 retry-aware preflight，并在 `max_calls=1` 下成功生成一条引用唯一
+  Evidence 的 live Candidate；ModelInvocation 记录 provider request、token/cost/latency、
+  input/output hash 和 profile/prompt version。Candidate 明确保留 synthetic-only、非临床
+  标准的适用范围。Author confirmation 与独立 Reviewer 已完成，revision 为 `approved`，
+  Release/ReleaseItem 仍为零；P2 Gate 已关闭。
 
 #### 产出
 
@@ -674,9 +682,9 @@ P2-B 不再作为一次性“大模型 + 关系图 + 全部审核 UI”交付。
 - [x] 结构化输出不符合 JSON Schema、timeout、429 或供应商错误时 fail closed；重试或换 profile 形成新的 StepAttempt，不由 SDK 静默 retry/fallback。
 - [x] AI 只执行原子抽取、分类/适用性、关系建议、重复/冲突/gap 和证据一致性辅助；无 Evidence 的事实不能进入 Candidate。
 - [x] Relation 必须类型合法、端点存在且有 edge evidence；dangling、闭包/循环约束、conflicting/supersedes 语义由确定性校验完成。
-- [ ] Audit 可追溯一次 live invocation 到 Candidate revision 和 Evidence，但不记录 API secret、chain-of-thought 或未批准敏感正文。
+- [x] Audit 可追溯一次 live invocation 到 Candidate revision 和 Evidence，但不记录 API secret、chain-of-thought 或未批准敏感正文。
 - [x] `[KUI-05]`、`[KUI-10]` 及对应组件/API/权限/浏览器测试通过。
-- [ ] P2 Gate 证明 Source → Evidence → AI Candidate → 作者确认 → 独立 Reviewer 闭环；`approved` 仍不等于 `released`。
+- [x] P2 Gate 证明 Source → Evidence → AI Candidate → 作者确认 → 独立 Reviewer 闭环；`approved` 仍不等于 `released`。
 
 #### 边界（本切片明确不做）
 
@@ -902,6 +910,7 @@ P3 只消费 P2 已批准的 KnowledgeRevision。内部先构建可解释检索�
 | D18 | 同一 Knowledge Unit 的历史 revision 和当前 revision 都可能保留 proposed relation，直接合并会产生重复路径 | P2-B3 KUI | 数据投影（已解决） | Relation read adapter 只投影当前 KnowledgeRevision 的未发布 proposal；历史 proposal 继续留在 append-only Audit，不进入当前图 |
 | D19 | 通用 `--once` Worker 会领取队列中最早的 eligible run，不能保证命中已批准出站的单次测试 run | P2-B3 失败门 | 运行授权（已解决） | ledger/Worker 增加可选 `target_run_id`；P2-B3 先只读 preflight fresh run，再用 `--run-id ... --once` 定向领取，并以进程级 `max_calls=1` 限制调用 |
 | D20 | 模型 advisory 若只有类型和 Evidence 而没有描述，人工无法判断具体 duplicate/conflict/gap；若模型自行决定图语义则会绕过治理 | P2-B3 eligibility | 产品/数据（已解决） | advisory signal 强制描述与 Candidate Evidence；PostgreSQL canonical graph 上由确定性 validator 判定端点、互斥、cycle、closure 和 supersedes，模型输出仅供人工判断 |
+| D21 | LiteLLM 能力表把 DeepSeek 标为支持 response schema，但官方 Chat Completions 只接受 `text`/`json_object`，OpenAI `json_schema` 会被 400 拒绝 | P2-B3 首次 live | 供应商合同（已解决） | DeepSeek transport 使用 `json_object` 并把版本化 Schema 加入 prompt，返回后仍由本地 JSON Schema fail closed；ModelProfile 升到 1.0.1，失败尝试不自动重放 |
 
 ## 关键决策记录
 
@@ -963,3 +972,4 @@ P3 只消费 P2 已批准的 KnowledgeRevision。内部先构建可解释检索�
 | 2026-07-31 | Relation/Audit prerelease API、KUI-05/KUI-10、真实 PostgreSQL/浏览器 tests、README/USAGE/SPEC-13、P12 memory | P2-B3 非出站产品切片完成：有限 Evidence relation、append-only Audit 和显式 MSW 边界通过；live ModelProfile/Secret/Evidence/预算仍是关闭 P2 Gate 的唯一下一输入 |
 | 2026-07-31 | `service/processing/live_preflight.py`、target-run ledger/Worker、失败分类/预算 tests、README/USAGE/SPEC-12/13、P12 memory | P2-B3 离线失败门完成：四类 provider failure 脱敏进入 ModelInvocation/StepAttempt，人工 retry 新建 lineage；单次 live vertical 已具备只读预检和定向执行入口，但未发起外部调用 |
 | 2026-07-31 | Candidate advisory/lineage、Relation eligibility、`0007` migration、KUI-04、PostgreSQL tests、README/USAGE/SPEC-12/13、P12 memory | P2-B3 离线资格门完成：模型只提交有描述且引用 Evidence 的 duplicate/conflict/gap 建议；确定性写事务拒绝悬空、自环、互斥、cycle、closure 和非法 supersedes；下一输入仅剩获授权 live vertical |
+| 2026-07-31 | DeepSeek ModelProfile 1.0.1、真实 ModelInvocation/Candidate、Author/Reviewer/Audit、PLAN/SPEC/memory | P2 Gate 完成：live Candidate 引用唯一 synthetic Evidence，经两个不同 actor 确认与批准；run/revision 为 approved，Release/ReleaseItem=0，下一 Gate 为 P3-A |

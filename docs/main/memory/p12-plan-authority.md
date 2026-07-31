@@ -48,8 +48,8 @@ type: project
   还必须显式设置 enabled、精确匹配一个 DB ModelProfile/version，并把授权限制在可出站
   data boundary；profile 对象或 boundary 漂移均在 secret/provider callable 前失败，offline
   records 缺失不回退 live。
-- 该运行门只使用 injected callable 验证，没有真实供应商调用、API Key、获授权 Evidence 或
-  模型质量结论；P2-B3 仍未关闭。
+- 该运行门最初只使用 injected callable 验证；后续 ModelProfile 1.0.1 的受控 live
+  vertical 已完成。该结果只证明接口、治理和审计闭环，不证明生产模型质量。
 - P2-B3 的非出站产品切片已于 2026-07-31 完成：KUI-05 Relation Explorer 只读取当前
   KnowledgeRevision 的带 Evidence typed edge，并把展开限制为两跳；KUI-10 Audit 只暴露
   actor/action/object/before-after version/result/correlation ID 安全投影，支持筛选、cursor
@@ -57,10 +57,9 @@ type: project
 - 开发前端默认连接真实 API，MSW 只有在 `VITE_ENABLE_MOCKS=true` 时才显式启用；关闭 mock
   会清理遗留 Service Worker。Relation/Audit 已用真实 PostgreSQL、内部 RBAC、Demo Auditor、
   桌面与 390px 浏览器验证，不能再用 fixture 页面替代产品验收。
-- 真实调用的下一输入仍是获授权的单一 ModelProfile、`env://`/Secret reference、允许出站的
-  synthetic Evidence 和调用预算。未取得这些输入前不得发起供应商调用，也不得把 KUI 完成
-  解释为 P2 Gate、生产检索或 Release 授权；但不依赖出站的 Candidate/Relation 确定性资格门
-  应继续实施，不能把外部授权误当成整个 P2-B3 的阻塞。
+- P2-B3 的真实调用输入已由单一 ModelProfile、`env://` secret reference、允许出站的
+  synthetic Evidence 和调用预算满足；KUI 或 live Candidate 本身仍不构成生产检索或 Release
+  授权。后续持续调用授权同样不能越过数据边界和人工治理。
 - P2-B3 的离线失败门已于 2026-07-31 完成：timeout、rate limit、非法结构化输出和 provider
   error 以脱敏类别同时进入 failed ModelInvocation 和对应 StepAttempt；LiteLLM 固定零 retry，
   只有人工 `processing:retry` 才能建立递增且带 `previous_attempt_id` 的新 attempt。
@@ -77,7 +76,16 @@ type: project
 - `0007` 为 Candidate 增加 advisory JSON 与 `origin_model_invocation_id`；成功/replayed
   invocation 必须属于同一 run，API/UI/Audit 可连接 invocation → attempt/run → Evidence →
   Candidate。Prompt profile 升为 `atomic-candidate@1.1.0`，旧本地 Demo 需受控 reset。
-- 因此当前没有未完成的 P2-B3 离线切片。下一输入仅是用户授权的单一 live
-  profile/secret reference、允许出站的 synthetic Evidence 与一次调用预算；随后运行一次
-  preflight → live Candidate → Author confirmation → independent review。live Audit 与端到端
-  P2 Gate 关闭前，P3/P4 仍保持 pending。
+- 用户于 2026-07-31 授予本项目已配置 DeepSeek backend adapter 的持续出站授权。该授权
+  只消除逐次向用户索取模型调用许可的阻塞，不覆盖 `data_boundary`、最小进程预算、失败不
+  自动重试、Secret 隔离、正式临床/受限数据禁发或 Author/Reviewer/Release 人工 Gate。
+- ModelProfile 1.0.1 的真实 attempt 2 已通过 retry-aware preflight，并以
+  `max_calls=1` 成功生成一条 Evidence-grounded live Candidate。调用记录为 1610 tokens、
+  latency 6939 ms、cost USD 0.00032676；Candidate 明确限定为 synthetic fixture、非临床
+  标准。Audit 已验证 invocation → attempt/run → Candidate revision → Evidence 且不含 secret
+  或推理字段。
+- P2 Gate 已于 2026-07-31 关闭：Author confirmation 与独立 Reviewer 使用两个不同 actor，
+  run/KnowledgeRevision 均为 `approved`；Release、ReleaseItem 为零，current Release API
+  返回 `not_released`。模型持续授权没有替代内容确认或发布授权。
+- 下一 Gate 是 P3-A Hybrid Retrieval、Context API 与只读 MCP；P3 只能消费 approved
+  KnowledgeRevision，索引构建、评估和 immutable Release 必须继续分离。

@@ -8,13 +8,13 @@ updated: 2026-07-31
 
 | # | 当前 Gate | 子计划 | 状态 |
 |---|----------|--------|------|
-| P12 | P2-B3 单一真实外部模型与 P2 Gate | [P12-knowledge-application-platform.md](plans/ongoing/P12-knowledge-application-platform.md) | 全部离线 Gate done · live profile/secret/Evidence/预算待授权 |
+| P12 | P3-A Hybrid Retrieval、Context API 与只读 MCP | [P12-knowledge-application-platform.md](plans/ongoing/P12-knowledge-application-platform.md) | P2 Gate closed · P3-A next |
 
 ## 待开始
 
-P12 P2-B3 是当前 Gate；P3、P4 保持 pending。P2-B2 完成不自动授权真实模型、发布、生产检索或迁移部署。P2-B3 的默认关闭、精确 profile/version/data-boundary/call-budget 运行门、供应商失败矩阵、Candidate duplicate/conflict/gap 建议、Relation 确定性资格判定、KUI-05 Relation Explorer 与 KUI-10 Audit 均已完成。当前没有未完成的离线切片；真实 vertical slice 前仍必须由用户提供一个允许发送测试数据的 ModelProfile、Secret reference、出站 synthetic Evidence 与一次调用预算。
+P12 P2 Gate 已关闭；P3-A 是下一 Gate，P4 保持 pending。P2-B3 已用 ModelProfile 1.0.1 从获准出站的 synthetic Evidence 生成 live Candidate，并完成 Author confirmation、独立 Reviewer、invocation → attempt/run → Evidence 审计链和 `approved != released` 验证。P3 只能消费已批准 KnowledgeRevision，并必须把索引构建、评估和 immutable Release 保持为不同状态。
 
-P12 是唯一可执行主线，产品结果固定为“受控 Source → Evidence → AI Candidate → 作者确认 → 独立审核 → 检索评估 → immutable Release → REST/MCP 消费”。D0 Evidence Ledger HTML 继续作为颜色、排版、布局和核心交互基线。P1 已关闭产品基础 Gate；P2-A 已关闭 Source Registry、对象一致性、确定性解析、Document Worker DAG/fan-in、Evidence lineage、`202 + run_id` API 与 KUI-02/03。P2-B1 已冻结 Candidate eligibility、edge evidence、作者确认、独立审核、stale/idempotency、released immutability 和 worker/admin 越权合同。P2-B2 已用无网络 replay 接通真实 Source → Evidence → Candidate → request-change/revision → 独立批准的可启动前后端闭环，并证明 approved 仍无 Release。P2-B3 的离线部分已完成 fail-closed live 授权/预算、供应商失败矩阵、定向 preflight、Candidate advisory/ModelInvocation lineage、确定性 Relation eligibility、当前 revision 的有限 Evidence relation 与 append-only Audit；下一步只在获得授权输入后接一个真实外部模型，完成一次 live invocation/人工治理 vertical slice 并关闭 P2。Docling/OCR、完整生产 OIDC/S3、GraphRAG/Neo4j、Workflow、Agent Runtime 和 Project Memory 均不牵引当前主线。
+P12 是唯一可执行主线，产品结果固定为“受控 Source → Evidence → AI Candidate → 作者确认 → 独立审核 → 检索评估 → immutable Release → REST/MCP 消费”。D0 Evidence Ledger HTML 继续作为颜色、排版、布局和核心交互基线。P1 已关闭产品基础 Gate；P2 已关闭 Source Registry、对象一致性、确定性解析、Evidence lineage、Candidate/Relation eligibility、模型调用审计、作者确认、独立审核与 `approved != released` Gate。下一步为 P3-A 的可解释混合检索、Context API 和只读 MCP；Release 仍由 P3-B 的独立评估与发布 Gate 控制。Docling/OCR、完整生产 OIDC/S3、GraphRAG/Neo4j、Workflow、Agent Runtime 和 Project Memory 均不牵引当前主线。
 
 ## 最近完成
 

@@ -19,7 +19,20 @@ from service.auth import (
     LocalIdentityProvider,
     PlatformUserGrant,
 )
+from service.candidate_inbox import (
+    CandidateSubmissionReceipt,
+    CandidateSubmissionService,
+)
+from service.context import ContextPackageBuilder
 from service.object_store import ObjectDescriptor
+from service.retrieval import (
+    ChannelCandidate,
+    Citation,
+    HybridRetrievalService,
+    ReleaseScope,
+    RetrievalVisibility,
+    RevisionDocument,
+)
 from service.sources import SourceRegistrationReceipt
 
 
@@ -63,6 +76,7 @@ class FakePlatformRepository:
         )
         self.database_is_available = True
         self.source_read_fails = False
+        self.retrieval_repository = FakeRetrievalRepository()
         attempt = repository_module.ProcessingAttemptRecord(
             attempt_id="attempt-api-001",
             attempt_number=1,
@@ -184,7 +198,6 @@ class FakePlatformRepository:
             next_cursor=None,
             warnings=(),
         )
-
     def add_grant(self, grant: PlatformUserGrant) -> None:
         self._grants[(grant.issuer, grant.subject)] = grant
 
@@ -280,6 +293,32 @@ class FakePlatformRepository:
 
     def list_audit_events(self, **_: object):
         return self.audit_page
+
+
+class FakeCandidateInboxRepository:
+    def __init__(self) -> None:
+        self.receipts: dict[tuple[str, str], CandidateSubmissionReceipt] = {}
+
+    def save(self, *, actor, command, payload, payload_sha256):
+        key = (actor.actor_id, command.idempotency_key)
+        existing = self.receipts.get(key)
+        if existing is not None:
+            return CandidateSubmissionReceipt(
+                submission_id=existing.submission_id,
+                status=existing.status,
+                payload_sha256=existing.payload_sha256,
+                duplicate=True,
+                created_at=existing.created_at,
+            )
+        receipt = CandidateSubmissionReceipt(
+            submission_id=f"submission-{len(self.receipts) + 1}",
+            status="received",
+            payload_sha256=payload_sha256,
+            duplicate=False,
+            created_at=datetime(2026, 7, 31, 9, 0, tzinfo=timezone.utc),
+        )
+        self.receipts[key] = receipt
+        return receipt
 
 
 class FakeSourceRegistry:
@@ -422,6 +461,123 @@ class FakeGovernanceService:
         )
 
 
+class FakeRetrievalRepository:
+    def __init__(self) -> None:
+        self.release: ReleaseScope | None = ReleaseScope(
+            release_id="rel-001",
+            version="2026.07-p1d",
+            index_version="idx-001",
+        )
+        self.released_document = RevisionDocument(
+            knowledge_unit_id="ku-api-released",
+            stable_key="AE.AESEQ.released",
+            knowledge_type="variable_definition",
+            knowledge_revision_id="krev-api-released",
+            revision_number=1,
+            revision_status="released",
+            claim="AESEQ is the sequence identifier within the released AE domain.",
+            scope={"standard": "SDTM", "domain": "AE"},
+            applicability={"standard_version": "3.4"},
+            conditions=(),
+            exceptions=(),
+            content_sha256="d" * 64,
+            release_ids=("rel-001",),
+            citations=(
+                Citation(
+                    evidence_id="ev-api-released",
+                    source_id="src-sdtmig-34",
+                    source_title="SDTMIG synthetic contract fixture",
+                    source_version_id="srcv-api-001",
+                    source_version="3.4",
+                    locator={"page": 35, "section": "6.2 AE"},
+                    content_sha256="a" * 64,
+                    source_sha256="e" * 64,
+                    rights_classification="licensed",
+                    citation_required=True,
+                ),
+            ),
+        )
+        self.approved_document = RevisionDocument(
+            knowledge_unit_id="ku-api-approved",
+            stable_key="AE.TEAE.approved",
+            knowledge_type="clinical_rule",
+            knowledge_revision_id="krev-api-approved",
+            revision_number=1,
+            revision_status="approved",
+            claim="This approved synthetic TEAE rule is not released.",
+            scope={"domain": "AE", "fixture": "P3-A"},
+            applicability={"sandbox": True},
+            conditions=(),
+            exceptions=(),
+            content_sha256="f" * 64,
+            release_ids=(),
+            citations=(
+                Citation(
+                    evidence_id="ev-api-approved",
+                    source_id="src-p3a-fixture",
+                    source_title="P3-A synthetic fixture",
+                    source_version_id="srcv-p3a-fixture",
+                    source_version="1.0",
+                    locator={"kind": "line_range", "start_line": 1, "end_line": 2},
+                    content_sha256="1" * 64,
+                    source_sha256="2" * 64,
+                    rights_classification="internal",
+                    citation_required=True,
+                ),
+            ),
+        )
+
+    def current_release(self):
+        return self.release
+
+    def index_version(self, *, visibility, release_scope):
+        return (
+            release_scope.index_version
+            if release_scope is not None
+            else "evaluation-direct@api"
+        )
+
+    def metadata_candidates(self, request, *, release_scope):
+        document = (
+            self.released_document
+            if request.visibility is RetrievalVisibility.RELEASED
+            else self.approved_document
+        )
+        return (ChannelCandidate(document=document, score=1.0),)
+
+    def fts_candidates(self, request, *, release_scope):
+        document = (
+            self.released_document
+            if request.visibility is RetrievalVisibility.RELEASED
+            else self.approved_document
+        )
+        return (ChannelCandidate(document=document, score=0.8),)
+
+    def relation_candidates(
+        self,
+        *,
+        seed_revision_ids,
+        visibility,
+        release_scope,
+        depth,
+        limit,
+    ):
+        return ()
+
+    def get_revision(self, *, knowledge_revision_id, visibility, release_scope):
+        if (
+            visibility is RetrievalVisibility.RELEASED
+            and knowledge_revision_id == self.released_document.knowledge_revision_id
+        ):
+            return self.released_document
+        if (
+            visibility is RetrievalVisibility.EVALUATION
+            and knowledge_revision_id == self.approved_document.knowledge_revision_id
+        ):
+            return self.approved_document
+        return None
+
+
 def _identity(subject: str, display_name: str) -> IdentityAssertion:
     return IdentityAssertion(
         identity_source="local_test",
@@ -454,6 +610,7 @@ def api_client():
         "curator-token": _identity("curator", "Knowledge Curator"),
         "consumer-token": _identity("consumer", "Knowledge Consumer"),
         "reviewer-token": _identity("reviewer", "Knowledge Reviewer"),
+        "release-token": _identity("release", "Release Manager"),
         "disabled-token": _identity("disabled", "Disabled User"),
         "unmapped-token": _identity("unmapped", "Unmapped User"),
     }
@@ -467,6 +624,7 @@ def api_client():
         _grant("curator", "Knowledge Curator", "knowledge_curator"),
         _grant("consumer", "Knowledge Consumer", "consumer"),
         _grant("reviewer", "Knowledge Reviewer", "reviewer"),
+        _grant("release", "Release Manager", "release_manager"),
         _grant("disabled", "Disabled User", "consumer", status="disabled"),
     ]
     for grant in grants:
@@ -491,6 +649,13 @@ def api_client():
         source_registry=FakeSourceRegistry(),
         processing_ledger=FakeProcessingLedger(),
         governance=FakeGovernanceService(),
+        retrieval=HybridRetrievalService(
+            repository=repository.retrieval_repository
+        ),
+        context_builder=ContextPackageBuilder(),
+        candidate_inbox=CandidateSubmissionService(
+            repository=FakeCandidateInboxRepository()
+        ),
     )
     return TestClient(app_module.create_platform_app(services)), repository
 
@@ -613,6 +778,174 @@ def test_real_read_routes_return_database_views_not_fixtures_or_secrets(api_clie
         {"issuer", "subject", "secretRef", "password", "accessToken"}.isdisjoint(item)
         for item in users["data"]["items"]
     )
+
+
+def test_retrieval_routes_keep_released_and_evaluation_visibility_separate(
+    api_client,
+) -> None:
+    client, _ = api_client
+
+    released = client.post(
+        f"{API_PREFIX}/queries",
+        headers=_auth("consumer-token"),
+        json={
+            "query": "AESEQ",
+            "visibility": "released",
+            "includeVector": False,
+        },
+    )
+    forbidden_sandbox = client.post(
+        f"{API_PREFIX}/queries",
+        headers=_auth("consumer-token"),
+        json={
+            "query": "TEAE",
+            "visibility": "evaluation",
+            "includeVector": False,
+        },
+    )
+    sandbox = client.post(
+        f"{API_PREFIX}/queries",
+        headers=_auth("release-token"),
+        json={
+            "query": "TEAE",
+            "visibility": "evaluation",
+            "includeVector": False,
+        },
+    )
+
+    assert released.status_code == 200
+    assert released.json()["data"]["hits"][0]["knowledgeRevisionId"] == (
+        "krev-api-released"
+    )
+    assert released.json()["data"]["hits"][0]["releaseIds"] == ["rel-001"]
+    assert forbidden_sandbox.status_code == 403
+    assert forbidden_sandbox.json()["error"]["code"] == (
+        "retrieval_visibility_denied"
+    )
+    assert sandbox.status_code == 200
+    assert sandbox.json()["data"]["hits"][0]["knowledgeRevisionId"] == (
+        "krev-api-approved"
+    )
+    assert sandbox.json()["data"]["hits"][0]["releaseIds"] == []
+    assert sandbox.json()["data"]["plan"]["visibility"] == "evaluation"
+
+
+def test_context_and_trace_reuse_retrieval_citations_without_hidden_query(api_client) -> None:
+    client, _ = api_client
+
+    context = client.post(
+        f"{API_PREFIX}/contexts",
+        headers=_auth("consumer-token"),
+        json={
+            "query": "AESEQ",
+            "visibility": "released",
+            "includeVector": False,
+            "maxHits": 4,
+            "maxCharacters": 4000,
+        },
+    )
+    trace = client.get(
+        f"{API_PREFIX}/knowledge-revisions/krev-api-released/trace",
+        headers=_auth("consumer-token"),
+    )
+    hidden = client.get(
+        f"{API_PREFIX}/knowledge-revisions/krev-api-approved",
+        headers=_auth("consumer-token"),
+    )
+
+    assert context.status_code == 200
+    context_data = context.json()["data"]
+    assert context_data["items"][0]["citations"][0]["evidenceId"] == (
+        "ev-api-released"
+    )
+    assert "ev-api-released" in context_data["renderedText"]
+    assert trace.status_code == 200
+    assert trace.json()["data"]["hit"]["citations"][0]["sourceVersionId"] == (
+        "srcv-api-001"
+    )
+    assert hidden.status_code == 404
+    assert hidden.json()["error"]["code"] == "retrieval_not_found"
+
+
+def test_production_query_returns_explicit_gap_when_release_pointer_is_empty(
+    api_client,
+) -> None:
+    client, repository = api_client
+    repository.retrieval_repository.release = None
+
+    response = client.post(
+        f"{API_PREFIX}/queries",
+        headers=_auth("consumer-token"),
+        json={"query": "AESEQ", "visibility": "released"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"]["hits"] == []
+    assert response.json()["data"]["gaps"][0]["code"] == "no_current_release"
+
+
+def test_candidate_submission_is_deidentified_idempotent_and_not_a_knowledge_write(
+    api_client,
+) -> None:
+    client, _ = api_client
+    payload = {
+        "schemaVersion": "1.0.0",
+        "submissionType": "rule_gap",
+        "originSystem": "project-memory-adapter",
+        "originRecordRef": "opaque-memory-001",
+        "summary": "A governed rule was missing during a project task.",
+        "proposedClaim": "Review whether a general rule should be curated.",
+        "scope": {"domain": "AE"},
+        "sourceReferences": ["opaque-evidence-ref-001"],
+        "deidentified": True,
+        "idempotencyKey": "candidate-inbox-001",
+    }
+
+    first = client.post(
+        f"{API_PREFIX}/candidate-submissions",
+        headers=_auth("curator-token"),
+        json=payload,
+    )
+    second = client.post(
+        f"{API_PREFIX}/candidate-submissions",
+        headers=_auth("curator-token"),
+        json=payload,
+    )
+    consumer = client.post(
+        f"{API_PREFIX}/candidate-submissions",
+        headers=_auth("consumer-token"),
+        json={**payload, "idempotencyKey": "candidate-inbox-002"},
+    )
+
+    assert first.status_code == 202
+    assert first.json()["data"]["status"] == "received"
+    assert first.json()["data"]["duplicate"] is False
+    assert second.status_code == 202
+    assert second.json()["data"]["submissionId"] == first.json()["data"]["submissionId"]
+    assert second.json()["data"]["duplicate"] is True
+    assert consumer.status_code == 403
+
+
+def test_candidate_submission_rejects_identity_shaped_scope(api_client) -> None:
+    client, _ = api_client
+
+    response = client.post(
+        f"{API_PREFIX}/candidate-submissions",
+        headers=_auth("curator-token"),
+        json={
+            "submissionType": "observation",
+            "originSystem": "project-memory-adapter",
+            "originRecordRef": "opaque-memory-002",
+            "summary": "Unsafe fixture.",
+            "scope": {"USUBJID": "SUBJECT-001"},
+            "sourceReferences": [],
+            "deidentified": True,
+            "idempotencyKey": "candidate-inbox-unsafe",
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "unsafe_candidate_payload"
 
 
 def test_source_registration_returns_202_run_and_never_confuses_object_with_evidence(
@@ -904,6 +1237,11 @@ def test_checked_in_openapi_matches_runtime_paths_roles_and_responses(api_client
             f"{API_PREFIX}/session",
             f"{API_PREFIX}/health",
             f"{API_PREFIX}/releases/current",
+            f"{API_PREFIX}/queries",
+            f"{API_PREFIX}/contexts",
+            f"{API_PREFIX}/candidate-submissions",
+            f"{API_PREFIX}/knowledge-revisions/{{knowledge_revision_id}}",
+            f"{API_PREFIX}/knowledge-revisions/{{knowledge_revision_id}}/trace",
             f"{API_PREFIX}/sources",
             f"{API_PREFIX}/processing-runs",
             f"{API_PREFIX}/processing-runs/{{run_id}}",
@@ -947,6 +1285,37 @@ def test_checked_in_openapi_matches_runtime_paths_roles_and_responses(api_client
         (
             "SourceCollectionResponse",
             client.get(f"{API_PREFIX}/sources", headers=_auth("admin-token")),
+        ),
+        (
+            "RetrievalQueryResponse",
+            client.post(
+                f"{API_PREFIX}/queries",
+                headers=_auth("consumer-token"),
+                json={
+                    "query": "AESEQ",
+                    "visibility": "released",
+                    "includeVector": False,
+                },
+            ),
+        ),
+        (
+            "ContextPackageResponse",
+            client.post(
+                f"{API_PREFIX}/contexts",
+                headers=_auth("consumer-token"),
+                json={
+                    "query": "AESEQ",
+                    "visibility": "released",
+                    "includeVector": False,
+                },
+            ),
+        ),
+        (
+            "RevisionTraceResponse",
+            client.get(
+                f"{API_PREFIX}/knowledge-revisions/krev-api-released/trace",
+                headers=_auth("consumer-token"),
+            ),
         ),
         (
             "ProcessingRunCollectionResponse",

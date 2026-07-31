@@ -1163,8 +1163,7 @@ P2-B2 不读取 live model secret、endpoint 或 LiteLLM `models` extra。P2-B3 
 一个允许发送测试数据的 ModelProfile 与 Secret reference 后才可启用 live adapter；不得把
 demo.env、replay record 或 local bearer token 改名后当作生产配置。
 
-截至 P2-B3 离线资格切片，`service.processing.model_profiles`、Enrichment Worker、
-Candidate advisory/ModelInvocation lineage 和 Relation eligibility 已实现；仓库和 Demo 不
-包含任何获授权的真实 profile、secret 值或允许出站的正式 Evidence，当前默认仍为 replay。
-P2 Gate 的剩余输入仅是获授权的单一 live profile/secret、可出站 synthetic Evidence 与一次
-调用预算；未满足时不得启动 P3。
+P2-B3 已用单一 DeepSeek ModelProfile 1.0.1、backend-only runtime secret 和可出站
+synthetic Evidence 完成一次 live/人工治理 vertical；secret 值仍不进入仓库、数据库、镜像
+或前端，默认运行路径仍为 replay。Author 与 Reviewer 使用不同 actor，approved revision
+没有进入 Release。P2 Gate 已关闭，P3 仍须独立建立检索、评估和 immutable Release Gate。

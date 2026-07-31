@@ -256,20 +256,35 @@ class LiteLLMModelProvider:
 
         profile = request.model_profile
         api_key = self._secret_resolver(profile.secret_ref)
-        kwargs: dict[str, Any] = {
-            "model": f"{profile.provider}/{profile.model}",
-            "messages": [
-                {"role": "system", "content": request.prompt_profile.system_template},
-                *[message.model_dump(mode="json") for message in request.messages],
-            ],
-            "response_format": {
+        system_content = request.prompt_profile.system_template
+        response_format: dict[str, Any]
+        if profile.provider == "deepseek":
+            # DeepSeek Chat Completions accepts json_object, not OpenAI's
+            # json_schema response format. Keep the governed JSON Schema in
+            # the prompt and validate the returned object locally below.
+            system_content = (
+                f"{system_content}\n"
+                "Return only one valid JSON object. The JSON output must conform "
+                "exactly to this JSON Schema:\n"
+                f"{json.dumps(request.prompt_profile.output_schema, sort_keys=True)}"
+            )
+            response_format = {"type": "json_object"}
+        else:
+            response_format = {
                 "type": "json_schema",
                 "json_schema": {
                     "name": request.prompt_profile.output_schema_id.replace(".", "_"),
                     "strict": True,
                     "schema": request.prompt_profile.output_schema,
                 },
-            },
+            }
+        kwargs: dict[str, Any] = {
+            "model": f"{profile.provider}/{profile.model}",
+            "messages": [
+                {"role": "system", "content": system_content},
+                *[message.model_dump(mode="json") for message in request.messages],
+            ],
+            "response_format": response_format,
             "stream": False,
             "num_retries": 0,
             "drop_params": False,

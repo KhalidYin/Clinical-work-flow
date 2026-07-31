@@ -9,6 +9,11 @@ from pathlib import Path
 import uvicorn
 
 from service.auth import IdentityAssertion, LocalIdentityProvider
+from service.candidate_inbox import (
+    CandidateSubmissionService,
+    SqlAlchemyCandidateInboxRepository,
+)
+from service.context import ContextPackageBuilder
 from service.db.session import (
     create_database_engine,
     create_session_factory,
@@ -21,6 +26,7 @@ from service.governance import (
 )
 from service.object_store import LocalObjectStore
 from service.processing.ledger import PostgresProcessingLedger
+from service.retrieval import HybridRetrievalService, SqlAlchemyRetrievalRepository
 from service.sources import SourceRegistryService, SqlAlchemySourceRegistryRepository
 
 from .app import PlatformApiServices, create_platform_app
@@ -45,6 +51,9 @@ def create_environment_app():
     engine = create_database_engine(database_url_from_environment())
     sessions = create_session_factory(engine)
     repository = SqlAlchemyPlatformRepository(sessions)
+    retrieval = HybridRetrievalService(
+        repository=SqlAlchemyRetrievalRepository(sessions)
+    )
     object_store = LocalObjectStore(root=Path(_required_environment("KNOWLEDGE_OBJECT_STORE_ROOT")))
     ledger = PostgresProcessingLedger(sessions)
     return create_platform_app(
@@ -64,6 +73,11 @@ def create_environment_app():
             processing_ledger=ledger,
             governance=KnowledgeGovernanceService(
                 repository=SqlAlchemyGovernanceRepository(sessions)
+            ),
+            retrieval=retrieval,
+            context_builder=ContextPackageBuilder(),
+            candidate_inbox=CandidateSubmissionService(
+                repository=SqlAlchemyCandidateInboxRepository(sessions)
             ),
         )
     )

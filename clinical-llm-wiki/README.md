@@ -48,12 +48,17 @@ P12 在本目录原地把 Wiki 演进为独立知识产品，不新增第三个�
 - KUI-03/04 已区分 `evidence_ready`、待作者确认、待作者修订、待独立审核与 approved-but-unreleased；Evidence、locator、rights 与 relation proposal 在人工判断前展示。
 - P2-B2 的 Enrichment Worker 通过无网络 fake/replay `ModelProviderPort` 从 canonical Evidence 产生 Candidate/proposal；相同模型输入 hash 可精确回放，新的 retry 仍保留独立 StepAttempt。
 - P2-B3 已完成不出站的失败门：timeout、rate limit、非法结构化输出和 provider error 以脱敏类别写入 ModelInvocation 与 StepAttempt；人工 retry 才建立新 attempt。`service.processing.live_preflight` 只读验证一个 fresh run，绝不调用供应商。
+- P2-B3 第一次受控 DeepSeek 调用已 fail-closed：官方接口拒绝 OpenAI 风格
+  `response_format=json_schema`，0 tokens、无 Candidate。adapter 已按官方合同改为
+  `json_object` 并保留本地 JSON Schema 严格校验，ModelProfile 升为
+  `deepseek-v4-flash-extractor@1.0.1`；人工 retry 的 attempt 2 已成功生成一条只适用于
+  synthetic fixture 的 Evidence-grounded Candidate。
 - P2-B3 的离线资格门也已完成：`possible_duplicate`、`possible_conflict`、`explicit_gap` 必须带可读描述并引用 Candidate Evidence；无 Evidence 的输出不能创建 Candidate。Relation 端点、edge evidence、自环、反向 conflict、互斥类型、`depends_on`/`derived_from`/`supersedes` cycle/closure 与 governed supersedes 由写事务中的确定性校验决定，模型 confidence 不具备治理权限；
 - Candidate 保存 `origin_model_invocation_id`，API/UI/Audit 可追溯 invocation → run/attempt → Evidence → Candidate；结构化 advisory schema 对应默认 prompt profile `atomic-candidate@1.1.0`，已有本地 Demo 数据需通过受控 `-Reset` 重建，不能把旧 `1.0.0` profile 静默当作新合同；
 - request-change 建立 Candidate revision N+1 并保留旧 Candidate、KnowledgeRevision 与 ReviewDecision；作者确认和独立 Reviewer 决策只能由真实后端 permission Gate 推进。
 - `service/demo_runtime.py` 只建立受控身份/RBAC/Profile/Source 和精确 replay record，再调用真实 Document/Enrichment worker；它不直写 Candidate，也不创建 Release。
 
-P2-B2 已完成可重复的本地前后端产品和真实浏览器治理闭环，但不改变现有 Vault/SQLite 服务的运行路径，也不代表生产发布。approved revision 仍不属于 current release；生产 Query/MCP、索引、评估与 Release Manager 留在 P3/P4。P2-B3 的全部离线 Gate 已关闭，下一步只允许接一个经授权的真实外部模型并完成一次人工治理 vertical slice；生产 OIDC、S3-compatible ObjectStore 和正式部署仍未实现。
+P2 已完成可重复的本地前后端产品、真实模型 Candidate 与人工治理闭环，但不改变现有 Vault/SQLite 服务的运行路径，也不代表生产发布。live Candidate 经不同 Author/Reviewer actor 批准，approved revision 仍不属于 current release；生产 Query/MCP、索引、评估与 Release Manager 留在 P3/P4。生产 OIDC、S3-compatible ObjectStore 和正式部署仍未实现。
 
 ## 本地使用
 

@@ -15,6 +15,7 @@ import { ProcessingPage } from "./pages/ProcessingPage";
 import { CandidatesPage } from "./pages/CandidatesPage";
 import { RelationsPage } from "./pages/RelationsPage";
 import { AuditPage } from "./pages/AuditPage";
+import { QueryLabPage } from "./pages/QueryLabPage";
 
 const rootRoute = createRootRoute({
   component: AppShell,
@@ -56,13 +57,6 @@ function SourcesRoute() {
 
 const scopeRoutes = [
   {
-    path: "/query-lab",
-    eyebrow: "Explainable hybrid retrieval",
-    title: "Query Lab",
-    description: "metadata、FTS、vector 与 bounded relation expansion 分路可解释。",
-    phase: "KUI-06 · implementation planned in P4",
-  },
-  {
     path: "/evaluation",
     eyebrow: "Gold set regression evidence",
     title: "Evaluation",
@@ -77,6 +71,44 @@ const scopeRoutes = [
     phase: "KUI-08 · implementation planned in P5",
   },
 ] as const;
+
+const queryLabRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/query-lab",
+  validateSearch: (search: Record<string, unknown>) => ({
+    q: typeof search.q === "string" ? search.q : "",
+    visibility:
+      search.visibility === "evaluation"
+        ? ("evaluation" as const)
+        : ("released" as const),
+    type: typeof search.type === "string" ? search.type : "",
+    domain: typeof search.domain === "string" ? search.domain : "",
+    depth:
+      search.depth === 0 || search.depth === "0"
+        ? 0
+        : search.depth === 2 || search.depth === "2"
+          ? 2
+          : 1,
+    vector: search.vector !== false && search.vector !== "false",
+  }),
+  component: QueryLabRoute,
+});
+
+function QueryLabRoute() {
+  const search = queryLabRoute.useSearch();
+  const navigate = queryLabRoute.useNavigate();
+  return (
+    <QueryLabPage
+      search={search}
+      onSearchChange={(patch) => {
+        void navigate({
+          search: (current) => ({ ...current, ...patch }),
+          replace: true,
+        });
+      }}
+    />
+  );
+}
 
 const processingRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -168,6 +200,7 @@ const routeTree = rootRoute.addChildren([
   processingRoute,
   candidatesRoute,
   relationsRoute,
+  queryLabRoute,
   auditRoute,
   ...generatedScopeRoutes,
   adminRoute,
