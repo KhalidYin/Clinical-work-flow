@@ -133,6 +133,48 @@ $env:KNOWLEDGE_MODEL_API_KEY = "<injected-secret>"
 $env:KNOWLEDGE_MODEL_ENDPOINT = "<injected-endpoint-if-required>"
 ```
 
+当前受控 DeepSeek 配置使用 `deepseek-v4-flash`、`https://api.deepseek.com` 和
+`deepseek-v4-flash-extractor@1.0.0`。在将要执行 preflight/Worker 的同一个 PowerShell
+进程中运行以下脚本；密钥通过隐藏提示只注入当前进程，不写入文件、用户级环境变量或命令
+历史，也不回显：
+
+```powershell
+Set-Location .\clinical-llm-wiki
+.\scripts\set-live-deepseek-env.ps1
+```
+
+若部署环境已通过 Secret Store 或进程启动器设置 `KNOWLEDGE_MODEL_API_KEY`，脚本会复用该
+环境引用而不再次提示。`-SkipSecretPrompt` 仅用于不出站的配置合同测试；它不会伪造密钥，
+也不能通过 live preflight。
+
+需要在本机把密钥安全交给后续独立进程时，可在 Windows 当前用户上下文中执行一次：
+
+```powershell
+.\scripts\set-live-deepseek-env.ps1 -SaveEncryptedSecret
+```
+
+脚本将 DPAPI 加密值保存到 gitignored
+`clinical-llm-wiki/.demo-runtime/deepseek-api-key.dpapi`；后续进程用
+`-UseEncryptedSecret` 解密后只写入该进程的 `KNOWLEDGE_MODEL_API_KEY`。该入口仅用于本地
+P2-B3 验证，不替代 P4 的生产 Secret Store，也不能跨 Windows 用户或主机复制使用。
+
+本地 P2-B3 vertical 先启动受控 Demo，等待 replay Candidate 出现后停止 replay Enrichment
+Worker，再在同一数据库中登记 DeepSeek profile 并准备一条全新的 synthetic Evidence。setup
+命令只运行 Document Worker，不导入 LiteLLM、不解析模型密钥、不调用供应商：
+
+```powershell
+.\scripts\start-demo.ps1
+docker compose --project-name clinical-knowledge-demo `
+  --env-file .demo-runtime/demo.env `
+  --file compose.yaml `
+  stop worker-enrichment
+docker compose --project-name clinical-knowledge-demo `
+  --env-file .demo-runtime/demo.env `
+  --file compose.yaml `
+  run --rm --no-deps bootstrap `
+  python -m service.processing.live_vertical_setup
+```
+
 `KNOWLEDGE_LIVE_MODEL_ENABLED` 只接受精确值 `true`；profile ID/version 或数据边界不匹配会在
 解析 secret、调用 provider 之前失败。`local_processing_only` 和 `prohibited` 不能写入 live
 授权，`enterprise_provider_only` 还要求 DB ModelProfile 为 `enterprise_managed`。fake/replay
