@@ -18,7 +18,7 @@ P12 在本目录原地把 Wiki 演进为独立知识产品，不新增第三个�
 
 - `service/processing/model_provider.py` 是产品自有 `ModelProviderPort`、版本化 Model/Prompt/Profile、数据出站策略和 fake/replay adapter；
 - `schemas/application/model-provider.prerelease.schema.json` 是 request/invocation 持久化的 prerelease JSON Schema；
-- live adapter 仅在 Enrichment Worker 显式设置 `provider_mode=live`、`KNOWLEDGE_LIVE_MODEL_ENABLED=true` 且获授权 profile/version/data-boundary 与 DB ModelProfile 精确匹配时使用 embedded LiteLLM Python SDK；不部署 LiteLLM Proxy，也不进行静默 retry/fallback；
+- live adapter 仅在 Enrichment Worker 显式设置 `provider_mode=live`、`KNOWLEDGE_LIVE_MODEL_ENABLED=true` 且获授权 profile/version/data-boundary 与 DB ModelProfile 精确匹配时使用 embedded LiteLLM Python SDK；`KNOWLEDGE_LIVE_MODEL_MAX_CALLS` 提供进程级调用硬上限，provider 失败同样消耗预算；不部署 LiteLLM Proxy，也不进行静默 retry/fallback；
 - `local_processing_only` 与 `prohibited` 数据不能出站，`enterprise_provider_only` 只能发送到企业托管 deployment；
 - 调用固定为非流式 JSON Schema 输出；密钥只使用 `env://` 或受控 `secret://` 引用，审计记录不保存密钥、原始供应商异常或 chain-of-thought。
 - `service/db/` 的 SQLAlchemy 2 metadata 固定 Source/Evidence/Candidate/Revision/Relation/Review/Release/Audit、durable processing/model ledger、身份授权、object write intent 与 relation proposal evidence 共 27 张表；
@@ -33,7 +33,7 @@ P12 在本目录原地把 Wiki 演进为独立知识产品，不新增第三个�
 - `schemas/application/knowledge-api.prerelease.yaml`、运行 DTO 与前端 TypeScript contract 使用相同内部角色枚举；显示标签只在前端映射，不成为授权事实；
 - 前端开发默认通过 Vite proxy 接入真实 API；只有显式设置 `VITE_ENABLE_MOCKS=true` 才启用 MSW fixture，并会在关闭 mock 时清理遗留 worker。local Bearer 只存当前浏览器 tab 的 `sessionStorage`，不得当作生产认证方案。
 - `service/object_store/` 定义 provider-neutral `ObjectStorePort`；内存与本地 adapter 使用不可覆盖 object key、SHA-256、media type 和 size，业务合同不暴露绝对路径或 provider URL。生产 S3-compatible adapter 在 P4 选型；
-- `service/processing/ledger.py` 使用 PostgreSQL `FOR UPDATE SKIP LOCKED` 原子领取离散任务；lease、heartbeat、attempt checkpoint、artifact manifest、失败、过期恢复、显式 retry 和 cancel 都保留审计 lineage，成功 step 不被无条件重做；
+- `service/processing/ledger.py` 使用 PostgreSQL `FOR UPDATE SKIP LOCKED` 原子领取离散任务；lease、heartbeat、attempt checkpoint、artifact manifest、失败、过期恢复、显式 retry 和 cancel 都保留审计 lineage，成功 step 不被无条件重做；P2-B3 的 `--run-id` 可把单次 Worker claim 限定到预检过的 run；
 - `service/processing/worker.py` 是 Document、Enrichment、Release 三类 pool 共用的运行时和进程入口；P2-B2 已注册 Document 与 replay Enrichment handler，并继续以独立进程、独立 Service Account 和离散 durable step 运行；Release handler 尚未启用；
 - `service/maintenance/backfill.py` 与 `legacy_migration.py` 分别承接后续 resumable data backfill 和 P4 legacy crosswalk；DDL 仍只由 Alembic 执行；
 - `compose.yaml` 使用同一后端镜像承载 migration/bootstrap/API/worker，并以独立前端镜像、PostgreSQL/pgvector 和本地对象卷组成 loopback 产品；Document/Enrichment worker 默认独立启动，Release worker 仍位于显式 `release` profile。
@@ -47,6 +47,7 @@ P12 在本目录原地把 Wiki 演进为独立知识产品，不新增第三个�
 - KUI-05/KUI-10 已通过真实 API 接通有限深度 Relation Explorer 与 append-only Audit：关系只展示当前 revision 且带 Evidence 的 typed edge，审计只返回安全投影并支持筛选、cursor 分页与显式截断；
 - KUI-03/04 已区分 `evidence_ready`、待作者确认、待作者修订、待独立审核与 approved-but-unreleased；Evidence、locator、rights 与 relation proposal 在人工判断前展示。
 - P2-B2 的 Enrichment Worker 通过无网络 fake/replay `ModelProviderPort` 从 canonical Evidence 产生 Candidate/proposal；相同模型输入 hash 可精确回放，新的 retry 仍保留独立 StepAttempt。
+- P2-B3 已完成不出站的失败门：timeout、rate limit、非法结构化输出和 provider error 以脱敏类别写入 ModelInvocation 与 StepAttempt；人工 retry 才建立新 attempt。`service.processing.live_preflight` 只读验证一个 fresh run，绝不调用供应商。
 - request-change 建立 Candidate revision N+1 并保留旧 Candidate、KnowledgeRevision 与 ReviewDecision；作者确认和独立 Reviewer 决策只能由真实后端 permission Gate 推进。
 - `service/demo_runtime.py` 只建立受控身份/RBAC/Profile/Source 和精确 replay record，再调用真实 Document/Enrichment worker；它不直写 Candidate，也不创建 Release。
 

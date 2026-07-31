@@ -26,6 +26,7 @@ LIVE_MODEL_ENABLED_VARIABLE = "KNOWLEDGE_LIVE_MODEL_ENABLED"
 LIVE_MODEL_PROFILE_ID_VARIABLE = "KNOWLEDGE_LIVE_MODEL_PROFILE_ID"
 LIVE_MODEL_PROFILE_VERSION_VARIABLE = "KNOWLEDGE_LIVE_MODEL_PROFILE_VERSION"
 LIVE_MODEL_BOUNDARIES_VARIABLE = "KNOWLEDGE_LIVE_MODEL_ALLOWED_DATA_BOUNDARIES"
+LIVE_MODEL_MAX_CALLS_VARIABLE = "KNOWLEDGE_LIVE_MODEL_MAX_CALLS"
 
 
 class LiveModelAuthorizationError(RuntimeError):
@@ -38,6 +39,7 @@ class LiveModelAuthorization(StrictContractModel):
     profile_id: str = Field(min_length=1)
     profile_version: str = Field(min_length=1)
     allowed_data_boundaries: frozenset[DataBoundary] = Field(min_length=1)
+    max_calls: int = Field(ge=1)
 
     @model_validator(mode="after")
     def reject_non_exportable_boundaries(self) -> "LiveModelAuthorization":
@@ -63,6 +65,17 @@ def live_model_authorization_from_environment(
     profile_id = _required_value(values, LIVE_MODEL_PROFILE_ID_VARIABLE)
     profile_version = _required_value(values, LIVE_MODEL_PROFILE_VERSION_VARIABLE)
     raw_boundaries = _required_value(values, LIVE_MODEL_BOUNDARIES_VARIABLE)
+    raw_max_calls = _required_value(values, LIVE_MODEL_MAX_CALLS_VARIABLE)
+    try:
+        max_calls = int(raw_max_calls)
+    except ValueError:
+        raise LiveModelAuthorizationError(
+            f"{LIVE_MODEL_MAX_CALLS_VARIABLE} must be a positive integer"
+        ) from None
+    if max_calls < 1:
+        raise LiveModelAuthorizationError(
+            f"{LIVE_MODEL_MAX_CALLS_VARIABLE} must be a positive integer"
+        )
     boundaries = frozenset(
         DataBoundary(value.strip())
         for value in raw_boundaries.split(",")
@@ -76,6 +89,7 @@ def live_model_authorization_from_environment(
         profile_id=profile_id,
         profile_version=profile_version,
         allowed_data_boundaries=boundaries,
+        max_calls=max_calls,
     )
 
 
@@ -121,6 +135,7 @@ class AuthorizedLiveModelProvider(ModelProviderPort):
         self._model_profile = model_profile
         self._authorization = authorization
         self._delegate = delegate
+        self._calls_started = 0
 
     def invoke(self, request: ModelRequest) -> ModelInvocation:
         if request.model_profile != self._model_profile:
@@ -135,6 +150,13 @@ class AuthorizedLiveModelProvider(ModelProviderPort):
             enforce_data_boundary(request.model_profile, request.data_boundary)
         except ValueError as exc:
             raise LiveModelAuthorizationError(str(exc)) from None
+        if self._calls_started >= self._authorization.max_calls:
+            raise LiveModelAuthorizationError(
+                "process-local live model call budget is exhausted"
+            )
+        # A failed provider call still consumes budget. Retry must use a new
+        # StepAttempt and, for a further live call, a fresh explicit process grant.
+        self._calls_started += 1
         return self._delegate.invoke(request)
 
 
@@ -173,6 +195,7 @@ __all__ = [
     "AuthorizedLiveModelProvider",
     "LIVE_MODEL_BOUNDARIES_VARIABLE",
     "LIVE_MODEL_ENABLED_VARIABLE",
+    "LIVE_MODEL_MAX_CALLS_VARIABLE",
     "LIVE_MODEL_PROFILE_ID_VARIABLE",
     "LIVE_MODEL_PROFILE_VERSION_VARIABLE",
     "LiveModelAuthorization",

@@ -118,10 +118,15 @@ ModelProfile/version 和允许出站的数据边界：
 
 ```powershell
 $env:KNOWLEDGE_ENRICHMENT_PROVIDER_MODE = "live"
+$env:KNOWLEDGE_ENRICHMENT_MODEL_PROFILE_ID = "<registered-profile-id>"
+$env:KNOWLEDGE_ENRICHMENT_MODEL_PROFILE_VERSION = "<registered-profile-version>"
+$env:KNOWLEDGE_ENRICHMENT_PROMPT_PROFILE_ID = "<registered-prompt-id>"
+$env:KNOWLEDGE_ENRICHMENT_PROMPT_PROFILE_VERSION = "<registered-prompt-version>"
 $env:KNOWLEDGE_LIVE_MODEL_ENABLED = "true"
 $env:KNOWLEDGE_LIVE_MODEL_PROFILE_ID = "<registered-profile-id>"
 $env:KNOWLEDGE_LIVE_MODEL_PROFILE_VERSION = "<registered-profile-version>"
 $env:KNOWLEDGE_LIVE_MODEL_ALLOWED_DATA_BOUNDARIES = "external_allowed"
+$env:KNOWLEDGE_LIVE_MODEL_MAX_CALLS = "1"
 
 # ModelProfile.secret_ref/endpoint_ref 引用的变量；不要把值写入仓库或命令示例。
 $env:KNOWLEDGE_MODEL_API_KEY = "<injected-secret>"
@@ -131,7 +136,31 @@ $env:KNOWLEDGE_MODEL_ENDPOINT = "<injected-endpoint-if-required>"
 `KNOWLEDGE_LIVE_MODEL_ENABLED` 只接受精确值 `true`；profile ID/version 或数据边界不匹配会在
 解析 secret、调用 provider 之前失败。`local_processing_only` 和 `prohibited` 不能写入 live
 授权，`enterprise_provider_only` 还要求 DB ModelProfile 为 `enterprise_managed`。fake/replay
-继续要求 `KNOWLEDGE_ENRICHMENT_RECORDS_PATH`，且不会静默 fallback 到 live。
+继续要求 `KNOWLEDGE_ENRICHMENT_RECORDS_PATH`，且不会静默 fallback 到 live。调用预算是
+进程级硬上限；provider 超时或失败也消耗一次。P2-B3 固定为 `1`，失败后的再次 live 调用既
+需要人工 retry 建立新 StepAttempt，也需要重新建立显式进程授权。
+
+真实调用前只允许对一个全新的 `evidence_ready` run 做只读预检。预检要求该 run 有 canonical
+Evidence、queued Enrichment StepAttempt、零历史 ModelInvocation、准确的 profile/prompt/
+boundary、已配置但不回显的 `env://` reference，并且不会解析密钥值或访问供应商：
+
+```powershell
+$runId = "<fresh-evidence-ready-run-id>"
+.\.venv\Scripts\python -m service.processing.live_preflight --run-id $runId
+```
+
+只有预检返回 `"ready": true` 且用户再次确认允许该 synthetic Evidence 出站后，才执行一次
+定向 Worker。`--run-id` 防止 `--once` 领取另一个排队任务：
+
+```powershell
+.\.venv\Scripts\python -m service.processing.worker `
+  --pool enrichment `
+  --run-id $runId `
+  --once
+```
+
+上述命令还需要既有的 Enrichment Service Account ID/credential 和
+`KNOWLEDGE_DATABASE_URL`。不要在共享演示队列或正式受限文档上运行 P2-B3 vertical。
 
 离线授权门测试不会访问供应商：
 
@@ -139,7 +168,8 @@ $env:KNOWLEDGE_MODEL_ENDPOINT = "<injected-endpoint-if-required>"
 Set-Location .\clinical-llm-wiki
 .\.venv\Scripts\python -m pytest `
   tests/test_live_model_authorization.py `
-  tests/test_model_provider_contract.py -q
+  tests/test_model_provider_contract.py `
+  tests/test_processing_runtime_contract.py -q
 ```
 
 ### P12 PostgreSQL/pgvector 迁移（P1-B）

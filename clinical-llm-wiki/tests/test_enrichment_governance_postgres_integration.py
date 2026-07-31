@@ -57,10 +57,12 @@ from service.processing.enrichment import (
     enrichment_step_handlers,
 )
 from service.processing.ledger import PostgresProcessingLedger
+from service.processing.live_preflight import preflight_live_vertical
+from service.processing.model_profiles import LiveModelAuthorization
 from service.processing.model_provider import (
+    LiteLLMModelProvider,
     ModelProfile as ModelProfileContract,
     PromptProfile as PromptProfileContract,
-    ReplayMissError,
     ReplayModelProvider,
 )
 from service.processing.worker import WorkerRuntime
@@ -104,13 +106,13 @@ def _human(actor_id: str, role: ProductRole) -> ActorContext:
     )
 
 
-class _CaptureReplayMiss:
+class _TimeoutCompletion:
     def __init__(self) -> None:
-        self.request = None
+        self.calls = 0
 
-    def invoke(self, request):
-        self.request = request
-        raise ReplayMissError("intentional replay miss")
+    def __call__(self, **_kwargs):
+        self.calls += 1
+        raise TimeoutError("resolved-secret must never reach durable state")
 
 
 def test_replay_retry_candidate_revision_and_independent_approval_are_durable(
@@ -134,7 +136,7 @@ def test_replay_retry_candidate_revision_and_independent_approval_are_durable(
     model_profile = ModelProfileContract(
         profile_id=model_profile_id,
         version="1.0.0",
-        provider="replay",
+        provider="test-provider",
         model="atomic-candidate",
         deployment_class="enterprise_managed",
         secret_ref="env://P12_ENRICHMENT_WORKER_TOKEN",
@@ -300,7 +302,25 @@ def test_replay_retry_candidate_revision_and_independent_approval_are_durable(
         )
         enrichment_repository = SqlAlchemyEnrichmentRepository(sessions)
         enrichment_actor = _worker(WorkerPool.ENRICHMENT)
-        capture = _CaptureReplayMiss()
+        preflight = preflight_live_vertical(
+            sessions,
+            run_id=run_id,
+            model_profile=model_profile,
+            prompt_profile=prompt_profile,
+            authorization=LiveModelAuthorization(
+                profile_id=model_profile.profile_id,
+                profile_version=model_profile.version,
+                allowed_data_boundaries={"enterprise_provider_only"},
+                max_calls=1,
+            ),
+            environ={"P12_ENRICHMENT_WORKER_TOKEN": "configured-for-test"},
+        )
+        assert preflight["ready"] is True
+        assert preflight["run_id"] == run_id
+        assert preflight["evidence_count"] == 1
+        assert preflight["max_calls"] == 1
+        assert preflight["secret_reference"] == "configured"
+        timeout_completion = _TimeoutCompletion()
         failed_runtime = WorkerRuntime(
             ledger=ledger,
             actor=enrichment_actor,
@@ -309,7 +329,10 @@ def test_replay_retry_candidate_revision_and_independent_approval_are_durable(
                 EnrichmentWorkerService(
                     repository=enrichment_repository,
                     governance=governance,
-                    provider=capture,
+                    provider=LiteLLMModelProvider(
+                        completion_fn=timeout_completion,
+                        secret_resolver=lambda _reference: "resolved-secret",
+                    ),
                     model_profile=model_profile,
                     prompt_profile=prompt_profile,
                     actor=enrichment_actor,
@@ -318,7 +341,7 @@ def test_replay_retry_candidate_revision_and_independent_approval_are_durable(
             pool=WorkerPool.ENRICHMENT,
         )
         assert failed_runtime.run_once() is True
-        assert capture.request is not None
+        assert timeout_completion.calls == 1
         with sessions() as session:
             enrichment_step = session.scalar(
                 select(JobStep).where(
@@ -328,6 +351,37 @@ def test_replay_retry_candidate_revision_and_independent_approval_are_durable(
             )
             assert enrichment_step is not None
             enrichment_step_id = enrichment_step.step_id
+            failed_attempt = session.scalar(
+                select(StepAttempt)
+                .where(StepAttempt.step_id == enrichment_step_id)
+                .order_by(StepAttempt.attempt_number)
+            )
+            assert failed_attempt is not None
+            assert failed_attempt.status == "failed"
+            assert failed_attempt.error_type == "timeout"
+            assert failed_attempt.error_message == "timeout: TimeoutError"
+            failed_invocation = session.scalar(
+                select(ModelInvocation).where(
+                    ModelInvocation.run_id == run_id,
+                    ModelInvocation.status == "failed",
+                )
+            )
+            assert failed_invocation is not None
+            assert failed_invocation.attempt_id == failed_attempt.attempt_id
+            assert failed_invocation.error_type == "timeout"
+            assert failed_invocation.error_message == "timeout: TimeoutError"
+            failed_input_sha256 = failed_invocation.input_sha256
+            assert (
+                session.scalar(
+                    select(func.count(KnowledgeCandidate.candidate_id)).where(
+                        KnowledgeCandidate.run_id == run_id
+                    )
+                )
+                == 0
+            )
+            assert "resolved-secret" not in (
+                failed_attempt.error_message + failed_invocation.error_message
+            )
         ledger.retry_step(
             actor=_human(f"usr-author-{suffix}", ProductRole.KNOWLEDGE_CURATOR),
             run_id=run_id,
@@ -361,7 +415,7 @@ def test_replay_retry_candidate_revision_and_independent_approval_are_durable(
                     repository=enrichment_repository,
                     governance=governance,
                     provider=ReplayModelProvider(
-                        records={capture.request.input_sha256: output}
+                        records={failed_input_sha256: output}
                     ),
                     model_profile=model_profile,
                     prompt_profile=prompt_profile,
@@ -399,12 +453,34 @@ def test_replay_retry_candidate_revision_and_independent_approval_are_durable(
                     JobStep.step_key == "enrichment.extract_candidate",
                 )
             ) == 2
-            invocation = session.scalar(
-                select(ModelInvocation).where(ModelInvocation.run_id == run_id)
+            attempts = list(
+                session.scalars(
+                    select(StepAttempt)
+                    .join(JobStep, JobStep.step_id == StepAttempt.step_id)
+                    .where(
+                        JobStep.run_id == run_id,
+                        JobStep.step_key == "enrichment.extract_candidate",
+                    )
+                    .order_by(StepAttempt.attempt_number)
+                )
             )
-            assert invocation is not None
-            assert invocation.status == "replayed"
-            assert invocation.input_sha256 == capture.request.input_sha256
+            assert [attempt.attempt_number for attempt in attempts] == [1, 2]
+            assert attempts[1].previous_attempt_id == attempts[0].attempt_id
+            assert attempts[1].input_sha256 == attempts[0].input_sha256
+            invocations = list(
+                session.scalars(
+                    select(ModelInvocation)
+                    .where(ModelInvocation.run_id == run_id)
+                    .order_by(ModelInvocation.attempt_number)
+                )
+            )
+            assert [invocation.status for invocation in invocations] == [
+                "failed",
+                "replayed",
+            ]
+            assert {invocation.input_sha256 for invocation in invocations} == {
+                failed_input_sha256
+            }
 
         author = _human(f"usr-author-{suffix}", ProductRole.KNOWLEDGE_CURATOR)
         reviewer = _human(f"usr-reviewer-{suffix}", ProductRole.REVIEWER)
@@ -485,6 +561,7 @@ def test_replay_retry_candidate_revision_and_independent_approval_are_durable(
                 session.scalars(select(AuditEvent).where(AuditEvent.run_id == run_id))
             )
             assert {event.action for event in events} >= {
+                "model.invocation.failed",
                 "model.invocation.replayed",
                 "candidate.created",
                 "candidate.author_confirmed",

@@ -27,6 +27,11 @@ from service.processing.contracts import (
     processing_runtime_contract_json_schema,
     validate_step_graph,
 )
+from service.processing.model_provider import (
+    ModelInvocation,
+    ModelProviderError,
+    StepAttemptContext,
+)
 from service.processing.worker import MultiPoolWorkerRuntime, WorkerRuntime
 
 
@@ -70,11 +75,15 @@ class FakeLedger:
         worker_id: str,
         supported_step_keys: frozenset[str],
         lease_seconds: int,
+        target_run_id: str | None = None,
     ) -> ClaimedStepAttempt | None:
         del actor, worker_id, lease_seconds
         self.claim_calls += 1
         for claim in list(self.claims):
-            if claim.step_key in supported_step_keys:
+            if (
+                claim.step_key in supported_step_keys
+                and (target_run_id is None or claim.run_id == target_run_id)
+            ):
                 self.claims.remove(claim)
                 return claim
         return None
@@ -111,9 +120,15 @@ class FakeLedger:
         self.failed.append((attempt_id, error_type, error_message))
 
 
-def _claim(pool: WorkerPool, step_key: str, ordinal: int) -> ClaimedStepAttempt:
+def _claim(
+    pool: WorkerPool,
+    step_key: str,
+    ordinal: int,
+    *,
+    run_id: str = "run-contract",
+) -> ClaimedStepAttempt:
     return ClaimedStepAttempt(
-        run_id="run-contract",
+        run_id=run_id,
         step_id=f"step-{ordinal}",
         step_key=step_key,
         pool=pool,
@@ -255,6 +270,26 @@ def test_worker_does_not_claim_when_no_p1_handler_is_registered() -> None:
     assert ledger.recovery_calls == 0
 
 
+def test_worker_can_claim_only_the_explicit_target_run() -> None:
+    ledger = FakeLedger(
+        [
+            _claim(WorkerPool.ENRICHMENT, "extract", 1, run_id="run-other"),
+            _claim(WorkerPool.ENRICHMENT, "extract", 2, run_id="run-live"),
+        ]
+    )
+    runtime = WorkerRuntime(
+        ledger=ledger,
+        actor=_actor(WorkerPool.ENRICHMENT),
+        worker_id="enrichment-live",
+        handlers={"extract": _handler},
+        target_run_id="run-live",
+    )
+
+    assert runtime.run_once() is True
+    assert ledger.completed == [("attempt-2", _hash("extract"))]
+    assert [claim.run_id for claim in ledger.claims] == ["run-other"]
+
+
 def test_handler_failure_is_recorded_without_exception_content() -> None:
     ledger = FakeLedger([_claim(WorkerPool.DOCUMENT, "parse", 1)])
 
@@ -270,6 +305,56 @@ def test_handler_failure_is_recorded_without_exception_content() -> None:
 
     assert runtime.run_once() is True
     assert ledger.failed == [("attempt-1", "handler_error", "handler_error: RuntimeError")]
+
+
+@pytest.mark.parametrize(
+    "error_type",
+    ["timeout", "rate_limit", "structured_output_invalid", "provider_error"],
+)
+def test_model_failure_category_is_preserved_without_exception_content(
+    error_type: str,
+) -> None:
+    ledger = FakeLedger([_claim(WorkerPool.ENRICHMENT, "extract", 1)])
+
+    def fail_provider(context) -> StepOutcome:
+        claim = context.claim
+        raise ModelProviderError(
+            ModelInvocation(
+                attempt=StepAttemptContext(
+                    run_id=claim.run_id,
+                    step_id=claim.step_id,
+                    attempt_id=claim.attempt_id,
+                    attempt_number=claim.attempt_number,
+                    previous_attempt_id=claim.previous_attempt_id,
+                ),
+                status="failed",
+                model_profile_id="model-live",
+                model_profile_version="1.0.0",
+                provider="test-provider",
+                model="structured-model",
+                prompt_profile_id="atomic-candidate",
+                prompt_profile_version="1.0.0",
+                output_schema_sha256=_hash("schema"),
+                data_boundary="external_allowed",
+                input_sha256=claim.input_sha256,
+                latency_ms=1,
+                error_type=error_type,
+                error_message=f"{error_type}: SimulatedProviderError",
+            )
+        )
+
+    runtime = WorkerRuntime(
+        ledger=ledger,
+        actor=_actor(WorkerPool.ENRICHMENT),
+        worker_id="enrichment-1",
+        handlers={"extract": fail_provider},
+    )
+
+    assert runtime.run_once() is True
+    assert ledger.failed == [
+        ("attempt-1", error_type, f"{error_type}: SimulatedProviderError")
+    ]
+    assert "secret" not in ledger.failed[0][2]
 
 
 def test_checked_in_processing_runtime_schema_matches_runtime_contract() -> None:

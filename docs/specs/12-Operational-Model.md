@@ -936,6 +936,13 @@ Prompt、Schema、data boundary 与真实消息，不包含 Attempt identity。�
 本地 replay record 并重现相同结构化输出，但每次失败、retry 或恢复仍建立新的 StepAttempt 与
 ModelInvocation lineage。fake/replay adapter 不访问网络，也不允许 live fallback。
 
+live adapter 的 timeout、rate limit、非法结构化输出和 provider error 必须以脱敏类别同时
+进入 ModelInvocation 和其所属 StepAttempt，不能统一折叠成通用 handler error。SDK 始终
+`num_retries=0`；只有具备 retry 权限的人工动作可建立带 `previous_attempt_id` 的新 attempt。
+P2-B3 通过进程级 `max_calls=1` 和定向 `--run-id` 限制单次 vertical；只读 preflight 要求
+fresh `evidence_ready` run、canonical Evidence、queued attempt、零历史 invocation 和准确
+profile/prompt/data-boundary，且不访问供应商。
+
 结构化输出必须先通过 JSON Schema、Evidence ID、relation type/endpoint/edge evidence 与
 rights/data-boundary 校验，随后才能在一个事务内建立 Candidate 和 relation proposal。模型与
 Enrichment Service Account 无权执行 author confirmation、review decision、approve、release

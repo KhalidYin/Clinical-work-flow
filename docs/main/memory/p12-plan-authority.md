@@ -57,6 +57,19 @@ type: project
 - 开发前端默认连接真实 API，MSW 只有在 `VITE_ENABLE_MOCKS=true` 时才显式启用；关闭 mock
   会清理遗留 Service Worker。Relation/Audit 已用真实 PostgreSQL、内部 RBAC、Demo Auditor、
   桌面与 390px 浏览器验证，不能再用 fixture 页面替代产品验收。
-- 当前唯一下一输入仍是获授权的单一 ModelProfile、`env://`/Secret reference、允许出站的
+- 真实调用的下一输入仍是获授权的单一 ModelProfile、`env://`/Secret reference、允许出站的
   synthetic Evidence 和调用预算。未取得这些输入前不得发起供应商调用，也不得把 KUI 完成
-  解释为 P2 Gate、生产检索或 Release 授权。
+  解释为 P2 Gate、生产检索或 Release 授权；但不依赖出站的 Candidate/Relation 确定性资格门
+  应继续实施，不能把外部授权误当成整个 P2-B3 的阻塞。
+- P2-B3 的离线失败门已于 2026-07-31 完成：timeout、rate limit、非法结构化输出和 provider
+  error 以脱敏类别同时进入 failed ModelInvocation 和对应 StepAttempt；LiteLLM 固定零 retry，
+  只有人工 `processing:retry` 才能建立递增且带 `previous_attempt_id` 的新 attempt。
+- live 授权必须包含正整数 `KNOWLEDGE_LIVE_MODEL_MAX_CALLS`，P2-B3 固定为 `1`，失败调用也
+  消耗预算。`service.processing.live_preflight` 只读验证 fresh `evidence_ready` run、
+  Evidence、queued attempt、零历史 invocation、profile/prompt/boundary 与 secret reference；
+  actual Worker 必须用 `--run-id ... --once` 定向领取。preflight 和本轮验证均未访问供应商。
+- 因此下一步已从“补供应商失败矩阵”收窄为两段：先离线补齐 Candidate
+  evidence/duplicate/conflict/gap 与 Relation dangling/cycle/conflict/supersedes 确定性判定；
+  用户提供获授权的 live profile/secret reference、允许出站的 synthetic Evidence 与调用预算
+  后，再运行一次 preflight → live Candidate → Author confirmation → independent review。
+  P3/P4 仍保持 pending。

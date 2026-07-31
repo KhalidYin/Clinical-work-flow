@@ -880,6 +880,7 @@ KNOWLEDGE_LIVE_MODEL_ENABLED=true
 KNOWLEDGE_LIVE_MODEL_PROFILE_ID=<registered profile_id>
 KNOWLEDGE_LIVE_MODEL_PROFILE_VERSION=<registered version>
 KNOWLEDGE_LIVE_MODEL_ALLOWED_DATA_BOUNDARIES=external_allowed
+KNOWLEDGE_LIVE_MODEL_MAX_CALLS=1
 ```
 
 `KNOWLEDGE_LIVE_MODEL_ENABLED` 只接受精确小写 `true`。授权只绑定一个 DB canonical
@@ -888,6 +889,13 @@ capability 任一不匹配，均在 secret resolver 和 LiteLLM callable 之前�
 `local_processing_only` 或 `prohibited`；`enterprise_provider_only` 只有在 profile 的
 `deployment_class=enterprise_managed` 且 profile 本身允许该边界时可用。fake/replay 模式继续
 要求 `KNOWLEDGE_ENRICHMENT_RECORDS_PATH`，缺失时失败，不回退 live。
+
+`KNOWLEDGE_LIVE_MODEL_MAX_CALLS` 必须是正整数，是每个 live provider 进程授权的硬上限；
+provider 失败也消耗预算。P2-B3 单次 vertical 固定为 `1`。正式调用前使用
+`python -m service.processing.live_preflight --run-id <fresh-run-id>` 做只读检查，再使用
+`python -m service.processing.worker --pool enrichment --run-id <fresh-run-id> --once` 定向领取；
+preflight 不解析或输出 secret 值，不调用供应商。失败后如需再次 live 调用，必须先由人工
+retry 创建新 StepAttempt，再建立新的显式进程授权。
 
 ## 12. P12 Knowledge Product 数据库环境
 

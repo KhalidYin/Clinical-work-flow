@@ -51,7 +51,7 @@ from .enrichment import (
     offline_provider_from_config,
 )
 from .model_profiles import authorized_live_provider_from_environment
-from .model_provider import ModelProfile, ModelProviderPort
+from .model_provider import ModelProfile, ModelProviderError, ModelProviderPort
 from .parsers import ParserRegistry
 
 
@@ -84,6 +84,7 @@ class WorkerRuntime:
         handlers: Mapping[str, StepHandler],
         pool: WorkerPool | None = None,
         lease_seconds: int = 60,
+        target_run_id: str | None = None,
     ) -> None:
         if actor.principal_type is not PrincipalType.SERVICE_ACCOUNT:
             raise AuthorizationError("worker runtime requires a service account actor")
@@ -101,6 +102,7 @@ class WorkerRuntime:
         self._handlers = dict(handlers)
         self._pool = resolved_pool
         self._lease_seconds = lease_seconds
+        self._target_run_id = target_run_id
 
     @property
     def pool(self) -> WorkerPool:
@@ -109,12 +111,17 @@ class WorkerRuntime:
     def run_once(self) -> bool:
         if not self._handlers:
             return False
-        self._ledger.recover_expired_leases(actor=self._actor, pool=self._pool)
+        self._ledger.recover_expired_leases(
+            actor=self._actor,
+            pool=self._pool,
+            target_run_id=self._target_run_id,
+        )
         claim = self._ledger.claim_next(
             actor=self._actor,
             worker_id=self._worker_id,
             supported_step_keys=frozenset(self._handlers),
             lease_seconds=self._lease_seconds,
+            target_run_id=self._target_run_id,
         )
         if claim is None:
             return False
@@ -136,6 +143,23 @@ class WorkerRuntime:
         )
         try:
             outcome = StepOutcome.model_validate(handler(context))
+        except ModelProviderError as exc:
+            invocation = exc.invocation
+            self._ledger.fail_attempt(
+                actor=self._actor,
+                worker_id=self._worker_id,
+                attempt_id=claim.attempt_id,
+                error_type=(
+                    invocation.error_type.value
+                    if invocation.error_type is not None
+                    else "provider_error"
+                ),
+                error_message=(
+                    invocation.error_message
+                    or "provider_error: ModelProviderError"
+                ),
+            )
+            return True
         except Exception as exc:
             self._ledger.fail_attempt(
                 actor=self._actor,
@@ -231,6 +255,10 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--once", action="store_true")
     parser.add_argument("--list-pools", action="store_true")
     parser.add_argument("--poll-seconds", type=float, default=2.0)
+    parser.add_argument(
+        "--run-id",
+        help="claim work only from this run; required for the P2-B3 live vertical",
+    )
     return parser
 
 
@@ -325,6 +353,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         handlers=handlers,
         pool=pool,
         lease_seconds=int(os.environ.get("KNOWLEDGE_WORKER_LEASE_SECONDS", "60")),
+        target_run_id=args.run_id,
     )
     try:
         while True:

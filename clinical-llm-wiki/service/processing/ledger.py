@@ -57,6 +57,7 @@ class ProcessingLedgerPort(Protocol):
         *,
         actor: ActorContext,
         pool: WorkerPool,
+        target_run_id: str | None = None,
     ) -> int: ...
 
     def claim_next(
@@ -66,6 +67,7 @@ class ProcessingLedgerPort(Protocol):
         worker_id: str,
         supported_step_keys: frozenset[str],
         lease_seconds: int,
+        target_run_id: str | None = None,
     ) -> ClaimedStepAttempt | None: ...
 
     def heartbeat(
@@ -217,6 +219,7 @@ class PostgresProcessingLedger:
         worker_id: str,
         supported_step_keys: frozenset[str],
         lease_seconds: int,
+        target_run_id: str | None = None,
     ) -> ClaimedStepAttempt | None:
         pool = _require_worker(actor)
         if not supported_step_keys:
@@ -228,7 +231,7 @@ class PostgresProcessingLedger:
         if pool is WorkerPool.ENRICHMENT:
             eligible_run_statuses.append(RunStatus.EVIDENCE_READY.value)
         with self._sessions.begin() as session:
-            candidates = session.execute(
+            statement = (
                 select(StepAttempt, JobStep, ProcessingRun)
                 .join(
                     JobStep,
@@ -246,7 +249,10 @@ class PostgresProcessingLedger:
                 .order_by(StepAttempt.created_at, StepAttempt.attempt_id)
                 .limit(50)
                 .with_for_update(skip_locked=True, of=StepAttempt)
-            ).all()
+            )
+            if target_run_id is not None:
+                statement = statement.where(ProcessingRun.run_id == target_run_id)
+            candidates = session.execute(statement).all()
             for attempt, step, run in candidates:
                 if not self._dependencies_succeeded(session, step):
                     continue
@@ -354,6 +360,7 @@ class PostgresProcessingLedger:
         *,
         actor: ActorContext,
         pool: WorkerPool,
+        target_run_id: str | None = None,
     ) -> int:
         actor_pool = _require_worker(actor)
         if actor_pool is not pool:
@@ -361,7 +368,7 @@ class PostgresProcessingLedger:
         now = _utcnow()
         recovered = 0
         with self._sessions.begin() as session:
-            rows = session.execute(
+            statement = (
                 select(StepAttempt, JobStep)
                 .join(
                     JobStep,
@@ -375,7 +382,10 @@ class PostgresProcessingLedger:
                 )
                 .order_by(StepAttempt.leased_until, StepAttempt.attempt_id)
                 .with_for_update(skip_locked=True, of=StepAttempt)
-            ).all()
+            )
+            if target_run_id is not None:
+                statement = statement.where(StepAttempt.run_id == target_run_id)
+            rows = session.execute(statement).all()
             for expired, step in rows:
                 expired.status = AttemptStatus.EXPIRED.value
                 expired.leased_until = None

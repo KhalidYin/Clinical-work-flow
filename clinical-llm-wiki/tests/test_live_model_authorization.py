@@ -11,6 +11,7 @@ from service.processing.model_profiles import (
 from service.processing.model_provider import (
     ModelMessage,
     ModelProfile,
+    ModelProviderError,
     ModelRequest,
     PromptProfile,
     StepAttemptContext,
@@ -43,6 +44,7 @@ def _environment(**overrides: str) -> dict[str, str]:
         "KNOWLEDGE_LIVE_MODEL_PROFILE_ID": "live-extractor",
         "KNOWLEDGE_LIVE_MODEL_PROFILE_VERSION": "1.0.0",
         "KNOWLEDGE_LIVE_MODEL_ALLOWED_DATA_BOUNDARIES": "external_allowed",
+        "KNOWLEDGE_LIVE_MODEL_MAX_CALLS": "1",
     }
     values.update(overrides)
     return values
@@ -85,6 +87,7 @@ def test_live_mode_requires_exact_explicit_opt_in_and_profile_version() -> None:
     assert {item.value for item in authorization.allowed_data_boundaries} == {
         "external_allowed"
     }
+    assert authorization.max_calls == 1
 
     with pytest.raises(LiveModelAuthorizationError, match="does not match"):
         authorized_live_provider_from_environment(
@@ -100,6 +103,14 @@ def test_live_authorization_rejects_non_exportable_boundaries(boundary: str) -> 
     with pytest.raises(ValidationError, match="non-exportable"):
         live_model_authorization_from_environment(
             _environment(KNOWLEDGE_LIVE_MODEL_ALLOWED_DATA_BOUNDARIES=boundary)
+        )
+
+
+@pytest.mark.parametrize("value", ["", "0", "-1", "not-an-integer"])
+def test_live_authorization_requires_positive_call_budget(value: str) -> None:
+    with pytest.raises(LiveModelAuthorizationError, match="positive integer|required"):
+        live_model_authorization_from_environment(
+            _environment(KNOWLEDGE_LIVE_MODEL_MAX_CALLS=value)
         )
 
 
@@ -172,6 +183,37 @@ def test_authorized_live_request_performs_one_structured_call_without_retry() ->
     assert invocation.provider_request_id == "live-request-001"
     assert invocation.token_usage.total_tokens == 17
     assert "resolved" not in invocation.model_dump_json()
+
+    with pytest.raises(LiveModelAuthorizationError, match="budget is exhausted"):
+        provider.invoke(_request(profile))
+
+    assert len(calls) == 1
+    assert len(resolved_references) == 2
+
+
+def test_failed_provider_call_consumes_the_process_budget() -> None:
+    calls = 0
+    profile = _profile()
+
+    def fail_once(**_kwargs):
+        nonlocal calls
+        calls += 1
+        raise TimeoutError("raw provider detail")
+
+    provider = authorized_live_provider_from_environment(
+        model_profile=profile,
+        environ=_environment(),
+        completion_fn=fail_once,
+        secret_resolver=lambda _ref: "resolved",
+    )
+
+    with pytest.raises(ModelProviderError) as failure:
+        provider.invoke(_request(profile))
+    assert failure.value.invocation.error_type == "timeout"
+
+    with pytest.raises(LiveModelAuthorizationError, match="budget is exhausted"):
+        provider.invoke(_request(profile))
+    assert calls == 1
 
 
 def test_enrichment_worker_live_mode_does_not_require_offline_records(

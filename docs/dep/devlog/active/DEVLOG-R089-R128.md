@@ -122,3 +122,64 @@
 - `clinical-llm-wiki/tests/`
 - `USAGE.md`、`clinical-llm-wiki/README.md`、`docs/specs/13-Environment-Files.md`
 - P12 plan/PLAN/memory、DEVLOG/TASK_STATE
+
+### R091 [12:06] [P12-knowledge-application-platform] P2-B3: 关闭离线供应商失败与单次调用门
+
+#### Done
+
+- `WorkerRuntime` 不再把 `ModelProviderError` 统一折叠为 `handler_error`；timeout、rate-limit、
+  structured-output-invalid 和 provider-error 的脱敏类别与消息会写入对应 StepAttempt。
+  未知普通 handler 异常仍只记录异常类，不保存原始错误正文。
+- PostgreSQL acceptance 现在证明：第一次真实 adapter 路径的注入超时只产生 failed
+  ModelInvocation/StepAttempt，零 Candidate；具备权限的人工 retry 才建立 attempt 2，并保留
+  `previous_attempt_id` 和同一 input hash，之后 replay 才能进入 Candidate/作者/独立审核治理。
+- live 授权新增必填正整数 `KNOWLEDGE_LIVE_MODEL_MAX_CALLS`。P2-B3 固定为 1，失败调用也消耗
+  预算；超出预算在 secret resolver/provider callable 前失败。
+- 新增 `service.processing.live_preflight`，只读检查 fresh `evidence_ready` run、canonical
+  Evidence、queued Enrichment attempt、零历史 invocation、canonical profile/prompt/boundary
+  与已配置 `env://` reference。ledger/Worker 增加可选 target run，实际单次 Worker 可用
+  `--run-id ... --once`，不会误取另一个 eligible run。
+- README、USAGE、SPEC-12/13、P12 plan/PLAN/memory 已同步。P2-B3 的失败矩阵完成标准关闭；
+  未调用真实供应商，live vertical 与 P2 Gate 继续 open。
+
+#### Issues / Blockers
+
+- 第一次临时 PostgreSQL readiness 检查读取 `.State.Health.Status`，但所用 pgvector image
+  没有 Docker `HEALTHCHECK`，导致数据库已 ready 却被等待脚本误判超时。根因是探针假设错误；
+  已改为容器内 `pg_isready`，随后验收通过。
+- 当前仍没有用户授权的 live ModelProfile/secret reference、允许出站 synthetic Evidence 和
+  调用预算，因此没有运行真实 preflight 或 provider call。这只阻止 live vertical，不阻止
+  下一轮离线 Candidate/Relation 确定性资格门。
+- 测试仍报告既有 Starlette/python-multipart 与 openpyxl/Python 3.14 deprecation warnings；
+  没有新增失败，依赖清理不在本最小修改范围。
+
+#### Validation
+
+- 定向 provider/authorization/runtime：43 passed。
+- PostgreSQL target-run lease/recovery 与失败 → 人工 retry → replay → 独立审核 acceptance：
+  2 passed。
+- 全量 Wiki backend（全新 pgvector/PostgreSQL 库）：299 passed；新增预算失败消费测试随后在
+  43 项定向回归中通过。
+- `python -m ruff check service tests scripts`、两个 CLI `--help`、`git diff --check`：通过。
+- 全部模型调用均为 injected callable 或 replay；网络供应商调用数为 0。
+
+#### Next
+
+1. 继续 P2-B3 离线资格门：冻结 Candidate duplicate/conflict/gap 提示合同，并对 Relation
+   dangling endpoint、self/cycle、conflicts/supersedes 语义做确定性校验和实库测试。
+2. 用户提供获授权的单一 live profile/secret reference、允许出站 synthetic Evidence 与预算
+   后，执行只读 preflight；用户再次确认出站范围后才运行一次定向 Worker。
+3. live Candidate 必须继续经过 Author confirmation 与 independent Reviewer，并由 Audit
+   追溯 invocation → attempt → Evidence → revision；完成全部 P2 标准后才启动 P3。
+
+#### Files Changed
+
+- `clinical-llm-wiki/service/processing/ledger.py`
+- `clinical-llm-wiki/service/processing/model_profiles.py`
+- `clinical-llm-wiki/service/processing/live_preflight.py`
+- `clinical-llm-wiki/service/processing/worker.py`
+- `clinical-llm-wiki/tests/test_live_model_authorization.py`
+- `clinical-llm-wiki/tests/test_processing_runtime_contract.py`
+- `clinical-llm-wiki/tests/test_processing_runtime_postgres_integration.py`
+- `clinical-llm-wiki/tests/test_enrichment_governance_postgres_integration.py`
+- `USAGE.md`、Wiki README、SPEC-12/13、P12 plan/PLAN/memory

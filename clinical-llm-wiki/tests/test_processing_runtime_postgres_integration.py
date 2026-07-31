@@ -173,6 +173,7 @@ def test_postgres_ledger_preserves_dependencies_leases_and_attempt_lineage(
         assert ledger.recover_expired_leases(
             actor=_worker(WorkerPool.ENRICHMENT),
             pool=WorkerPool.ENRICHMENT,
+            target_run_id=run_id,
         ) == 1
         recovered = ledger.claim_next(
             actor=_worker(WorkerPool.ENRICHMENT),
