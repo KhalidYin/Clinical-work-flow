@@ -38,3 +38,7 @@ type: project
 - P2-A 已于 2026-07-30 把 `[KUI-02] Sources` 与 `[KUI-03] Processing Runs` 接入 prerelease API：Sources 可登记受控 TXT/MD/PDF/DOCX/XLSX 并显示 `202 + run_id` receipt；Processing Runs 展示 dependency、attempt、checkpoint、失败和安全 retry/cancel。
 - KUI-03 必须继续分开展示 Original、Derived 和 Evidence；active run 才进行 2 秒条件轮询，终态不轮询，也不模拟 token/chunk stream。
 - 桌面与 390px 窄屏真实浏览器已验证 Source 登记、Processing DAG、失败 step retry、状态文字和横向溢出边界。该 Gate 只证明 P2-A 交互，不代表 Candidate Review、Relation、Query、Evaluation 或 Release 已实现。
+- P2-B3 已于 2026-07-31 验证 KUI-05/KUI-10：Relations 在桌面与 390px 下以 path/list 展示
+  当前 revision 的 typed edge、方向、状态、release membership 和原始 Evidence；Audit
+  以只读事件列表/详情展示 actor、object、result、correlation ID 与 before/after version
+  facts。两页的筛选、选中节点、深度、视图和事件 ID 都由 URL/API 恢复，不从前端补事实。

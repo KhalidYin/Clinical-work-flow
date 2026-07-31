@@ -940,7 +940,8 @@ KNOWLEDGE_API_PORT=8788                                  # optional
 ```
 
 `KNOWLEDGE_LOCAL_ISSUER` + `KNOWLEDGE_LOCAL_SUBJECT` 必须已映射到 PostgreSQL 的 active user；
-应用不会自动建表或创建用户。前端真实 API 开关是 `VITE_ENABLE_MOCKS=false`，开发代理目标可用
+应用不会自动建表或创建用户。前端开发默认连接真实 API，只有
+`VITE_ENABLE_MOCKS=true` 才显式启用 MSW fixture；开发代理目标可用
 `VITE_KNOWLEDGE_API_TARGET` 覆盖。local token 仅存当前 tab 的 sessionStorage。production
 Provider 仍必须另行冻结 issuer、audience、JWKS/metadata、clock skew 和 credential 注入
 合同，不能沿用这些 local 变量。
@@ -1093,14 +1094,15 @@ Set-Location .\clinical-llm-wiki
 .\scripts\start-demo.ps1 -Reset
 ```
 
-脚本使用加密随机数生成 PostgreSQL、三类 Worker、Demo Author 与 Demo Reviewer 凭据，并写入
+脚本使用加密随机数生成 PostgreSQL、三类 Worker、Demo Author、Demo Reviewer 与只读
+Demo Auditor 凭据，并写入
 gitignored `.demo-runtime/`：
 
 ```text
 .demo-runtime/
   demo.env         # Compose secret values；不回显、不提交
   identities.json  # local authentication assertions；角色不从此文件读取
-  access.json      # 人工复制到页面登录表单的 Author/Reviewer token
+  access.json      # 人工复制到页面登录表单的 Author/Reviewer/Auditor token
 ```
 
 `identities.json` 只包含 issuer/subject/display identity，不是授权权威。bootstrap 在

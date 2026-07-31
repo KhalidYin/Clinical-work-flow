@@ -6,11 +6,44 @@ import { RouterProvider } from "@tanstack/react-router";
 import "./app/theme.css";
 import { createAppRouter } from "./router";
 
-async function enableMocking() {
-  if (!import.meta.env.DEV || import.meta.env.VITE_ENABLE_MOCKS === "false") {
-    return;
+const MOCK_CLEANUP_RELOAD_KEY = "knowledgeLedgerMockCleanupReload";
+
+async function enableMocking(): Promise<boolean> {
+  const mocksEnabled =
+    import.meta.env.DEV && import.meta.env.VITE_ENABLE_MOCKS === "true";
+
+  if (!mocksEnabled) {
+    if ("serviceWorker" in navigator) {
+      const controlledByMock =
+        navigator.serviceWorker.controller?.scriptURL.includes(
+          "mockServiceWorker.js",
+        ) ?? false;
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(
+        registrations
+          .filter((registration) =>
+            [
+              registration.active,
+              registration.installing,
+              registration.waiting,
+            ].some((worker) => worker?.scriptURL.includes("mockServiceWorker.js")),
+          )
+          .map((registration) => registration.unregister()),
+      );
+      if (
+        controlledByMock &&
+        sessionStorage.getItem(MOCK_CLEANUP_RELOAD_KEY) !== "done"
+      ) {
+        sessionStorage.setItem(MOCK_CLEANUP_RELOAD_KEY, "done");
+        window.location.reload();
+        return true;
+      }
+      sessionStorage.removeItem(MOCK_CLEANUP_RELOAD_KEY);
+    }
+    return false;
   }
 
+  sessionStorage.removeItem(MOCK_CLEANUP_RELOAD_KEY);
   const { worker } = await import("./mocks/browser");
   await worker.start({
     onUnhandledRequest: "bypass",
@@ -18,10 +51,13 @@ async function enableMocking() {
       url: "/mockServiceWorker.js",
     },
   });
+  return false;
 }
 
 async function bootstrap() {
-  await enableMocking();
+  if (await enableMocking()) {
+    return;
+  }
 
   const queryClient = new QueryClient({
     defaultOptions: {

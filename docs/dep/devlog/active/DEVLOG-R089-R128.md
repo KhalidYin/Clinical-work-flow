@@ -57,3 +57,68 @@
 - `clinical-llm-wiki/tests/test_p1e_deployment_contract.py`
 - `USAGE.md`、`clinical-llm-wiki/README.md`、`docs/specs/13-Environment-Files.md`
 - P12 plan/PLAN/memory、DEVLOG entrypoint/index/active/archive
+
+### R090 [11:40] [P12-knowledge-application-platform] P2-B3: 完成 Relation Explorer 与 append-only Audit
+
+#### Done
+
+- 新增只读 `/relations/query` 与 `/audit-events` prerelease API、DTO、checked-in OpenAPI 和
+  PostgreSQL read adapter。Relation 使用既有 `candidate:read`，Audit 使用 `audit:read`，
+  未增加 RBAC 枚举或数据库 migration。
+- KUI-05 只显示带原始 Evidence 的 typed edge，支持目录筛选、1/2 hop、有界 path/list 和
+  URL 恢复；candidate/approved/released 与 release membership 不混淆。历史 revision 的
+ 未发布 proposal 不进入当前图，避免同一 Knowledge Unit 出现重复路径。
+- KUI-10 只返回 actor/action/object、before/after revision/hash、result、run/correlation ID
+  和时间，支持筛选、cursor 分页、1000 条显式截断和只读详情；raw details、secret、理由正文
+  和凭据不返回浏览器。
+- 新增 Demo Auditor（内部 `release_manager` 只读权限）和 Relation/Audit MSW fixture、组件/API/
+  PostgreSQL 测试。前端开发模式改为只在 `VITE_ENABLE_MOCKS=true` 时启用 MSW，并清理遗留
+  mock Service Worker，真实 API 不再被 fixture 静默覆盖。
+- 用临时 PostgreSQL、真实 FastAPI、Vite 和 opaque Auditor token 验证真实页面；桌面和
+  390px 窄屏均显示一条最新 revision 的 Evidence relation 和可筛选 Audit 版本事实。
+
+#### Issues / Blockers
+
+- Docker Compose build 两次在 Python build isolation 下载 setuptools 时遇到 PyPI TLS
+  `SSLEOFError`。根因是本机到包源的传输失败，不是应用编译或测试失败；本轮没有把镜像源或
+  证书策略硬编码进产品，改用同一项目 `.venv` + 临时 PostgreSQL 完成真实运行验证。
+- 浏览器首次打开真实栈仍显示 MSW fixture。根因是 `main.tsx` 把 DEV 当作默认启用 mock；
+  已改成显式 opt-in，并验证控制台不再出现 MSW。
+- 同一 Knowledge Unit 的 revision 1/2 relation proposal 同时出现在当前图。根因是 read
+  adapter 按所有已确认 candidate 合并，而非按最新 KnowledgeRevision 投影；已过滤历史
+  proposal，append-only Audit 仍保留其历史。
+- 首次全量 PostgreSQL 测试错误复用演示库，造成 migration 空库前提和 fixture 主键冲突；
+  使用全新临时库后又发现一个既有测试断言假设共享库无任何其他 source warning。已把断言
+  收窄到本测试 source，最终独立空库全套通过。
+- 用户授权的真实 ModelProfile/Secret reference、允许出站 synthetic Evidence 和调用预算
+  仍缺失；没有发起供应商调用，P2-B3/P2 Gate 继续 open。
+
+#### Validation
+
+- Wiki 后端含真实 PostgreSQL 集成：290 passed、1 个已知 Starlette/httpx2 warning。
+- `python -m ruff check service tests scripts`：通过。
+- 前端 Vitest：24 passed；TypeScript build 与 Vite production build：通过。
+- API/权限：18 contract passed；单独真实 PostgreSQL platform integration passed。
+- 真实浏览器：Relations path/list、2-hop URL、Audit result filter、版本事实、桌面与 390px
+  通过；console 无 MSW、无脚本错误。
+- `git diff --check`：通过。两个最终验收临时数据库已删除；演示数据库未被当作发布证据。
+
+#### Next
+
+1. 用户提供一个非秘密 ModelProfile 定义、`env://`/Secret reference、允许出站的 synthetic
+   Evidence、data boundary 与调用预算；secret 值只在本地受控环境注入。
+2. 运行一次 Source → Evidence → live Candidate → Author confirmation → independent review，
+   记录 request ID、token/cost/latency、input/output hash，并验证 timeout/429/schema/provider
+   error 均建立显式 StepAttempt、无 SDK 静默 retry/fallback。
+3. 关闭 P2 Gate 后才启动 P3-A Hybrid Retrieval/Context API/只读 MCP；不得提前发布、
+   恢复 Workflow POC 或引入 GraphRAG/Neo4j。
+
+#### Files Changed
+
+- `clinical-llm-wiki/service/platform_api/`
+- `clinical-llm-wiki/schemas/application/knowledge-api.prerelease.yaml`
+- `clinical-llm-wiki/frontend/src/`
+- `clinical-llm-wiki/scripts/start-demo.ps1`
+- `clinical-llm-wiki/tests/`
+- `USAGE.md`、`clinical-llm-wiki/README.md`、`docs/specs/13-Environment-Files.md`
+- P12 plan/PLAN/memory、DEVLOG/TASK_STATE

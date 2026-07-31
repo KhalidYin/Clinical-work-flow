@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Annotated, Callable, TypeVar
 
-from fastapi import Depends, FastAPI, File, Form, Header, Request, Security, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, Query, Request, Security, UploadFile
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
@@ -49,6 +49,10 @@ from service.sources import (
 )
 
 from .contracts import (
+    AuditEventCollectionData,
+    AuditEventCollectionResponse,
+    AuditEventData,
+    AuditVersionData,
     AuthorConfirmationData,
     AuthorConfirmationRequest,
     AuthorConfirmationResponse,
@@ -78,6 +82,11 @@ from .contracts import (
     ProcessingRunData,
     ProcessingRunResponse,
     ProcessingStepData,
+    RelationEdgeData,
+    RelationEvidenceData,
+    RelationNodeData,
+    RelationQueryData,
+    RelationQueryResponse,
     ReviewDecisionData,
     ReviewDecisionRequest,
     ReviewDecisionResponse,
@@ -845,6 +854,152 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
                 message="The processing run cannot be cancelled.",
             ) from exc
         return CancelResponse(data=CancelData(run_id=run_id), meta=_meta())
+
+    @app.get(
+        f"{API_PREFIX}/relations/query",
+        operation_id="queryRelations",
+        response_model=RelationQueryResponse,
+        responses=protected_responses,
+    )
+    def query_relations(
+        _actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.CANDIDATE_READ)),
+        ],
+        node_id: Annotated[str | None, Query(max_length=160)] = None,
+        q: Annotated[str | None, Query(max_length=240)] = None,
+        depth: Annotated[int, Query(ge=0, le=8)] = 1,
+    ) -> RelationQueryResponse:
+        try:
+            record = services.repository.query_relations(
+                node_id=node_id,
+                query=q,
+                depth=depth,
+            )
+        except SQLAlchemyError as exc:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="The relation repository is unavailable.",
+            ) from exc
+        return RelationQueryResponse(
+            data=RelationQueryData(
+                root_node_id=record.root_node_id,
+                requested_depth=record.requested_depth,
+                applied_depth=record.applied_depth,
+                nodes=[
+                    RelationNodeData(
+                        knowledge_unit_id=node.knowledge_unit_id,
+                        stable_key=node.stable_key,
+                        knowledge_type=node.knowledge_type,
+                        knowledge_revision_id=node.knowledge_revision_id,
+                        revision_number=node.revision_number,
+                        status=node.status,
+                        claim=node.claim,
+                        release_ids=list(node.release_ids),
+                    )
+                    for node in record.nodes
+                ],
+                edges=[
+                    RelationEdgeData(
+                        relation_id=edge.relation_id,
+                        source_knowledge_unit_id=edge.source_knowledge_unit_id,
+                        target_knowledge_unit_id=edge.target_knowledge_unit_id,
+                        relation_type=edge.relation_type,
+                        status=edge.status,
+                        evidence=[
+                            RelationEvidenceData(
+                                evidence_id=evidence.evidence_id,
+                                source_version_id=evidence.source_version_id,
+                                locator=evidence.locator,
+                                content=evidence.content,
+                                content_sha256=evidence.content_sha256,
+                            )
+                            for evidence in edge.evidence
+                        ],
+                    )
+                    for edge in record.edges
+                ],
+                total_nodes=record.total_nodes,
+                truncated=record.truncated,
+                partial=bool(record.warnings),
+                warnings=list(record.warnings),
+            ),
+            meta=_meta(),
+        )
+
+    @app.get(
+        f"{API_PREFIX}/audit-events",
+        operation_id="listAuditEvents",
+        response_model=AuditEventCollectionResponse,
+        responses=protected_responses,
+    )
+    def list_audit_events(
+        _actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.AUDIT_READ)),
+        ],
+        actor: Annotated[str | None, Query(max_length=160)] = None,
+        action: Annotated[str | None, Query(max_length=160)] = None,
+        object_type: Annotated[str | None, Query(max_length=120)] = None,
+        result: Annotated[str | None, Query(max_length=120)] = None,
+        cursor: Annotated[str | None, Query(max_length=160)] = None,
+        limit: Annotated[int, Query(ge=1, le=100)] = 25,
+    ) -> AuditEventCollectionResponse:
+        try:
+            page = services.repository.list_audit_events(
+                actor=actor,
+                action=action,
+                object_type=object_type,
+                result=result,
+                cursor=cursor,
+                limit=limit,
+            )
+        except SQLAlchemyError as exc:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="The audit repository is unavailable.",
+            ) from exc
+        return AuditEventCollectionResponse(
+            data=AuditEventCollectionData(
+                items=[
+                    AuditEventData(
+                        audit_event_id=event.audit_event_id,
+                        actor_id=event.actor_id,
+                        action=event.action,
+                        object_type=event.object_type,
+                        object_id=event.object_id,
+                        run_id=event.run_id,
+                        before_version=(
+                            AuditVersionData(
+                                revision_number=event.before_version.revision_number,
+                                content_sha256=event.before_version.content_sha256,
+                            )
+                            if event.before_version is not None
+                            else None
+                        ),
+                        after_version=(
+                            AuditVersionData(
+                                revision_number=event.after_version.revision_number,
+                                content_sha256=event.after_version.content_sha256,
+                            )
+                            if event.after_version is not None
+                            else None
+                        ),
+                        result=event.result,
+                        correlation_id=event.correlation_id,
+                        created_at=event.created_at,
+                    )
+                    for event in page.items
+                ],
+                total=page.total,
+                next_cursor=page.next_cursor,
+                partial=bool(page.warnings),
+                warnings=list(page.warnings),
+            ),
+            meta=_meta(),
+        )
 
     @app.get(
         f"{API_PREFIX}/admin/users",

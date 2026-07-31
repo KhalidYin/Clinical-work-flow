@@ -229,10 +229,13 @@ $env:KNOWLEDGE_LOCAL_ISSUER = "local://knowledge-platform"
 
 ```powershell
 Set-Location .\clinical-llm-wiki\frontend
-$env:VITE_ENABLE_MOCKS = "false"
 $env:VITE_KNOWLEDGE_API_TARGET = "http://127.0.0.1:8788"
 npm run dev -- --host 127.0.0.1 --port 4173
 ```
+
+开发服务默认连接真实 API。只有组件演示或离线 fixture 验证时才显式设置
+`VITE_ENABLE_MOCKS=true`；改回真实 API 后应用会清理遗留的 mock Service Worker，避免把
+fixture 误判为 PostgreSQL/API 结果。
 
 打开 `app.html`，在“连接本地产品”表单中粘贴 opaque token。前端只把它保存在当前 tab 的
 sessionStorage；它仍会暴露给当前页面 JavaScript，只适用于 loopback 开发。生产认证必须由
@@ -445,7 +448,7 @@ http://localhost:4173/app.html#/candidates
 ```
 
 本地身份保存在 gitignored 的 `.demo-runtime/access.json`，脚本和日志都不会回显 token。
-从文件复制 `author.token` 或 `reviewer.token`，在页面“连接本地产品”表单中登录；“更换本地
+从文件复制 `author.token`、`reviewer.token` 或只读 `auditor.token`，在页面“连接本地产品”表单中登录；“更换本地
 身份”会清除当前 tab token 并重新经过 API 认证与数据库 RBAC。不要把该文件提交、截图或用作
 生产凭据。
 
@@ -457,6 +460,8 @@ http://localhost:4173/app.html#/candidates
 3. 切回 Demo Author，编辑 Candidate 形成 revision 2，再次确认。
 4. 切回 Demo Reviewer 审核通过。
 5. 确认页面显示“审核已批准，但尚未发布”，顶栏 current release 仍为 unavailable。
+6. 切换 Demo Auditor，打开 Relations 验证有限深度 edge evidence，再在 Audit 中按
+   actor/action/object/result 筛选 append-only 事件；该身份没有 Candidate 写权限。
 
 Document 与 Enrichment 是两个独立异步 worker pool，依赖 PostgreSQL durable ledger
 领取离散 step；这不是 token/chunk 流式 pipeline。request-change 建立新 Candidate revision，

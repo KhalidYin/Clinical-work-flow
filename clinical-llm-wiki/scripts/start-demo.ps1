@@ -45,6 +45,7 @@ if (-not (Test-Path -LiteralPath $envPath)) {
     New-Item -ItemType Directory -Path $runtimePath -Force | Out-Null
     $authorToken = New-RandomSecret
     $reviewerToken = New-RandomSecret
+    $auditorToken = New-RandomSecret
     $postgresPassword = New-RandomSecret
     $documentToken = New-RandomSecret
     $enrichmentToken = New-RandomSecret
@@ -69,6 +70,14 @@ if (-not (Test-Path -LiteralPath $envPath)) {
                 displayName = "Demo Reviewer"
                 email = "reviewer@example.test"
                 roles = @("reviewer")
+            },
+            [ordered]@{
+                token = $auditorToken
+                userId = "usr-demo-auditor"
+                subject = "demo-auditor"
+                displayName = "Demo Auditor"
+                email = "auditor@example.test"
+                roles = @("release_manager")
             }
         )
     }
@@ -82,6 +91,10 @@ if (-not (Test-Path -LiteralPath $envPath)) {
         reviewer = [ordered]@{
             displayName = "Demo Reviewer"
             token = $reviewerToken
+        }
+        auditor = [ordered]@{
+            displayName = "Demo Auditor"
+            token = $auditorToken
         }
     } | ConvertTo-Json -Depth 5 |
         Set-Content -LiteralPath $accessPath -Encoding utf8NoBOM

@@ -111,6 +111,79 @@ class FakePlatformRepository:
                 review_status=None,
             )
         ]
+        relation_evidence = repository_module.RelationEvidenceRecord(
+            evidence_id="ev-api-001",
+            source_version_id="srcv-api-001",
+            locator={"page": 35, "section": "6.2 AE"},
+            content="AESEQ is the sequence identifier within the AE domain.",
+            content_sha256="a" * 64,
+        )
+        self.relation_query = repository_module.RelationQueryRecord(
+            root_node_id="ku-api-aeseq",
+            requested_depth=1,
+            applied_depth=1,
+            nodes=(
+                repository_module.RelationNodeRecord(
+                    knowledge_unit_id="ku-api-aeseq",
+                    stable_key="sdtm.ae.aeseq",
+                    knowledge_type="variable_definition",
+                    knowledge_revision_id="krev-api-001",
+                    revision_number=1,
+                    status="approved",
+                    claim="AESEQ is the sequence identifier within the AE domain.",
+                    release_ids=(),
+                ),
+                repository_module.RelationNodeRecord(
+                    knowledge_unit_id="ku-sdtm-ae",
+                    stable_key="sdtm.domain.ae",
+                    knowledge_type="domain_definition",
+                    knowledge_revision_id="krev-api-ae-001",
+                    revision_number=1,
+                    status="released",
+                    claim="AE contains adverse event records.",
+                    release_ids=("rel-001",),
+                ),
+            ),
+            edges=(
+                repository_module.RelationEdgeRecord(
+                    relation_id="proposal-api-001",
+                    source_knowledge_unit_id="ku-api-aeseq",
+                    target_knowledge_unit_id="ku-sdtm-ae",
+                    relation_type="applies_to",
+                    status="proposed",
+                    evidence=(relation_evidence,),
+                ),
+            ),
+            total_nodes=2,
+            truncated=False,
+            warnings=(),
+        )
+        self.audit_page = repository_module.AuditEventPageRecord(
+            items=(
+                repository_module.AuditEventRecord(
+                    audit_event_id="audit-api-001",
+                    actor_id="usr-curator",
+                    action="knowledge_candidate.author_confirmed",
+                    object_type="knowledge_revision",
+                    object_id="krev-api-001",
+                    run_id="run-api-001",
+                    before_version=repository_module.AuditVersionRecord(
+                        revision_number=None,
+                        content_sha256="b" * 64,
+                    ),
+                    after_version=repository_module.AuditVersionRecord(
+                        revision_number=1,
+                        content_sha256="b" * 64,
+                    ),
+                    result="review_required",
+                    correlation_id="api-author-confirm-001",
+                    created_at=now,
+                ),
+            ),
+            total=1,
+            next_cursor=None,
+            warnings=(),
+        )
 
     def add_grant(self, grant: PlatformUserGrant) -> None:
         self._grants[(grant.issuer, grant.subject)] = grant
@@ -181,6 +254,22 @@ class FakePlatformRepository:
                 ),
             ),
         )
+
+    def query_relations(self, *, node_id: str | None, query: str | None, depth: int):
+        del query
+        return self.relation_query.__class__(
+            root_node_id=node_id,
+            requested_depth=depth,
+            applied_depth=min(depth, 2),
+            nodes=self.relation_query.nodes,
+            edges=self.relation_query.edges if node_id else (),
+            total_nodes=self.relation_query.total_nodes,
+            truncated=False,
+            warnings=("relation depth was capped at 2",) if depth > 2 else (),
+        )
+
+    def list_audit_events(self, **_: object):
+        return self.audit_page
 
 
 class FakeSourceRegistry:
@@ -697,6 +786,69 @@ def test_candidate_detail_exposes_evidence_and_revision_write_is_versioned(api_c
     }
 
 
+def test_relation_explorer_is_evidence_bound_limited_and_governance_protected(
+    api_client,
+) -> None:
+    client, _ = api_client
+
+    response = client.get(
+        f"{API_PREFIX}/relations/query",
+        headers=_auth("curator-token"),
+        params={"node_id": "ku-api-aeseq", "depth": 7},
+    )
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["rootNodeId"] == "ku-api-aeseq"
+    assert data["requestedDepth"] == 7
+    assert data["appliedDepth"] == 2
+    assert data["partial"] is True
+    assert data["edges"][0]["relationType"] == "applies_to"
+    assert data["edges"][0]["evidence"][0]["evidenceId"] == "ev-api-001"
+    assert data["nodes"][1]["releaseIds"] == ["rel-001"]
+    assert (
+        client.get(
+            f"{API_PREFIX}/relations/query",
+            headers=_auth("consumer-token"),
+        ).status_code
+        == 403
+    )
+
+
+def test_audit_events_are_read_only_filtered_projection_and_permission_protected(
+    api_client,
+) -> None:
+    client, _ = api_client
+
+    response = client.get(
+        f"{API_PREFIX}/audit-events",
+        headers=_auth("admin-token"),
+        params={"actor": "curator", "action": "author", "limit": 25},
+    )
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["total"] == 1
+    assert data["nextCursor"] is None
+    event = data["items"][0]
+    assert event["actorId"] == "usr-curator"
+    assert event["afterVersion"]["revisionNumber"] == 1
+    assert event["correlationId"] == "api-author-confirm-001"
+    assert {"details", "rationale", "secret", "token"}.isdisjoint(event)
+    assert (
+        client.get(
+            f"{API_PREFIX}/audit-events",
+            headers=_auth("curator-token"),
+        ).status_code
+        == 403
+    )
+    assert client.post(
+        f"{API_PREFIX}/audit-events",
+        headers=_auth("admin-token"),
+        json={},
+    ).status_code == 405
+
+
 def _openapi_component_schema(spec: dict[str, Any], name: str) -> dict[str, Any]:
     definitions = deepcopy(spec["components"]["schemas"])
 
@@ -749,6 +901,8 @@ def test_checked_in_openapi_matches_runtime_paths_roles_and_responses(api_client
             f"{API_PREFIX}/candidates/{{candidate_id}}/revisions",
             f"{API_PREFIX}/candidates/{{candidate_id}}/author-confirmation",
             f"{API_PREFIX}/knowledge-revisions/{{revision_id}}/review-decision",
+            f"{API_PREFIX}/relations/query",
+            f"{API_PREFIX}/audit-events",
             f"{API_PREFIX}/admin/users",
         }
     )
@@ -799,6 +953,21 @@ def test_checked_in_openapi_matches_runtime_paths_roles_and_responses(api_client
             "CandidateCollectionResponse",
             client.get(
                 f"{API_PREFIX}/candidates",
+                headers=_auth("admin-token"),
+            ),
+        ),
+        (
+            "RelationQueryResponse",
+            client.get(
+                f"{API_PREFIX}/relations/query",
+                headers=_auth("admin-token"),
+                params={"node_id": "ku-api-aeseq"},
+            ),
+        ),
+        (
+            "AuditEventCollectionResponse",
+            client.get(
+                f"{API_PREFIX}/audit-events",
                 headers=_auth("admin-token"),
             ),
         ),

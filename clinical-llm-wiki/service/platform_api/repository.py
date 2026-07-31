@@ -12,16 +12,20 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from service.auth import PlatformUserGrant
 from service.db.models import (
+    AuditEvent,
     CandidateEvidence,
     CandidateRelationProposal,
-    RelationProposalEvidence,
     Evidence,
     JobStep,
     KnowledgeCandidate,
+    KnowledgeRelation,
     KnowledgeRevision,
+    KnowledgeUnit,
     PlatformUser,
     ProcessingRun,
     Release,
+    ReleaseItem,
+    RelationProposalEvidence,
     RoleBinding,
     Source,
     SourceArtifact,
@@ -141,6 +145,78 @@ class CandidateDetailRecord(CandidateSummaryRecord):
     relation_proposals: tuple[CandidateRelationProposalRecord, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class RelationEvidenceRecord:
+    evidence_id: str
+    source_version_id: str
+    locator: dict[str, object]
+    content: str
+    content_sha256: str
+
+
+@dataclass(frozen=True, slots=True)
+class RelationNodeRecord:
+    knowledge_unit_id: str
+    stable_key: str
+    knowledge_type: str
+    knowledge_revision_id: str | None
+    revision_number: int | None
+    status: str
+    claim: str | None
+    release_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class RelationEdgeRecord:
+    relation_id: str
+    source_knowledge_unit_id: str
+    target_knowledge_unit_id: str
+    relation_type: str
+    status: str
+    evidence: tuple[RelationEvidenceRecord, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class RelationQueryRecord:
+    root_node_id: str | None
+    requested_depth: int
+    applied_depth: int
+    nodes: tuple[RelationNodeRecord, ...]
+    edges: tuple[RelationEdgeRecord, ...]
+    total_nodes: int
+    truncated: bool
+    warnings: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class AuditVersionRecord:
+    revision_number: int | None
+    content_sha256: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class AuditEventRecord:
+    audit_event_id: str
+    actor_id: str
+    action: str
+    object_type: str
+    object_id: str
+    run_id: str | None
+    before_version: AuditVersionRecord | None
+    after_version: AuditVersionRecord | None
+    result: str | None
+    correlation_id: str | None
+    created_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class AuditEventPageRecord:
+    items: tuple[AuditEventRecord, ...]
+    total: int
+    next_cursor: str | None
+    warnings: tuple[str, ...]
+
+
 class PlatformReadRepository(Protocol):
     def resolve_user(self, *, issuer: str, subject: str) -> PlatformUserGrant | None: ...
 
@@ -165,6 +241,25 @@ class PlatformReadRepository(Protocol):
     ) -> tuple[Sequence[CandidateSummaryRecord], Sequence[str]]: ...
 
     def get_candidate_detail(self, *, candidate_id: str) -> CandidateDetailRecord | None: ...
+
+    def query_relations(
+        self,
+        *,
+        node_id: str | None,
+        query: str | None,
+        depth: int,
+    ) -> RelationQueryRecord: ...
+
+    def list_audit_events(
+        self,
+        *,
+        actor: str | None,
+        action: str | None,
+        object_type: str | None,
+        result: str | None,
+        cursor: str | None,
+        limit: int,
+    ) -> AuditEventPageRecord: ...
 
 
 class SqlAlchemyPlatformRepository:
@@ -592,6 +687,321 @@ class SqlAlchemyPlatformRepository:
             relation_proposals=tuple(proposal_records),
         )
 
+    def query_relations(
+        self,
+        *,
+        node_id: str | None,
+        query: str | None,
+        depth: int,
+    ) -> RelationQueryRecord:
+        requested_depth = max(depth, 0)
+        applied_depth = min(requested_depth, 2)
+        warnings: list[str] = []
+        if requested_depth != applied_depth:
+            warnings.append("relation depth was capped at 2")
+
+        with self._session_factory() as session:
+            units = list(
+                session.scalars(
+                    select(KnowledgeUnit).order_by(
+                        KnowledgeUnit.stable_key,
+                        KnowledgeUnit.knowledge_unit_id,
+                    )
+                )
+            )
+            revisions = list(
+                session.scalars(
+                    select(KnowledgeRevision).order_by(
+                        KnowledgeRevision.knowledge_unit_id,
+                        KnowledgeRevision.revision_number.desc(),
+                    )
+                )
+            )
+            releases = list(
+                session.execute(
+                    select(ReleaseItem.knowledge_revision_id, ReleaseItem.release_id)
+                    .join(Release, Release.release_id == ReleaseItem.release_id)
+                    .where(Release.status == "released")
+                    .order_by(ReleaseItem.knowledge_revision_id, ReleaseItem.release_id)
+                )
+            )
+            canonical_relations = (
+                list(
+                    session.scalars(
+                        select(KnowledgeRelation).order_by(KnowledgeRelation.relation_id)
+                    )
+                )
+                if node_id is not None
+                else []
+            )
+            proposals = (
+                list(
+                    session.scalars(
+                        select(CandidateRelationProposal)
+                        .where(CandidateRelationProposal.status.in_(("proposed", "accepted")))
+                        .order_by(CandidateRelationProposal.proposal_id)
+                    )
+                )
+                if node_id is not None
+                else []
+            )
+            proposal_evidence = (
+                list(
+                    session.execute(
+                        select(
+                            RelationProposalEvidence.proposal_id,
+                            RelationProposalEvidence.evidence_id,
+                        ).order_by(
+                            RelationProposalEvidence.proposal_id,
+                            RelationProposalEvidence.evidence_id,
+                        )
+                    )
+                )
+                if node_id is not None
+                else []
+            )
+            evidence_ids = {
+                evidence_id for _, evidence_id in proposal_evidence
+            }
+            for relation in canonical_relations:
+                evidence_ids.update(_provenance_evidence_ids(relation.provenance))
+            evidence_rows = (
+                list(
+                    session.scalars(
+                        select(Evidence)
+                        .where(Evidence.evidence_id.in_(evidence_ids))
+                        .order_by(Evidence.evidence_id)
+                    )
+                )
+                if evidence_ids
+                else []
+            )
+
+        latest_revision_by_unit: dict[str, KnowledgeRevision] = {}
+        revision_by_id = {revision.knowledge_revision_id: revision for revision in revisions}
+        revision_by_candidate: dict[str, KnowledgeRevision] = {}
+        for revision in revisions:
+            latest_revision_by_unit.setdefault(revision.knowledge_unit_id, revision)
+            revision_by_candidate.setdefault(revision.candidate_id, revision)
+
+        releases_by_revision: dict[str, list[str]] = {}
+        for revision_id, release_id in releases:
+            releases_by_revision.setdefault(revision_id, []).append(release_id)
+
+        nodes_by_id: dict[str, RelationNodeRecord] = {}
+        for unit in units:
+            revision = latest_revision_by_unit.get(unit.knowledge_unit_id)
+            release_ids = (
+                tuple(releases_by_revision.get(revision.knowledge_revision_id, ()))
+                if revision is not None
+                else ()
+            )
+            nodes_by_id[unit.knowledge_unit_id] = RelationNodeRecord(
+                knowledge_unit_id=unit.knowledge_unit_id,
+                stable_key=unit.stable_key,
+                knowledge_type=unit.knowledge_type,
+                knowledge_revision_id=(
+                    revision.knowledge_revision_id if revision is not None else None
+                ),
+                revision_number=revision.revision_number if revision is not None else None,
+                status=(
+                    "released"
+                    if release_ids
+                    else revision.status if revision is not None else "unversioned"
+                ),
+                claim=revision.claim if revision is not None else None,
+                release_ids=release_ids,
+            )
+
+        evidence_by_id = {evidence.evidence_id: evidence for evidence in evidence_rows}
+        proposal_evidence_ids: dict[str, list[str]] = {}
+        for proposal_id, evidence_id in proposal_evidence:
+            proposal_evidence_ids.setdefault(proposal_id, []).append(evidence_id)
+
+        edge_records: list[RelationEdgeRecord] = []
+        for relation in canonical_relations:
+            source_revision = revision_by_id.get(relation.source_revision_id)
+            if source_revision is None:
+                warnings.append(f"relation {relation.relation_id} has no source revision")
+                continue
+            evidence_ids = _provenance_evidence_ids(relation.provenance)
+            evidence = _relation_evidence_records(evidence_ids, evidence_by_id)
+            if not evidence:
+                warnings.append(f"relation {relation.relation_id} has no readable evidence")
+                continue
+            edge_records.append(
+                RelationEdgeRecord(
+                    relation_id=relation.relation_id,
+                    source_knowledge_unit_id=source_revision.knowledge_unit_id,
+                    target_knowledge_unit_id=relation.target_knowledge_unit_id,
+                    relation_type=relation.relation_type,
+                    status=relation.status,
+                    evidence=evidence,
+                )
+            )
+
+        for proposal in proposals:
+            source_revision = revision_by_candidate.get(proposal.candidate_id)
+            if source_revision is None:
+                warnings.append(f"proposal {proposal.proposal_id} has no confirmed source unit")
+                continue
+            latest_source_revision = latest_revision_by_unit.get(
+                source_revision.knowledge_unit_id
+            )
+            if (
+                latest_source_revision is None
+                or latest_source_revision.knowledge_revision_id
+                != source_revision.knowledge_revision_id
+            ):
+                continue
+            evidence = _relation_evidence_records(
+                proposal_evidence_ids.get(proposal.proposal_id, ()),
+                evidence_by_id,
+            )
+            if not evidence:
+                warnings.append(f"proposal {proposal.proposal_id} has no readable evidence")
+                continue
+            edge_records.append(
+                RelationEdgeRecord(
+                    relation_id=proposal.proposal_id,
+                    source_knowledge_unit_id=source_revision.knowledge_unit_id,
+                    target_knowledge_unit_id=proposal.target_knowledge_unit_id,
+                    relation_type=proposal.relation_type,
+                    status=proposal.status,
+                    evidence=evidence,
+                )
+            )
+
+        matching_nodes = list(nodes_by_id.values())
+        if query:
+            needle = query.casefold()
+            matching_nodes = [
+                node
+                for node in matching_nodes
+                if needle
+                in " ".join(
+                    (
+                        node.knowledge_unit_id,
+                        node.stable_key,
+                        node.knowledge_type,
+                        node.claim or "",
+                    )
+                ).casefold()
+            ]
+        total_nodes = len(matching_nodes)
+        truncated = total_nodes > 100
+
+        if node_id is None:
+            selected_nodes = tuple(matching_nodes[:100])
+            selected_edges: tuple[RelationEdgeRecord, ...] = ()
+        elif node_id not in nodes_by_id:
+            warnings.append(f"relation root {node_id} was not found")
+            selected_nodes = ()
+            selected_edges = ()
+        else:
+            selected_ids = {node_id}
+            frontier = {node_id}
+            selected_edge_list: list[RelationEdgeRecord] = []
+            for _ in range(applied_depth):
+                next_frontier: set[str] = set()
+                for edge in edge_records:
+                    if (
+                        edge.source_knowledge_unit_id in frontier
+                        or edge.target_knowledge_unit_id in frontier
+                    ):
+                        if edge not in selected_edge_list:
+                            selected_edge_list.append(edge)
+                        next_frontier.update(
+                            (
+                                edge.source_knowledge_unit_id,
+                                edge.target_knowledge_unit_id,
+                            )
+                        )
+                next_frontier -= selected_ids
+                selected_ids.update(next_frontier)
+                frontier = next_frontier
+                if not frontier:
+                    break
+            selected_nodes = tuple(
+                node
+                for unit_id in sorted(selected_ids)
+                if (node := nodes_by_id.get(unit_id)) is not None
+            )
+            selected_edges = tuple(selected_edge_list)
+
+        return RelationQueryRecord(
+            root_node_id=node_id,
+            requested_depth=requested_depth,
+            applied_depth=applied_depth,
+            nodes=selected_nodes,
+            edges=selected_edges,
+            total_nodes=total_nodes,
+            truncated=truncated,
+            warnings=tuple(warnings),
+        )
+
+    def list_audit_events(
+        self,
+        *,
+        actor: str | None,
+        action: str | None,
+        object_type: str | None,
+        result: str | None,
+        cursor: str | None,
+        limit: int,
+    ) -> AuditEventPageRecord:
+        with self._session_factory() as session:
+            statement = select(AuditEvent)
+            if actor:
+                statement = statement.where(AuditEvent.actor_subject.ilike(f"%{actor}%"))
+            if action:
+                statement = statement.where(AuditEvent.action.ilike(f"%{action}%"))
+            if object_type:
+                statement = statement.where(AuditEvent.entity_type.ilike(f"%{object_type}%"))
+            rows = list(
+                session.scalars(
+                    statement.order_by(
+                        AuditEvent.created_at.desc(),
+                        AuditEvent.audit_event_id.desc(),
+                    ).limit(1001)
+                )
+            )
+
+        warnings: list[str] = []
+        if len(rows) > 1000:
+            rows = rows[:1000]
+            warnings.append(
+                "audit query was capped at 1000 events; narrow the filters for a complete result"
+            )
+        if result:
+            result_needle = result.casefold()
+            rows = [
+                row
+                for row in rows
+                if result_needle in str(row.details.get("result", "")).casefold()
+            ]
+        total = len(rows)
+        start = 0
+        if cursor:
+            cursor_index = next(
+                (index for index, row in enumerate(rows) if row.audit_event_id == cursor),
+                None,
+            )
+            if cursor_index is None:
+                warnings.append("audit cursor was not found; the first page was returned")
+            else:
+                start = cursor_index + 1
+        page = rows[start : start + limit]
+        next_cursor = (
+            page[-1].audit_event_id if page and start + len(page) < total else None
+        )
+        return AuditEventPageRecord(
+            items=tuple(_audit_event_record(row) for row in page),
+            total=total,
+            next_cursor=next_cursor,
+            warnings=tuple(warnings),
+        )
+
 
 def _media_type_label(media_type: str, object_key: str) -> str | None:
     normalized = media_type.lower()
@@ -631,3 +1041,84 @@ def _source_status_label(status: str) -> str | None:
         "disabled",
     }
     return status if status in allowed else None
+
+
+def _provenance_evidence_ids(provenance: object) -> tuple[str, ...]:
+    if not isinstance(provenance, dict):
+        return ()
+    raw = provenance.get("evidence_ids", provenance.get("evidenceIds", ()))
+    if not isinstance(raw, list):
+        return ()
+    return tuple(item for item in raw if isinstance(item, str))
+
+
+def _relation_evidence_records(
+    evidence_ids: Sequence[str],
+    evidence_by_id: dict[str, Evidence],
+) -> tuple[RelationEvidenceRecord, ...]:
+    records: list[RelationEvidenceRecord] = []
+    for evidence_id in evidence_ids:
+        evidence = evidence_by_id.get(evidence_id)
+        if evidence is None:
+            continue
+        records.append(
+            RelationEvidenceRecord(
+                evidence_id=evidence.evidence_id,
+                source_version_id=evidence.source_version_id,
+                locator=evidence.locator,
+                content=evidence.content,
+                content_sha256=evidence.content_sha256,
+            )
+        )
+    return tuple(records)
+
+
+def _audit_event_record(event: AuditEvent) -> AuditEventRecord:
+    details = event.details if isinstance(event.details, dict) else {}
+    revision_number = details.get("revision_number")
+    safe_revision_number = revision_number if isinstance(revision_number, int) else None
+    input_sha256 = _safe_sha256(details.get("input_sha256"))
+    output_sha256 = _safe_sha256(
+        details.get("output_sha256", details.get("content_sha256", details.get("sha256")))
+    )
+    before = (
+        AuditVersionRecord(
+            revision_number=None,
+            content_sha256=input_sha256,
+        )
+        if input_sha256
+        else None
+    )
+    after = (
+        AuditVersionRecord(
+            revision_number=safe_revision_number,
+            content_sha256=output_sha256,
+        )
+        if safe_revision_number is not None or output_sha256
+        else None
+    )
+    result = details.get("result")
+    correlation_id = details.get("correlation_id")
+    return AuditEventRecord(
+        audit_event_id=event.audit_event_id,
+        actor_id=event.actor_subject,
+        action=event.action,
+        object_type=event.entity_type,
+        object_id=event.entity_id,
+        run_id=event.run_id,
+        before_version=before,
+        after_version=after,
+        result=result if isinstance(result, str) else None,
+        correlation_id=(
+            correlation_id
+            if isinstance(correlation_id, str)
+            else event.run_id
+        ),
+        created_at=event.created_at,
+    )
+
+
+def _safe_sha256(value: object) -> str | None:
+    if not isinstance(value, str) or len(value) != 64:
+        return None
+    return value if all(character in "0123456789abcdef" for character in value) else None

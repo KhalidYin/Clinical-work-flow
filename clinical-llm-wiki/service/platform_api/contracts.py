@@ -206,6 +206,90 @@ class CandidateDetailData(CandidateSummaryData):
     relation_proposals: list[CandidateRelationProposalData]
 
 
+class RelationEvidenceData(ApiModel):
+    evidence_id: str
+    source_version_id: str
+    locator: dict[str, Any]
+    content: str
+    content_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+
+class RelationNodeData(ApiModel):
+    knowledge_unit_id: str
+    stable_key: str
+    knowledge_type: str
+    knowledge_revision_id: str | None
+    revision_number: int | None
+    status: Literal[
+        "unversioned",
+        "review_required",
+        "approved",
+        "rejected",
+        "changes_requested",
+        "released",
+        "superseded",
+        "retired",
+    ]
+    claim: str | None
+    release_ids: list[str]
+
+
+class RelationEdgeData(ApiModel):
+    relation_id: str
+    source_knowledge_unit_id: str
+    target_knowledge_unit_id: str
+    relation_type: Literal[
+        "applies_to",
+        "conflicts_with",
+        "depends_on",
+        "derived_from",
+        "supersedes",
+        "supports",
+        "used_by",
+    ]
+    status: str
+    evidence: list[RelationEvidenceData] = Field(min_length=1)
+
+
+class RelationQueryData(ApiModel):
+    root_node_id: str | None
+    requested_depth: int = Field(ge=0)
+    applied_depth: int = Field(ge=0, le=2)
+    nodes: list[RelationNodeData]
+    edges: list[RelationEdgeData]
+    total_nodes: int = Field(ge=0)
+    truncated: bool
+    partial: bool
+    warnings: list[str]
+
+
+class AuditVersionData(ApiModel):
+    revision_number: int | None
+    content_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+
+
+class AuditEventData(ApiModel):
+    audit_event_id: str
+    actor_id: str
+    action: str
+    object_type: str
+    object_id: str
+    run_id: str | None
+    before_version: AuditVersionData | None
+    after_version: AuditVersionData | None
+    result: str | None
+    correlation_id: str | None
+    created_at: datetime
+
+
+class AuditEventCollectionData(ApiModel):
+    items: list[AuditEventData]
+    total: int = Field(ge=0)
+    next_cursor: str | None
+    partial: bool
+    warnings: list[str]
+
+
 class CandidateCollectionData(ApiModel):
     items: list[CandidateSummaryData]
     total: int = Field(ge=0)
@@ -359,6 +443,16 @@ class CandidateCollectionResponse(ApiModel):
 
 class CandidateDetailResponse(ApiModel):
     data: CandidateDetailData
+    meta: ResponseMeta
+
+
+class RelationQueryResponse(ApiModel):
+    data: RelationQueryData
+    meta: ResponseMeta
+
+
+class AuditEventCollectionResponse(ApiModel):
+    data: AuditEventCollectionData
     meta: ResponseMeta
 
 

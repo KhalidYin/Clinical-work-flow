@@ -13,6 +13,8 @@ import { ScopePage } from "./pages/ScopePage";
 import { SourcesPage } from "./pages/SourcesPage";
 import { ProcessingPage } from "./pages/ProcessingPage";
 import { CandidatesPage } from "./pages/CandidatesPage";
+import { RelationsPage } from "./pages/RelationsPage";
+import { AuditPage } from "./pages/AuditPage";
 
 const rootRoute = createRootRoute({
   component: AppShell,
@@ -54,13 +56,6 @@ function SourcesRoute() {
 
 const scopeRoutes = [
   {
-    path: "/relations",
-    eyebrow: "Typed relation evidence",
-    title: "Relations",
-    description: "关系边必须携带 evidence、方向、状态和 release membership。",
-    phase: "KUI-05 · implementation planned in P3",
-  },
-  {
     path: "/query-lab",
     eyebrow: "Explainable hybrid retrieval",
     title: "Query Lab",
@@ -81,13 +76,6 @@ const scopeRoutes = [
     description: "未批准、评估失败、hash drift 或职责分离违规都必须阻断发布。",
     phase: "KUI-08 · implementation planned in P5",
   },
-  {
-    path: "/audit",
-    eyebrow: "Append-only governance events",
-    title: "Audit",
-    description: "审计记录 actor、action、object、revision、result 与 correlation ID。",
-    phase: "KUI-10 · implementation planned in P3",
-  },
 ] as const;
 
 const processingRoute = createRoute({
@@ -101,6 +89,64 @@ const candidatesRoute = createRoute({
   path: "/candidates",
   component: CandidatesPage,
 });
+
+const relationsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/relations",
+  validateSearch: (search: Record<string, unknown>) => ({
+    q: typeof search.q === "string" ? search.q : "",
+    node: typeof search.node === "string" ? search.node : "",
+    depth: search.depth === 2 || search.depth === "2" ? 2 : 1,
+    view: search.view === "list" ? ("list" as const) : ("paths" as const),
+  }),
+  component: RelationsRoute,
+});
+
+function RelationsRoute() {
+  const search = relationsRoute.useSearch();
+  const navigate = relationsRoute.useNavigate();
+  return (
+    <RelationsPage
+      search={search}
+      onSearchChange={(patch) => {
+        void navigate({
+          search: (current) => ({ ...current, ...patch }),
+          replace: true,
+        });
+      }}
+    />
+  );
+}
+
+const auditRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/audit",
+  validateSearch: (search: Record<string, unknown>) => ({
+    actor: typeof search.actor === "string" ? search.actor : "",
+    action: typeof search.action === "string" ? search.action : "",
+    objectType: typeof search.objectType === "string" ? search.objectType : "",
+    result: typeof search.result === "string" ? search.result : "",
+    cursor: typeof search.cursor === "string" ? search.cursor : "",
+    event: typeof search.event === "string" ? search.event : "",
+  }),
+  component: AuditRoute,
+});
+
+function AuditRoute() {
+  const search = auditRoute.useSearch();
+  const navigate = auditRoute.useNavigate();
+  return (
+    <AuditPage
+      search={search}
+      onSearchChange={(patch) => {
+        void navigate({
+          search: (current) => ({ ...current, ...patch }),
+          replace: true,
+        });
+      }}
+    />
+  );
+}
 
 const generatedScopeRoutes = scopeRoutes.map((scope) =>
   createRoute({
@@ -121,6 +167,8 @@ const routeTree = rootRoute.addChildren([
   sourcesRoute,
   processingRoute,
   candidatesRoute,
+  relationsRoute,
+  auditRoute,
   ...generatedScopeRoutes,
   adminRoute,
 ]);

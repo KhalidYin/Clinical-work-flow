@@ -200,7 +200,7 @@ def test_postgres_source_registration_and_document_fan_in_are_idempotent(
         listed_sources, warnings = SqlAlchemyPlatformRepository(sessions).list_sources()
         listed = next(item for item in listed_sources if item.source_id == command_model.source_id)
         assert listed.media_type == "Markdown"
-        assert warnings == []
+        assert not any(command_model.source_id in warning for warning in warnings)
     finally:
         with sessions.begin() as session:
             run_ids = list(

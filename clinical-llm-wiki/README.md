@@ -31,7 +31,7 @@ P12 在本目录原地把 Wiki 演进为独立知识产品，不新增第三个�
 - `service/platform_api/` 独立拥有 FastAPI app、Pydantic DTO、read repository port/SQLAlchemy adapter 和 local entrypoint；legacy `service/app.py` 与 `/api/v1` 保持不变；
 - `/api/prerelease/v1/health` 可匿名读取，`/session`、`/releases/current`、`/sources`、`/admin/users` 必须使用 Bearer 身份并在后端按 P1-C permission 检查；未映射、disabled 或权限不足均失败关闭；
 - `schemas/application/knowledge-api.prerelease.yaml`、运行 DTO 与前端 TypeScript contract 使用相同内部角色枚举；显示标签只在前端映射，不成为授权事实；
-- 前端默认仍可使用显式 MSW fixture；设置 `VITE_ENABLE_MOCKS=false` 后通过 Vite proxy 接入真实 API。local Bearer 只存当前浏览器 tab 的 `sessionStorage`，不得当作生产认证方案。
+- 前端开发默认通过 Vite proxy 接入真实 API；只有显式设置 `VITE_ENABLE_MOCKS=true` 才启用 MSW fixture，并会在关闭 mock 时清理遗留 worker。local Bearer 只存当前浏览器 tab 的 `sessionStorage`，不得当作生产认证方案。
 - `service/object_store/` 定义 provider-neutral `ObjectStorePort`；内存与本地 adapter 使用不可覆盖 object key、SHA-256、media type 和 size，业务合同不暴露绝对路径或 provider URL。生产 S3-compatible adapter 在 P4 选型；
 - `service/processing/ledger.py` 使用 PostgreSQL `FOR UPDATE SKIP LOCKED` 原子领取离散任务；lease、heartbeat、attempt checkpoint、artifact manifest、失败、过期恢复、显式 retry 和 cancel 都保留审计 lineage，成功 step 不被无条件重做；
 - `service/processing/worker.py` 是 Document、Enrichment、Release 三类 pool 共用的运行时和进程入口；P2-B2 已注册 Document 与 replay Enrichment handler，并继续以独立进程、独立 Service Account 和离散 durable step 运行；Release handler 尚未启用；
@@ -44,6 +44,7 @@ P12 在本目录原地把 Wiki 演进为独立知识产品，不新增第三个�
 - P2-A parser Gate 暂不锁定 Docling/Unstructured。当前 adapter 只证明 synthetic locator/hash/formula/OCR-required 边界；受控临床跨页表和公式对照样本满足 Gate 后才重开选型。
 - P2-B1 以 `0005` 扩展 `evidence_ready` 状态、以独立 `p2b1-evidence-ready` backfill 修正“有 Evidence、无 Candidate”的 P2-A run，并以 `0006` 冻结 Candidate revision、edge evidence、作者确认、独立审核和 released immutability 合同；
 - prerelease API 已提供 Candidate collection、Author confirmation 与 Review decision 路由。Candidate 缺少 SourceVersion/locator/hash/rights/applicability 或 Relation proposal 缺少 edge evidence 时失败关闭；作者自审、过期/重复决定、worker/admin 隐式越权同样被拒绝；
+- KUI-05/KUI-10 已通过真实 API 接通有限深度 Relation Explorer 与 append-only Audit：关系只展示当前 revision 且带 Evidence 的 typed edge，审计只返回安全投影并支持筛选、cursor 分页与显式截断；
 - KUI-03/04 已区分 `evidence_ready`、待作者确认、待作者修订、待独立审核与 approved-but-unreleased；Evidence、locator、rights 与 relation proposal 在人工判断前展示。
 - P2-B2 的 Enrichment Worker 通过无网络 fake/replay `ModelProviderPort` 从 canonical Evidence 产生 Candidate/proposal；相同模型输入 hash 可精确回放，新的 retry 仍保留独立 StepAttempt。
 - request-change 建立 Candidate revision N+1 并保留旧 Candidate、KnowledgeRevision 与 ReviewDecision；作者确认和独立 Reviewer 决策只能由真实后端 permission Gate 推进。
@@ -62,7 +63,7 @@ Set-Location .\clinical-llm-wiki
 ```
 
 启动完成后打开 `http://localhost:4173/app.html#/candidates`。脚本不会回显 token；从
-gitignored 的 `.demo-runtime/access.json` 复制 Demo Author 或 Demo Reviewer token，在页面
+gitignored 的 `.demo-runtime/access.json` 复制 Demo Author、Demo Reviewer 或 Demo Auditor token，在页面
 “连接本地产品”表单中登录。Document 与 Enrichment 是两个独立异步 worker pool，不是流式
 pipeline；页面显示 approved 后仍应看到 current release unavailable。
 

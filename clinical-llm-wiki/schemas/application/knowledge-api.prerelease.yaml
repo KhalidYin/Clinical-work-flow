@@ -365,6 +365,69 @@ paths:
           $ref: "#/components/responses/ConflictError"
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
+  /relations/query:
+    get:
+      operationId: queryRelations
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: node_id
+          schema: { type: [string, "null"], maxLength: 160 }
+        - in: query
+          name: q
+          schema: { type: [string, "null"], maxLength: 240 }
+        - in: query
+          name: depth
+          schema: { type: integer, minimum: 0, maximum: 8, default: 1 }
+      responses:
+        "200":
+          description: Evidence-bound typed relations with a hard two-hop expansion cap.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RelationQueryResponse" }
+        "401":
+          $ref: "#/components/responses/AuthenticationError"
+        "403":
+          $ref: "#/components/responses/AuthorizationError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /audit-events:
+    get:
+      operationId: listAuditEvents
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: actor
+          schema: { type: [string, "null"], maxLength: 160 }
+        - in: query
+          name: action
+          schema: { type: [string, "null"], maxLength: 160 }
+        - in: query
+          name: object_type
+          schema: { type: [string, "null"], maxLength: 120 }
+        - in: query
+          name: result
+          schema: { type: [string, "null"], maxLength: 120 }
+        - in: query
+          name: cursor
+          schema: { type: [string, "null"], maxLength: 160 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+      responses:
+        "200":
+          description: Read-only paginated audit projection without raw details or sensitive text.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuditEventCollectionResponse" }
+        "401":
+          $ref: "#/components/responses/AuthenticationError"
+        "403":
+          $ref: "#/components/responses/AuthorizationError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
   /admin/users:
     get:
       operationId: listPlatformUsers
@@ -742,6 +805,161 @@ components:
             relationProposals:
               type: array
               items: { $ref: "#/components/schemas/CandidateRelationProposal" }
+    RelationEvidence:
+      type: object
+      additionalProperties: false
+      required: [evidenceId, sourceVersionId, locator, content, contentSha256]
+      properties:
+        evidenceId: { type: string }
+        sourceVersionId: { type: string }
+        locator: { type: object }
+        content: { type: string }
+        contentSha256: { type: string, pattern: "^[0-9a-f]{64}$" }
+    RelationNode:
+      type: object
+      additionalProperties: false
+      required:
+        - knowledgeUnitId
+        - stableKey
+        - knowledgeType
+        - knowledgeRevisionId
+        - revisionNumber
+        - status
+        - claim
+        - releaseIds
+      properties:
+        knowledgeUnitId: { type: string }
+        stableKey: { type: string }
+        knowledgeType: { type: string }
+        knowledgeRevisionId: { type: [string, "null"] }
+        revisionNumber: { type: [integer, "null"], minimum: 1 }
+        status:
+          enum:
+            - unversioned
+            - review_required
+            - approved
+            - rejected
+            - changes_requested
+            - released
+            - superseded
+            - retired
+        claim: { type: [string, "null"] }
+        releaseIds:
+          type: array
+          items: { type: string }
+    RelationEdge:
+      type: object
+      additionalProperties: false
+      required:
+        - relationId
+        - sourceKnowledgeUnitId
+        - targetKnowledgeUnitId
+        - relationType
+        - status
+        - evidence
+      properties:
+        relationId: { type: string }
+        sourceKnowledgeUnitId: { type: string }
+        targetKnowledgeUnitId: { type: string }
+        relationType:
+          enum:
+            - applies_to
+            - conflicts_with
+            - depends_on
+            - derived_from
+            - supersedes
+            - supports
+            - used_by
+        status: { type: string }
+        evidence:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/RelationEvidence" }
+    RelationQuery:
+      type: object
+      additionalProperties: false
+      required:
+        - rootNodeId
+        - requestedDepth
+        - appliedDepth
+        - nodes
+        - edges
+        - totalNodes
+        - truncated
+        - partial
+        - warnings
+      properties:
+        rootNodeId: { type: [string, "null"] }
+        requestedDepth: { type: integer, minimum: 0 }
+        appliedDepth: { type: integer, minimum: 0, maximum: 2 }
+        nodes:
+          type: array
+          items: { $ref: "#/components/schemas/RelationNode" }
+        edges:
+          type: array
+          items: { $ref: "#/components/schemas/RelationEdge" }
+        totalNodes: { type: integer, minimum: 0 }
+        truncated: { type: boolean }
+        partial: { type: boolean }
+        warnings:
+          type: array
+          items: { type: string }
+    AuditVersion:
+      type: object
+      additionalProperties: false
+      required: [revisionNumber, contentSha256]
+      properties:
+        revisionNumber: { type: [integer, "null"], minimum: 1 }
+        contentSha256:
+          type: [string, "null"]
+          pattern: "^[0-9a-f]{64}$"
+    AuditEvent:
+      type: object
+      additionalProperties: false
+      required:
+        - auditEventId
+        - actorId
+        - action
+        - objectType
+        - objectId
+        - runId
+        - beforeVersion
+        - afterVersion
+        - result
+        - correlationId
+        - createdAt
+      properties:
+        auditEventId: { type: string }
+        actorId: { type: string }
+        action: { type: string }
+        objectType: { type: string }
+        objectId: { type: string }
+        runId: { type: [string, "null"] }
+        beforeVersion:
+          anyOf:
+            - $ref: "#/components/schemas/AuditVersion"
+            - type: "null"
+        afterVersion:
+          anyOf:
+            - $ref: "#/components/schemas/AuditVersion"
+            - type: "null"
+        result: { type: [string, "null"] }
+        correlationId: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+    AuditEventCollection:
+      type: object
+      additionalProperties: false
+      required: [items, total, nextCursor, partial, warnings]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/AuditEvent" }
+        total: { type: integer, minimum: 0 }
+        nextCursor: { type: [string, "null"] }
+        partial: { type: boolean }
+        warnings:
+          type: array
+          items: { type: string }
     CandidateRevisionRequest:
       type: object
       additionalProperties: false
@@ -942,6 +1160,18 @@ components:
         - type: object
           properties:
             data: { $ref: "#/components/schemas/CandidateDetail" }
+    RelationQueryResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/RelationQuery" }
+    AuditEventCollectionResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/AuditEventCollection" }
     CandidateRevisionResponse:
       allOf:
         - $ref: "#/components/schemas/Envelope"

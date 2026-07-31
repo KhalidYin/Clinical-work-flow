@@ -8,6 +8,8 @@ export const API_PATHS = {
   processingRuns: "/api/prerelease/v1/processing-runs",
   candidates: "/api/prerelease/v1/candidates",
   knowledgeRevisions: "/api/prerelease/v1/knowledge-revisions",
+  relationQuery: "/api/prerelease/v1/relations/query",
+  auditEvents: "/api/prerelease/v1/audit-events",
   adminUsers: "/api/prerelease/v1/admin/users",
 } as const;
 
@@ -262,6 +264,83 @@ export interface CandidateDetail extends CandidateSummary {
   exceptions: Record<string, unknown>[];
   evidence: CandidateEvidence[];
   relationProposals: CandidateRelationProposal[];
+}
+
+export type RelationNodeStatus =
+  | "unversioned"
+  | "review_required"
+  | "approved"
+  | "rejected"
+  | "changes_requested"
+  | "released"
+  | "superseded"
+  | "retired";
+
+export interface RelationEvidence {
+  evidenceId: string;
+  sourceVersionId: string;
+  locator: Record<string, unknown>;
+  content: string;
+  contentSha256: string;
+}
+
+export interface RelationNode {
+  knowledgeUnitId: string;
+  stableKey: string;
+  knowledgeType: string;
+  knowledgeRevisionId: string | null;
+  revisionNumber: number | null;
+  status: RelationNodeStatus;
+  claim: string | null;
+  releaseIds: string[];
+}
+
+export interface RelationEdge {
+  relationId: string;
+  sourceKnowledgeUnitId: string;
+  targetKnowledgeUnitId: string;
+  relationType: RelationType;
+  status: string;
+  evidence: RelationEvidence[];
+}
+
+export interface RelationQuery {
+  rootNodeId: string | null;
+  requestedDepth: number;
+  appliedDepth: number;
+  nodes: RelationNode[];
+  edges: RelationEdge[];
+  totalNodes: number;
+  truncated: boolean;
+  partial: boolean;
+  warnings: string[];
+}
+
+export interface AuditVersion {
+  revisionNumber: number | null;
+  contentSha256: string | null;
+}
+
+export interface AuditEvent {
+  auditEventId: string;
+  actorId: string;
+  action: string;
+  objectType: string;
+  objectId: string;
+  runId: string | null;
+  beforeVersion: AuditVersion | null;
+  afterVersion: AuditVersion | null;
+  result: string | null;
+  correlationId: string | null;
+  createdAt: string;
+}
+
+export interface AuditEventCollection {
+  items: AuditEvent[];
+  total: number;
+  nextCursor: string | null;
+  partial: boolean;
+  warnings: string[];
 }
 
 export interface CandidateRevisionRequest {

@@ -50,3 +50,13 @@ type: project
   records 缺失不回退 live。
 - 该运行门只使用 injected callable 验证，没有真实供应商调用、API Key、获授权 Evidence 或
   模型质量结论；P2-B3 仍未关闭。
+- P2-B3 的非出站产品切片已于 2026-07-31 完成：KUI-05 Relation Explorer 只读取当前
+  KnowledgeRevision 的带 Evidence typed edge，并把展开限制为两跳；KUI-10 Audit 只暴露
+  actor/action/object/before-after version/result/correlation ID 安全投影，支持筛选、cursor
+  分页和显式截断。
+- 开发前端默认连接真实 API，MSW 只有在 `VITE_ENABLE_MOCKS=true` 时才显式启用；关闭 mock
+  会清理遗留 Service Worker。Relation/Audit 已用真实 PostgreSQL、内部 RBAC、Demo Auditor、
+  桌面与 390px 浏览器验证，不能再用 fixture 页面替代产品验收。
+- 当前唯一下一输入仍是获授权的单一 ModelProfile、`env://`/Secret reference、允许出站的
+  synthetic Evidence 和调用预算。未取得这些输入前不得发起供应商调用，也不得把 KUI 完成
+  解释为 P2 Gate、生产检索或 Release 授权。

@@ -348,12 +348,12 @@ Docling 是否进入锁定依赖，必须先用 SDTM IG 多栏与跨页表、ADa
 
 - [x] `[KUI-01]` 首屏导航、identity、release/index health 和默认 Sources 页面与基线一致，深链可恢复。
 - [x] `[KUI-02..03]` Source 上传/版本、非流式 processing 状态/失败/checkpoint 重试均由 API 证据驱动；`evidence_ready` 不被误标为 Candidate 或待作者确认。
-- [ ] `[KUI-04]` Candidate revision、evidence 对照、作者确认、独立 approve/reject/request-change、stale conflict 和作者自审拒绝行为闭合。
-- [ ] `[KUI-05]` Relation 节点/边都有 typed evidence，candidate/released 不混淆，展开有上限且 URL 可恢复。
+- [x] `[KUI-04]` Candidate revision、evidence 对照、作者确认、独立 approve/reject/request-change、stale conflict 和作者自审拒绝行为闭合。
+- [x] `[KUI-05]` Relation 节点/边都有 typed evidence，candidate/released 不混淆，展开有上限且 URL 可恢复。
 - [ ] `[KUI-06]` Query Lab 分开展示 metadata/FTS/vector/relation 贡献和 degraded 状态，Context Package citation 可追溯。
 - [ ] `[KUI-07]` Evaluation 指标可回溯 Gold case 和 expected evidence，失败案例和版本差异可筛选。
 - [ ] `[KUI-08]` Release Gate 对未批准、评估失败、hash drift 和职责分离违规 fail closed。
-- [ ] `[KUI-09..10]` RBAC、Service Account、secret 不回显和 append-only audit 行为可验证。
+- [x] `[KUI-09..10]` RBAC、Service Account、secret 不回显和 append-only audit 行为可验证。
 - [ ] `[KUI-01..10]` default、loading、empty、error、partial-data 和窄屏状态均有组件测试与真实浏览器核验。
 - [ ] 所有设计偏差均已记录并获批准；行为测试覆盖核心操作结果，不只检查标题或静态文本。
 
@@ -387,7 +387,7 @@ Docling 是否进入锁定依赖，必须先用 SDTM IG 多栏与跨页表、ADa
 |-------|------|----------|------|------|
 | D0 | 大改前可运行前端 Demo Gate | 2-3 | - | done |
 | P1 | 产品基础：数据库迁移、身份权限、作业账本、模型与合同基线 | 8-11 | D0 | done |
-| P2 | AI 知识生产：Source → Evidence → Candidate → 作者确认 → 独立审核 | 12-17 | P1 | in-progress（P2-A/P2-B1/P2-B2 done；P2-B3 next） |
+| P2 | AI 知识生产：Source → Evidence → Candidate → 作者确认 → 独立审核 | 12-17 | P1 | in-progress（P2-A/P2-B1/P2-B2 done；P2-B3 离线授权门与 KUI-05/10 done，live vertical pending） |
 | P3 | 发布与检索：Approved Revision → 索引/评估 → immutable Release | 8-11 | P2 | pending |
 | P4 | 产品闭环：完整前端、外部接口、既有 Wiki 迁移、部署与运维验收 | 7-10 | P3 | pending |
 
@@ -632,8 +632,16 @@ P2-B 不再作为一次性“大模型 + 关系图 + 全部审核 UI”交付。
 - profile/version/boundary 漂移在 secret resolver 和 provider callable 之前失败；
   `local_processing_only`、`prohibited` 不能进入 live 授权，offline records 缺失也不会回退
   live。该切片使用 injected callable 验证单次结构化调用，未访问任何真实供应商。
+- KUI-05/KUI-10 已接通真实 PostgreSQL read adapter、prerelease API 与内部 RBAC：
+  Relation Explorer 只返回带 Evidence 的 typed edge，展开限制为两跳，且只呈现 Knowledge
+  Unit 当前 revision 的 proposal；Audit 只返回 actor/action/object/version/result/correlation
+  ID 安全投影，支持筛选、cursor 分页和显式截断。
+- React 页面、OpenAPI、API/权限、真实 PostgreSQL 和 loopback 浏览器已通过桌面与 390px
+  验证。开发模式 MSW 改为仅在 `VITE_ENABLE_MOCKS=true` 时显式启用，避免把 fixture
+  误判为真实 API 结果。
 - 用户尚未提供获授权的 ModelProfile/Secret reference、允许出站 Evidence 或 live 调用预算，
-  因此本 Phase 输入条件仍未完全满足，以下 P2-B3 完成标准均保持 open。
+  因此本 Phase 输入条件仍未完全满足；KUI 验收已关闭，但 live invocation、供应商失败矩阵
+  与端到端 P2 Gate 仍保持 open。
 
 #### 产出
 
@@ -645,12 +653,12 @@ P2-B 不再作为一次性“大模型 + 关系图 + 全部审核 UI”交付。
 
 #### 完成标准
 
-- [ ] 数据边界在请求前检查；`local_processing_only`、`prohibited` 或 provider 不匹配时零出站，并产生脱敏、可解释失败。
+- [x] 数据边界在请求前检查；`local_processing_only`、`prohibited` 或 provider 不匹配时零出站，并产生脱敏、可解释失败。
 - [ ] 结构化输出不符合 JSON Schema、timeout、429 或供应商错误时 fail closed；重试或换 profile 形成新的 StepAttempt，不由 SDK 静默 retry/fallback。
 - [ ] AI 只执行原子抽取、分类/适用性、关系建议、重复/冲突/gap 和证据一致性辅助；无 Evidence 的事实不能进入 Candidate。
 - [ ] Relation 必须类型合法、端点存在且有 edge evidence；dangling、闭包/循环约束、conflicting/supersedes 语义由确定性校验完成。
 - [ ] Audit 可追溯一次 live invocation 到 Candidate revision 和 Evidence，但不记录 API secret、chain-of-thought 或未批准敏感正文。
-- [ ] `[KUI-05]`、`[KUI-10]` 及对应组件/API/权限/浏览器测试通过。
+- [x] `[KUI-05]`、`[KUI-10]` 及对应组件/API/权限/浏览器测试通过。
 - [ ] P2 Gate 证明 Source → Evidence → AI Candidate → 作者确认 → 独立 Reviewer 闭环；`approved` 仍不等于 `released`。
 
 #### 边界（本切片明确不做）
@@ -873,6 +881,8 @@ P3 只消费 P2 已批准的 KnowledgeRevision。内部先构建可解释检索�
 | D14 | Docling 未在同一受控临床 fixture 上测量，当前 synthetic benchmark 不能支持锁定新依赖 | P2-A | 选型（已解决） | P2-A 保留现有确定性 adapter，扫描 PDF 明确要求 OCR；只有满足受控 locator/table/formula/resource 对照样本时重开选型 |
 | D15 | P2-A 在尚无 Candidate 时把 Evidence 完成标记为 `author_confirmation_required`，会让后续 Enrichment 从人工等待状态回到模型处理并误导 UI | 计划复核 / P2-B1 | 语义（已解决） | `0005` 新增 `evidence_ready`，独立 `p2b1-evidence-ready` resumable backfill 只转换“已有 Evidence 且无 Candidate”的历史 run；应用事务要求 Candidate revision 存在后才进入 `author_confirmation_required` |
 | D16 | P1-E Compose 合同仍要求三类 Worker 都位于 `workers` profile，但 P2-B2 为完整治理 Demo 已让 Document/Enrichment 默认独立启动、只保留 Release profile | P2-B3 离线准备 | 测试漂移（已解决） | 更新部署合同断言为当前事实：Document/Enrichment 默认启动，Release 在 P3 前保持显式 `release` profile；不回退 B2 可运行闭环 |
+| D17 | 开发模式曾默认启动 MSW，真实本地 API 虽已运行，浏览器仍会静默读取 fixture | P2-B3 KUI | 产品边界（已解决） | MSW 改为仅在 `VITE_ENABLE_MOCKS=true` 时显式启动，并清理遗留 mock Service Worker；生产/开发真实 API 不再依赖 `false` 开关纠偏 |
+| D18 | 同一 Knowledge Unit 的历史 revision 和当前 revision 都可能保留 proposed relation，直接合并会产生重复路径 | P2-B3 KUI | 数据投影（已解决） | Relation read adapter 只投影当前 KnowledgeRevision 的未发布 proposal；历史 proposal 继续留在 append-only Audit，不进入当前图 |
 
 ## 关键决策记录
 
@@ -929,3 +939,4 @@ P3 只消费 P2 已批准的 KnowledgeRevision。内部先构建可解释检索�
 | 2026-07-30 | `0005`/`0006` migrations、`service/knowledge/`、`service/governance/`、evidence-ready backfill、Candidate/Governance API、KUI-03/04、tests、README/USAGE/SPEC-12/13、P12 memory | P2-B1 完成：Evidence checkpoint 与人工 Gate 分离，Candidate eligibility、edge evidence、作者确认、独立审核、stale/idempotency、released immutability 和 worker/admin 越权门禁通过；下一 Gate 为 P2-B2 fake/replay 可回放闭环 |
 | 2026-07-31 | replay Enrichment/KUI-04/demo runtime/tests、README/USAGE/SPEC-12/13、P12 memory | P2-B2 完成：真实 Source → Evidence → replay Candidate → request-change/revision → 独立批准闭环通过，approved 仍未 released；下一 Gate 为 P2-B3 |
 | 2026-07-31 | `service/processing/model_profiles.py`、Enrichment Worker、live authorization tests、README/USAGE/SPEC-13 | P2-B3 离线准备完成：live 默认关闭并精确绑定 profile/version/data boundary；未配置或调用真实供应商，P2-B3 Gate 保持 open |
+| 2026-07-31 | Relation/Audit prerelease API、KUI-05/KUI-10、真实 PostgreSQL/浏览器 tests、README/USAGE/SPEC-13、P12 memory | P2-B3 非出站产品切片完成：有限 Evidence relation、append-only Audit 和显式 MSW 边界通过；live ModelProfile/Secret/Evidence/预算仍是关闭 P2 Gate 的唯一下一输入 |
