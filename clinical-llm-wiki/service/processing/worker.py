@@ -50,6 +50,8 @@ from .enrichment import (
     load_enrichment_profiles,
     offline_provider_from_config,
 )
+from .model_profiles import authorized_live_provider_from_environment
+from .model_provider import ModelProfile, ModelProviderPort
 from .parsers import ParserRegistry
 
 
@@ -199,6 +201,30 @@ def _require_secret_reference(reference: str) -> None:
         raise RuntimeError(f"required worker credential reference is not configured: {name}")
 
 
+def enrichment_provider_from_environment(
+    model_profile: ModelProfile,
+    environ: Mapping[str, str] | None = None,
+) -> ModelProviderPort:
+    """Select explicit offline or live enrichment mode without implicit fallback."""
+
+    values = os.environ if environ is None else environ
+    provider_mode = values.get("KNOWLEDGE_ENRICHMENT_PROVIDER_MODE", "replay")
+    if provider_mode == "live":
+        return authorized_live_provider_from_environment(
+            model_profile=model_profile,
+            environ=values,
+        )
+    fixture_path = values.get("KNOWLEDGE_ENRICHMENT_RECORDS_PATH")
+    if not fixture_path:
+        raise RuntimeError(
+            "KNOWLEDGE_ENRICHMENT_RECORDS_PATH is required for fake/replay mode"
+        )
+    return offline_provider_from_config(
+        mode=provider_mode,
+        records_path=Path(fixture_path),
+    )
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--pool", choices=[pool.value for pool in WorkerPool])
@@ -280,18 +306,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "1.0.0",
             ),
         )
-        fixture_path = os.environ.get("KNOWLEDGE_ENRICHMENT_RECORDS_PATH")
-        if not fixture_path:
-            raise RuntimeError("KNOWLEDGE_ENRICHMENT_RECORDS_PATH is required")
+        model_provider = enrichment_provider_from_environment(model_profile)
         enrichment_service = EnrichmentWorkerService(
             repository=SqlAlchemyEnrichmentRepository(sessions),
             governance=KnowledgeGovernanceService(
                 repository=SqlAlchemyGovernanceRepository(sessions)
             ),
-            provider=offline_provider_from_config(
-                mode=os.environ.get("KNOWLEDGE_ENRICHMENT_PROVIDER_MODE", "replay"),
-                records_path=Path(fixture_path),
-            ),
+            provider=model_provider,
             model_profile=model_profile,
             prompt_profile=prompt_profile,
             actor=actor,

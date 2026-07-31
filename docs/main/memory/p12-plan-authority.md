@@ -43,3 +43,10 @@ type: project
 - 真实 E2E 已完成 Author confirm → independent request-change → revision 2 → reconfirm → approve；401/403/409 负向门禁、390px 窄屏和批准未发布边界均通过。最终 Release/ReleaseItem 为零，released REST 为 `not_released`；P3/P4 前 Query/MCP surface 不暴露临时旁路。
 
 **如何应用：** P1、P2-A、P2-B1 与 P2-B2 Gate 已关闭，下一任务是 P2-B3 单一真实外部模型与 P2 Gate。启动前必须由用户提供一个允许发送测试数据的 ModelProfile 与 Secret reference；只接一个 live provider/profile，不做多供应商矩阵、自动 fallback 或本地 LLM。B2 的 replay 成功不能作为真实模型质量结论，也不能授权索引、评估或发布；P3、P4 仍需逐 Gate 推进。不得把 Evidence、Candidate 或 approved revision 当作 released knowledge，也不得反向修改 P1/P2-A/B1/B2 已冻结的 Source、ObjectStore、权限、ledger、provenance、replay identity 或四眼原则。如果未来需要重启 Workflow、Agent、Project Memory 或多 Study 协作，必须基于 P12 当时已发布的外部合同新建计划，不能恢复旧 P1-P11 文件继续执行。
+
+- P2-B3 的离线 live 运行门已于 2026-07-31 完成：`provider_mode=live` 不足以启用出站，
+  还必须显式设置 enabled、精确匹配一个 DB ModelProfile/version，并把授权限制在可出站
+  data boundary；profile 对象或 boundary 漂移均在 secret/provider callable 前失败，offline
+  records 缺失不回退 live。
+- 该运行门只使用 injected callable 验证，没有真实供应商调用、API Key、获授权 Evidence 或
+  模型质量结论；P2-B3 仍未关闭。

@@ -112,6 +112,36 @@ Set-Location .\clinical-llm-wiki
 共享或全局 Python 环境可能已经锁定其他 OpenAI SDK 版本；不要在该环境直接追加
 `clinical-llm-wiki[models]`。请使用上方项目 `.venv`，并在安装后执行 `pip check`。
 
+P2-B3 的 Enrichment Worker 不会因为安装了 LiteLLM 或存在 API Key 就自动切换 live。必须由
+进程环境同时显式选择 live、启用开关，并把授权限定到一个 DB 中已登记的
+ModelProfile/version 和允许出站的数据边界：
+
+```powershell
+$env:KNOWLEDGE_ENRICHMENT_PROVIDER_MODE = "live"
+$env:KNOWLEDGE_LIVE_MODEL_ENABLED = "true"
+$env:KNOWLEDGE_LIVE_MODEL_PROFILE_ID = "<registered-profile-id>"
+$env:KNOWLEDGE_LIVE_MODEL_PROFILE_VERSION = "<registered-profile-version>"
+$env:KNOWLEDGE_LIVE_MODEL_ALLOWED_DATA_BOUNDARIES = "external_allowed"
+
+# ModelProfile.secret_ref/endpoint_ref 引用的变量；不要把值写入仓库或命令示例。
+$env:KNOWLEDGE_MODEL_API_KEY = "<injected-secret>"
+$env:KNOWLEDGE_MODEL_ENDPOINT = "<injected-endpoint-if-required>"
+```
+
+`KNOWLEDGE_LIVE_MODEL_ENABLED` 只接受精确值 `true`；profile ID/version 或数据边界不匹配会在
+解析 secret、调用 provider 之前失败。`local_processing_only` 和 `prohibited` 不能写入 live
+授权，`enterprise_provider_only` 还要求 DB ModelProfile 为 `enterprise_managed`。fake/replay
+继续要求 `KNOWLEDGE_ENRICHMENT_RECORDS_PATH`，且不会静默 fallback 到 live。
+
+离线授权门测试不会访问供应商：
+
+```powershell
+Set-Location .\clinical-llm-wiki
+.\.venv\Scripts\python -m pytest `
+  tests/test_live_model_authorization.py `
+  tests/test_model_provider_contract.py -q
+```
+
 ### P12 PostgreSQL/pgvector 迁移（P1-B）
 
 知识产品数据库只接受 `postgresql+psycopg://` URL。实际凭据只通过
@@ -475,7 +505,8 @@ PostgreSQL integration tests 需要单独、可丢弃的空
 生产 FTS/vector/relation index，也不实现 Release、Query Lab 或 MCP。released REST 只从
 `releases.status=released` 读取；approved revision 在 Release/ReleaseItem 为零时仍不可消费。
 下一 Gate P2-B3 必须由用户提供一个允许发送测试数据的 live ModelProfile 与 Secret
-reference，不能复用 replay 成功宣称真实模型质量。
+reference，不能复用 replay 成功宣称真实模型质量。代码已具备默认关闭、精确 profile/version
+和 data-boundary 的 live 运行门，但仓库未配置任何获授权 profile、secret 值或真实出站数据。
 
 ## 3. 启动本地 Review Panel
 

@@ -32,8 +32,12 @@ def test_compose_keeps_one_codebase_three_pools_and_loopback_publication() -> No
         ("worker-enrichment", "enrichment"),
         ("worker-release", "release"),
     ):
-        assert services[name]["profiles"] == ["workers"]
         assert services[name]["command"][-2:] == ["--pool", pool]
+    # P2-B2 starts the two knowledge-production workers in the complete local demo.
+    # Release remains separately gated until P3 authorizes release construction.
+    assert "profiles" not in services["worker-document"]
+    assert "profiles" not in services["worker-enrichment"]
+    assert services["worker-release"]["profiles"] == ["release"]
 
     serialized = (ROOT / "compose.yaml").read_text(encoding="utf-8").lower()
     assert all(component not in serialized for component in ("kafka", "redis", "neo4j"))

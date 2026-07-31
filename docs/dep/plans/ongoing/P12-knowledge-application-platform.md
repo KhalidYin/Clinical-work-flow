@@ -624,6 +624,17 @@ P2-B 不再作为一次性“大模型 + 关系图 + 全部审核 UI”交付。
 - 用户提供至少一个允许发送测试数据的外部 ModelProfile 和 Secret reference；只选择一个已配置 provider/profile 做首个 live vertical slice。
 - 受限来源 fixture 已准备，用于验证 `local_processing_only`、`prohibited` 和 provider/data-boundary 不匹配时 fail closed。
 
+#### 当前实施进度
+
+- 2026-07-31 已完成不需要外部授权的 live 运行门：Enrichment Worker 只有在
+  `provider_mode=live`、显式 enabled、授权 profile/version 与 DB canonical ModelProfile
+  精确一致，且请求 data boundary 位于独立授权 allow-list 时才进入 embedded LiteLLM。
+- profile/version/boundary 漂移在 secret resolver 和 provider callable 之前失败；
+  `local_processing_only`、`prohibited` 不能进入 live 授权，offline records 缺失也不会回退
+  live。该切片使用 injected callable 验证单次结构化调用，未访问任何真实供应商。
+- 用户尚未提供获授权的 ModelProfile/Secret reference、允许出站 Evidence 或 live 调用预算，
+  因此本 Phase 输入条件仍未完全满足，以下 P2-B3 完成标准均保持 open。
+
 #### 产出
 
 - Enrichment Worker 通过自有 `ModelProviderPort` 后的 embedded LiteLLM adapter 调用一个真实外部模型，固定 `stream=false` 和版本化 JSON Schema。
@@ -861,6 +872,7 @@ P3 只消费 P2 已批准的 KnowledgeRevision。内部先构建可解释检索�
 | D13 | P1 只读 fixture 曾用 `canonical_source`，P2-A 新模型改用 `original`；直接收紧会破坏已验收的 P1 读取链 | P2-A | 兼容（已解决） | 新写路径只产生 `original`，读取/迁移兼容 `canonical_source`，二者都不会与 `parser_output`/Evidence 混淆；P4 legacy migration 再显式 crosswalk |
 | D14 | Docling 未在同一受控临床 fixture 上测量，当前 synthetic benchmark 不能支持锁定新依赖 | P2-A | 选型（已解决） | P2-A 保留现有确定性 adapter，扫描 PDF 明确要求 OCR；只有满足受控 locator/table/formula/resource 对照样本时重开选型 |
 | D15 | P2-A 在尚无 Candidate 时把 Evidence 完成标记为 `author_confirmation_required`，会让后续 Enrichment 从人工等待状态回到模型处理并误导 UI | 计划复核 / P2-B1 | 语义（已解决） | `0005` 新增 `evidence_ready`，独立 `p2b1-evidence-ready` resumable backfill 只转换“已有 Evidence 且无 Candidate”的历史 run；应用事务要求 Candidate revision 存在后才进入 `author_confirmation_required` |
+| D16 | P1-E Compose 合同仍要求三类 Worker 都位于 `workers` profile，但 P2-B2 为完整治理 Demo 已让 Document/Enrichment 默认独立启动、只保留 Release profile | P2-B3 离线准备 | 测试漂移（已解决） | 更新部署合同断言为当前事实：Document/Enrichment 默认启动，Release 在 P3 前保持显式 `release` profile；不回退 B2 可运行闭环 |
 
 ## 关键决策记录
 
@@ -915,3 +927,5 @@ P3 只消费 P2 已批准的 KnowledgeRevision。内部先构建可解释检索�
 | 2026-07-30 | `clinical-llm-wiki/service/sources/`、Document Worker/parser、`0004` migration、Source/Processing API、KUI-02/03、parser Gate 报告、tests、README/USAGE/SPEC-12/13、P12 memory | P2-A 完成：Source/Object 补偿、可审计孤儿清理、确定性 Source → Evidence DAG 和浏览器闭环通过；P2-B 未启动 |
 | 2026-07-30 | 本计划、`docs/dep/PLAN.md`、P12 memory | 用户批准重新定位主线为“可信知识闭环优先”；P2-B 拆为 B1 状态/治理合同、B2 fake/replay 闭环、B3 单一真实外部模型，下一 Gate 为 P2-B1 |
 | 2026-07-30 | `0005`/`0006` migrations、`service/knowledge/`、`service/governance/`、evidence-ready backfill、Candidate/Governance API、KUI-03/04、tests、README/USAGE/SPEC-12/13、P12 memory | P2-B1 完成：Evidence checkpoint 与人工 Gate 分离，Candidate eligibility、edge evidence、作者确认、独立审核、stale/idempotency、released immutability 和 worker/admin 越权门禁通过；下一 Gate 为 P2-B2 fake/replay 可回放闭环 |
+| 2026-07-31 | replay Enrichment/KUI-04/demo runtime/tests、README/USAGE/SPEC-12/13、P12 memory | P2-B2 完成：真实 Source → Evidence → replay Candidate → request-change/revision → 独立批准闭环通过，approved 仍未 released；下一 Gate 为 P2-B3 |
+| 2026-07-31 | `service/processing/model_profiles.py`、Enrichment Worker、live authorization tests、README/USAGE/SPEC-13 | P2-B3 离线准备完成：live 默认关闭并精确绑定 profile/version/data boundary；未配置或调用真实供应商，P2-B3 Gate 保持 open |

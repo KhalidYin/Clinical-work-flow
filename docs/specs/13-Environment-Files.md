@@ -871,6 +871,24 @@ endpoint_ref: env://KNOWLEDGE_MODEL_ENDPOINT
 - profile 切换与重试由 durable ledger 建立新 StepAttempt，SDK 不静默 fallback；
 - P1-B0 测试只使用 fake/replay 或注入 callable，不发起真实供应商请求。
 
+P2-B3 增加独立于 ModelProfile 的进程级 live 授权门。安装可选依赖或配置 secret reference
+都不会隐式开启真实出站；Enrichment Worker 必须同时设置：
+
+```text
+KNOWLEDGE_ENRICHMENT_PROVIDER_MODE=live
+KNOWLEDGE_LIVE_MODEL_ENABLED=true
+KNOWLEDGE_LIVE_MODEL_PROFILE_ID=<registered profile_id>
+KNOWLEDGE_LIVE_MODEL_PROFILE_VERSION=<registered version>
+KNOWLEDGE_LIVE_MODEL_ALLOWED_DATA_BOUNDARIES=external_allowed
+```
+
+`KNOWLEDGE_LIVE_MODEL_ENABLED` 只接受精确小写 `true`。授权只绑定一个 DB canonical
+ModelProfile/version；请求携带的完整 profile 对象、data boundary 或 structured-generation
+capability 任一不匹配，均在 secret resolver 和 LiteLLM callable 之前失败。授权不得包含
+`local_processing_only` 或 `prohibited`；`enterprise_provider_only` 只有在 profile 的
+`deployment_class=enterprise_managed` 且 profile 本身允许该边界时可用。fake/replay 模式继续
+要求 `KNOWLEDGE_ENRICHMENT_RECORDS_PATH`，缺失时失败，不回退 live。
+
 ## 12. P12 Knowledge Product 数据库环境
 
 P1-B 使用同步 SQLAlchemy 2、psycopg 3 与 Alembic。数据库 URL 的唯一运行时变量是：
@@ -1101,8 +1119,9 @@ KNOWLEDGE_ENRICHMENT_RECORDS_PATH=/var/lib/clinical-knowledge/demo/replay-record
 Document 与 Enrichment worker 默认作为两个独立服务启动，分别使用
 `KNOWLEDGE_DOCUMENT_WORKER_SERVICE_ACCOUNT_ID`/
 `KNOWLEDGE_ENRICHMENT_WORKER_SERVICE_ACCOUNT_ID` 和各自 `P12_*_WORKER_TOKEN`。Release worker
-只在显式 `release` profile 中存在；P2-B2 不启动它。`KNOWLEDGE_ENRICHMENT_PROVIDER_MODE`
-只能是 `fake` 或 `replay`，不能静默切换 live。
+只在显式 `release` profile 中存在；P2-B2 不启动它。`start-demo.ps1` 的 B2 Demo Compose
+路径固定为 `replay`；通用 Worker 只有在上一节 P2-B3 的全部显式授权变量同时满足时才接受
+`live`，任何模式都不能静默切换或 fallback。
 
 端口仍只发布到 loopback：
 
@@ -1119,3 +1138,7 @@ http://localhost:4173/app.html#/candidates
 P2-B2 不读取 live model secret、endpoint 或 LiteLLM `models` extra。P2-B3 只有在用户提供
 一个允许发送测试数据的 ModelProfile 与 Secret reference 后才可启用 live adapter；不得把
 demo.env、replay record 或 local bearer token 改名后当作生产配置。
+
+截至 P2-B3 离线准备切片，`service.processing.model_profiles` 与 Enrichment Worker 已实现
+上述显式 live 门，但仓库和 Demo 不包含任何获授权的真实 profile、secret 值或允许出站的
+正式 Evidence；当前默认仍为 replay。

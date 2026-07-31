@@ -18,7 +18,7 @@ P12 在本目录原地把 Wiki 演进为独立知识产品，不新增第三个�
 
 - `service/processing/model_provider.py` 是产品自有 `ModelProviderPort`、版本化 Model/Prompt/Profile、数据出站策略和 fake/replay adapter；
 - `schemas/application/model-provider.prerelease.schema.json` 是 request/invocation 持久化的 prerelease JSON Schema；
-- live adapter 仅在 Enrichment Worker 后续显式配置时使用 embedded LiteLLM Python SDK，不部署 LiteLLM Proxy，也不进行静默 retry/fallback；
+- live adapter 仅在 Enrichment Worker 显式设置 `provider_mode=live`、`KNOWLEDGE_LIVE_MODEL_ENABLED=true` 且获授权 profile/version/data-boundary 与 DB ModelProfile 精确匹配时使用 embedded LiteLLM Python SDK；不部署 LiteLLM Proxy，也不进行静默 retry/fallback；
 - `local_processing_only` 与 `prohibited` 数据不能出站，`enterprise_provider_only` 只能发送到企业托管 deployment；
 - 调用固定为非流式 JSON Schema 输出；密钥只使用 `env://` 或受控 `secret://` 引用，审计记录不保存密钥、原始供应商异常或 chain-of-thought。
 - `service/db/` 的 SQLAlchemy 2 metadata 固定 Source/Evidence/Candidate/Revision/Relation/Review/Release/Audit、durable processing/model ledger、身份授权、object write intent 与 relation proposal evidence 共 27 张表；
