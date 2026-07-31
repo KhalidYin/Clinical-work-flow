@@ -258,12 +258,21 @@ export interface CandidateRelationProposal {
   status: "proposed" | "accepted" | "rejected" | "superseded";
 }
 
+export interface CandidateAdvisorySignal {
+  signalType: "possible_duplicate" | "possible_conflict" | "explicit_gap";
+  description: string;
+  targetKnowledgeUnitId: string | null;
+  evidenceIds: string[];
+}
+
 export interface CandidateDetail extends CandidateSummary {
   parentCandidateId: string | null;
   conditions: Record<string, unknown>[];
   exceptions: Record<string, unknown>[];
   evidence: CandidateEvidence[];
   relationProposals: CandidateRelationProposal[];
+  advisorySignals: CandidateAdvisorySignal[];
+  originModelInvocationId: string | null;
 }
 
 export type RelationNodeStatus =

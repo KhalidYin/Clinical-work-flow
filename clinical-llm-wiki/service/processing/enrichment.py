@@ -22,6 +22,7 @@ from service.db.models import (
 )
 from service.governance import KnowledgeGovernanceService
 from service.knowledge import (
+    CandidateAdvisorySignal,
     EvidenceReference,
     KnowledgeCandidateDraft,
     RelationProposal,
@@ -56,6 +57,7 @@ ENRICHMENT_OUTPUT_SCHEMA = {
         "exceptions",
         "evidence_ids",
         "relation_proposals",
+        "advisory_signals",
         "confidence",
     ],
     "properties": {
@@ -95,6 +97,42 @@ ENRICHMENT_OUTPUT_SCHEMA = {
                         ]
                     },
                     "target_knowledge_unit_id": {"type": "string", "minLength": 1},
+                    "evidence_ids": {
+                        "type": "array",
+                        "minItems": 1,
+                        "uniqueItems": True,
+                        "items": {"type": "string", "minLength": 1},
+                    },
+                },
+            },
+        },
+        "advisory_signals": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": [
+                    "signal_type",
+                    "description",
+                    "target_knowledge_unit_id",
+                    "evidence_ids",
+                ],
+                "properties": {
+                    "signal_type": {
+                        "enum": [
+                            "possible_duplicate",
+                            "possible_conflict",
+                            "explicit_gap",
+                        ]
+                    },
+                    "description": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2000,
+                    },
+                    "target_knowledge_unit_id": {
+                        "type": ["string", "null"],
+                    },
                     "evidence_ids": {
                         "type": "array",
                         "minItems": 1,
@@ -323,6 +361,11 @@ class EnrichmentWorkerService:
                 RelationProposal.model_validate(item)
                 for item in output["relation_proposals"]
             ),
+            advisory_signals=tuple(
+                CandidateAdvisorySignal.model_validate(item)
+                for item in output["advisory_signals"]
+            ),
+            origin_model_invocation_id=invocation.invocation_id,
             confidence=output["confidence"],
         )
         candidate = self._governance.register_candidate(

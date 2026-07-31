@@ -162,6 +162,19 @@ $runId = "<fresh-evidence-ready-run-id>"
 上述命令还需要既有的 Enrichment Service Account ID/credential 和
 `KNOWLEDGE_DATABASE_URL`。不要在共享演示队列或正式受限文档上运行 P2-B3 vertical。
 
+P2-B3 当前结构化输出使用 `atomic-candidate@1.1.0` /
+`knowledge-candidate.p2-b2.v2`。模型只能返回带描述、目标（gap 除外）和 Evidence IDs 的
+`possible_duplicate`、`possible_conflict`、`explicit_gap` 建议。建议必须引用本 Candidate
+的 canonical Evidence；conflict/supersedes proposal 必须与建议匹配。写事务随后独立校验
+端点、edge evidence、自环、反向 conflict、同目标互斥、`depends_on`/`derived_from`/
+`supersedes` cycle/closure 和 governed supersedes。任一校验失败都不会留下 Candidate。
+
+Candidate detail 会显示 advisory 与 `originModelInvocationId`；append-only Audit 的
+`candidate.created`/`candidate.revised` 也保留该 ID，从而连接 ModelInvocation、run/attempt、
+Evidence 和 Candidate。它是 lineage，不是模型正确性的证明。旧 Demo 若只登记了
+`atomic-candidate@1.0.0`，应使用受控 `scripts/start-demo.ps1 -Reset` 重建；不得静默复用旧
+profile/version。
+
 离线授权门测试不会访问供应商：
 
 ```powershell
@@ -169,7 +182,9 @@ Set-Location .\clinical-llm-wiki
 .\.venv\Scripts\python -m pytest `
   tests/test_live_model_authorization.py `
   tests/test_model_provider_contract.py `
-  tests/test_processing_runtime_contract.py -q
+  tests/test_processing_runtime_contract.py `
+  tests/test_enrichment_worker_contract.py `
+  tests/test_knowledge_governance_contract.py -q
 ```
 
 ### P12 PostgreSQL/pgvector 迁移（P1-B）
@@ -539,9 +554,11 @@ PostgreSQL integration tests 需要单独、可丢弃的空
 `KNOWLEDGE_TEST_DATABASE_URL`；不要指向 demo 或正式数据库。P2-B2 不配置真实模型、不构建
 生产 FTS/vector/relation index，也不实现 Release、Query Lab 或 MCP。released REST 只从
 `releases.status=released` 读取；approved revision 在 Release/ReleaseItem 为零时仍不可消费。
-下一 Gate P2-B3 必须由用户提供一个允许发送测试数据的 live ModelProfile 与 Secret
-reference，不能复用 replay 成功宣称真实模型质量。代码已具备默认关闭、精确 profile/version
-和 data-boundary 的 live 运行门，但仓库未配置任何获授权 profile、secret 值或真实出站数据。
+P2-B3 的全部离线 Gate 已完成。关闭 P2 仍必须由用户提供一个允许发送测试数据的 live
+ModelProfile、Secret reference、可出站 synthetic Evidence 和一次调用预算，不能复用 replay
+成功宣称真实模型质量。仓库未配置任何获授权 profile、secret 值或真实出站数据；满足输入后
+仍须先 preflight，再执行一次定向 Worker，并让 Candidate 经过 Author confirmation 和独立
+Reviewer。P3 在此之前保持 pending。
 
 ## 3. 启动本地 Review Panel
 

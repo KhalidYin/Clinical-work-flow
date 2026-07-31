@@ -42,3 +42,6 @@ type: project
   当前 revision 的 typed edge、方向、状态、release membership 和原始 Evidence；Audit
   以只读事件列表/详情展示 actor、object、result、correlation ID 与 before/after version
   facts。两页的筛选、选中节点、深度、视图和事件 ID 都由 URL/API 恢复，不从前端补事实。
+- KUI-04 Candidate detail 必须把模型 advisory 与关系 proposal 分开展示。advisory 只允许
+  duplicate/conflict/gap 三类，显示具体描述、目标和 Evidence IDs，并明确“空列表不代表已
+  验证”；origin ModelInvocation ID 作为 lineage 展示，不能表现为批准、置信背书或 release。

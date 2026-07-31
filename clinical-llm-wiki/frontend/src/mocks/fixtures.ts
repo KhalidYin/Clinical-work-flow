@@ -255,6 +255,8 @@ export const candidateDetailsFixture: Record<string, ApiResponse<CandidateDetail
         status: "proposed",
       },
     ],
+    advisorySignals: [],
+    originModelInvocationId: "invocation-ui-aeseq-001",
   }),
   "cand-ui-teae-001": response<CandidateDetail>({
     ...candidatesFixture.data.items[1],
@@ -290,6 +292,15 @@ export const candidateDetailsFixture: Record<string, ApiResponse<CandidateDetail
         status: "proposed",
       },
     ],
+    advisorySignals: [
+      {
+        signalType: "explicit_gap",
+        description: "The source does not define the study-specific TEAE analysis window.",
+        targetKnowledgeUnitId: null,
+        evidenceIds: ["evidence-ui-teae-001"],
+      },
+    ],
+    originModelInvocationId: "invocation-ui-teae-001",
   }),
 };
 

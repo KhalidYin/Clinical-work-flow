@@ -130,6 +130,231 @@ def test_relation_proposal_requires_allowed_type_existing_endpoint_and_edge_evid
         contract.KnowledgeCandidateDraft.model_validate(payload)
 
 
+def test_advisory_signals_are_evidence_grounded_and_match_relation_meaning() -> None:
+    contract = _contracts()
+    valid = _eligible_draft()
+
+    payload = valid.model_dump(mode="json")
+    payload["advisory_signals"] = [
+        {
+            "signal_type": "explicit_gap",
+            "description": "The source does not define a sponsor-specific exception.",
+            "target_knowledge_unit_id": "ku-sdtm-ae",
+            "evidence_ids": ["ev-ae-1"],
+        }
+    ]
+    with pytest.raises(ValidationError, match="must not identify"):
+        contract.KnowledgeCandidateDraft.model_validate(payload)
+
+    payload = valid.model_dump(mode="json")
+    payload["advisory_signals"] = [
+        {
+            "signal_type": "possible_duplicate",
+            "description": "The claim may duplicate the governed AE variable definition.",
+            "target_knowledge_unit_id": "ku-sdtm-ae",
+            "evidence_ids": ["ev-not-attached"],
+        }
+    ]
+    with pytest.raises(ValidationError, match="must belong"):
+        contract.KnowledgeCandidateDraft.model_validate(payload)
+
+    payload = valid.model_dump(mode="json")
+    payload["relation_proposals"] = [
+        {
+            "relation_type": "conflicts_with",
+            "target_knowledge_unit_id": "ku-sdtm-ae",
+            "evidence_ids": ["ev-ae-1"],
+        }
+    ]
+    with pytest.raises(ValidationError, match="possible_conflict"):
+        contract.KnowledgeCandidateDraft.model_validate(payload)
+
+    payload["advisory_signals"] = [
+        {
+            "signal_type": "possible_conflict",
+            "description": "The proposed rule may conflict with the governed AE rule.",
+            "target_knowledge_unit_id": "ku-sdtm-ae",
+            "evidence_ids": ["ev-ae-1"],
+        }
+    ]
+    candidate = contract.KnowledgeCandidateDraft.model_validate(payload)
+    assert candidate.advisory_signals[0].signal_type.value == "possible_conflict"
+
+
+def test_relation_semantics_reject_self_cycle_closure_and_invalid_supersession() -> None:
+    contract = _contracts()
+    governance = _governance()
+    source_id = contract.knowledge_unit_id_for_candidate_group("candgrp-ae-seq")
+    worker = _worker(
+        pool=WorkerPool.ENRICHMENT,
+        permissions={Permission.CANDIDATE_WRITE, Permission.RELATION_PROPOSE},
+    )
+
+    self_payload = _eligible_draft().model_dump(mode="json")
+    self_payload["relation_proposals"][0]["target_knowledge_unit_id"] = source_id
+    self_repository = governance.InMemoryGovernanceRepository(
+        runs={"run-ae": "evidence_ready"},
+        evidence_ids={"ev-ae-1"},
+        knowledge_unit_ids={source_id},
+    )
+    with pytest.raises(governance.CandidateEligibilityError, match="own knowledge unit"):
+        governance.KnowledgeGovernanceService(
+            repository=self_repository
+        ).register_candidate(
+            actor=worker,
+            draft=contract.KnowledgeCandidateDraft.model_validate(self_payload),
+        )
+    assert self_repository.candidates == ()
+
+    cycle_payload = _eligible_draft().model_dump(mode="json")
+    cycle_payload["relation_proposals"][0] = {
+        "relation_type": "depends_on",
+        "target_knowledge_unit_id": "ku-b",
+        "evidence_ids": ["ev-ae-1"],
+    }
+    cycle_repository = governance.InMemoryGovernanceRepository(
+        runs={"run-ae": "evidence_ready"},
+        evidence_ids={"ev-ae-1"},
+        knowledge_unit_ids={"ku-b", source_id},
+        relation_edges={("ku-b", "depends_on", source_id)},
+    )
+    with pytest.raises(governance.CandidateEligibilityError, match="cycle"):
+        governance.KnowledgeGovernanceService(
+            repository=cycle_repository
+        ).register_candidate(
+            actor=worker,
+            draft=contract.KnowledgeCandidateDraft.model_validate(cycle_payload),
+        )
+
+    closure_payload = _eligible_draft().model_dump(mode="json")
+    closure_payload["relation_proposals"] = [
+        {
+            "relation_type": "depends_on",
+            "target_knowledge_unit_id": target,
+            "evidence_ids": ["ev-ae-1"],
+        }
+        for target in ("ku-b", "ku-c")
+    ]
+    closure_repository = governance.InMemoryGovernanceRepository(
+        runs={"run-ae": "evidence_ready"},
+        evidence_ids={"ev-ae-1"},
+        knowledge_unit_ids={"ku-b", "ku-c"},
+        relation_edges={("ku-b", "depends_on", "ku-c")},
+    )
+    with pytest.raises(governance.CandidateEligibilityError, match="transitive closure"):
+        governance.KnowledgeGovernanceService(
+            repository=closure_repository
+        ).register_candidate(
+            actor=worker,
+            draft=contract.KnowledgeCandidateDraft.model_validate(closure_payload),
+        )
+
+    supersedes_payload = _eligible_draft().model_dump(mode="json")
+    supersedes_payload["relation_proposals"][0] = {
+        "relation_type": "supersedes",
+        "target_knowledge_unit_id": "ku-old",
+        "evidence_ids": ["ev-ae-1"],
+    }
+    supersedes_payload["advisory_signals"] = [
+        {
+            "signal_type": "possible_duplicate",
+            "description": "The candidate may replace the governed prior rule.",
+            "target_knowledge_unit_id": "ku-old",
+            "evidence_ids": ["ev-ae-1"],
+        }
+    ]
+    supersedes_repository = governance.InMemoryGovernanceRepository(
+        runs={"run-ae": "evidence_ready"},
+        evidence_ids={"ev-ae-1"},
+        knowledge_unit_ids={"ku-old"},
+    )
+    service = governance.KnowledgeGovernanceService(
+        repository=supersedes_repository
+    )
+    with pytest.raises(governance.CandidateEligibilityError, match="governed revision"):
+        service.register_candidate(
+            actor=worker,
+            draft=contract.KnowledgeCandidateDraft.model_validate(
+                supersedes_payload
+            ),
+        )
+    governed_repository = governance.InMemoryGovernanceRepository(
+        runs={"run-ae": "evidence_ready"},
+        evidence_ids={"ev-ae-1"},
+        knowledge_unit_ids={"ku-old"},
+        governed_knowledge_unit_ids={"ku-old"},
+    )
+    accepted = governance.KnowledgeGovernanceService(
+        repository=governed_repository
+    ).register_candidate(
+        actor=worker,
+        draft=contract.KnowledgeCandidateDraft.model_validate(supersedes_payload),
+    )
+    assert accepted.relation_proposals[0].relation_type.value == "supersedes"
+
+    conflict_payload = _eligible_draft().model_dump(mode="json")
+    conflict_payload["relation_proposals"] = [
+        {
+            "relation_type": relation_type,
+            "target_knowledge_unit_id": "ku-target",
+            "evidence_ids": ["ev-ae-1"],
+        }
+        for relation_type in ("conflicts_with", "supports")
+    ]
+    conflict_payload["advisory_signals"] = [
+        {
+            "signal_type": "possible_conflict",
+            "description": "The candidate conflicts with the target rule.",
+            "target_knowledge_unit_id": "ku-target",
+            "evidence_ids": ["ev-ae-1"],
+        }
+    ]
+    conflict_repository = governance.InMemoryGovernanceRepository(
+        runs={"run-ae": "evidence_ready"},
+        evidence_ids={"ev-ae-1"},
+        knowledge_unit_ids={"ku-target"},
+    )
+    with pytest.raises(governance.CandidateEligibilityError, match="cannot coexist"):
+        governance.KnowledgeGovernanceService(
+            repository=conflict_repository
+        ).register_candidate(
+            actor=worker,
+            draft=contract.KnowledgeCandidateDraft.model_validate(conflict_payload),
+        )
+
+
+def test_advisory_and_relation_targets_must_be_canonical_units() -> None:
+    contract = _contracts()
+    governance = _governance()
+    payload = _eligible_draft().model_dump(mode="json")
+    payload["advisory_signals"] = [
+        {
+            "signal_type": "possible_duplicate",
+            "description": "The candidate may duplicate an unresolved target.",
+            "target_knowledge_unit_id": "ku-missing",
+            "evidence_ids": ["ev-ae-1"],
+        }
+    ]
+    repository = governance.InMemoryGovernanceRepository(
+        runs={"run-ae": "evidence_ready"},
+        evidence_ids={"ev-ae-1"},
+        knowledge_unit_ids={"ku-sdtm-ae"},
+    )
+
+    with pytest.raises(governance.CandidateEligibilityError, match="advisory target"):
+        governance.KnowledgeGovernanceService(repository=repository).register_candidate(
+            actor=_worker(
+                pool=WorkerPool.ENRICHMENT,
+                permissions={
+                    Permission.CANDIDATE_WRITE,
+                    Permission.RELATION_PROPOSE,
+                },
+            ),
+            draft=contract.KnowledgeCandidateDraft.model_validate(payload),
+        )
+    assert repository.candidates == ()
+
+
 def test_candidate_is_persisted_before_author_confirmation_and_author_precedes_review() -> None:
     contract = _contracts()
     governance = _governance()

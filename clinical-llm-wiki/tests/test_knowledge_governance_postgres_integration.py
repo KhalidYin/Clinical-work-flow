@@ -9,7 +9,7 @@ from pathlib import Path
 from alembic import command
 from alembic.config import Config
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from service.auth import (
     ActorContext,
@@ -36,6 +36,7 @@ from service.db.models import (
 from service.db.session import create_database_engine, create_session_factory
 from service.governance.repository import SqlAlchemyGovernanceRepository
 from service.governance.service import (
+    CandidateEligibilityError,
     DuplicateDecisionError,
     KnowledgeGovernanceService,
     StaleRevisionError,
@@ -44,6 +45,7 @@ from service.knowledge import (
     AuthorConfirmationCommand,
     KnowledgeCandidateDraft,
     ReviewDecisionCommand,
+    knowledge_unit_id_for_candidate_group,
 )
 
 
@@ -328,5 +330,93 @@ def test_governance_transitions_are_atomic_and_append_only(
                 "candidate.author_confirmed",
                 "knowledge_revision.approved",
             }
+
+        source_group = "candgrp-gov-cycle-source"
+        target_group = "candgrp-gov-cycle-target"
+        source_unit_id = knowledge_unit_id_for_candidate_group(source_group)
+        target_unit_id = knowledge_unit_id_for_candidate_group(target_group)
+        with sessions.begin() as session:
+            session.add_all(
+                [
+                    ProcessingRun(
+                        run_id="run-gov-cycle-source",
+                        source_version_id="srcv-gov-sdtm-34",
+                        status="evidence_ready",
+                        requested_by_subject="usr-gov-author",
+                    ),
+                    ProcessingRun(
+                        run_id="run-gov-cycle-target",
+                        source_version_id="srcv-gov-sdtm-34",
+                        status="evidence_ready",
+                        requested_by_subject="usr-gov-author",
+                    ),
+                    KnowledgeUnit(
+                        knowledge_unit_id=source_unit_id,
+                        stable_key=source_group,
+                        knowledge_type="clinical_rule",
+                    ),
+                    KnowledgeUnit(
+                        knowledge_unit_id=target_unit_id,
+                        stable_key=target_group,
+                        knowledge_type="clinical_rule",
+                    ),
+                ]
+            )
+
+        evidence = _draft().evidence
+        target_candidate = service.register_candidate(
+            actor=enrichment,
+            draft=KnowledgeCandidateDraft(
+                candidate_group_id=target_group,
+                run_id="run-gov-cycle-target",
+                revision_number=1,
+                knowledge_type="clinical_rule",
+                claim="Target rule depends on the source rule.",
+                scope={"standard": "SDTM", "domain": "AE"},
+                applicability={"standard_version": "3.4"},
+                evidence=evidence,
+                relation_proposals=[
+                    {
+                        "relation_type": "depends_on",
+                        "target_knowledge_unit_id": source_unit_id,
+                        "evidence_ids": ["ev-gov-ae-1"],
+                    }
+                ],
+            ),
+        )
+        assert target_candidate.status.value == "author_confirmation_required"
+        with pytest.raises(CandidateEligibilityError, match="cycle"):
+            service.register_candidate(
+                actor=enrichment,
+                draft=KnowledgeCandidateDraft(
+                    candidate_group_id=source_group,
+                    run_id="run-gov-cycle-source",
+                    revision_number=1,
+                    knowledge_type="clinical_rule",
+                    claim="Source rule depends on the target rule.",
+                    scope={"standard": "SDTM", "domain": "AE"},
+                    applicability={"standard_version": "3.4"},
+                    evidence=evidence,
+                    relation_proposals=[
+                        {
+                            "relation_type": "depends_on",
+                            "target_knowledge_unit_id": target_unit_id,
+                            "evidence_ids": ["ev-gov-ae-1"],
+                        }
+                    ],
+                ),
+            )
+        with sessions() as session:
+            assert session.get(ProcessingRun, "run-gov-cycle-source").status == (
+                "evidence_ready"
+            )
+            assert (
+                session.scalar(
+                    select(func.count(KnowledgeCandidate.candidate_id)).where(
+                        KnowledgeCandidate.run_id == "run-gov-cycle-source"
+                    )
+                )
+                == 0
+            )
     finally:
         engine.dispose()

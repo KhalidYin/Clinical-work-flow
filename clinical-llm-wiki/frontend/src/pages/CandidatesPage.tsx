@@ -475,6 +475,7 @@ function CandidateReviewPanel({
             <CandidateReadView candidate={candidate} />
           )}
 
+          <AdvisorySignalTable candidate={candidate} />
           <RelationProposalTable candidate={candidate} />
 
           {authorGate && canWrite && !editing ? (
@@ -655,6 +656,52 @@ function CandidateEditor({
       <p className={styles.editNote}>
         保存会建立 revision {candidate.revisionNumber + 1}，不会覆盖当前事实。
       </p>
+    </div>
+  );
+}
+
+function AdvisorySignalTable({ candidate }: { candidate: CandidateDetail }) {
+  return (
+    <div className={styles.relationSection}>
+      <div className={styles.sectionLabel}>
+        <span>模型提示</span>
+        <span>Advisory only · {candidate.advisorySignals.length}</span>
+      </div>
+      {candidate.originModelInvocationId ? (
+        <code className={styles.hashLine}>
+          invocation:{candidate.originModelInvocationId}
+        </code>
+      ) : null}
+      {candidate.advisorySignals.length === 0 ? (
+        <p className={styles.readOnlyNote}>
+          没有 duplicate / conflict / gap 提示；这不代表人工核验已完成。
+        </p>
+      ) : (
+        <div className={styles.relationTableWrap}>
+          <table className={styles.relationTable}>
+            <thead>
+              <tr>
+                <th>类型</th>
+                <th>说明</th>
+                <th>目标</th>
+                <th>Evidence</th>
+              </tr>
+            </thead>
+            <tbody>
+              {candidate.advisorySignals.map((signal) => (
+                <tr
+                  key={`${signal.signalType}:${signal.targetKnowledgeUnitId ?? "gap"}`}
+                >
+                  <td>{signal.signalType}</td>
+                  <td>{signal.description}</td>
+                  <td>{signal.targetKnowledgeUnitId ?? "N/A"}</td>
+                  <td>{signal.evidenceIds.join(", ")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

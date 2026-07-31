@@ -57,6 +57,7 @@ from .contracts import (
     AuthorConfirmationRequest,
     AuthorConfirmationResponse,
     CandidateCollectionData,
+    CandidateAdvisorySignalData,
     CandidateCollectionResponse,
     CandidateDetailData,
     CandidateDetailResponse,
@@ -642,6 +643,16 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
                     )
                     for item in record.relation_proposals
                 ],
+                advisory_signals=[
+                    CandidateAdvisorySignalData(
+                        signal_type=item.signal_type,
+                        description=item.description,
+                        target_knowledge_unit_id=item.target_knowledge_unit_id,
+                        evidence_ids=list(item.evidence_ids),
+                    )
+                    for item in record.advisory_signals
+                ],
+                origin_model_invocation_id=record.origin_model_invocation_id,
             ),
             meta=_meta(),
         )

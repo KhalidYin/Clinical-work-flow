@@ -73,7 +73,7 @@ from service.sources import (
 DEMO_MODEL_PROFILE_ID = "demo-extractor"
 DEMO_MODEL_PROFILE_VERSION = "1.0.0"
 DEMO_PROMPT_PROFILE_ID = "atomic-candidate"
-DEMO_PROMPT_PROFILE_VERSION = "1.0.0"
+DEMO_PROMPT_PROFILE_VERSION = "1.1.0"
 DEMO_TARGET_KNOWLEDGE_UNIT_ID = "ku-demo-sdtm-ae"
 DEMO_SOURCE_ID = "src-demo-aeseq"
 DEMO_SOURCE = (
@@ -185,6 +185,7 @@ def build_demo_replay_output(
                 "evidence_ids": [evidence_id],
             }
         ],
+        "advisory_signals": [],
         "confidence": 0.98,
     }
 
@@ -204,7 +205,7 @@ def _seed_configuration(session_factory, bundle: DemoIdentityBundle) -> None:
             "Extract one atomic knowledge candidate from canonical evidence. "
             "Never invent evidence or publish knowledge."
         ),
-        output_schema_id="knowledge-candidate.p2-b2.v1",
+        output_schema_id="knowledge-candidate.p2-b2.v2",
         output_schema=ENRICHMENT_OUTPUT_SCHEMA,
     )
     with session_factory.begin() as session:

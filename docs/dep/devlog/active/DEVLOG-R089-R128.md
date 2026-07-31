@@ -183,3 +183,72 @@
 - `clinical-llm-wiki/tests/test_processing_runtime_postgres_integration.py`
 - `clinical-llm-wiki/tests/test_enrichment_governance_postgres_integration.py`
 - `USAGE.md`、Wiki README、SPEC-12/13、P12 plan/PLAN/memory
+
+### R092 [12:40] [P12-knowledge-application-platform] P2-B3: 关闭 Candidate/Relation 离线资格门
+
+#### Done
+
+- 冻结 `possible_duplicate`、`possible_conflict`、`explicit_gap` 三类 Candidate advisory。
+  每条建议必须包含可读 description 并引用本 Candidate 的 canonical Evidence；conflict 与
+  supersedes proposal 必须有同目标 advisory。模型 confidence 和 advisory 都不能自动确认、
+  审核或发布。
+- 新增确定性 Relation eligibility：拒绝 dangling target、缺失 edge evidence、self edge、
+  reverse conflict、同目标 support/conflict 或 support/supersedes；`depends_on`、
+  `derived_from`、`supersedes` 独立执行 cycle 和冗余 transitive-closure 检查，supersedes
+  目标必须已有 governed revision。SQL 写事务在落库前按 canonical graph 重算，失败不留下
+  Candidate。
+- `0007` migration 为 Candidate 增加 advisory JSON 和
+  `origin_model_invocation_id` 外键。origin invocation 必须同 run 且状态为 succeeded/replayed；
+  prerelease API、KUI-04 与 Audit 保留 invocation → attempt/run → Evidence → Candidate
+  lineage。Prompt/schema 升为 `atomic-candidate@1.1.0` /
+  `knowledge-candidate.p2-b2.v2`。
+- KUI-04 将模型 advisory 和 relation proposal 分区展示，显示描述、目标、Evidence IDs 与
+  origin invocation，并明确空 advisory 不代表已验证。P12/PLAN、README/USAGE、SPEC-12/13
+  和 memory 同步；P2-B3 两项离线完成标准关闭。
+
+#### Issues / Blockers
+
+- 首次数据库契约测试发现 migration 创建了 origin invocation index，而 ORM metadata 未声明
+  index。根因是 migration/metadata 漂移；已在 ORM 字段补 `index=True`，schema contract
+  随后通过。
+- 一次手工 downgrade 验证误写不存在的 `20260729_0006`，且 PowerShell 命令链被最后成功的
+  pytest 退出码掩盖。根因是验证命令版本号错误；已重建明确命名的临时库，使用正确
+  `20260730_0006` 并对每一步单独 fail-fast，upgrade/downgrade/re-upgrade 通过。
+- 临时 PostgreSQL 首次复测存在 image pull/startup race；随后复用非空测试库又造成固定
+  fixture 主键重复。两者均为临时测试环境问题，不是应用缺陷；改用已缓存 pgvector/PostgreSQL
+  17、连续 SQL readiness 和显式空库后通过，临时容器已删除。
+- 仍没有获授权的 live ModelProfile/secret reference、可出站 synthetic Evidence 与调用预算。
+  这使 live invocation、live Audit 和 P2 端到端 Gate 保持 open；当前没有其他离线切片。
+
+#### Validation
+
+- 最终定向 backend contracts：41 passed；Ruff 与 `git diff --check` 通过。
+- 最终 PostgreSQL Candidate/Relation/lineage acceptance：2 passed。
+- 本轮完整 backend（clean pgvector/PostgreSQL，含迁移和全部 opt-in acceptance）：
+  304 passed，582 warnings；新增 description 后相关定向 contract/实库测试再次通过。
+- 最终无外部服务全量 backend：297 passed、7 个 opt-in PostgreSQL tests skipped、
+  563 warnings；Ruff 与 diff check 同轮通过。
+- Frontend Vitest：24 passed；TypeScript/Vite production build 通过。
+- 网络供应商调用数为 0；全部模型行为仍为 injected callable 或 replay。
+
+#### Next
+
+1. 用户提供获授权的单一 live ModelProfile、secret reference、允许出站的 synthetic Evidence
+   与 `max_calls=1` 预算。
+2. 对 fresh run 执行只读 `live_preflight`；用户再次确认 Evidence 出站范围后，运行一次
+   `--run-id ... --once` 定向 Enrichment Worker。
+3. 对 live Candidate 执行 Author confirmation 与 independent Reviewer，并核对
+   invocation → attempt/run → Evidence → Candidate/revision Audit；全部通过后关闭 P2，
+   再启动 P3 发布与检索。
+
+#### Files Changed
+
+- `clinical-llm-wiki/service/knowledge/`
+- `clinical-llm-wiki/service/governance/`
+- `clinical-llm-wiki/service/processing/enrichment.py`
+- `clinical-llm-wiki/service/db/`
+- `clinical-llm-wiki/service/platform_api/`
+- `clinical-llm-wiki/frontend/src/`
+- `clinical-llm-wiki/schemas/application/knowledge-api.prerelease.yaml`
+- `clinical-llm-wiki/tests/`
+- `USAGE.md`、Wiki README、SPEC-12/13、P12 plan/PLAN/memory

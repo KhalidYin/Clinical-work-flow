@@ -948,6 +948,23 @@ rights/data-boundary 校验，随后才能在一个事务内建立 Candidate 和
 Enrichment Service Account 无权执行 author confirmation、review decision、approve、release
 或 index publish；bootstrap 同样不能直写这些治理结果。
 
+P2-B3 把模型 advisory 限定为 `possible_duplicate`、`possible_conflict`、`explicit_gap`。
+每条 advisory 必须有非空描述并引用本 Candidate 的 canonical Evidence；前两类必须指向现有
+Knowledge Unit，gap 不得伪造目标。`possible_conflict` 与 `conflicts_with` 必须成对，
+`supersedes` 必须有同目标 `possible_duplicate`，但这些匹配仍只是进入人工队列的资格，不是
+批准事实。
+
+Relation eligibility 由应用在 PostgreSQL 写事务中读取 canonical relation/revision 后重复
+计算。所有类型禁止 self edge；`conflicts_with` 禁止反向重复，`supports` 不得与同目标
+`conflicts_with`/`supersedes` 共存；`depends_on`、`derived_from`、`supersedes` 分别要求
+无 cycle 且不增加已存在的传递闭包边，supersedes 目标还必须已有 governed revision。失败
+事务不得留下 Candidate。所有 relation 类型不能一律当 DAG；上述约束只应用于已冻结的三类。
+
+Enrichment Candidate 保存成功或 replayed `origin_model_invocation_id`，且 invocation 必须属于
+同一 run。Candidate API/UI 与 `candidate.created`/`candidate.revised` Audit 保留该 ID，结合
+ModelInvocation 的 attempt/run 和 Candidate Evidence 可建立可回放 lineage。该 lineage 不
+表示模型事实已经被作者或 Reviewer 接受。
+
 request-change 不把旧对象改回草稿，而是允许原 Author 基于明确的旧 revision/hash 建立
 Candidate N+1。旧 Candidate 标记 superseded，旧 KnowledgeRevision 与 ReviewDecision 原样
 保留；新 Candidate 重新经过 Author confirmation 和独立 Reviewer。前端必须根据
@@ -969,5 +986,6 @@ P2-B2 Gate 的生产可见性是 fail closed：
   唯一生产消费边界。
 
 P2-B2 只使用合成或允许本地测试的数据，不配置真实 API key，不证明生产 parser/model
-coverage。下一 Gate P2-B3 只允许接一个经授权的外部 ModelProfile；P3 才建立生产检索、
-评估与 immutable Release。
+coverage。P2-B3 的离线授权、失败、Candidate/Relation eligibility 与 lineage Gate 已完成；
+下一步只允许接一个经授权的外部 ModelProfile 完成 live/人工治理 vertical slice。P3 才建立
+生产检索、评估与 immutable Release。

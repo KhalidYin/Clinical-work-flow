@@ -137,12 +137,22 @@ class CandidateRelationProposalRecord:
 
 
 @dataclass(frozen=True, slots=True)
+class CandidateAdvisorySignalRecord:
+    signal_type: str
+    description: str
+    target_knowledge_unit_id: str | None
+    evidence_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class CandidateDetailRecord(CandidateSummaryRecord):
     parent_candidate_id: str | None
     conditions: tuple[dict[str, object], ...]
     exceptions: tuple[dict[str, object], ...]
     evidence: tuple[CandidateEvidenceRecord, ...]
     relation_proposals: tuple[CandidateRelationProposalRecord, ...]
+    advisory_signals: tuple[CandidateAdvisorySignalRecord, ...]
+    origin_model_invocation_id: str | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -685,6 +695,18 @@ class SqlAlchemyPlatformRepository:
             exceptions=tuple(candidate.exceptions),
             evidence=evidence_records,
             relation_proposals=tuple(proposal_records),
+            advisory_signals=tuple(
+                CandidateAdvisorySignalRecord(
+                    signal_type=signal["signal_type"],
+                    description=signal["description"],
+                    target_knowledge_unit_id=signal.get(
+                        "target_knowledge_unit_id"
+                    ),
+                    evidence_ids=tuple(signal["evidence_ids"]),
+                )
+                for signal in candidate.advisory_signals
+            ),
+            origin_model_invocation_id=candidate.origin_model_invocation_id,
         )
 
     def query_relations(

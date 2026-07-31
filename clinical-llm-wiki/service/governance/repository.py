@@ -14,8 +14,10 @@ from service.db.models import (
     CandidateRelationProposal,
     Evidence,
     KnowledgeCandidate,
+    KnowledgeRelation,
     KnowledgeRevision,
     KnowledgeUnit,
+    ModelInvocation,
     ProcessingRun,
     RelationProposalEvidence,
     ReviewDecision,
@@ -27,8 +29,11 @@ from service.knowledge import (
     KnowledgeCandidateRecord,
     KnowledgeRevisionRecord,
     KnowledgeRevisionStatus,
+    RelationEdgeFact,
     RelationProposal,
     ReviewOutcome,
+    knowledge_unit_id_for_candidate_group,
+    validate_candidate_relation_semantics,
 )
 
 from .service import (
@@ -65,6 +70,14 @@ class SqlAlchemyGovernanceRepository:
     def knowledge_unit_exists(self, knowledge_unit_id: str) -> bool:
         with self._session_factory() as session:
             return session.get(KnowledgeUnit, knowledge_unit_id) is not None
+
+    def governed_knowledge_unit_ids(self) -> frozenset[str]:
+        with self._session_factory() as session:
+            return _governed_knowledge_unit_ids(session)
+
+    def relation_edges(self) -> tuple[RelationEdgeFact, ...]:
+        with self._session_factory() as session:
+            return _relation_edge_facts(session)
 
     def get_candidate(self, candidate_id: str) -> KnowledgeCandidateRecord | None:
         with self._session_factory() as session:
@@ -133,6 +146,11 @@ class SqlAlchemyGovernanceRepository:
                     applicability=candidate.applicability,
                     conditions=list(candidate.conditions),
                     exceptions=list(candidate.exceptions),
+                    advisory_signals=[
+                        signal.model_dump(mode="json")
+                        for signal in candidate.advisory_signals
+                    ],
+                    origin_model_invocation_id=candidate.origin_model_invocation_id,
                     confidence=candidate.confidence,
                     content_sha256=candidate.content_sha256,
                     author_actor_id=None,
@@ -183,6 +201,9 @@ class SqlAlchemyGovernanceRepository:
                         "candidate_group_id": candidate.candidate_group_id,
                         "revision_number": candidate.revision_number,
                         "content_sha256": candidate.content_sha256,
+                        "origin_model_invocation_id": (
+                            candidate.origin_model_invocation_id
+                        ),
                         "permission": "candidate:write",
                         "correlation_id": candidate.run_id,
                         "input_sha256": candidate.evidence[0].content_sha256,
@@ -254,6 +275,11 @@ class SqlAlchemyGovernanceRepository:
                     applicability=candidate.applicability,
                     conditions=list(candidate.conditions),
                     exceptions=list(candidate.exceptions),
+                    advisory_signals=[
+                        signal.model_dump(mode="json")
+                        for signal in candidate.advisory_signals
+                    ],
+                    origin_model_invocation_id=candidate.origin_model_invocation_id,
                     confidence=candidate.confidence,
                     content_sha256=candidate.content_sha256,
                     author_actor_id=None,
@@ -303,6 +329,9 @@ class SqlAlchemyGovernanceRepository:
                     details={
                         "parent_candidate_id": parent.candidate_id,
                         "revision_number": candidate.revision_number,
+                        "origin_model_invocation_id": (
+                            candidate.origin_model_invocation_id
+                        ),
                         "permission": "candidate:write",
                         "correlation_id": idempotency_key,
                         "input_sha256": parent.content_sha256,
@@ -533,11 +562,40 @@ class SqlAlchemyGovernanceRepository:
                 raise CandidateEligibilityError(
                     f"evidence {reference.evidence_id} provenance or rights mismatch"
                 )
+        if candidate.origin_model_invocation_id is not None:
+            invocation = session.get(
+                ModelInvocation,
+                candidate.origin_model_invocation_id,
+            )
+            if (
+                invocation is None
+                or invocation.run_id != candidate.run_id
+                or invocation.status not in {"succeeded", "replayed"}
+            ):
+                raise CandidateEligibilityError(
+                    "origin model invocation is not a successful fact for this run"
+                )
         for proposal in candidate.relation_proposals:
             if session.get(KnowledgeUnit, proposal.target_knowledge_unit_id) is None:
                 raise CandidateEligibilityError(
                     f"relation target {proposal.target_knowledge_unit_id} does not exist"
                 )
+        for signal in candidate.advisory_signals:
+            if (
+                signal.target_knowledge_unit_id is not None
+                and session.get(KnowledgeUnit, signal.target_knowledge_unit_id) is None
+            ):
+                raise CandidateEligibilityError(
+                    f"advisory target {signal.target_knowledge_unit_id} does not exist"
+                )
+        try:
+            validate_candidate_relation_semantics(
+                candidate,
+                existing_relations=_relation_edge_facts(session),
+                governed_knowledge_unit_ids=_governed_knowledge_unit_ids(session),
+            )
+        except ValueError as exc:
+            raise CandidateEligibilityError(str(exc)) from None
 
     @staticmethod
     def _reject_duplicate(
@@ -633,9 +691,83 @@ def _candidate_record(
         exceptions=tuple(candidate.exceptions),
         evidence=references,
         relation_proposals=tuple(proposals),
+        advisory_signals=tuple(candidate.advisory_signals),
+        origin_model_invocation_id=candidate.origin_model_invocation_id,
         confidence=(float(candidate.confidence) if candidate.confidence is not None else None),
         content_sha256=candidate.content_sha256,
         author_actor_id=candidate.author_actor_id,
+    )
+
+
+def _governed_knowledge_unit_ids(session: Session) -> frozenset[str]:
+    return frozenset(
+        session.scalars(
+            select(KnowledgeRevision.knowledge_unit_id)
+            .where(
+                KnowledgeRevision.status.in_(
+                    ("approved", "released", "superseded", "retired")
+                )
+            )
+            .distinct()
+        )
+    )
+
+
+def _relation_edge_facts(session: Session) -> tuple[RelationEdgeFact, ...]:
+    facts: list[RelationEdgeFact] = []
+    canonical_rows = session.execute(
+        select(KnowledgeRelation, KnowledgeRevision)
+        .join(
+            KnowledgeRevision,
+            KnowledgeRevision.knowledge_revision_id
+            == KnowledgeRelation.source_revision_id,
+        )
+        .where(
+            KnowledgeRelation.status.notin_(("rejected", "superseded", "retired"))
+        )
+    )
+    for relation, revision in canonical_rows:
+        facts.append(
+            RelationEdgeFact(
+                source_knowledge_unit_id=revision.knowledge_unit_id,
+                relation_type=relation.relation_type,
+                target_knowledge_unit_id=relation.target_knowledge_unit_id,
+            )
+        )
+    proposal_rows = session.execute(
+        select(CandidateRelationProposal, KnowledgeCandidate)
+        .join(
+            KnowledgeCandidate,
+            KnowledgeCandidate.candidate_id == CandidateRelationProposal.candidate_id,
+        )
+        .where(
+            CandidateRelationProposal.status.in_(("proposed", "accepted")),
+            KnowledgeCandidate.status.in_(
+                ("author_confirmation_required", "author_confirmed")
+            ),
+        )
+    )
+    for proposal, candidate in proposal_rows:
+        if candidate.candidate_group_id is None:
+            continue
+        facts.append(
+            RelationEdgeFact(
+                source_knowledge_unit_id=knowledge_unit_id_for_candidate_group(
+                    candidate.candidate_group_id
+                ),
+                relation_type=proposal.relation_type,
+                target_knowledge_unit_id=proposal.target_knowledge_unit_id,
+            )
+        )
+    return tuple(
+        sorted(
+            set(facts),
+            key=lambda edge: (
+                edge.source_knowledge_unit_id,
+                edge.relation_type.value,
+                edge.target_knowledge_unit_id,
+            ),
+        )
     )
 
 

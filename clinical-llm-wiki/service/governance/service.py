@@ -24,10 +24,13 @@ from service.knowledge import (
     KnowledgeCandidateRecord,
     KnowledgeRevisionRecord,
     KnowledgeRevisionStatus,
+    RelationEdgeFact,
     ReviewDecisionCommand,
     ReviewDecisionReceipt,
     ReviewOutcome,
     candidate_content_sha256,
+    knowledge_unit_id_for_candidate_group,
+    validate_candidate_relation_semantics,
 )
 
 
@@ -75,6 +78,10 @@ class GovernanceRepository(Protocol):
     def evidence_exists(self, evidence_id: str) -> bool: ...
 
     def knowledge_unit_exists(self, knowledge_unit_id: str) -> bool: ...
+
+    def governed_knowledge_unit_ids(self) -> frozenset[str]: ...
+
+    def relation_edges(self) -> tuple[RelationEdgeFact, ...]: ...
 
     def get_candidate(self, candidate_id: str) -> KnowledgeCandidateRecord | None: ...
 
@@ -173,6 +180,26 @@ class KnowledgeGovernanceService:
                 raise CandidateEligibilityError(
                     f"relation target {proposal.target_knowledge_unit_id} does not exist"
                 )
+        for signal in draft.advisory_signals:
+            if (
+                signal.target_knowledge_unit_id is not None
+                and not self._repository.knowledge_unit_exists(
+                    signal.target_knowledge_unit_id
+                )
+            ):
+                raise CandidateEligibilityError(
+                    f"advisory target {signal.target_knowledge_unit_id} does not exist"
+                )
+        try:
+            validate_candidate_relation_semantics(
+                draft,
+                existing_relations=self._repository.relation_edges(),
+                governed_knowledge_unit_ids=(
+                    self._repository.governed_knowledge_unit_ids()
+                ),
+            )
+        except ValueError as exc:
+            raise CandidateEligibilityError(str(exc)) from None
 
         candidate = KnowledgeCandidateRecord(
             **draft.model_dump(),
@@ -216,6 +243,8 @@ class KnowledgeGovernanceService:
             exceptions=command.exceptions,
             evidence=parent.evidence,
             relation_proposals=parent.relation_proposals,
+            advisory_signals=parent.advisory_signals,
+            origin_model_invocation_id=parent.origin_model_invocation_id,
             confidence=parent.confidence,
         )
         candidate = KnowledgeCandidateRecord(
@@ -262,7 +291,9 @@ class KnowledgeGovernanceService:
         )
         revision = KnowledgeRevisionRecord(
             knowledge_revision_id=_stable_id("krev", candidate.candidate_id),
-            knowledge_unit_id=_stable_id("ku", candidate.candidate_group_id),
+            knowledge_unit_id=knowledge_unit_id_for_candidate_group(
+                candidate.candidate_group_id
+            ),
             candidate_id=candidate.candidate_id,
             revision_number=candidate.revision_number,
             status=KnowledgeRevisionStatus.REVIEW_REQUIRED,
@@ -350,10 +381,21 @@ class InMemoryGovernanceRepository:
         runs: dict[str, str] | None = None,
         evidence_ids: set[str] | None = None,
         knowledge_unit_ids: set[str] | None = None,
+        governed_knowledge_unit_ids: set[str] | None = None,
+        relation_edges: set[tuple[str, str, str]] | None = None,
     ) -> None:
         self._runs = dict(runs or {})
         self._evidence_ids = set(evidence_ids or ())
         self._knowledge_unit_ids = set(knowledge_unit_ids or ())
+        self._governed_knowledge_unit_ids = set(governed_knowledge_unit_ids or ())
+        self._relation_edges = {
+            RelationEdgeFact(
+                source_knowledge_unit_id=source,
+                relation_type=relation_type,
+                target_knowledge_unit_id=target,
+            )
+            for source, relation_type, target in (relation_edges or ())
+        }
         self._candidates: dict[str, KnowledgeCandidateRecord] = {}
         self._revisions: dict[str, KnowledgeRevisionRecord] = {}
         self._decisions: set[tuple[str, str]] = set()
@@ -371,6 +413,21 @@ class InMemoryGovernanceRepository:
 
     def knowledge_unit_exists(self, knowledge_unit_id: str) -> bool:
         return knowledge_unit_id in self._knowledge_unit_ids
+
+    def governed_knowledge_unit_ids(self) -> frozenset[str]:
+        return frozenset(self._governed_knowledge_unit_ids)
+
+    def relation_edges(self) -> tuple[RelationEdgeFact, ...]:
+        return tuple(
+            sorted(
+                self._relation_edges,
+                key=lambda edge: (
+                    edge.source_knowledge_unit_id,
+                    edge.relation_type.value,
+                    edge.target_knowledge_unit_id,
+                ),
+            )
+        )
 
     def get_candidate(self, candidate_id: str) -> KnowledgeCandidateRecord | None:
         return self._candidates.get(candidate_id)
@@ -404,6 +461,7 @@ class InMemoryGovernanceRepository:
                     "candidate_group_id": candidate.candidate_group_id,
                     "revision_number": candidate.revision_number,
                     "content_sha256": candidate.content_sha256,
+                    "origin_model_invocation_id": candidate.origin_model_invocation_id,
                     "permission": Permission.CANDIDATE_WRITE.value,
                     "correlation_id": candidate.run_id,
                     "input_sha256": candidate.evidence[0].content_sha256,
@@ -448,6 +506,7 @@ class InMemoryGovernanceRepository:
                 details={
                     "parent_candidate_id": parent.candidate_id,
                     "revision_number": candidate.revision_number,
+                    "origin_model_invocation_id": candidate.origin_model_invocation_id,
                     "input_sha256": parent.content_sha256,
                     "output_sha256": candidate.content_sha256,
                     "correlation_id": idempotency_key,

@@ -109,6 +109,15 @@ function authorDetail(
         status: "proposed",
       },
     ],
+    advisorySignals: [
+      {
+        signalType: "explicit_gap",
+        description: "The source does not define the sponsor-specific exception.",
+        targetKnowledgeUnitId: null,
+        evidenceIds: ["evidence-ui-aeseq-001"],
+      },
+    ],
+    originModelInvocationId: "invocation-ui-aeseq-001",
     ...overrides,
   });
 }
@@ -154,6 +163,9 @@ describe("KUI-04 Candidate governance workbench", () => {
     expect(screen.getByText(/licensed/)).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "关系" })).toBeInTheDocument();
     expect(screen.getByRole("cell", { name: "applies_to" })).toBeInTheDocument();
+    expect(
+      screen.getByText("The source does not define the sponsor-specific exception."),
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "编辑候选" })).toBeInTheDocument();
   });
 

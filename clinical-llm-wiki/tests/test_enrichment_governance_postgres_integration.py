@@ -404,6 +404,14 @@ def test_replay_retry_candidate_revision_and_independent_approval_are_durable(
                     "evidence_ids": [evidence_id],
                 }
             ],
+            "advisory_signals": [
+                {
+                    "signal_type": "explicit_gap",
+                    "description": "The source does not define sponsor-specific exceptions.",
+                    "target_knowledge_unit_id": None,
+                    "evidence_ids": [evidence_id],
+                }
+            ],
             "confidence": 0.99,
         }
         replay_runtime = WorkerRuntime(
@@ -436,6 +444,14 @@ def test_replay_retry_candidate_revision_and_independent_approval_are_durable(
             assert len(candidates) == 1
             first_candidate_id = candidates[0].candidate_id
             first_hash = candidates[0].content_sha256
+            assert candidates[0].advisory_signals == [
+                {
+                    "signal_type": "explicit_gap",
+                    "description": "The source does not define sponsor-specific exceptions.",
+                    "target_knowledge_unit_id": None,
+                    "evidence_ids": [evidence_id],
+                }
+            ]
             assert session.get(ProcessingRun, run_id).status == "author_confirmation_required"
             assert session.scalar(
                 select(func.count(StepAttempt.attempt_id))
@@ -481,6 +497,11 @@ def test_replay_retry_candidate_revision_and_independent_approval_are_durable(
             assert {invocation.input_sha256 for invocation in invocations} == {
                 failed_input_sha256
             }
+            assert (
+                candidates[0].origin_model_invocation_id
+                == invocations[1].invocation_id
+            )
+            successful_invocation_id = invocations[1].invocation_id
 
         author = _human(f"usr-author-{suffix}", ProductRole.KNOWLEDGE_CURATOR)
         reviewer = _human(f"usr-reviewer-{suffix}", ProductRole.REVIEWER)
@@ -569,6 +590,13 @@ def test_replay_retry_candidate_revision_and_independent_approval_are_durable(
                 "candidate.revised",
                 "knowledge_revision.approved",
             }
+            created_event = next(
+                event for event in events if event.action == "candidate.created"
+            )
+            assert (
+                created_event.details["origin_model_invocation_id"]
+                == successful_invocation_id
+            )
             governed = [
                 event
                 for event in events

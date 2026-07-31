@@ -68,8 +68,16 @@ type: project
   消耗预算。`service.processing.live_preflight` 只读验证 fresh `evidence_ready` run、
   Evidence、queued attempt、零历史 invocation、profile/prompt/boundary 与 secret reference；
   actual Worker 必须用 `--run-id ... --once` 定向领取。preflight 和本轮验证均未访问供应商。
-- 因此下一步已从“补供应商失败矩阵”收窄为两段：先离线补齐 Candidate
-  evidence/duplicate/conflict/gap 与 Relation dangling/cycle/conflict/supersedes 确定性判定；
-  用户提供获授权的 live profile/secret reference、允许出站的 synthetic Evidence 与调用预算
-  后，再运行一次 preflight → live Candidate → Author confirmation → independent review。
-  P3/P4 仍保持 pending。
+- P2-B3 的 Candidate/Relation 离线资格门已于 2026-07-31 完成：模型 advisory 仅允许
+  `possible_duplicate`、`possible_conflict`、`explicit_gap`，必须带描述并引用 Candidate
+  Evidence；无 Evidence、未知 advisory 目标或不匹配的 conflict/supersedes 不能创建 Candidate。
+- Relation 资格权威是写事务中的确定性校验，不是模型 confidence：端点/edge evidence、
+  self/reverse-conflict、同目标互斥、`depends_on`/`derived_from`/`supersedes` cycle/closure
+  和 governed supersedes 均失败关闭；所有关系类型不能笼统当 DAG。
+- `0007` 为 Candidate 增加 advisory JSON 与 `origin_model_invocation_id`；成功/replayed
+  invocation 必须属于同一 run，API/UI/Audit 可连接 invocation → attempt/run → Evidence →
+  Candidate。Prompt profile 升为 `atomic-candidate@1.1.0`，旧本地 Demo 需受控 reset。
+- 因此当前没有未完成的 P2-B3 离线切片。下一输入仅是用户授权的单一 live
+  profile/secret reference、允许出站的 synthetic Evidence 与一次调用预算；随后运行一次
+  preflight → live Candidate → Author confirmation → independent review。live Audit 与端到端
+  P2 Gate 关闭前，P3/P4 仍保持 pending。

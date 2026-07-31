@@ -198,12 +198,25 @@ class CandidateRelationProposalData(ApiModel):
     status: Literal["proposed", "accepted", "rejected", "superseded"]
 
 
+class CandidateAdvisorySignalData(ApiModel):
+    signal_type: Literal[
+        "possible_duplicate",
+        "possible_conflict",
+        "explicit_gap",
+    ]
+    description: str
+    target_knowledge_unit_id: str | None
+    evidence_ids: list[str] = Field(min_length=1)
+
+
 class CandidateDetailData(CandidateSummaryData):
     parent_candidate_id: str | None
     conditions: list[dict[str, Any]]
     exceptions: list[dict[str, Any]]
     evidence: list[CandidateEvidenceData]
     relation_proposals: list[CandidateRelationProposalData]
+    advisory_signals: list[CandidateAdvisorySignalData]
+    origin_model_invocation_id: str | None
 
 
 class RelationEvidenceData(ApiModel):

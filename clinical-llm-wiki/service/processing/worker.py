@@ -331,7 +331,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             ),
             prompt_profile_version=os.environ.get(
                 "KNOWLEDGE_ENRICHMENT_PROMPT_PROFILE_VERSION",
-                "1.0.0",
+                "1.1.0",
             ),
         )
         model_provider = enrichment_provider_from_environment(model_profile)

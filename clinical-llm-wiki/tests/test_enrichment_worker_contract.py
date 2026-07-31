@@ -142,6 +142,7 @@ def test_fake_enrichment_creates_one_candidate_and_retry_adds_only_attempt_facts
                     "evidence_ids": ["evidence-aeseq"],
                 }
             ],
+            "advisory_signals": [],
             "confidence": 0.99,
         }
     )
@@ -163,6 +164,61 @@ def test_fake_enrichment_creates_one_candidate_and_retry_adds_only_attempt_facts
     assert repository.invocations[0].attempt.attempt_id != repository.invocations[1].attempt.attempt_id
     assert len(governance_repository.candidates) == 1
     assert governance_repository.run_status("run-sdtm-demo") == "author_confirmation_required"
+
+
+def test_model_output_with_unknown_evidence_cannot_create_a_candidate() -> None:
+    enrichment = _enrichment()
+    governance_repository = InMemoryGovernanceRepository(
+        runs={"run-sdtm-demo": "processing"},
+        evidence_ids={"evidence-aeseq"},
+        knowledge_unit_ids={"ku-sdtm-ae"},
+    )
+    repository = enrichment.InMemoryEnrichmentRepository(
+        contexts={
+            "run-sdtm-demo": enrichment.EnrichmentContext(
+                run_id="run-sdtm-demo",
+                source_version_id="srcv-sdtm-demo",
+                data_boundary=DataBoundary.ENTERPRISE_PROVIDER_ONLY,
+                evidence=(
+                    enrichment.EnrichmentEvidence(
+                        reference=_evidence(),
+                        content="AESEQ is the sequence identifier within the AE domain.",
+                    ),
+                ),
+            )
+        }
+    )
+    service = enrichment.EnrichmentWorkerService(
+        repository=repository,
+        governance=KnowledgeGovernanceService(
+            repository=governance_repository
+        ),
+        provider=FakeModelProvider(
+            output={
+                "candidate_group_id": "sdtm.ae.unverified",
+                "knowledge_type": "variable_definition",
+                "claim": "This claim has no canonical Evidence reference.",
+                "scope": {"standard": "SDTM", "domain": "AE"},
+                "applicability": {"standard_version": "3.4"},
+                "conditions": [],
+                "exceptions": [],
+                "evidence_ids": ["evidence-not-canonical"],
+                "relation_proposals": [],
+                "advisory_signals": [],
+                "confidence": 0.99,
+            }
+        ),
+        model_profile=_profile(),
+        prompt_profile=_prompt(enrichment),
+        actor=_actor(),
+    )
+
+    with pytest.raises(ValueError, match="unknown evidence"):
+        service.extract_candidate(_claim(1))
+
+    assert len(repository.invocations) == 1
+    assert governance_repository.candidates == ()
+    assert governance_repository.run_status("run-sdtm-demo") == "processing"
 
 
 def test_offline_provider_configuration_accepts_only_explicit_fake_or_replay_files(

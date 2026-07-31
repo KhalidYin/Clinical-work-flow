@@ -120,6 +120,8 @@ def test_p2b1_governance_tables_preserve_revision_and_decision_identity() -> Non
         "revision_number",
         "content_sha256",
         "author_actor_id",
+        "advisory_signals",
+        "origin_model_invocation_id",
     } <= candidate_columns
 
     revision_columns = set(Base.metadata.tables["knowledge_revisions"].columns.keys())
@@ -293,8 +295,8 @@ def test_alembic_has_linear_reviewable_revisions(monkeypatch: pytest.MonkeyPatch
     assert script.get_heads() == [script.get_current_head()]
     head = script.get_revision(script.get_current_head())
     assert head is not None
-    assert head.revision == "20260730_0006"
-    assert head.down_revision == "20260730_0005"
+    assert head.revision == "20260731_0007"
+    assert head.down_revision == "20260730_0006"
     initial = script.get_revision("20260730_0001")
     assert initial is not None
     assert initial.down_revision is None
@@ -326,6 +328,7 @@ def test_linear_revision_columns_match_canonical_metadata(
         "20260730_0004",
         "20260730_0005",
         "20260730_0006",
+        "20260731_0007",
     ]
 
     class MigrationRecorder:

@@ -897,6 +897,20 @@ provider 失败也消耗预算。P2-B3 单次 vertical 固定为 `1`。正式调
 preflight 不解析或输出 secret 值，不调用供应商。失败后如需再次 live 调用，必须先由人工
 retry 创建新 StepAttempt，再建立新的显式进程授权。
 
+P2-B3 advisory schema 使用默认 PromptProfile：
+
+```text
+KNOWLEDGE_ENRICHMENT_PROMPT_PROFILE_ID=atomic-candidate
+KNOWLEDGE_ENRICHMENT_PROMPT_PROFILE_VERSION=1.1.0
+output_schema_id=knowledge-candidate.p2-b2.v2
+```
+
+`1.1.0` 要求每个 duplicate/conflict/gap advisory 带 description、target（gap 除外）和
+Evidence IDs，并由确定性 Relation eligibility 校验。Profile/version 与 schema hash 必须按
+canonical 数据精确加载；旧 `1.0.0` 不能自动升级或静默兼容。仅本地 Demo 可通过固定
+Compose project 的 `scripts/start-demo.ps1 -Reset` 清空并重建 profile；共享或正式数据库
+必须走显式迁移/配置治理。
+
 ## 12. P12 Knowledge Product 数据库环境
 
 P1-B 使用同步 SQLAlchemy 2、psycopg 3 与 Alembic。数据库 URL 的唯一运行时变量是：
@@ -1149,6 +1163,8 @@ P2-B2 不读取 live model secret、endpoint 或 LiteLLM `models` extra。P2-B3 
 一个允许发送测试数据的 ModelProfile 与 Secret reference 后才可启用 live adapter；不得把
 demo.env、replay record 或 local bearer token 改名后当作生产配置。
 
-截至 P2-B3 离线准备切片，`service.processing.model_profiles` 与 Enrichment Worker 已实现
-上述显式 live 门，但仓库和 Demo 不包含任何获授权的真实 profile、secret 值或允许出站的
-正式 Evidence；当前默认仍为 replay。
+截至 P2-B3 离线资格切片，`service.processing.model_profiles`、Enrichment Worker、
+Candidate advisory/ModelInvocation lineage 和 Relation eligibility 已实现；仓库和 Demo 不
+包含任何获授权的真实 profile、secret 值或允许出站的正式 Evidence，当前默认仍为 replay。
+P2 Gate 的剩余输入仅是获授权的单一 live profile/secret、可出站 synthetic Evidence 与一次
+调用预算；未满足时不得启动 P3。

@@ -387,7 +387,7 @@ Docling 是否进入锁定依赖，必须先用 SDTM IG 多栏与跨页表、ADa
 |-------|------|----------|------|------|
 | D0 | 大改前可运行前端 Demo Gate | 2-3 | - | done |
 | P1 | 产品基础：数据库迁移、身份权限、作业账本、模型与合同基线 | 8-11 | D0 | done |
-| P2 | AI 知识生产：Source → Evidence → Candidate → 作者确认 → 独立审核 | 12-17 | P1 | in-progress（P2-A/P2-B1/P2-B2 done；P2-B3 离线授权/失败门与 KUI-05/10 done，live vertical pending） |
+| P2 | AI 知识生产：Source → Evidence → Candidate → 作者确认 → 独立审核 | 12-17 | P1 | in-progress（P2-A/P2-B1/P2-B2 done；P2-B3 离线授权、失败、Candidate/Relation 资格门与 KUI-05/10 done，live vertical pending） |
 | P3 | 发布与检索：Approved Revision → 索引/评估 → immutable Release | 8-11 | P2 | pending |
 | P4 | 产品闭环：完整前端、外部接口、既有 Wiki 迁移、部署与运维验收 | 7-10 | P3 | pending |
 
@@ -646,9 +646,19 @@ P2-B 不再作为一次性“大模型 + 关系图 + 全部审核 UI”交付。
 - React 页面、OpenAPI、API/权限、真实 PostgreSQL 和 loopback 浏览器已通过桌面与 390px
   验证。开发模式 MSW 改为仅在 `VITE_ENABLE_MOCKS=true` 时显式启用，避免把 fixture
   误判为真实 API 结果。
+- Candidate advisory 输出已冻结为 `possible_duplicate`、`possible_conflict` 和
+  `explicit_gap` 三类建议。每条建议必须有可读描述并引用本 Candidate 的 Evidence；
+  conflict/supersedes proposal 必须与对应建议一致。建议和 confidence 均不能自动确认或批准。
+- Relation eligibility 已由确定性代码接管：端点和 edge evidence 必须存在；禁止 self edge、
+  反向重复 conflict、同目标 support/conflict 或 support/supersedes；`depends_on`、
+  `derived_from`、`supersedes` 禁止 cycle 和冗余传递边，supersedes 目标必须已有 governed
+  revision。SQL 写事务会重新读取 canonical graph 校验，失败时不留下 Candidate。
+- Candidate 持久化 `origin_model_invocation_id` 并在 prerelease API、UI 与 append-only Audit
+  保留 invocation → run/attempt → Evidence → Candidate 的离线可验证链。Enrichment schema
+  因新增 advisory contract 升级为 prompt profile `atomic-candidate@1.1.0`。
 - 用户尚未提供获授权的 ModelProfile/Secret reference、允许出站 Evidence 或 live 调用预算，
-  因此本 Phase 输入条件仍未完全满足；KUI 与离线供应商失败矩阵已关闭，但 live invocation
-  和端到端 P2 Gate 仍保持 open。
+  因此本 Phase 输入条件仍未完全满足；所有不依赖出站的 P2-B3 Gate 已关闭，但 live
+  invocation 和端到端 P2 Gate 仍保持 open。
 
 #### 产出
 
@@ -662,8 +672,8 @@ P2-B 不再作为一次性“大模型 + 关系图 + 全部审核 UI”交付。
 
 - [x] 数据边界在请求前检查；`local_processing_only`、`prohibited` 或 provider 不匹配时零出站，并产生脱敏、可解释失败。
 - [x] 结构化输出不符合 JSON Schema、timeout、429 或供应商错误时 fail closed；重试或换 profile 形成新的 StepAttempt，不由 SDK 静默 retry/fallback。
-- [ ] AI 只执行原子抽取、分类/适用性、关系建议、重复/冲突/gap 和证据一致性辅助；无 Evidence 的事实不能进入 Candidate。
-- [ ] Relation 必须类型合法、端点存在且有 edge evidence；dangling、闭包/循环约束、conflicting/supersedes 语义由确定性校验完成。
+- [x] AI 只执行原子抽取、分类/适用性、关系建议、重复/冲突/gap 和证据一致性辅助；无 Evidence 的事实不能进入 Candidate。
+- [x] Relation 必须类型合法、端点存在且有 edge evidence；dangling、闭包/循环约束、conflicting/supersedes 语义由确定性校验完成。
 - [ ] Audit 可追溯一次 live invocation 到 Candidate revision 和 Evidence，但不记录 API secret、chain-of-thought 或未批准敏感正文。
 - [x] `[KUI-05]`、`[KUI-10]` 及对应组件/API/权限/浏览器测试通过。
 - [ ] P2 Gate 证明 Source → Evidence → AI Candidate → 作者确认 → 独立 Reviewer 闭环；`approved` 仍不等于 `released`。
@@ -891,6 +901,7 @@ P3 只消费 P2 已批准的 KnowledgeRevision。内部先构建可解释检索�
 | D17 | 开发模式曾默认启动 MSW，真实本地 API 虽已运行，浏览器仍会静默读取 fixture | P2-B3 KUI | 产品边界（已解决） | MSW 改为仅在 `VITE_ENABLE_MOCKS=true` 时显式启动，并清理遗留 mock Service Worker；生产/开发真实 API 不再依赖 `false` 开关纠偏 |
 | D18 | 同一 Knowledge Unit 的历史 revision 和当前 revision 都可能保留 proposed relation，直接合并会产生重复路径 | P2-B3 KUI | 数据投影（已解决） | Relation read adapter 只投影当前 KnowledgeRevision 的未发布 proposal；历史 proposal 继续留在 append-only Audit，不进入当前图 |
 | D19 | 通用 `--once` Worker 会领取队列中最早的 eligible run，不能保证命中已批准出站的单次测试 run | P2-B3 失败门 | 运行授权（已解决） | ledger/Worker 增加可选 `target_run_id`；P2-B3 先只读 preflight fresh run，再用 `--run-id ... --once` 定向领取，并以进程级 `max_calls=1` 限制调用 |
+| D20 | 模型 advisory 若只有类型和 Evidence 而没有描述，人工无法判断具体 duplicate/conflict/gap；若模型自行决定图语义则会绕过治理 | P2-B3 eligibility | 产品/数据（已解决） | advisory signal 强制描述与 Candidate Evidence；PostgreSQL canonical graph 上由确定性 validator 判定端点、互斥、cycle、closure 和 supersedes，模型输出仅供人工判断 |
 
 ## 关键决策记录
 
@@ -928,6 +939,7 @@ P3 只消费 P2 已批准的 KnowledgeRevision。内部先构建可解释检索�
 | 2026-07-30 | P2-B 切片 | 模型/治理/UI 一次性交付 / B1 合同→B2 replay→B3 live model | B1/B2/B3 三个连续 Gate | 先隔离状态和治理正确性，再以可重复 fixture 验证闭环，最后只接一个真实外部模型，降低返工和供应商不确定性 |
 | 2026-07-30 | Evidence 完成状态 | 继续复用 `author_confirmation_required` / 新增 `evidence_ready` | 新增 `evidence_ready` | 没有 Candidate 时不存在可执行的作者确认；Evidence checkpoint 与人工 Gate 必须可被 API、UI 和数据库约束区分 |
 | 2026-07-31 | P2-B3 单次调用约束 | 通用队列 `--once` / 定向 run + 预检 / 新建专用 worker | 定向 `--run-id` + 只读 preflight + `max_calls=1` | 不新增服务，同时确保允许出站的 Evidence、调用预算和实际领取任务是同一个 run；失败调用不会被预算忽略 |
+| 2026-07-31 | Candidate/Relation 资格权威 | 模型直接决定 / 全部人工判断 / 模型建议 + 确定性资格门 | 模型建议 + 确定性资格门 | duplicate/conflict/gap 需要模型辅助理解，但无 Evidence、悬空端点、互斥、cycle、closure 和 supersedes 治理必须可重复、可测试、失败关闭 |
 
 ## 同步记录
 
@@ -950,3 +962,4 @@ P3 只消费 P2 已批准的 KnowledgeRevision。内部先构建可解释检索�
 | 2026-07-31 | `service/processing/model_profiles.py`、Enrichment Worker、live authorization tests、README/USAGE/SPEC-13 | P2-B3 离线准备完成：live 默认关闭并精确绑定 profile/version/data boundary；未配置或调用真实供应商，P2-B3 Gate 保持 open |
 | 2026-07-31 | Relation/Audit prerelease API、KUI-05/KUI-10、真实 PostgreSQL/浏览器 tests、README/USAGE/SPEC-13、P12 memory | P2-B3 非出站产品切片完成：有限 Evidence relation、append-only Audit 和显式 MSW 边界通过；live ModelProfile/Secret/Evidence/预算仍是关闭 P2 Gate 的唯一下一输入 |
 | 2026-07-31 | `service/processing/live_preflight.py`、target-run ledger/Worker、失败分类/预算 tests、README/USAGE/SPEC-12/13、P12 memory | P2-B3 离线失败门完成：四类 provider failure 脱敏进入 ModelInvocation/StepAttempt，人工 retry 新建 lineage；单次 live vertical 已具备只读预检和定向执行入口，但未发起外部调用 |
+| 2026-07-31 | Candidate advisory/lineage、Relation eligibility、`0007` migration、KUI-04、PostgreSQL tests、README/USAGE/SPEC-12/13、P12 memory | P2-B3 离线资格门完成：模型只提交有描述且引用 Evidence 的 duplicate/conflict/gap 建议；确定性写事务拒绝悬空、自环、互斥、cycle、closure 和非法 supersedes；下一输入仅剩获授权 live vertical |

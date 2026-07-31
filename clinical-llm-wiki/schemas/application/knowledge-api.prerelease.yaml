@@ -780,6 +780,19 @@ components:
           type: array
           items: { type: string }
         status: { enum: [proposed, accepted, rejected, superseded] }
+    CandidateAdvisorySignal:
+      type: object
+      additionalProperties: false
+      required: [signalType, description, targetKnowledgeUnitId, evidenceIds]
+      properties:
+        signalType:
+          enum: [possible_duplicate, possible_conflict, explicit_gap]
+        description: { type: string, minLength: 1, maxLength: 2000 }
+        targetKnowledgeUnitId: { type: [string, "null"] }
+        evidenceIds:
+          type: array
+          minItems: 1
+          items: { type: string }
     CandidateDetail:
       allOf:
         - $ref: "#/components/schemas/CandidateSummary"
@@ -790,6 +803,8 @@ components:
             - exceptions
             - evidence
             - relationProposals
+            - advisorySignals
+            - originModelInvocationId
           properties:
             parentCandidateId: { type: [string, "null"] }
             conditions:
@@ -805,6 +820,10 @@ components:
             relationProposals:
               type: array
               items: { $ref: "#/components/schemas/CandidateRelationProposal" }
+            advisorySignals:
+              type: array
+              items: { $ref: "#/components/schemas/CandidateAdvisorySignal" }
+            originModelInvocationId: { type: [string, "null"] }
     RelationEvidence:
       type: object
       additionalProperties: false

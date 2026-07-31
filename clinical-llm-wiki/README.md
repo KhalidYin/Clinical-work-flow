@@ -42,16 +42,18 @@ P12 在本目录原地把 Wiki 演进为独立知识产品，不新增第三个�
 - `POST /api/prerelease/v1/sources` 返回 `202 + run_id`，Processing API 支持详情、retry 和 cancel；前端 KUI-02/03 只对 active run 条件轮询，并把 Original、Derived、Evidence 分开展示；
 - Document Worker 启动时按最小 age 清理未完成 object intent；它只能产生 parser output/Evidence，运行终点为 `evidence_ready`，不能创建 Candidate、approved revision、release 或索引；
 - P2-A parser Gate 暂不锁定 Docling/Unstructured。当前 adapter 只证明 synthetic locator/hash/formula/OCR-required 边界；受控临床跨页表和公式对照样本满足 Gate 后才重开选型。
-- P2-B1 以 `0005` 扩展 `evidence_ready` 状态、以独立 `p2b1-evidence-ready` backfill 修正“有 Evidence、无 Candidate”的 P2-A run，并以 `0006` 冻结 Candidate revision、edge evidence、作者确认、独立审核和 released immutability 合同；
+- P2-B1 以 `0005` 扩展 `evidence_ready` 状态、以独立 `p2b1-evidence-ready` backfill 修正“有 Evidence、无 Candidate”的 P2-A run，并以 `0006` 冻结 Candidate revision、edge evidence、作者确认、独立审核和 released immutability 合同；`0007` 增加 Candidate advisory signals 与 origin ModelInvocation 外键；
 - prerelease API 已提供 Candidate collection、Author confirmation 与 Review decision 路由。Candidate 缺少 SourceVersion/locator/hash/rights/applicability 或 Relation proposal 缺少 edge evidence 时失败关闭；作者自审、过期/重复决定、worker/admin 隐式越权同样被拒绝；
 - KUI-05/KUI-10 已通过真实 API 接通有限深度 Relation Explorer 与 append-only Audit：关系只展示当前 revision 且带 Evidence 的 typed edge，审计只返回安全投影并支持筛选、cursor 分页与显式截断；
 - KUI-03/04 已区分 `evidence_ready`、待作者确认、待作者修订、待独立审核与 approved-but-unreleased；Evidence、locator、rights 与 relation proposal 在人工判断前展示。
 - P2-B2 的 Enrichment Worker 通过无网络 fake/replay `ModelProviderPort` 从 canonical Evidence 产生 Candidate/proposal；相同模型输入 hash 可精确回放，新的 retry 仍保留独立 StepAttempt。
 - P2-B3 已完成不出站的失败门：timeout、rate limit、非法结构化输出和 provider error 以脱敏类别写入 ModelInvocation 与 StepAttempt；人工 retry 才建立新 attempt。`service.processing.live_preflight` 只读验证一个 fresh run，绝不调用供应商。
+- P2-B3 的离线资格门也已完成：`possible_duplicate`、`possible_conflict`、`explicit_gap` 必须带可读描述并引用 Candidate Evidence；无 Evidence 的输出不能创建 Candidate。Relation 端点、edge evidence、自环、反向 conflict、互斥类型、`depends_on`/`derived_from`/`supersedes` cycle/closure 与 governed supersedes 由写事务中的确定性校验决定，模型 confidence 不具备治理权限；
+- Candidate 保存 `origin_model_invocation_id`，API/UI/Audit 可追溯 invocation → run/attempt → Evidence → Candidate；结构化 advisory schema 对应默认 prompt profile `atomic-candidate@1.1.0`，已有本地 Demo 数据需通过受控 `-Reset` 重建，不能把旧 `1.0.0` profile 静默当作新合同；
 - request-change 建立 Candidate revision N+1 并保留旧 Candidate、KnowledgeRevision 与 ReviewDecision；作者确认和独立 Reviewer 决策只能由真实后端 permission Gate 推进。
 - `service/demo_runtime.py` 只建立受控身份/RBAC/Profile/Source 和精确 replay record，再调用真实 Document/Enrichment worker；它不直写 Candidate，也不创建 Release。
 
-P2-B2 已完成可重复的本地前后端产品和真实浏览器治理闭环，但不改变现有 Vault/SQLite 服务的运行路径，也不代表生产发布。approved revision 仍不属于 current release；生产 Query/MCP、索引、评估与 Release Manager 留在 P3/P4。下一 Gate P2-B3 只允许接一个经授权的真实外部模型；生产 OIDC、S3-compatible ObjectStore 和正式部署仍未实现。
+P2-B2 已完成可重复的本地前后端产品和真实浏览器治理闭环，但不改变现有 Vault/SQLite 服务的运行路径，也不代表生产发布。approved revision 仍不属于 current release；生产 Query/MCP、索引、评估与 Release Manager 留在 P3/P4。P2-B3 的全部离线 Gate 已关闭，下一步只允许接一个经授权的真实外部模型并完成一次人工治理 vertical slice；生产 OIDC、S3-compatible ObjectStore 和正式部署仍未实现。
 
 ## 本地使用
 

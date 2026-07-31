@@ -560,6 +560,13 @@ class KnowledgeCandidate(Base):
     exceptions: Mapped[list[dict[str, Any]]] = mapped_column(
         JSONB, nullable=False, server_default="[]"
     )
+    advisory_signals: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB, nullable=False, server_default="[]"
+    )
+    origin_model_invocation_id: Mapped[str | None] = mapped_column(
+        ForeignKey("model_invocations.invocation_id", ondelete="RESTRICT"),
+        index=True,
+    )
     confidence: Mapped[Decimal | None] = mapped_column(Numeric(5, 4))
     content_sha256: Mapped[str | None] = mapped_column(String(64))
     author_actor_id: Mapped[str | None] = mapped_column(String(160))

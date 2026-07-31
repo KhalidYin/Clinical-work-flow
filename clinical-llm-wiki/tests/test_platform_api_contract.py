@@ -225,6 +225,7 @@ class FakePlatformRepository:
         if summary is None:
             return None
         from service.platform_api.repository import (
+            CandidateAdvisorySignalRecord,
             CandidateDetailRecord,
             CandidateEvidenceRecord,
             CandidateRelationProposalRecord,
@@ -253,6 +254,15 @@ class FakePlatformRepository:
                     status="proposed",
                 ),
             ),
+            advisory_signals=(
+                CandidateAdvisorySignalRecord(
+                    signal_type="explicit_gap",
+                    description="The source does not define the sponsor-specific rule.",
+                    target_knowledge_unit_id=None,
+                    evidence_ids=("ev-api-001",),
+                ),
+            ),
+            origin_model_invocation_id="inv-api-001",
         )
 
     def query_relations(self, *, node_id: str | None, query: str | None, depth: int):
@@ -761,6 +771,9 @@ def test_candidate_detail_exposes_evidence_and_revision_write_is_versioned(api_c
     assert data["evidence"][0]["locator"] == {"page": 35, "section": "6.2 AE"}
     assert data["evidence"][0]["rights"]["classification"] == "licensed"
     assert data["relationProposals"][0]["relationType"] == "applies_to"
+    assert data["advisorySignals"][0]["signalType"] == "explicit_gap"
+    assert data["advisorySignals"][0]["description"].startswith("The source")
+    assert data["originModelInvocationId"] == "inv-api-001"
 
     revision = client.post(
         f"{API_PREFIX}/candidates/cand-api-001/revisions",
