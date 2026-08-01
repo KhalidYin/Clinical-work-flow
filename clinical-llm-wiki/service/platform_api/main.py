@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from hashlib import sha256
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -69,8 +70,15 @@ def create_environment_app():
             governance=KnowledgeGovernanceService(
                 repository=SqlAlchemyGovernanceRepository(sessions)
             ),
+            object_store=object_store,
+            runtime_consumer_credential_sha256=_runtime_consumer_credential_sha256(),
         )
     )
+
+
+def _runtime_consumer_credential_sha256() -> str | None:
+    secret = os.environ.get("KNOWLEDGE_RUNTIME_CONSUMER_SECRET")
+    return sha256(secret.encode("utf-8")).hexdigest() if secret else None
 
 
 def _browser_origins() -> frozenset[str]:

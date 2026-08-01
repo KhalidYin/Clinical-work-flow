@@ -44,6 +44,8 @@ class CurrentReleaseRecord:
     status: str
     index_version: str
     released_at: datetime | None
+    manifest_object_key: str | None = None
+    manifest_sha256: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -392,6 +394,8 @@ class SqlAlchemyPlatformRepository:
             status="released",
             index_version=release.index_manifest_version,
             released_at=release.published_at,
+            manifest_object_key=release.manifest_object_key,
+            manifest_sha256=release.manifest_sha256,
         )
 
     def list_sources(self) -> tuple[list[SourceSummaryRecord], list[str]]:

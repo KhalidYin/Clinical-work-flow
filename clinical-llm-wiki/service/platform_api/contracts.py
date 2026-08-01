@@ -509,6 +509,10 @@ class ErrorData(ApiModel):
         "duplicate_decision",
         "invalid_request",
         "model_profile_conflict",
+        "machine_authentication_required",
+        "published_knowledge_unavailable",
+        "published_knowledge_invalid",
+        "runtime_knowledge_lock_rejected",
     ]
     message: str
 

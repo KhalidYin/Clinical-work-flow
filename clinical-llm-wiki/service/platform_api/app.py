@@ -2,6 +2,8 @@
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from hashlib import sha256
+import hmac
 from typing import Annotated, Callable, TypeVar
 
 from fastapi import (
@@ -142,6 +144,13 @@ from .contracts import (
     UserStatusRequest,
     UserStatusResponse,
 )
+from service.object_store import ObjectStoreError, ObjectStorePort
+from service.published_knowledge import (
+    PublishedKnowledgeError,
+    load_release_manifest,
+    published_version,
+    resolve_published_runtime_context,
+)
 from .repository import (
     ModelProfileConflictError,
     ModelProfileRecord,
@@ -175,6 +184,8 @@ class PlatformApiServices:
     source_registry: SourceRegistryService | None = None
     processing_ledger: ProcessingLedgerPort | None = None
     governance: KnowledgeGovernanceService | None = None
+    object_store: ObjectStorePort | None = None
+    runtime_consumer_credential_sha256: str | None = None
 
 
 class PlatformApiError(RuntimeError):
@@ -210,12 +221,15 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
 
     @app.middleware("http")
     async def enforce_browser_csrf(request: Request, call_next):
+        machine_runtime_path = request.url.path.startswith(
+            f"{API_PREFIX}/runtime-knowledge/"
+        )
         if request.url.path.startswith(API_PREFIX) and request.method in {
             "POST",
             "PUT",
             "PATCH",
             "DELETE",
-        }:
+        } and not machine_runtime_path:
             origin = request.headers.get("origin")
             marker = request.headers.get("x-csrf-protection")
             if origin not in services.allowed_browser_origins or marker != "1":
@@ -296,6 +310,47 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
             return actor
 
         return dependency
+
+    def require_runtime_consumer(
+        credential: Annotated[
+            str | None,
+            Header(alias="X-Knowledge-Machine-Credential"),
+        ] = None,
+    ) -> None:
+        configured = services.runtime_consumer_credential_sha256
+        presented = sha256((credential or "").encode("utf-8")).hexdigest()
+        if configured is None or not hmac.compare_digest(presented, configured):
+            raise PlatformApiError(
+                status_code=401,
+                code="machine_authentication_required",
+                message="知识运行时机器凭据无效。",
+            )
+
+    def published_manifest() -> dict[str, object]:
+        release = services.repository.get_current_release()
+        if (
+            release is None
+            or release.manifest_object_key is None
+            or release.manifest_sha256 is None
+            or services.object_store is None
+        ):
+            raise PlatformApiError(
+                status_code=503,
+                code="published_knowledge_unavailable",
+                message="当前没有可用的已发布知识包。",
+            )
+        try:
+            return load_release_manifest(
+                services.object_store,
+                object_key=release.manifest_object_key,
+                expected_sha256=release.manifest_sha256,
+            )
+        except (ObjectStoreError, PublishedKnowledgeError) as exc:
+            raise PlatformApiError(
+                status_code=503,
+                code="published_knowledge_invalid",
+                message="已发布知识包未通过完整性校验。",
+            ) from exc
 
     protected_responses = {
         401: {"model": ErrorResponse, "description": "Identity is missing or invalid."},
@@ -493,6 +548,32 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
             )
         )
         return CurrentReleaseResponse(data=data, meta=_meta())
+
+    @app.get(
+        f"{API_PREFIX}/runtime-knowledge/version",
+        operation_id="getPublishedRuntimeKnowledgeVersion",
+    )
+    def get_published_runtime_knowledge_version(
+        _machine: Annotated[None, Depends(require_runtime_consumer)],
+    ) -> dict[str, str]:
+        return published_version(published_manifest())
+
+    @app.post(
+        f"{API_PREFIX}/runtime-knowledge/resolve",
+        operation_id="resolvePublishedRuntimeKnowledge",
+    )
+    def resolve_published_runtime_knowledge(
+        payload: dict[str, object],
+        _machine: Annotated[None, Depends(require_runtime_consumer)],
+    ) -> dict[str, object]:
+        try:
+            return resolve_published_runtime_context(published_manifest(), payload)
+        except PublishedKnowledgeError as exc:
+            raise PlatformApiError(
+                status_code=409,
+                code="runtime_knowledge_lock_rejected",
+                message=str(exc),
+            ) from exc
 
     @app.get(
         f"{API_PREFIX}/sources",

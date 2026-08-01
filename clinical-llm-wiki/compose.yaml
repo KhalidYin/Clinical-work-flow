@@ -69,6 +69,29 @@ services:
       migration:
         condition: service_completed_successfully
 
+  legacy-migration:
+    build: .
+    image: clinical-knowledge-platform:local
+    profiles: ["legacy-migration"]
+    command:
+      - python
+      - -c
+      - >-
+        from pathlib import Path;
+        from service.db.session import create_database_engine, create_session_factory, database_url_from_environment;
+        from service.maintenance.legacy_migration import apply_migration;
+        from service.object_store import LocalObjectStore;
+        result = apply_migration(Path('/migration-source'), create_session_factory(create_database_engine(database_url_from_environment())), LocalObjectStore(root=Path('/var/lib/clinical-knowledge/objects')));
+        print(result)
+    restart: "no"
+    environment: *application-environment
+    depends_on:
+      migration:
+        condition: service_completed_successfully
+    volumes:
+      - knowledge-objects:/var/lib/clinical-knowledge
+      - .:/migration-source:ro
+
   api:
     build: .
     image: clinical-knowledge-platform:local
@@ -80,6 +103,7 @@ services:
       KNOWLEDGE_API_PORT: "8788"
       KNOWLEDGE_API_BIND_SCOPE: compose_local
       KNOWLEDGE_ORGANIZATION_NAME: ${KNOWLEDGE_ORGANIZATION_NAME:-临床知识平台}
+      KNOWLEDGE_RUNTIME_CONSUMER_SECRET: ${KNOWLEDGE_RUNTIME_CONSUMER_SECRET:?set runtime consumer machine credential}
     depends_on:
       bootstrap:
         condition: service_completed_successfully

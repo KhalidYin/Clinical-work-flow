@@ -1109,6 +1109,8 @@ def test_checked_in_openapi_matches_runtime_paths_roles_and_responses(api_client
             f"{API_PREFIX}/auth/password/change",
             f"{API_PREFIX}/health",
             f"{API_PREFIX}/releases/current",
+            f"{API_PREFIX}/runtime-knowledge/version",
+            f"{API_PREFIX}/runtime-knowledge/resolve",
             f"{API_PREFIX}/sources",
             f"{API_PREFIX}/processing-runs",
             f"{API_PREFIX}/processing-runs/{{run_id}}",

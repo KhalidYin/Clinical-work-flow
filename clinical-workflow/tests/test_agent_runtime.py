@@ -243,9 +243,9 @@ def test_runtime_git_commit_is_scoped_to_current_study(tmp_path):
 @pytest.mark.parametrize(
     "url",
     (
-        "http://example.com:8787",
-        "http://127.0.0.1:8787/api",
-        "http://user@127.0.0.1:8787",
+        "http://example.com:8788",
+        "http://127.0.0.1:8788/api",
+        "http://user@127.0.0.1:8788",
         "file:///tmp/wiki",
     ),
 )
@@ -255,7 +255,7 @@ def test_runtime_context_factory_rejects_non_loopback_or_non_origin_urls(url):
 
 
 def test_runtime_context_factory_uses_engine_bundle_lock():
-    bridge = build_runtime_context_resolver("http://localhost:8787")
+    bridge = build_runtime_context_resolver("http://localhost:8788")
     resolver = bridge._knowledge_resolver
 
     assert resolver.bundle_version == "1.1.0"

@@ -138,7 +138,6 @@ def test_password_and_browser_session_tables_are_frozen_before_implementation() 
     assert "session_id" not in sessions.columns.keys()
 
 
-@pytest.mark.xfail(strict=True, reason="P13 P4 尚未实现 fail-closed 旧 Vault 扫描器")
 def test_legacy_migration_scanner_rejects_malformed_governed_yaml(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     governed = vault / "20_Knowledge/Standards/broken.md"

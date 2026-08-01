@@ -252,12 +252,18 @@ def test_offline_missing_or_corrupt_locked_snapshot_fails_closed(
 
 def test_http_rejection_is_contract_error_not_offline_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
     def reject(*_: Any, **__: Any) -> None:
-        raise HTTPError("http://127.0.0.1:8787/api/v1/version", 409, "conflict", {}, None)
+        raise HTTPError(
+            "http://127.0.0.1:8788/api/prerelease/v1/runtime-knowledge/version",
+            409,
+            "conflict",
+            {},
+            None,
+        )
 
     monkeypatch.setattr("src.knowledge.client.urlopen", reject)
-    transport = HttpKnowledgeTransport("http://127.0.0.1:8787")
+    transport = HttpKnowledgeTransport("http://127.0.0.1:8788")
     with pytest.raises(KnowledgeServiceContractError, match="409"):
-        transport("GET", "/api/v1/version")
+        transport("GET", "/api/prerelease/v1/runtime-knowledge/version")
 
 
 def test_same_priority_study_rules_block_instead_of_silently_selecting_one(tmp_path: Path) -> None:

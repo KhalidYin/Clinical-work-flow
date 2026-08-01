@@ -8,7 +8,7 @@ updated: 2026-08-01 17:08
 
 ## Goal
 
-P4 — 迁移旧知识资产并替换 Workflow 兼容入口（子计划：`docs/dep/plans/ongoing/P13-password-session-chinese-legacy-retirement.md`）。
+P5 — 物理删除旧 Wiki 并完成全栈验收（子计划：`docs/dep/plans/ongoing/P13-password-session-chinese-legacy-retirement.md`）。
 
 ## Progress
 
@@ -27,7 +27,7 @@ P4 — 迁移旧知识资产并替换 Workflow 兼容入口（子计划：`docs/
 - **Files being edited**：P4 将以 `legacy-wiki-crosswalk.json`、P12 迁移工具、`clinical-workflow/src/knowledge/` 兼容入口和固定回归夹具为中心。
 - **Last command run**：真实容器浏览器完成登录、强制改密、创建/重置/禁用用户、服务账号无 secret、加载/错误/partial/empty 和 390px 窄屏验收。
 - **Key decisions**：人员只使用密码+HttpOnly 会话；初始密码经 stdin 传入且只输出一次；Worker 保持独立机器凭据；不保留 Bearer 双轨兼容。
-- **Blocker**：P4 已知基线缺陷为 P13-001/002；必须通过新发布知识夹具与正确前置阶段修复，不允许改临床 Workflow 语义。
+- **Blocker**：当前无功能阻断；P13-001/002 已通过 P12 Release 夹具和固定阶段证据修复。P5 删除前仍须证明零旧运行引用和空卷冷启动。
 
 ## Phase Context
 
@@ -39,4 +39,4 @@ P4 — 迁移旧知识资产并替换 Workflow 兼容入口（子计划：`docs/
 
 ## Resume From
 
-先读取 crosswalk 的 migrate/fixture/delete 全集与当前 8787/Vault 引用，建立 P12 迁移 RED 测试；随后实现幂等导入和 Workflow 兼容适配，直至 P13-001/002 固定样例转绿。
+按已验证 crosswalk 精确物理删除旧 Vault/8787 服务、来源包、快照、审核队列和 P1-P11 计划；随后同步主规格与运行入口，从空卷执行完整 Compose、浏览器、Workflow 和零出站验收。

@@ -127,8 +127,8 @@ syncs_to:
 | P1 | 冻结认证、迁移和删除合同 | R001-R003 | - | done |
 | P2 | 实现人员密码、会话和安全控制 | R004-R008 | P1 | done |
 | P3 | 完成中文 UI 和用户管理闭环 | R009-R013 | P2 | done |
-| P4 | 迁移旧知识资产并替换 Workflow 兼容入口 | R014-R018 | P3 | in-progress |
-| P5 | 物理删除旧 Wiki 并完成全栈验收 | R019-R024 | P4 | pending |
+| P4 | 迁移旧知识资产并替换 Workflow 兼容入口 | R014-R018 | P3 | done |
+| P5 | 物理删除旧 Wiki 并完成全栈验收 | R019-R024 | P4 | in-progress |
 
 ---
 
@@ -289,10 +289,10 @@ syncs_to:
 
 ### 完成标准
 
-- [ ] 所有有效旧资产均可由旧 ID/version/hash/review 定位到 P12 目标，迁移重跑幂等且不会覆盖已发布 revision。
-- [ ] `fixture` 只保留测试所需最小内容；`delete` 项没有任何当前运行时、测试或文档权威引用。
-- [ ] 临床 Workflow 固定样例的知识 ID、版本、引用和结果语义保持一致，固定阶段与审核合同无改动。
-- [ ] P12 发布知识接口成为唯一运行时知识消费入口；`rg` 仅允许退役清单中尚待 P5 删除的旧引用。
+- [x] 所有有效旧资产均可由旧 ID/version/hash/review 定位到 P12 目标，迁移重跑幂等且不会覆盖已发布 revision。
+- [x] `fixture` 只保留测试所需最小内容；`delete` 项没有任何当前运行时、测试或文档权威引用。
+- [x] 临床 Workflow 固定样例的知识 ID、版本、引用和结果语义保持一致，固定阶段与审核合同无改动。
+- [x] P12 发布知识接口成为唯一运行时知识消费入口；`rg` 仅允许退役清单中尚待 P5 删除的旧引用。
 
 ### 边界（本 Phase 明确不做）
 
@@ -373,10 +373,11 @@ syncs_to:
 
 | ID | 描述 | 发现于 | 类型 | 处理 |
 |----|------|--------|------|------|
-| P13-001 | ADAE 既有回归夹具引用 3 个从未纳入版本控制的审批证据文件 | P1 | 基线缺陷 | P4 替换兼容入口时补成 P12 发布知识夹具；P5 删除前必须转绿 |
-| P13-002 | ADAE 既有回归未按当前固定 pipeline 准备前置阶段，动作停在 `protocol_analysis` | P1 | 基线缺陷 | P4 只修测试接线，不改变临床阶段顺序或审核语义 |
+| P13-001 | ADAE 既有回归夹具引用 3 个从未纳入版本控制的审批证据文件 | P1 | 基线缺陷 | P4 已补齐 hash-locked packet/decision/confirmation 合成夹具并转绿 |
+| P13-002 | ADAE 既有回归未按当前固定 pipeline 准备前置阶段，动作停在 `protocol_analysis` | P1 | 基线缺陷 | P4 已补齐固定阶段前置证据，只修测试接线且回归转绿 |
 | P13-003 | Wiki 与 Workflow 当前共用的开发虚拟环境缺少 Workflow 自声明依赖 | P1 | 环境缺口 | 已从 `clinical-workflow/pyproject.toml` 安装 editable 运行依赖，无产品代码变更 |
 | P13-004 | Docker Hub 镜像代理在 P2 Compose 重建时暂时无法解析 `python:3.13-slim` 元数据 | P2 | 外部环境 | P3 已恢复并完成当前源码的全镜像 rebuild/up/health；P5 仍须执行带空库和完整 E2E 的最终冷启动 Gate |
+| P13-005 | Windows 与 Linux 的 `Path` 默认排序导致同一批 Release items 聚合哈希不同 | P4 | 可复现缺陷 | 扫描和资产清单统一按 POSIX 相对路径字符串排序；真实 P12 HTTP 在线解析通过 |
 
 ## 关键决策记录
 
@@ -390,9 +391,10 @@ syncs_to:
 | 2026-08-01 | 用户列出问题 2–5 | 先重构旧服务 / 迁移后删除 | 迁移后删除 | 旧 Schema loader、stage 集合、snapshot 异常包装和静默 YAML 路径属于退役 8787 服务，不扩大战时重构 |
 | 2026-08-01 | 用户列出问题 6–7 | 跨主线重构 / 保持兼容 | 保持兼容 | P9 helper 和 0.1.0 evolution receipt 不阻断 P13，且用户要求其他 Workflow 不变 |
 | 2026-08-01 | 本地管理员初始密码传递 | 配置文件 / 环境变量 / 标准输入 | 标准输入 | 启动脚本只在内存生成并一次性打印，容器通过 stdin 接收；仓库、`.demo-runtime`、容器配置和浏览器均不保存明文 |
+| 2026-08-01 | Workflow 发布知识鉴权 | 人员 Cookie / Worker 身份复用 / 独立运行时机器凭据 | 独立运行时机器凭据 | Workflow 不属于浏览器或 Worker pool；仅后端环境持有凭据，P12 immutable Release 是唯一知识入口 |
 
 ## 同步记录
 
 | 日期 | 已同步到 | 说明 |
 |------|----------|------|
-| - | - | 尚未执行 |
+| 2026-08-01 | P4 migration report / P12 Release | 104 个 governed 页面迁移；73 个已批准 revision 进入 `release-p13-legacy-wiki-v1`；报告与 Release manifest 已在 ObjectStore hash-lock，重跑结果一致 |

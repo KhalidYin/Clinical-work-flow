@@ -1,0 +1,13 @@
+{
+  "review_id": "adam_spec_teae_rule_v1_001",
+  "reviewer": "Synthetic Lead Statistical Programmer",
+  "reviewer_role": "non_human_test_fixture",
+  "timestamp": "2026-07-13T00:01:00Z",
+  "decisions": [
+    {
+      "finding_id": "F-001",
+      "decision": "approved",
+      "comment": "仅用于固定合成回归样例。"
+    }
+  ]
+}

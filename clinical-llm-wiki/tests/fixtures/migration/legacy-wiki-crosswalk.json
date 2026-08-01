@@ -203,6 +203,19 @@
     ],
     "must_pass_before_legacy_delete": true
   },
+  "migration_execution": {
+    "status": "verified",
+    "migration_id": "p13-legacy-wiki-v1",
+    "record_count": 104,
+    "released_revision_count": 73,
+    "unresolved_count": 0,
+    "report_object_key": "migration/p13/legacy-wiki-migration-report-v1.json",
+    "report_sha256": "70185891f053d61b9dda6651fb1b123c31c5ccc1dea8514fc9f2b87277f586cb",
+    "release_id": "release-p13-legacy-wiki-v1",
+    "release_manifest_sha256": "f46dc6008e959eea96baad65cd4039a6353de5e0eca92c53ac54831a10451422",
+    "runtime_api": "/api/prerelease/v1/runtime-knowledge",
+    "idempotent_replays_verified": 2
+  },
   "deletion_gates": [
     "crosswalk_has_no_unresolved_assets",
     "workflow_regression_passes",

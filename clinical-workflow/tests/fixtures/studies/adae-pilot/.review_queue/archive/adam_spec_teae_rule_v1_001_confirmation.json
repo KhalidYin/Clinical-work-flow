@@ -1,0 +1,19 @@
+{
+  "review_id": "adam_spec_teae_rule_v1_001",
+  "applied_at": "2026-07-13T00:02:00Z",
+  "generated_by": "P13 regression fixture",
+  "results": [
+    {
+      "finding_id": "F-001",
+      "original_decision": "approved",
+      "application_status": "applied",
+      "actual_value": "study-decision-synth-onco-001-teae"
+    }
+  ],
+  "summary": {
+    "total": 1,
+    "applied": 1,
+    "adjusted": 0,
+    "failed": 0
+  }
+}

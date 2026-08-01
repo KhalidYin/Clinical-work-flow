@@ -455,3 +455,47 @@
 - `clinical-llm-wiki/schemas/application/knowledge-api.prerelease.yaml`
 - `clinical-llm-wiki/tests/test_platform_api_contract.py`
 - P13/PLAN/TASK_STATE、DEVLOG
+
+### R097 [17:51] [P13-password-session-chinese-legacy-retirement] P4: 迁移旧知识并替换 Workflow 兼容入口
+
+#### Done
+
+- 新迁移扫描器对所有带 frontmatter 的页面 fail closed，104 个带 ID/type 的旧页面全部形成确定性
+  Source/Evidence/Candidate/KnowledgeRevision crosswalk；历史 content hash 和 review ID 只读保留，新报告统一使用
+  canonical JSON SHA-256。
+- 迁移程序将原始 Markdown 与 canonical record 写入 ObjectStore，将 73 个已批准 revision 绑定到 immutable
+  `release-p13-legacy-wiki-v1`；同一 PostgreSQL/ObjectStore 连续执行两次结果完全一致，不覆盖既有 revision。
+- P12 增加 `/api/prerelease/v1/runtime-knowledge/{version,resolve}`，仅接受独立运行时机器凭据；浏览器
+  Cookie、人员密码和 Worker pool 身份均不复用。Workflow 默认端口切到 8788，旧 8787/Vault 不再是
+  runtime/test 依赖。
+- ADAE 固定回归改用独立 P12 Release fixture，补齐 approval packet/decision/confirmation 与前四阶段
+  合成证据；在线/离线知识 ID、版本、引用和生成制品 hash 保持一致，临床阶段与 Review 合同未修改。
+
+#### Issues / Blockers
+
+- 首次真实迁移测试误建了一个独立 `clinical-llm-wiki` Compose project；确认仅含本轮临时数据库和对象卷后
+  已精确 `down --volumes` 清除，正式迁移重新写入既有 `clinical-knowledge-demo` 项目。
+- 发现 Windows/ Linux `Path` 排序差异会改变 domain snapshot 聚合 hash；已改为 POSIX 相对路径字符串
+  排序，随后真实 HTTP 在线解析通过。
+
+#### Validation
+
+- 迁移报告：104 records、0 unresolved；PostgreSQL 实查 104 个迁移 KnowledgeUnit、73 个 ReleaseItem，
+  Release manifest SHA-256 为 `f46dc6008e959eea96baad65cd4039a6353de5e0eca92c53ac54831a10451422`。
+- Compose 中同一迁移执行两次均返回同一 report/release hash；P12 机器鉴权 version endpoint 和真实
+  Workflow `adam_spec` HTTP 解析通过，得到 1 条 workflow、23 条 domain、1 条 Study rule，context executable。
+- ADAE 回归 5 passed；P13 migration/platform/knowledge client 定向测试与 Ruff 通过；没有触发真实模型 API。
+
+#### Next
+
+1. P5 按 crosswalk 精确删除旧 Vault/Obsidian/8787 服务、来源包/快照/审核文件及 P1-P11 旧计划。
+2. 同步主规格、README/USAGE/AGENTS/CLAUDE 和环境合同，确保不再指向旧入口。
+3. 风险是误删仍被测试使用的 schema/通用 PDF 工具，或空卷启动遗漏运行时机器凭据；删除后必须执行
+   `rg` 零引用、全测试、空卷 Compose 和真实浏览器 E2E 四重 Gate。
+
+#### Files Changed
+
+- `clinical-llm-wiki/service/maintenance/legacy_migration.py`、`service/published_knowledge.py`
+- `clinical-llm-wiki/service/platform_api/`、OpenAPI、Compose 与迁移测试
+- `clinical-workflow/src/knowledge/client.py`、Runtime 默认入口与 ADAE P12 Release fixture/regression
+- P13/PLAN/TASK_STATE、DEVLOG

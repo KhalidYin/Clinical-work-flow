@@ -489,6 +489,55 @@ paths:
           $ref: "#/components/responses/AuthenticationError"
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
+  /runtime-knowledge/version:
+    get:
+      operationId: getPublishedRuntimeKnowledgeVersion
+      security:
+        - machineCredential: []
+      responses:
+        "200":
+          description: Engine schema bundle identity locked by the current immutable Release.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [bundle_id, bundle_version, bundle_sha256]
+                properties:
+                  bundle_id: { type: string }
+                  bundle_version: { type: string }
+                  bundle_sha256: { type: string, pattern: "^[0-9a-f]{64}$" }
+        "401": { $ref: "#/components/responses/AuthenticationError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /runtime-knowledge/resolve:
+    post:
+      operationId: resolvePublishedRuntimeKnowledge
+      security:
+        - machineCredential: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [study_id, stage, runtime_manifest, schema_bundle]
+              properties:
+                study_id: { type: string }
+                stage: { type: string }
+                runtime_manifest: { type: object }
+                schema_bundle: { type: object }
+                require_workflow: { type: boolean, default: true }
+                require_domain: { type: boolean, default: false }
+      responses:
+        "200":
+          description: Engine-validated ExecutionContext projection from locked Release snapshots.
+          content:
+            application/json:
+              schema: { type: object }
+        "401": { $ref: "#/components/responses/AuthenticationError" }
+        "409": { $ref: "#/components/responses/ConflictError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
     post:
       operationId: createPlatformUser
       security:
@@ -618,6 +667,10 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
 components:
   securitySchemes:
+    machineCredential:
+      type: apiKey
+      in: header
+      name: X-Knowledge-Machine-Credential
     sessionCookie:
       type: apiKey
       in: cookie
