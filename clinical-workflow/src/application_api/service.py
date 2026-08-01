@@ -105,6 +105,7 @@ class ApplicationApiConfig:
     """Local container roots authorized for Study discovery."""
 
     container_roots: Mapping[str, Path]
+    poc_knowledge_package_root: Path | None = None
 
     @classmethod
     def for_platform_root(cls, platform_root: str | Path) -> "ApplicationApiConfig":
@@ -144,6 +145,11 @@ class ApplicationApiService:
 
     def __init__(self, config: ApplicationApiConfig) -> None:
         self._roots = config.normalized_roots()
+        self._poc_knowledge_package_root = (
+            config.poc_knowledge_package_root.resolve()
+            if config.poc_knowledge_package_root is not None
+            else None
+        )
 
     def list_studies(self) -> dict[str, Any]:
         records, partial_errors = self._discover_studies()
@@ -1005,11 +1011,13 @@ class ApplicationApiService:
         return events
 
     def _poc_runner(self, record: StudyRecord) -> PocRunner:
-        sibling_wiki = record.container_root.parent / "clinical-llm-wiki"
-        if sibling_wiki.exists():
-            return PocRunner(record.study_dir, sibling_wiki)
-        platform_wiki = Path(__file__).resolve().parents[3] / "clinical-llm-wiki"
-        return PocRunner(record.study_dir, platform_wiki)
+        if self._poc_knowledge_package_root is None:
+            raise ApplicationApiError(
+                "knowledge_package_unavailable",
+                "test-only POC requires an explicitly configured locked knowledge fixture",
+                status_code=409,
+            )
+        return PocRunner(record.study_dir, self._poc_knowledge_package_root)
 
     def list_reviews(self, study_id: str) -> dict[str, Any]:
         record = self._get_record(study_id)

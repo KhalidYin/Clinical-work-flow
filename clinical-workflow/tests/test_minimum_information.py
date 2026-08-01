@@ -18,8 +18,11 @@ ROOT = Path(__file__).resolve().parents[1]
 PLATFORM_ROOT = ROOT.parent
 SAMPLE_STUDY = PLATFORM_ROOT / "clinical-studies" / "SAMPLE-AE-001"
 KNOWLEDGE_SNAPSHOT = (
-    PLATFORM_ROOT
-    / "clinical-llm-wiki"
+    ROOT
+    / "tests"
+    / "fixtures"
+    / "knowledge"
+    / "sdtmig34-poc"
     / "snapshots"
     / "snapshot-sdtmig34-core-events-ae-v1.json"
 )
@@ -48,7 +51,7 @@ def _knowledge(available: bool = True) -> KnowledgeAvailability:
         snapshot_id=SNAPSHOT_ID if available else None,
         version=SNAPSHOT_VERSION if available else None,
         sha256=SNAPSHOT_SHA if available else None,
-        reference="clinical-llm-wiki/snapshots/snapshot-sdtmig34-core-events-ae-v1.json",
+        reference="locked-knowledge/snapshots/snapshot-sdtmig34-core-events-ae-v1.json",
         reason=None if available else "Locked snapshot is unavailable",
     )
 

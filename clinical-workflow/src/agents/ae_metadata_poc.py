@@ -247,7 +247,7 @@ def build_metadata_wiki_context(
             "snapshot_id": snapshot["snapshot_id"],
             "version": snapshot["version"],
             "sha256": snapshot["sha256"],
-            "relative_path": "clinical-llm-wiki/snapshots/"
+            "relative_path": "locked-knowledge/snapshots/"
             "snapshot-sdtmig34-core-events-ae-v1.json",
         },
         "release": {

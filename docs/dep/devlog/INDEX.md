@@ -91,5 +91,6 @@
 | R095 | 2026-08-01 | 16:35 | P13-password-session-chinese-legacy-retirement | P2 | 落地 Argon2id 密码会话、Cookie/CSRF、管理员 API 与安全本地引导 | `clinical-llm-wiki/service/`, `clinical-llm-wiki/frontend/src/`, `clinical-llm-wiki/compose.yaml`, `docs/dep/` | active/DEVLOG-R089-R128.md |
 | R096 | 2026-08-01 | 17:08 | P13-password-session-chinese-legacy-retirement | P3 | 完成中文产品界面、用户管理与服务账号安全投影浏览器闭环 | `clinical-llm-wiki/frontend/src/`, `clinical-llm-wiki/service/platform_api/`, `docs/dep/` | active/DEVLOG-R089-R128.md |
 | R097 | 2026-08-01 | 17:51 | P13-password-session-chinese-legacy-retirement | P4 | 完成 104 项幂等迁移、P12 发布知识机器边界与 ADAE 新旧语义回归 | `clinical-llm-wiki/service/`, `clinical-workflow/src/knowledge/`, `clinical-workflow/tests/`, `docs/dep/` | active/DEVLOG-R089-R128.md |
+| R098 | 2026-08-01 | 18:40 | P13-password-session-chinese-legacy-retirement | P5 | 物理退役 269 个旧运行资产并关闭空卷 Compose、密码会话中文 E2E、全仓回归与零出站 Gate | `clinical-llm-wiki/`, `clinical-workflow/tests/fixtures/knowledge/`, `README.md`, `USAGE.md`, `docs/` | active/DEVLOG-R089-R128.md |
 
 > Legacy rounds R001-R008 remain immutable in [DEVLOG-legacy.md](archive/DEVLOG-legacy.md). They predate the searchable index and were intentionally not rewritten during adoption.

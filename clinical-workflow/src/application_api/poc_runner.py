@@ -85,6 +85,7 @@ INPUT_CHECK_PATH = "work/derived/edc/poc-input-check.json"
 MINIMUM_INFORMATION_PATH = "work/derived/plans/minimum-information-sdtm-ae.json"
 POC_SNAPSHOT_ID = "snapshot-sdtmig34-core-events-ae-v1"
 POC_SNAPSHOT_PATH = "snapshots/snapshot-sdtmig34-core-events-ae-v1.json"
+POC_SNAPSHOT_REFERENCE = f"locked-knowledge/{POC_SNAPSHOT_PATH}"
 POC_SNAPSHOT_SHA256 = "d8aafb73ccca987d597e372435b664ba074c1a45688d5e2eef809c72f475a9ec"
 KEY_PROFILE_VARIABLES = (
     "STUDYID",
@@ -556,7 +557,7 @@ class PocRunner:
                 snapshot_id=POC_SNAPSHOT_ID,
                 version="1.0.0",
                 sha256=POC_SNAPSHOT_SHA256,
-                reference=f"clinical-llm-wiki/{POC_SNAPSHOT_PATH}",
+                reference=POC_SNAPSHOT_REFERENCE,
             ),
             available_source_paths=available_paths,
         )
@@ -606,12 +607,12 @@ class PocRunner:
                     observed=len(rules),
                     expected=len(REQUIRED_RULE_IDS),
                     evidence_refs=[
-                        f"clinical-llm-wiki/{POC_SNAPSHOT_PATH}",
+                        POC_SNAPSHOT_REFERENCE,
                         *locator_refs,
                     ],
                 )
             ],
-            input_refs=[MINIMUM_INFORMATION_PATH, f"clinical-llm-wiki/{POC_SNAPSHOT_PATH}"],
+            input_refs=[MINIMUM_INFORMATION_PATH, POC_SNAPSHOT_REFERENCE],
             evidence_refs=[WIKI_CONTEXT_PATH, *locator_refs],
             artifact_paths=[WIKI_CONTEXT_PATH],
         )

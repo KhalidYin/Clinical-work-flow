@@ -37,6 +37,17 @@ function Invoke-Compose {
     }
 }
 
+# 先升级既有环境文件，否则旧 Compose 项目甚至无法执行 down/reset。
+if (Test-Path -LiteralPath $envPath) {
+    $existingEnvLines = @(Get-Content -LiteralPath $envPath)
+    if (-not ($existingEnvLines | Where-Object {
+        $_ -match '^KNOWLEDGE_RUNTIME_CONSUMER_SECRET='
+    })) {
+        "KNOWLEDGE_RUNTIME_CONSUMER_SECRET=$(New-RandomSecret)" |
+            Add-Content -LiteralPath $envPath -Encoding utf8NoBOM
+    }
+}
+
 if ($Reset) {
     if (Test-Path -LiteralPath $envPath) {
         Invoke-Compose down --volumes --remove-orphans
@@ -48,17 +59,6 @@ if ($Reset) {
 
 New-Item -ItemType Directory -Path $runtimePath -Force | Out-Null
 
-# 精确清除旧 Bearer 演示身份；这些文件不再是受支持的凭据来源。
-foreach ($legacyName in @("access.json", "identities.json")) {
-    $legacyPath = [System.IO.Path]::GetFullPath((Join-Path $runtimePath $legacyName))
-    if (-not $legacyPath.StartsWith($rootPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
-        throw "旧凭据文件路径超出知识产品根目录。"
-    }
-    if (Test-Path -LiteralPath $legacyPath) {
-        Remove-Item -LiteralPath $legacyPath -Force
-    }
-}
-
 if (-not (Test-Path -LiteralPath $envPath)) {
     @(
         "KNOWLEDGE_POSTGRES_PASSWORD=$(New-RandomSecret)"
@@ -68,8 +68,16 @@ if (-not (Test-Path -LiteralPath $envPath)) {
         "P12_DOCUMENT_WORKER_TOKEN=$(New-RandomSecret)"
         "P12_ENRICHMENT_WORKER_TOKEN=$(New-RandomSecret)"
         "P12_RELEASE_WORKER_TOKEN=$(New-RandomSecret)"
+        "KNOWLEDGE_RUNTIME_CONSUMER_SECRET=$(New-RandomSecret)"
         "KNOWLEDGE_ORGANIZATION_NAME=临床知识平台"
     ) | Set-Content -LiteralPath $envPath -Encoding utf8NoBOM
+}
+
+# P13 以前生成的 demo.env 没有独立 Workflow consumer 凭据；原位升级时只补这一项。
+$envLines = @(Get-Content -LiteralPath $envPath)
+if (-not ($envLines | Where-Object { $_ -match '^KNOWLEDGE_RUNTIME_CONSUMER_SECRET=' })) {
+    "KNOWLEDGE_RUNTIME_CONSUMER_SECRET=$(New-RandomSecret)" |
+        Add-Content -LiteralPath $envPath -Encoding utf8NoBOM
 }
 
 $initialAdminPassword = $null

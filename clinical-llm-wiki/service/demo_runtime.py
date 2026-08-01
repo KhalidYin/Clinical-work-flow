@@ -67,6 +67,7 @@ from service.sources import (
 
 DEMO_MODEL_PROFILE_ID = "demo-extractor"
 DEMO_MODEL_PROFILE_VERSION = "1.0.0"
+DEMO_REPLAY_SECRET_REF = "secret://offline-replay/no-provider-secret"
 DEMO_PROMPT_PROFILE_ID = "atomic-candidate"
 DEMO_PROMPT_PROFILE_VERSION = "1.1.0"
 DEMO_TARGET_KNOWLEDGE_UNIT_ID = "ku-demo-sdtm-ae"
@@ -167,7 +168,7 @@ def _seed_configuration(session_factory) -> None:
             "provider": "offline-replay",
             "model": "p12-demo-replay",
             "deployment_class": "enterprise_managed",
-            "secret_ref": "env://P12_ENRICHMENT_WORKER_TOKEN",
+            "secret_ref": DEMO_REPLAY_SECRET_REF,
             "endpoint_ref": None,
             "allowed_data_boundaries": [DataBoundary.ENTERPRISE_PROVIDER_ONLY.value],
             "capabilities": ["structured_generation"],

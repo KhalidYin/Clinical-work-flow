@@ -499,3 +499,45 @@
 - `clinical-llm-wiki/service/platform_api/`、OpenAPI、Compose 与迁移测试
 - `clinical-workflow/src/knowledge/client.py`、Runtime 默认入口与 ADAE P12 Release fixture/regression
 - P13/PLAN/TASK_STATE、DEVLOG
+
+### R098 [18:40] [P13-password-session-chinese-legacy-retirement] P5: 物理退役旧 Wiki 并关闭全栈 Gate
+
+#### Done
+
+- 按已验证 crosswalk 精确删除 269 个旧运行资产：Vault/Obsidian、8787 服务、旧来源包与快照、
+  Review Queue、审计文件、专用内容/PDF/质量脚本、重复 Engine Schema 和 P1–P11 旧计划；历史仅由
+  Git 恢复，不新建 `legacy/` 产品或第三个服务目录。
+- 将 Workflow 的 P7/P9 固定样例收敛到 `clinical-workflow/tests/fixtures/knowledge/` 最小只读知识包；
+  生产 Runtime 继续只消费 P12 published-knowledge API，旧 Wiki 路径不再出现在生产源码。
+- 修正 Demo 启动脚本的空卷升级顺序，补齐独立 runtime consumer secret；人员仍只通过 Argon2id
+  密码和 HttpOnly Cookie，会话退出后撤销。Worker 继续使用各自机器凭据；offline-replay Profile
+  使用明确的无供应商密钥引用，不再复用或指向 Enrichment Worker token。
+- 同步当前 README、USAGE、部署指南、SPEC-12/13/18/21/22、PLAN 和 TASK_STATE，并将 P13 移入
+  complete；crosswalk 的 runtime reference Gate 标记为 passed。
+
+#### Issues / Blockers
+
+- 全量测试首次暴露本机缺少项目已声明的 `argon2-cffi` 与 `pyreadstat`，已从声明的 PyPI 依赖安装；
+  未新增产品依赖。
+- 两个历史 Workflow 测试依赖机器绝对队列路径或未显式传入锁定知识夹具；仅修复测试接线，未修改
+  临床阶段、Review Packet/Decision Receipt 或异步 Worker DAG。
+- P12 live 模型 vertical 仍未授权；当前唯一 invocation 为 `offline-replay`，本轮没有真实外部请求。
+
+#### Validation
+
+- 知识平台 `177 passed, 8 skipped`；临床 Workflow `366 passed, 1 skipped`；前端 `30 passed`，
+  TypeScript/Vite production build 与两个 Python 项目 Ruff 全部通过。
+- 从空卷执行 Compose build/migrate/bootstrap/start：PostgreSQL、API、前端、Document Worker 与
+  Enrichment Worker 正常，Alembic 为 `20260801_0008`；API/前端 HTTP 均为 200。
+- 真实浏览器完成首次改密、持久会话、管理员创建/重置/禁用/启用、390px 窄屏和退出；退出后回到
+  中文登录页，`document.cookie`、localStorage、sessionStorage 均为空。
+- 运行时零引用自动化测试与 `rg` 通过；模型账本只有 1 条 `offline-replay/replayed`，无 live 调用。
+
+#### Next
+
+1. 用户后续在系统管理页登记真实 ModelProfile 的版本化引用，并在服务端注入 secret；不得把密钥放入
+   浏览器、数据库或仓库。
+2. 仅在 P12 preflight 的数据边界、预算、provider/profile/version 均匹配后，执行单一 P2-B3 live
+   vertical；失败时保持 fail closed。
+3. 风险：外部模型数据处理条款、超时/限流和实际输出 Schema 可能与 replay 不同，必须先小范围证据
+   运行并保留 invocation lineage，不能直接开放批量文档。

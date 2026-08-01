@@ -1,26 +1,18 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import pytest
 
 from service.maintenance.legacy_migration import (
     LegacyMigrationError,
-    build_migration_plan,
-    build_runtime_release_manifest,
     canonical_json_bytes,
     scan_legacy_vault,
-    write_immutable_report,
 )
-from service.object_store import InMemoryObjectStore, ObjectConflictError
 from service.published_knowledge import (
     PublishedKnowledgeError,
     resolve_published_runtime_context,
 )
-
-
-ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_scanner_is_fail_closed_and_preserves_governed_identity(tmp_path: Path) -> None:
@@ -47,56 +39,8 @@ def test_scanner_is_fail_closed_and_preserves_governed_identity(tmp_path: Path) 
         scan_legacy_vault(vault)
 
 
-def test_migration_plan_covers_every_governed_record_and_is_deterministic() -> None:
-    first = build_migration_plan(ROOT)
-    second = build_migration_plan(ROOT)
-
-    assert first == second
-    assert len(first.records) == 104
-    assert len({item.legacy_id for item in first.records}) == 104
-    assert all(item.knowledge_unit_id == item.legacy_id for item in first.records)
-    assert all(item.source_sha256 and item.target_content_sha256 for item in first.records)
-    assert first.unresolved_assets == ()
-    assert first.report_sha256 == second.report_sha256
-
-
-def test_immutable_report_is_idempotent_and_refuses_key_reuse() -> None:
-    plan = build_migration_plan(ROOT)
-    store = InMemoryObjectStore()
-
-    first = write_immutable_report(plan, store)
-    second = write_immutable_report(plan, store)
-
-    assert first == second
-    assert first.sha256 == plan.report_sha256
-    report = json.loads(store.get_bytes(first.object_key))
-    assert report["record_count"] == 104
-    assert report["unresolved_assets"] == []
-
-    with pytest.raises(ObjectConflictError):
-        store.put_bytes(first.object_key, b"different", media_type="application/json")
-
-
 def test_report_uses_one_canonical_json_algorithm_without_trailing_newline() -> None:
     assert canonical_json_bytes({"b": 2, "a": 1}) == b'{"a":1,"b":2}'
-
-
-def test_runtime_release_manifest_contains_frozen_adae_regression_ids() -> None:
-    release = build_runtime_release_manifest(ROOT)
-    workflow, domain = release["runtime_snapshots"]
-
-    assert {item["id"] for item in workflow["items"]} >= {"wp-adam-spec-baseline"}
-    assert {item["id"] for item in domain["items"]} >= {
-        "kr-adae-adverse-event-analysis",
-        "pattern-adam-derivation-metadata",
-        "pattern-analysis-dataset-traceability",
-        "pattern-treatment-emergent-ae",
-    }
-    assert workflow["sha256"] == __import__("hashlib").sha256(
-        canonical_json_bytes(
-            {"schema_bundle": workflow["schema_bundle"], "items": workflow["items"]}
-        )
-    ).hexdigest()
 
 
 def _snapshot(snapshot_id: str, items: list[dict[str, object]]) -> dict[str, object]:

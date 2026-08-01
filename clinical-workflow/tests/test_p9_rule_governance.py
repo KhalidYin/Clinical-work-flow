@@ -25,6 +25,7 @@ from src.runtime.review_protocol import (
     DecisionReceipt,
     FindingDecision,
     RejectionReason,
+    ReviewPacket,
     ReviewQueue,
     validate_review_packet_schema,
 )
@@ -74,7 +75,9 @@ def _decide_all(study: Path, decision: Decision = Decision.APPROVED) -> None:
 
 def test_actual_sample_rule_governance_is_approved_and_test_reusable() -> None:
     report = _read_json(SAMPLE_STUDY / RULE_GOVERNANCE_REPORT_PATH)
-    packet = ReviewQueue(SAMPLE_STUDY).load_packet(RULE_GOVERNANCE_REVIEW_ID)
+    packet = ReviewPacket.from_dict(
+        _read_json(SAMPLE_STUDY / ".review_queue" / f"{RULE_GOVERNANCE_REVIEW_ID}.json")
+    )
     approved = _read_json(SAMPLE_STUDY / RULE_GOVERNANCE_APPROVED_PATH)
     reuse = _read_json(
         SAMPLE_STUDY / "knowledge/promotion_candidates/ae-rule-reuse-context.json"

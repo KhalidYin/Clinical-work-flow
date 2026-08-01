@@ -1,0 +1,4 @@
+clinical-workflow/tests/fixtures/studies/ae-pilot/** text eol=lf
+clinical-workflow/tests/fixtures/knowledge/** text eol=lf
+*.pdf binary
+*.png binary

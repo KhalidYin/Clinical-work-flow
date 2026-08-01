@@ -14,11 +14,13 @@ from src.agents.ae_execution import AEExecutionError, run_controlled_ae_executio
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PLATFORM_ROOT = ROOT.parent
 FIXTURE = ROOT / "tests" / "fixtures" / "studies" / "ae-pilot"
 WIKI_PACKAGE = (
-    PLATFORM_ROOT
-    / "clinical-llm-wiki"
+    ROOT
+    / "tests"
+    / "fixtures"
+    / "knowledge"
+    / "sdtmig34-poc"
     / "sources"
     / "packages"
     / "src-cdisc-sdtmig-3-4"

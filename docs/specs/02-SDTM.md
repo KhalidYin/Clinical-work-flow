@@ -366,7 +366,7 @@ SDTMIG 3.4 的生产知识权威不再来自本文中的静态示例表，而来
 - AE 已覆盖 domain definition、dataset structure、AETERM、AEENRF、Example 1 和 RELTYPE=MANY erratum；
 - AEDECOD/MedDRA 编码、Controlled Terminology 深度包、CRF/EDC→SDTM 可执行编程指导和当前 Study 特定 AE 规则为显式 gap。
 
-SDTM Spec/Programming 阶段调用知识时应优先使用 Knowledge Service 或 Study-local locked snapshot。若查询返回 gap，Agent 必须生成 ReviewPacket 或等待 P7/Study 规则补齐，不能用模型常识或本文示例补写为已批准规则。
+SDTM Spec/Programming 阶段调用知识时应优先使用 P12 已发布知识 API 或 Study-local locked snapshot。若查询返回 gap，Agent 必须生成 ReviewPacket 或等待受治理知识/Study 规则补齐，不能用模型常识或本文示例补写为已批准规则。
 
 ### 6.2 P7 AE 合成执行基线
 

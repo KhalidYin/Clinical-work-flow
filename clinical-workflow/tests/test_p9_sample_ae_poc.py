@@ -42,8 +42,7 @@ from src.runtime.review_protocol import (
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PLATFORM = ROOT.parent
-WIKI = PLATFORM / "clinical-llm-wiki"
+WIKI = ROOT / "tests" / "fixtures" / "knowledge" / "sdtmig34-poc"
 SNAPSHOT_SHA = "d8aafb73ccca987d597e372435b664ba074c1a45688d5e2eef809c72f475a9ec"
 
 
@@ -110,7 +109,7 @@ def _study(tmp_path: Path, *, include_reference: bool = False) -> Path:
             snapshot_id="snapshot-sdtmig34-core-events-ae-v1",
             version="1.0.0",
             sha256=SNAPSHOT_SHA,
-            reference="clinical-llm-wiki/snapshots/snapshot-sdtmig34-core-events-ae-v1.json",
+            reference="locked-knowledge/snapshots/snapshot-sdtmig34-core-events-ae-v1.json",
         ),
         available_source_paths={item["path"] for item in sources},
         generated_at="2026-07-16T10:01:00+00:00",

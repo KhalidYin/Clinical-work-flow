@@ -3,13 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
-
-from service.app import _script_style_sha256
-from service.contracts import canonical_json_sha256
 from service.db.base import Base
-from service.maintenance import legacy_migration
-from service.repository import parse_markdown_card
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -21,7 +15,7 @@ def _crosswalk() -> dict[str, object]:
     return json.loads(CROSSWALK_PATH.read_text(encoding="utf-8"))
 
 
-def test_crosswalk_classifies_every_declared_legacy_root_once() -> None:
+def test_crosswalk_records_completed_migration_and_retirement() -> None:
     crosswalk = _crosswalk()
     rules = crosswalk["asset_rules"]
     paths = [rule["path"] for rule in rules]
@@ -42,7 +36,7 @@ def test_crosswalk_classifies_every_declared_legacy_root_once() -> None:
         "service/snapshot.py",
     } <= set(paths)
     for rule in rules:
-        assert (ROOT / rule["path"]).exists(), rule
+        assert not (ROOT / rule["path"]).exists(), rule
         assert rule["disposition"] in {
             "migrate",
             "fixture_or_delete",
@@ -54,14 +48,27 @@ def test_crosswalk_classifies_every_declared_legacy_root_once() -> None:
     vault_rule = next(rule for rule in rules if rule["path"] == "vault")
     assert vault_rule["governed_record_count"] == 104
     assert vault_rule["unique_governed_id_count"] == 104
+    assert crosswalk["migration_execution"] == {
+        "status": "verified",
+        "migration_id": "p13-legacy-wiki-v1",
+        "record_count": 104,
+        "released_revision_count": 73,
+        "unresolved_count": 0,
+        "report_object_key": "migration/p13/legacy-wiki-migration-report-v1.json",
+        "report_sha256": "70185891f053d61b9dda6651fb1b123c31c5ccc1dea8514fc9f2b87277f586cb",
+        "release_id": "release-p13-legacy-wiki-v1",
+        "release_manifest_sha256": "f46dc6008e959eea96baad65cd4039a6353de5e0eca92c53ac54831a10451422",
+        "runtime_api": "/api/prerelease/v1/runtime-knowledge",
+        "idempotent_replays_verified": 2,
+    }
+    assert crosswalk["retirement_execution"]["status"] == "verified"
 
 
 def test_crosswalk_inventory_covers_runtime_references_and_old_plans() -> None:
     crosswalk = _crosswalk()
 
     assert {group["disposition"] for group in crosswalk["runtime_reference_groups"]} == {
-        "replace_in_p4",
-        "replace_in_p5",
+        "replaced",
     }
     assert any(
         group["scope"] == "clinical-workflow/tests/test_adae_knowledge_workflow.py"
@@ -69,31 +76,48 @@ def test_crosswalk_inventory_covers_runtime_references_and_old_plans() -> None:
     )
     retired_plans = crosswalk["documentation_retirement"]
     assert len(retired_plans) == len(set(retired_plans)) == 13
-    assert all((REPOSITORY_ROOT / path).is_file() for path in retired_plans)
+    assert all(not (REPOSITORY_ROOT / path).exists() for path in retired_plans)
 
 
-def test_crosswalk_governed_inventory_matches_current_vault_without_duplicate_ids() -> None:
-    vault_rule = next(
-        rule for rule in _crosswalk()["asset_rules"] if rule["path"] == "vault"
+def test_current_product_runtime_has_no_legacy_wiki_dependency() -> None:
+    runtime_roots = (
+        REPOSITORY_ROOT / "clinical-workflow/src",
+        ROOT / "service",
+        ROOT / "frontend/src",
     )
-    governed_ids: list[str] = []
+    runtime_files = [
+        ROOT / "compose.yaml",
+        ROOT / "scripts/start-demo.ps1",
+    ]
+    for runtime_root in runtime_roots:
+        runtime_files.extend(
+            path
+            for path in runtime_root.rglob("*")
+            if path.is_file()
+            and "test" not in path.parts
+            and path.suffix in {".py", ".ts", ".tsx", ".yaml", ".yml"}
+        )
 
-    for path in sorted((ROOT / "vault").rglob("*.md")):
-        if not path.read_text(encoding="utf-8").startswith("---"):
-            continue
-        metadata, _ = parse_markdown_card(ROOT / "vault", path)
-        if metadata.get("id") and metadata.get("type"):
-            governed_ids.append(str(metadata["id"]))
+    forbidden = (
+        "clinical-llm-wiki/vault",
+        "clinical-llm-wiki/snapshots",
+        "clinical-llm-wiki/sources/packages",
+        "127.0.0.1:8787",
+        "service.app",
+        "service.main",
+        "knowledgeLedgerBearerToken",
+    )
+    violations = {
+        str(path.relative_to(REPOSITORY_ROOT)): marker
+        for path in runtime_files
+        for marker in forbidden
+        if marker in path.read_text(encoding="utf-8")
+    }
+    assert violations == {}
 
-    assert len(governed_ids) == vault_rule["governed_record_count"]
-    assert len(set(governed_ids)) == vault_rule["unique_governed_id_count"]
 
-
-def test_historical_trailing_lf_hash_is_explicitly_not_canonical_json() -> None:
-    payload = {"b": 2, "a": 1}
+def test_historical_trailing_lf_hash_is_documented_as_verify_only() -> None:
     crosswalk = _crosswalk()
-
-    assert _script_style_sha256(payload) != canonical_json_sha256(payload)
     assert crosswalk["hash_algorithms"]["legacy_script_json"]["disposition"] == (
         "verify-only-never-rewrite"
     )
@@ -136,13 +160,3 @@ def test_password_and_browser_session_tables_are_frozen_before_implementation() 
     } <= set(sessions.columns.keys())
     assert "password" not in credentials.columns.keys()
     assert "session_id" not in sessions.columns.keys()
-
-
-def test_legacy_migration_scanner_rejects_malformed_governed_yaml(tmp_path: Path) -> None:
-    vault = tmp_path / "vault"
-    governed = vault / "20_Knowledge/Standards/broken.md"
-    governed.parent.mkdir(parents=True)
-    governed.write_text("---\nid: broken\ntype: [standard_rule\n---\n", encoding="utf-8")
-
-    with pytest.raises(legacy_migration.LegacyMigrationError, match="broken.md"):
-        legacy_migration.scan_legacy_vault(vault)

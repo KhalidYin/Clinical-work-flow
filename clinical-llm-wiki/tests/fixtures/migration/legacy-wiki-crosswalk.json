@@ -103,6 +103,18 @@
       "tracked_file_count": 8
     },
     {
+      "path": "scripts/quality",
+      "disposition": "delete_after_migration",
+      "target": "P12 Document Worker tests",
+      "tracked_file_count": 2
+    },
+    {
+      "path": "schemas/engine",
+      "disposition": "delete_after_migration",
+      "target": "clinical-workflow/schemas canonical bundle",
+      "tracked_file_count": 13
+    },
+    {
       "path": "README-vault.md",
       "disposition": "delete_after_docs_sync",
       "target": "README.md/USAGE.md"
@@ -111,22 +123,22 @@
   "runtime_reference_groups": [
     {
       "scope": "clinical-workflow/src/knowledge",
-      "disposition": "replace_in_p4",
+      "disposition": "replaced",
       "target": "P12 published knowledge compatibility adapter"
     },
     {
       "scope": "clinical-workflow/src/runtime/agent_loop.py",
-      "disposition": "replace_in_p4",
+      "disposition": "replaced",
       "target": "P12 platform API endpoint configuration"
     },
     {
       "scope": "clinical-workflow/tests/test_adae_knowledge_workflow.py",
-      "disposition": "replace_in_p4",
+      "disposition": "replaced",
       "target": "P12 published-knowledge regression fixture"
     },
     {
       "scope": "README.md|USAGE.md|AGENTS.md|CLAUDE.md|docs/specs|docs/deploy",
-      "disposition": "replace_in_p5",
+      "disposition": "replaced",
       "target": "P12/P13 product authority and runbook"
     }
   ],
@@ -215,6 +227,12 @@
     "release_manifest_sha256": "f46dc6008e959eea96baad65cd4039a6353de5e0eca92c53ac54831a10451422",
     "runtime_api": "/api/prerelease/v1/runtime-knowledge",
     "idempotent_replays_verified": 2
+  },
+  "retirement_execution": {
+    "status": "verified",
+    "deleted_tracked_asset_count": 269,
+    "historical_recovery": "git-history-only",
+    "runtime_reference_gate": "passed"
   },
   "deletion_gates": [
     "crosswalk_has_no_unresolved_assets",

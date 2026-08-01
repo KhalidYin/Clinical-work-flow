@@ -34,6 +34,7 @@ from src.application_api.poc_models import (
 ROOT = Path(__file__).resolve().parents[2]
 PLATFORM_ROOT = ROOT.parent
 STUDIES_ROOT = PLATFORM_ROOT / "clinical-studies"
+KNOWLEDGE_FIXTURE = ROOT / "tests" / "fixtures" / "knowledge" / "sdtmig34-poc"
 STUDY_ID = "SAMPLE-AE-001"
 STEP_IDS = (
     "input-check",
@@ -48,7 +49,12 @@ STEP_IDS = (
 
 def _client(container: Path = STUDIES_ROOT) -> TestClient:
     return TestClient(
-        create_app(ApplicationApiConfig(container_roots={"clinical-studies": container}))
+        create_app(
+            ApplicationApiConfig(
+                container_roots={"clinical-studies": container},
+                poc_knowledge_package_root=KNOWLEDGE_FIXTURE,
+            )
+        )
     )
 
 

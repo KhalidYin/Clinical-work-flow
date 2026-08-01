@@ -725,7 +725,7 @@ def plan_from_study(
         expected_version=str(knowledge_lock.get("version", "")),
         expected_sha256=str(knowledge_lock.get("sha256", "")),
         reference=(
-            f"clinical-llm-wiki/snapshots/{knowledge_lock.get('snapshot_id', '')}.json"
+            f"locked-knowledge/snapshots/{knowledge_lock.get('snapshot_id', '')}.json"
         ),
     )
     plan = plan_minimum_information(

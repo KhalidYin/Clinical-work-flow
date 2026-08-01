@@ -31,6 +31,7 @@ from src.runtime.review_protocol import (
 
 
 ROOT = Path(__file__).resolve().parents[2]
+KNOWLEDGE_FIXTURE = ROOT / "tests" / "fixtures" / "knowledge" / "sdtmig34-poc"
 
 
 def _sha256(path: Path) -> str:
@@ -79,7 +80,14 @@ def _study_container(tmp_path: Path) -> Path:
 
 
 def _client(container: Path) -> TestClient:
-    return TestClient(create_app(ApplicationApiConfig(container_roots={"clinical-studies": container})))
+    return TestClient(
+        create_app(
+            ApplicationApiConfig(
+                container_roots={"clinical-studies": container},
+                poc_knowledge_package_root=KNOWLEDGE_FIXTURE,
+            )
+        )
+    )
 
 
 def _decide_all(study: Path, review_id: str, decision: Decision = Decision.APPROVED) -> None:
@@ -137,7 +145,7 @@ def test_poc_runner_reaches_mapping_program_review_and_canonical(tmp_path: Path)
     mapping_step = next(step for step in state.steps if step.step_id == "mapping-spec")
     assert wiki_step.input_refs == [
         "work/derived/plans/minimum-information-sdtm-ae.json",
-        "clinical-llm-wiki/snapshots/snapshot-sdtmig34-core-events-ae-v1.json",
+        "locked-knowledge/snapshots/snapshot-sdtmig34-core-events-ae-v1.json",
     ]
     assert {ref.relative_path for ref in wiki_step.artifact_refs} == {
         "work/knowledge/ae-wiki-context.json"

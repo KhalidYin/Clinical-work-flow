@@ -5,7 +5,7 @@ from pathlib import Path
 
 import yaml
 
-from service.maintenance import backfill, legacy_migration
+from service.maintenance import backfill
 from service.processing import worker
 
 
@@ -43,16 +43,27 @@ def test_compose_keeps_one_codebase_three_pools_and_loopback_publication() -> No
     assert all(component not in serialized for component in ("kafka", "redis", "neo4j"))
 
 
-def test_ddl_backfill_and_legacy_migration_have_distinct_fail_closed_entrypoints() -> None:
+def test_ddl_and_backfill_have_distinct_fail_closed_entrypoints() -> None:
     backfill_source = inspect.getsource(backfill)
-    legacy_source = inspect.getsource(legacy_migration)
 
     assert "alembic" not in backfill_source.lower()
     assert "legacy" not in backfill.REGISTERED_BACKFILLS
     assert set(backfill.REGISTERED_BACKFILLS) == {"p2b1-evidence-ready"}
-    assert "alembic" not in legacy_source.lower()
     assert backfill.main(["--list"]) == 0
-    assert legacy_migration.main(["--list"]) == 0
+
+
+def test_compose_has_no_legacy_vault_migration_runtime() -> None:
+    compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
+
+    assert "legacy-migration" not in compose["services"]
+    assert "/migration-source" not in (ROOT / "compose.yaml").read_text(encoding="utf-8")
+
+
+def test_demo_startup_provisions_a_separate_runtime_consumer_credential() -> None:
+    startup = (ROOT / "scripts/start-demo.ps1").read_text(encoding="utf-8")
+
+    assert "KNOWLEDGE_RUNTIME_CONSUMER_SECRET=$(New-RandomSecret)" in startup
+    assert "HttpOnly" not in startup  # the browser session is created by the API, not shell.
 
 
 def test_worker_module_exposes_one_pool_parameterized_entrypoint() -> None:

@@ -7,6 +7,13 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_demo_replay_profile_never_reuses_worker_machine_credential() -> None:
+    from service.demo_runtime import DEMO_REPLAY_SECRET_REF
+
+    assert DEMO_REPLAY_SECRET_REF == "secret://offline-replay/no-provider-secret"
+    assert "WORKER_TOKEN" not in DEMO_REPLAY_SECRET_REF
+
+
 def test_demo_replay_output_cites_only_canonical_evidence() -> None:
     from service.demo_runtime import build_demo_replay_output
     from service.knowledge import EvidenceReference
@@ -85,7 +92,7 @@ def test_demo_start_script_bootstraps_password_without_writing_human_secret() ->
     assert "KNOWLEDGE_POSTGRES_PASSWORD=" in script
     assert "run --rm -T admin-bootstrap" in script
     assert "一次性临时密码" in script
-    assert "access.json" in script and "Remove-Item" in script
+    assert "access.json" not in script
     assert "token =" not in script
     assert "临床知识台账已就绪：http://localhost:4173/app.html#/candidates" in script
 
