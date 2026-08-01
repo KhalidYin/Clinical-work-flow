@@ -9,7 +9,7 @@ updated: 2026-08-01
 | # | 当前 Gate | 子计划 | 状态 |
 |---|----------|--------|------|
 | P12 | P2-B3 单一 live vertical（待用户配置） | [P12-knowledge-application-platform.md](plans/ongoing/P12-knowledge-application-platform.md) | KUI-09 配置 UI/API done · live 未授权、未调用 |
-| P13 | P3 中文 UI 与用户管理闭环 | [P13-password-session-chinese-legacy-retirement.md](plans/ongoing/P13-password-session-chinese-legacy-retirement.md) | P1/P2 done · P3 in progress · 不触发真实模型 |
+| P13 | P4 旧资产迁移与 Workflow 兼容替换 | [P13-password-session-chinese-legacy-retirement.md](plans/ongoing/P13-password-session-chinese-legacy-retirement.md) | P1/P2/P3 done · P4 in progress · 不触发真实模型 |
 
 ## 待开始
 

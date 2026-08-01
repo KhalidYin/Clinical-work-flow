@@ -201,16 +201,20 @@ export function AppShell() {
 
   const healthState = health.data?.data.status;
   const healthLabel = health.isPending
-    ? "checking"
+    ? "检查中"
     : health.isError
-      ? "unavailable"
-      : healthState ?? "unknown";
+      ? "不可用"
+      : healthState === "healthy"
+        ? "正常"
+        : healthState === "degraded"
+          ? "降级"
+          : "未知";
   const releaseLabel = release.isPending
-    ? "loading"
+    ? "读取中"
     : release.isError
-      ? "unavailable"
-      : release.data?.data.version ?? "not released";
-  const indexLabel = release.data?.data.indexVersion ?? "not built";
+      ? "不可用"
+      : release.data?.data.version ?? "尚未发布";
+  const indexLabel = release.data?.data.indexVersion ?? "尚未构建";
   const closeDrawer = () => setDrawerOpen(false);
 
   return (
@@ -235,8 +239,8 @@ export function AppShell() {
             K
           </span>
           <span>
-            <span className={styles.brandTitle}>Knowledge Ledger</span>
-            <span className={styles.brandMeta}>Evidence · Review · Release</span>
+            <span className={styles.brandTitle}>临床知识台账</span>
+            <span className={styles.brandMeta}>证据 · 审核 · 发布</span>
           </span>
         </div>
 
@@ -258,8 +262,8 @@ export function AppShell() {
         </nav>
 
         <div className={styles.sidebarFoot}>
-          <div>CONTRACT · prerelease.v1</div>
-          <div>MODE · API evidence only</div>
+          <div>契约 · prerelease.v1</div>
+          <div>模式 · 仅使用 API 证据</div>
         </div>
       </aside>
 
@@ -277,7 +281,7 @@ export function AppShell() {
 
           <div className={styles.facts} aria-label="平台事实">
             <div className={styles.fact}>
-              <span className={styles.factLabel}>Platform</span>
+              <span className={styles.factLabel}>平台状态</span>
               <span className={styles.factValue}>
                 <span className={styles.statusLine}>
                   <span
@@ -293,12 +297,12 @@ export function AppShell() {
             </div>
             <span className={styles.factDivider} aria-hidden="true" />
             <div className={styles.fact}>
-              <span className={styles.factLabel}>Current release</span>
+              <span className={styles.factLabel}>当前发布</span>
               <span className={styles.factValue}>{releaseLabel}</span>
             </div>
             <span className={styles.factDivider} aria-hidden="true" />
             <div className={styles.fact}>
-              <span className={styles.factLabel}>Index manifest</span>
+              <span className={styles.factLabel}>索引清单</span>
               <span className={styles.factValue}>{indexLabel}</span>
             </div>
           </div>
@@ -316,7 +320,7 @@ export function AppShell() {
                     : sessionData?.displayName}
               </span>
               <span className={styles.identityRole}>
-                {sessionData?.roles.map(roleLabel).join(", ") ?? "unknown role"}
+                {sessionData?.roles.map(roleLabel).join("、") ?? "角色未知"}
               </span>
             </span>
             {sessionData ? (

@@ -191,7 +191,7 @@ describe("KUI-04 Candidate governance workbench", () => {
     );
     renderCandidates();
 
-    expect(await screen.findByText("作者确认 Gate")).toBeInTheDocument();
+    expect(await screen.findByText("作者确认门禁")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "编辑候选" })).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "审核通过" }),
@@ -262,10 +262,10 @@ describe("KUI-04 Candidate governance workbench", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "原子主张" }), {
       target: { value: "AESEQ uniquely identifies each AE record." },
     });
-    fireEvent.click(screen.getByRole("button", { name: "保存为 revision 2" }));
+    fireEvent.click(screen.getByRole("button", { name: "保存为修订 2" }));
 
     expect(await screen.findByText("已建立 revision 2")).toBeInTheDocument();
-    expect(await screen.findByText(/cand-ui-aeseq-002 · revision 2/)).toBeInTheDocument();
+    expect(await screen.findByText(/cand-ui-aeseq-002 · 修订 2/)).toBeInTheDocument();
     expect(requestBody).toMatchObject({
       expectedRevisionNumber: 1,
       expectedContentSha256: hashA,
@@ -350,7 +350,7 @@ describe("KUI-04 Candidate governance workbench", () => {
     );
     renderCandidates();
 
-    expect(await screen.findByText("独立 Reviewer Gate")).toBeInTheDocument();
+    expect(await screen.findByText("独立审核门禁")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "审核通过" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "驳回" })).toBeInTheDocument();
     fireEvent.change(screen.getByRole("textbox", { name: "审核理由" }), {

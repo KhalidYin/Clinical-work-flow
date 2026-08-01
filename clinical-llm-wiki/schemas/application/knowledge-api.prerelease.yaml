@@ -552,6 +552,20 @@ paths:
         "403": { $ref: "#/components/responses/AuthorizationError" }
         "404": { $ref: "#/components/responses/NotFoundError" }
         "422": { $ref: "#/components/responses/InvalidSourceError" }
+  /admin/service-accounts:
+    get:
+      operationId: listServiceAccounts
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Read-only worker identity projection without secret references or values.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ServiceAccountCollectionResponse" }
+        "401": { $ref: "#/components/responses/AuthenticationError" }
+        "403": { $ref: "#/components/responses/AuthorizationError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
   /admin/model-profiles:
     get:
       operationId: listModelProfiles
@@ -1318,6 +1332,19 @@ components:
       properties:
         userId: { type: string }
         status: { enum: [active, disabled] }
+    ServiceAccount:
+      type: object
+      additionalProperties: false
+      required: [serviceAccountId, displayName, workerPool, scopes, status]
+      properties:
+        serviceAccountId: { type: string }
+        displayName: { type: string }
+        workerPool: { enum: [document, enrichment, release] }
+        scopes:
+          type: array
+          uniqueItems: true
+          items: { $ref: "#/components/schemas/ProductPermission" }
+        status: { enum: [active, disabled] }
     SourceCollection:
       type: object
       additionalProperties: false
@@ -1339,6 +1366,19 @@ components:
         items:
           type: array
           items: { $ref: "#/components/schemas/PlatformUser" }
+        total: { type: integer, minimum: 0 }
+        partial: { type: boolean }
+        warnings:
+          type: array
+          items: { type: string }
+    ServiceAccountCollection:
+      type: object
+      additionalProperties: false
+      required: [items, total, partial, warnings]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ServiceAccount" }
         total: { type: integer, minimum: 0 }
         partial: { type: boolean }
         warnings:
@@ -1560,6 +1600,12 @@ components:
         - type: object
           properties:
             data: { $ref: "#/components/schemas/UserStatus" }
+    ServiceAccountCollectionResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/ServiceAccountCollection" }
     ModelProfileCollectionResponse:
       allOf:
         - $ref: "#/components/schemas/Envelope"

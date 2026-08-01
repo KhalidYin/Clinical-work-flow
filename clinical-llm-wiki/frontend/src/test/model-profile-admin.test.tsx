@@ -70,34 +70,34 @@ describe("KUI-09 Model API Configuration", () => {
     renderAdmin();
 
     expect(
-      await screen.findByRole("heading", { name: "Model API Configuration" }),
+      await screen.findByRole("heading", { name: "模型 API 配置" }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/配置保存不等于 live 授权/)).toBeInTheDocument();
+    expect(screen.getByText(/保存配置不等于授权实时调用/)).toBeInTheDocument();
     expect(screen.queryByLabelText(/api key|password|secret value/i)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /测试连接|test connection|运行模型/i })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "登记 ModelProfile 版本" }));
-    fireEvent.change(screen.getByLabelText("Profile ID"), {
+    fireEvent.change(screen.getByLabelText("配置 ID（Profile ID）"), {
       target: { value: profile.profileId },
     });
-    fireEvent.change(screen.getByLabelText("Version"), {
+    fireEvent.change(screen.getByLabelText("版本（Version）"), {
       target: { value: profile.version },
     });
-    fireEvent.change(screen.getByLabelText("Provider"), {
+    fireEvent.change(screen.getByLabelText("提供方（Provider）"), {
       target: { value: profile.provider },
     });
-    fireEvent.change(screen.getByLabelText("Model"), {
+    fireEvent.change(screen.getByLabelText("模型（Model）"), {
       target: { value: profile.model },
     });
-    fireEvent.change(screen.getByLabelText("Secret reference"), {
+    fireEvent.change(screen.getByLabelText("密钥引用（Secret reference）"), {
       target: { value: profile.secretRef },
     });
-    fireEvent.change(screen.getByLabelText("Endpoint reference"), {
+    fireEvent.change(screen.getByLabelText("端点引用（Endpoint reference）"), {
       target: { value: profile.endpointRef },
     });
     fireEvent.click(screen.getByRole("button", { name: "保存配置版本" }));
 
-    expect(await screen.findByText("配置版本已登记，尚未验证连接或启用 live。"))
+    expect(await screen.findByText("配置版本已登记，尚未验证连接或启用实时调用。"))
       .toBeInTheDocument();
     await waitFor(() => expect(submitted).not.toBeNull());
     expect(submitted).toMatchObject({
@@ -108,8 +108,8 @@ describe("KUI-09 Model API Configuration", () => {
     expect(submitted).not.toHaveProperty("apiKey");
     expect(submitted).not.toHaveProperty("secretValue");
     expect(await screen.findByText(profile.model)).toBeInTheDocument();
-    expect(screen.getByText("not verified")).toBeInTheDocument();
-    expect(screen.getByText("live disabled")).toBeInTheDocument();
+    expect(screen.getByText("未验证")).toBeInTheDocument();
+    expect(screen.getByText("实时调用已禁用")).toBeInTheDocument();
   });
 
   it("shows loading, partial and error states at the configuration surface", async () => {

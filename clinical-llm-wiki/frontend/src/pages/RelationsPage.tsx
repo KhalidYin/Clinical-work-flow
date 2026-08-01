@@ -7,6 +7,7 @@ import {
   type RelationNode,
   type RelationQuery,
 } from "../contracts/knowledgeApi";
+import { relationTypeLabel, statusLabel } from "../i18n/labels";
 import styles from "./pages.module.css";
 
 export interface RelationsSearch {
@@ -64,26 +65,26 @@ export function RelationsPage({ search, onSearchChange }: RelationsPageProps) {
     <section className={styles.page} aria-labelledby="relations-title">
       <header className={styles.pageHeader}>
         <div>
-          <p className={styles.eyebrow}>KUI-05 / evidence-bound topology</p>
+          <p className={styles.eyebrow}>KUI-05 / 证据约束拓扑</p>
           <h1 className={styles.title} id="relations-title">
-            Relations
+            关系浏览
           </h1>
           <p className={styles.lede}>
-            按方向浏览 typed relation。没有 Evidence 的边不会进入此视图；候选、批准和
-            release membership 保持可区分。
+            按方向浏览类型化关系。没有证据的边不会进入此视图；候选、批准和
+            发布成员关系保持可区分。
           </p>
         </div>
         <div className={styles.headerAside}>
-          <span className={styles.asideLabel}>Expansion ceiling</span>
-          <span className={styles.asideValue}>2 hops · read only</span>
+          <span className={styles.asideLabel}>扩展上限</span>
+          <span className={styles.asideValue}>2 跳 · 只读</span>
         </div>
       </header>
 
       <div className={styles.relationWorkbench}>
-        <aside className={styles.relationDirectory} aria-label="Knowledge unit directory">
+        <aside className={styles.relationDirectory} aria-label="知识单元目录">
           <div className={styles.directoryHeader}>
             <label>
-              <span className={styles.asideLabel}>Find knowledge unit</span>
+              <span className={styles.asideLabel}>查找知识单元</span>
               <input
                 className={styles.search}
                 type="search"
@@ -96,7 +97,7 @@ export function RelationsPage({ search, onSearchChange }: RelationsPageProps) {
             </label>
             <span className={styles.count}>
               {directory.isPending
-                ? "loading"
+                ? "读取中"
                 : `${directoryNodes.length} / ${directory.data?.data.totalNodes ?? 0}`}
             </span>
           </div>
@@ -128,10 +129,10 @@ export function RelationsPage({ search, onSearchChange }: RelationsPageProps) {
               >
                 <span className={styles.nodePickerTop}>
                   <strong>{node.stableKey}</strong>
-                  <span className={styles.status}>{node.status}</span>
+                  <span className={styles.status}>{statusLabel(node.status)}</span>
                 </span>
                 <span>{node.knowledgeType}</span>
-                <small>{node.claim ?? "No approved claim"}</small>
+                <small>{node.claim ?? "暂无已批准主张"}</small>
               </button>
             ))}
           </div>
@@ -140,8 +141,8 @@ export function RelationsPage({ search, onSearchChange }: RelationsPageProps) {
         <div className={styles.relationStage}>
           <div className={styles.relationToolbar}>
             <div>
-              <span className={styles.asideLabel}>Bounded expansion</span>
-              <div className={styles.segmented} aria-label="Relation depth">
+              <span className={styles.asideLabel}>有界扩展</span>
+              <div className={styles.segmented} aria-label="关系深度">
                 {[1, 2].map((depth) => (
                   <button
                     key={depth}
@@ -149,14 +150,14 @@ export function RelationsPage({ search, onSearchChange }: RelationsPageProps) {
                     aria-pressed={search.depth === depth}
                     onClick={() => onSearchChange({ depth })}
                   >
-                    {depth} hop
+                    {depth} 跳
                   </button>
                 ))}
               </div>
             </div>
             <div>
-              <span className={styles.asideLabel}>View</span>
-              <div className={styles.segmented} aria-label="Relation view">
+              <span className={styles.asideLabel}>视图</span>
+              <div className={styles.segmented} aria-label="关系视图">
                 {(["paths", "list"] as const).map((view) => (
                   <button
                     key={view}
@@ -164,7 +165,7 @@ export function RelationsPage({ search, onSearchChange }: RelationsPageProps) {
                     aria-pressed={search.view === view}
                     onClick={() => onSearchChange({ view })}
                   >
-                    {view}
+                    {view === "paths" ? "路径" : "列表"}
                   </button>
                 ))}
               </div>
@@ -201,7 +202,7 @@ export function RelationsPage({ search, onSearchChange }: RelationsPageProps) {
             <div className={styles.detailState}>
               <h2 className={styles.stateTitle}>没有带 Evidence 的相邻关系</h2>
               <p className={styles.stateText}>
-                节点存在，但当前深度内没有可验证的 typed edge。
+                节点存在，但当前深度内没有可验证的类型化边。
               </p>
             </div>
           ) : null}
@@ -244,15 +245,15 @@ function RelationPath({
       <div className={styles.pathDiagram}>
         <NodeCard node={source} fallback={edge.sourceKnowledgeUnitId} />
         <div className={styles.edgeMark}>
-          <span>{edge.relationType}</span>
+          <span>{relationTypeLabel(edge.relationType)}</span>
           <strong aria-hidden="true">→</strong>
-          <small>{edge.status}</small>
+          <small>{statusLabel(edge.status)}</small>
         </div>
         <NodeCard node={target} fallback={edge.targetKnowledgeUnitId} />
       </div>
       <div className={styles.edgeEvidence}>
         <span className={styles.sectionLabel}>
-          Edge evidence <b>{edge.evidence.length}</b>
+          边证据 <b>{edge.evidence.length}</b>
         </span>
         {edge.evidence.map((evidence) => (
           <blockquote key={evidence.evidenceId}>
@@ -280,13 +281,13 @@ function NodeCard({
 }) {
   return (
     <div className={styles.graphNode}>
-      <span className={styles.asideLabel}>{node?.knowledgeType ?? "unknown node"}</span>
+      <span className={styles.asideLabel}>{node?.knowledgeType ?? "未知节点"}</span>
       <strong>{nodeLabel(node, fallback)}</strong>
-      <span className={styles.status}>{node?.status ?? "unversioned"}</span>
+      <span className={styles.status}>{node?.status ? statusLabel(node.status) : "未版本化"}</span>
       {node?.releaseIds.length ? (
-        <small>release · {node.releaseIds.join(", ")}</small>
+        <small>发布版本 · {node.releaseIds.join(", ")}</small>
       ) : (
-        <small>not in a release</small>
+        <small>尚未进入发布版本</small>
       )}
     </div>
   );
@@ -304,21 +305,21 @@ function RelationTable({
       <table className={styles.table}>
         <thead>
           <tr>
-            <th>Source</th>
-            <th>Direction</th>
-            <th>Target</th>
-            <th>Status</th>
-            <th>Evidence</th>
+            <th>来源节点</th>
+            <th>方向</th>
+            <th>目标节点</th>
+            <th>状态</th>
+            <th>证据</th>
           </tr>
         </thead>
         <tbody>
           {edges.map((edge) => (
             <tr key={edge.relationId}>
               <td>{nodeLabel(nodes.get(edge.sourceKnowledgeUnitId), edge.sourceKnowledgeUnitId)}</td>
-              <td className={styles.mono}>{edge.relationType} →</td>
+              <td className={styles.mono}>{relationTypeLabel(edge.relationType)} →</td>
               <td>{nodeLabel(nodes.get(edge.targetKnowledgeUnitId), edge.targetKnowledgeUnitId)}</td>
-              <td><span className={styles.status}>{edge.status}</span></td>
-              <td className={styles.mono}>{edge.evidence.length} verified</td>
+              <td><span className={styles.status}>{statusLabel(edge.status)}</span></td>
+              <td className={styles.mono}>{edge.evidence.length} 条已验证</td>
             </tr>
           ))}
         </tbody>
@@ -346,7 +347,7 @@ function CompactState({
 
 function RelationSkeleton() {
   return (
-    <div className={styles.pathList} aria-label="Loading relation evidence">
+    <div className={styles.pathList} aria-label="正在加载关系证据">
       {[0, 1].map((item) => (
         <div className={styles.pathCard} key={item}>
           <span className={styles.skeleton} />

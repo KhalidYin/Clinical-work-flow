@@ -430,6 +430,21 @@ class UserCollectionData(ApiModel):
     warnings: list[str]
 
 
+class ServiceAccountData(ApiModel):
+    service_account_id: str
+    display_name: str
+    worker_pool: Literal["document", "enrichment", "release"]
+    scopes: list[Permission]
+    status: Literal["active", "disabled"]
+
+
+class ServiceAccountCollectionData(ApiModel):
+    items: list[ServiceAccountData]
+    total: int = Field(ge=0)
+    partial: bool
+    warnings: list[str]
+
+
 class ModelProfileRegistrationRequest(ApiModel):
     profile_id: str = Field(min_length=1, max_length=160)
     version: str = Field(min_length=1, max_length=80)
@@ -590,6 +605,11 @@ class AdminTemporaryPasswordResponse(ApiModel):
 
 class UserStatusResponse(ApiModel):
     data: UserStatusData
+    meta: ResponseMeta
+
+
+class ServiceAccountCollectionResponse(ApiModel):
+    data: ServiceAccountCollectionData
     meta: ResponseMeta
 
 

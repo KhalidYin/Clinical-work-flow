@@ -29,6 +29,7 @@ from service.db.models import (
     ReleaseItem,
     RelationProposalEvidence,
     RoleBinding,
+    ServiceAccount,
     Source,
     SourceArtifact,
     SourceVersion,
@@ -66,6 +67,15 @@ class PlatformUserRecord:
     roles: tuple[str, ...]
     status: str
     last_active_at: datetime | None
+
+
+@dataclass(frozen=True, slots=True)
+class ServiceAccountRecord:
+    service_account_id: str
+    display_name: str
+    worker_pool: str
+    scopes: tuple[str, ...]
+    status: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -262,6 +272,10 @@ class PlatformReadRepository(Protocol):
     def list_platform_users(
         self,
     ) -> tuple[Sequence[PlatformUserRecord], Sequence[str]]: ...
+
+    def list_service_accounts(
+        self,
+    ) -> tuple[Sequence[ServiceAccountRecord], Sequence[str]]: ...
 
     def list_model_profiles(
         self,
@@ -482,6 +496,27 @@ class SqlAlchemyPlatformRepository:
                 )
             )
         return items, warnings
+
+    def list_service_accounts(self) -> tuple[list[ServiceAccountRecord], list[str]]:
+        with self._session_factory() as session:
+            accounts = list(
+                session.scalars(
+                    select(ServiceAccount).order_by(
+                        ServiceAccount.worker_pool,
+                        ServiceAccount.service_account_id,
+                    )
+                )
+            )
+        return [
+            ServiceAccountRecord(
+                service_account_id=account.service_account_id,
+                display_name=account.display_name,
+                worker_pool=account.worker_pool,
+                scopes=tuple(account.scopes),
+                status=account.status,
+            )
+            for account in accounts
+        ], []
 
     def list_model_profiles(self) -> tuple[list[ModelProfileRecord], list[str]]:
         with self._session_factory() as session:

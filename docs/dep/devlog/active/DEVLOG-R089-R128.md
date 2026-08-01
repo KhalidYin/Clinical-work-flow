@@ -408,3 +408,50 @@
 - `clinical-llm-wiki/frontend/src/`
 - `clinical-llm-wiki/compose.yaml`、`scripts/start-demo.ps1`、`service/demo_runtime.py`
 - `clinical-llm-wiki/tests/`、P13/PLAN/TASK_STATE、DEVLOG
+
+### R096 [17:08] [P13-password-session-chinese-legacy-retirement] P3: 完成中文界面与用户管理闭环
+
+#### Done
+
+- 保持 D0 色彩、字体和布局基线，将产品名、九个一级导航、页面标题、按钮、表头、状态、
+  错误和无障碍标签统一为中文展示；API 字段、枚举、临床标准变量和模型名称保持原值。
+- 系统管理页接通创建用户、产品角色、多状态列表、一次性临时密码、重置密码和启停操作；
+  新增服务账号只读 API/UI，只投影 ID、名称、pool、scope 和状态，不返回 `secret_ref` 或值。
+- 新增集中展示字典，覆盖角色、状态、数据边界、权利分类、Worker pool 和关系类型；请求层继续
+  只使用同源 HttpOnly Cookie 与 CSRF 头，不恢复 sessionStorage/Authorization 双轨。
+- 使用当前源码完成 API、Worker、migration、bootstrap 和前端全镜像 rebuild/up/health，保留既有
+  PostgreSQL 卷；P2 的镜像代理问题已恢复。
+
+#### Issues / Blockers
+
+- 当前 Compose 数据保留 P12 的三条 `local_test` 用户投影，不能以人员密码登录；P4/P5 必须随
+  旧资产迁移清除，不能误当作第二种人员认证路径。
+- 当前发布尚未建立，因此顶部如实显示平台降级、当前发布不可用；P3 不通过伪造 Release 修饰状态。
+
+#### Validation
+
+- 平台 API 合同 20 passed，Ruff 通过；前端 Vitest 30 passed、TypeScript typecheck 和 Vite
+  production build 通过。
+- 真实浏览器完成 `/admin` 目标 URL 登录、首次强制改密和会话轮换；Cookie 为 HttpOnly、
+  SameSite=Strict、Path=/，`document.cookie`、localStorage、sessionStorage 和人员 bearer 均为空。
+- 真实管理员创建受限审核员，确认临时密码仅显示一次，随后重置并禁用；服务账号响应仅含
+  5 个安全字段且 `hasSecret=false`。现有 ModelInvocation 只有 2026-07-30 的 replay 记录，本轮
+  未调用外部模型。
+- 浏览器验证默认、延迟加载、失败、partial+empty 和 390px 窄屏；窄屏 `bodyWidth=390`、无横向
+  溢出、侧栏默认关闭。截图保存在忽略目录 `.demo-runtime/`，不携带 Cookie 或凭据。
+
+#### Next
+
+1. P4 先把 crosswalk 的 `migrate/fixture/delete` 项映射到 P12 canonical 表、ObjectStore 和
+   immutable Release，先写幂等与 hash/review 失败测试。
+2. 将 `clinical-workflow` 知识兼容入口从 8787/Vault 切到 P12 已发布知识边界，修复 P13-001/002
+   固定回归接线但不改变临床阶段和 Review 合同。
+3. 风险是迁移时丢失旧 ID/version/citation/review、把 approved 误当 released，或为清理旧代码
+   顺手改动 Workflow 语义；任一情况均阻断 P4 提交。
+
+#### Files Changed
+
+- `clinical-llm-wiki/frontend/src/`、`clinical-llm-wiki/service/platform_api/`
+- `clinical-llm-wiki/schemas/application/knowledge-api.prerelease.yaml`
+- `clinical-llm-wiki/tests/test_platform_api_contract.py`
+- P13/PLAN/TASK_STATE、DEVLOG

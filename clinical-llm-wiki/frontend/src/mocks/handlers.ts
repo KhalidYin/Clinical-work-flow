@@ -13,6 +13,7 @@ import {
   relationQueryFixture,
   retryReceiptFixture,
   sessionFixture,
+  serviceAccountsFixture,
   sourceRegistrationFixture,
   sourcesFixture,
   usersFixture,
@@ -118,6 +119,9 @@ export const handlers = [
     () => HttpResponse.json(cancelReceiptFixture, { status: 202 }),
   ),
   http.get(resolveApiPath(API_PATHS.adminUsers), () => HttpResponse.json(usersFixture)),
+  http.get(resolveApiPath(API_PATHS.adminServiceAccounts), () =>
+    HttpResponse.json(serviceAccountsFixture),
+  ),
   http.get(resolveApiPath(API_PATHS.adminModelProfiles), () =>
     HttpResponse.json(modelProfilesFixture),
   ),

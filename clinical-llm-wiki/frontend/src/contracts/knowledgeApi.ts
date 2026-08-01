@@ -14,6 +14,7 @@ export const API_PATHS = {
   relationQuery: "/api/prerelease/v1/relations/query",
   auditEvents: "/api/prerelease/v1/audit-events",
   adminUsers: "/api/prerelease/v1/admin/users",
+  adminServiceAccounts: "/api/prerelease/v1/admin/service-accounts",
   adminModelProfiles: "/api/prerelease/v1/admin/model-profiles",
 } as const;
 
@@ -58,11 +59,11 @@ export type ProductPermission =
   | "audit:read";
 
 export const ROLE_LABELS: Record<HumanRole, string> = {
-  platform_admin: "Admin",
-  knowledge_curator: "Knowledge Curator",
-  reviewer: "Knowledge Reviewer",
-  release_manager: "Release Manager",
-  consumer: "Consumer",
+  platform_admin: "平台管理员",
+  knowledge_curator: "知识工程师",
+  reviewer: "知识审核员",
+  release_manager: "发布管理员",
+  consumer: "知识使用者",
 };
 
 export function roleLabel(role: HumanRole): string {
@@ -98,6 +99,14 @@ export interface Session {
   permissions: ProductPermission[];
   mustChangePassword: boolean;
   sessionExpiresAt: string;
+}
+
+export function adminUserPasswordResetPath(userId: string): string {
+  return `${API_PATHS.adminUsers}/${encodeURIComponent(userId)}/password/reset`;
+}
+
+export function adminUserStatusPath(userId: string): string {
+  return `${API_PATHS.adminUsers}/${encodeURIComponent(userId)}/status`;
 }
 
 export interface LoginRequest {
@@ -464,7 +473,7 @@ export interface PlatformUser {
   userId: string;
   displayName: string;
   email: string;
-  identitySource: "local_test" | "oidc";
+  identitySource: "local_password" | "local_test" | "oidc";
   roles: HumanRole[];
   status: "active" | "disabled";
   lastActiveAt: string | null;
@@ -472,6 +481,44 @@ export interface PlatformUser {
 
 export interface UserCollection {
   items: PlatformUser[];
+  total: number;
+  partial: boolean;
+  warnings: string[];
+}
+
+export interface UserCreateRequest {
+  username: string;
+  displayName: string;
+  email: string;
+  roles: HumanRole[];
+}
+
+export interface AdminTemporaryPassword {
+  userId: string;
+  username: string | null;
+  temporaryPassword: string;
+  mustChangePassword: true;
+}
+
+export interface UserStatusRequest {
+  status: "active" | "disabled";
+}
+
+export interface UserStatusReceipt {
+  userId: string;
+  status: "active" | "disabled";
+}
+
+export interface ServiceAccountSummary {
+  serviceAccountId: string;
+  displayName: string;
+  workerPool: "document" | "enrichment" | "release";
+  scopes: ProductPermission[];
+  status: "active" | "disabled";
+}
+
+export interface ServiceAccountCollection {
+  items: ServiceAccountSummary[];
   total: number;
   partial: boolean;
   warnings: string[];

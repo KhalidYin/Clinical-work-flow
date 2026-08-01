@@ -25,7 +25,7 @@ export function ScopePage({ eyebrow, title, description, phase }: ScopePageProps
             <span className={styles.stateSymbol} aria-hidden="true">
               §
             </span>
-            <h2 className={styles.stateTitle}>Contract reserved</h2>
+            <h2 className={styles.stateTitle}>契约已预留</h2>
             <p className={styles.stateText}>
               此一级页面属于已批准信息架构，但当前 P1 切片没有声明真实数据来源。页面明确保持范围状态，不展示伪造指标。
             </p>

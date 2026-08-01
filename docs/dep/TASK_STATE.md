@@ -1,14 +1,14 @@
 ---
 status: in-progress
 created: 2026-08-01 15:42
-updated: 2026-08-01 16:35
+updated: 2026-08-01 17:08
 ---
 
 # Current Task
 
 ## Goal
 
-P3 — 完成中文 UI 和用户管理闭环（子计划：`docs/dep/plans/ongoing/P13-password-session-chinese-legacy-retirement.md`）。
+P4 — 迁移旧知识资产并替换 Workflow 兼容入口（子计划：`docs/dep/plans/ongoing/P13-password-session-chinese-legacy-retirement.md`）。
 
 ## Progress
 
@@ -18,23 +18,25 @@ P3 — 完成中文 UI 和用户管理闭环（子计划：`docs/dep/plans/ongoi
 - [x] 前端请求层删除 sessionStorage/Authorization，登录、强制改密、退出已接入 Cookie 会话。
 - [x] 本地引导改为 stdin 一次性管理员密码，删除运行时 `access.json`/`identities.json`；Worker 机器凭据不变。
 - [x] 空库迁移回滚、实库 API 集成、既有 P12 数据库原位升级、前后端单测和构建均通过。
-- [ ] 完成 P2 阶段提交与远端同步后进入全部核心页面中文化和用户管理前端闭环。
+- [x] P2 阶段提交与远端同步完成（`152a56e`）。
+- [x] P3 中文 UI、用户管理、服务账号安全投影、容器重建和真实浏览器 E2E 完成。
+- [ ] 按 crosswalk 迁移旧知识资产，替换 Workflow 对 8787/Vault 的兼容入口。
 
 ## Working Context
 
-- **Files being edited**：`clinical-llm-wiki/service/auth/`、`service/platform_api/`、`service/db/`、`frontend/src/`、Compose/启动脚本与 P13 文档。
-- **Last command run**：使用既有受信镜像挂载当前源代码，将现有 Compose PostgreSQL 从 `20260731_0007` 原位升级到 `20260801_0008` 并确认两张新表。
+- **Files being edited**：P4 将以 `legacy-wiki-crosswalk.json`、P12 迁移工具、`clinical-workflow/src/knowledge/` 兼容入口和固定回归夹具为中心。
+- **Last command run**：真实容器浏览器完成登录、强制改密、创建/重置/禁用用户、服务账号无 secret、加载/错误/partial/empty 和 390px 窄屏验收。
 - **Key decisions**：人员只使用密码+HttpOnly 会话；初始密码经 stdin 传入且只输出一次；Worker 保持独立机器凭据；不保留 Bearer 双轨兼容。
-- **Blocker**：P2 无产品阻断；Docker Hub 镜像代理暂时不可达，完整冷构建推迟到 P5 强制 Gate，已登记 P13-004。
+- **Blocker**：P4 已知基线缺陷为 P13-001/002；必须通过新发布知识夹具与正确前置阶段修复，不允许改临床 Workflow 语义。
 
 ## Phase Context
 
 - **Sub-plan**：`docs/dep/plans/ongoing/P13-password-session-chinese-legacy-retirement.md`
-- **Phase**：P3 — 中文 UI 和用户管理闭环。
-- **Input conditions**：P2 密码会话、Cookie/CSRF API、用户管理 API 与迁移已通过单元和实库 Gate。
-- **Completion criteria**：全部核心页面中文；创建/重置/启停用户组件测试与浏览器 E2E；服务账号无 secret；默认/加载/空/错误/部分/窄屏验证。
-- **Boundaries**：保持 D0 色彩与布局；不翻译机器合同、临床标准变量和模型名称；不触发真实模型。
+- **Phase**：P4 — 旧知识资产迁移与 Workflow 兼容入口替换。
+- **Input conditions**：P1 crosswalk 已冻结，P2/P3 新平台和中文管理闭环可运行。
+- **Completion criteria**：crosswalk 零未决；迁移幂等；P12 已发布知识成为唯一运行时入口；固定 Workflow 样例 ID/version/citation/result 语义不变。
+- **Boundaries**：不改临床阶段顺序、Review Packet/Decision Receipt 或 Worker DAG；不触发真实模型；P5 Gate 前不删除未知资产。
 
 ## Resume From
 
-提交并同步 P2；随后先补用户管理 UI 的失败测试，再实现创建、一次性临时密码、重置和启停，最后逐页完成中文文案与状态映射。
+先读取 crosswalk 的 migrate/fixture/delete 全集与当前 8787/Vault 引用，建立 P12 迁移 RED 测试；随后实现幂等导入和 Workflow 兼容适配，直至 P13-001/002 固定样例转绿。

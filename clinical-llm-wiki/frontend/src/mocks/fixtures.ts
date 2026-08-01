@@ -16,6 +16,7 @@ import {
   type UserCollection,
   type ModelProfileCollection,
   type ModelProfileRegistration,
+  type ServiceAccountCollection,
 } from "../contracts/knowledgeApi";
 
 const fixtureTime = "2026-07-29T14:58:00Z";
@@ -580,6 +581,17 @@ export const usersFixture = response<UserCollection>({
       status: "disabled",
       lastActiveAt: null,
     },
+  ],
+});
+
+export const serviceAccountsFixture = response<ServiceAccountCollection>({
+  total: 3,
+  partial: false,
+  warnings: [],
+  items: [
+    { serviceAccountId: "svc-demo-document", displayName: "文档处理 Worker", workerPool: "document", scopes: ["source:read", "object:read", "object:write_derived", "processing:execute", "evidence:write"], status: "active" },
+    { serviceAccountId: "svc-demo-enrichment", displayName: "知识富化 Worker", workerPool: "enrichment", scopes: ["evidence:read", "model:invoke", "candidate:write", "relation:propose", "processing:execute"], status: "active" },
+    { serviceAccountId: "svc-demo-release", displayName: "版本发布 Worker", workerPool: "release", scopes: ["evidence:read", "candidate:read", "evaluation:run", "index:build", "release:build", "object:write_derived", "processing:execute"], status: "disabled" },
   ],
 });
 

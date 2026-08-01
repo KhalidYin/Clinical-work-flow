@@ -108,7 +108,7 @@ describe("Knowledge Ledger App Shell", () => {
   it("renders API-backed platform facts and registered sources", async () => {
     renderApp();
 
-    expect(await screen.findByRole("heading", { name: "Sources" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "来源管理" })).toBeInTheDocument();
     expect(await screen.findByText("2026.07-d0")).toBeInTheDocument();
     expect(screen.getByText("Kevin Dean")).toBeInTheDocument();
     expect(
@@ -120,7 +120,7 @@ describe("Knowledge Ledger App Shell", () => {
   it("writes the source filter to URL state and filters rows", async () => {
     const { router } = renderApp();
 
-    const input = await screen.findByRole("searchbox", { name: "Filter registered sources" });
+    const input = await screen.findByRole("searchbox", { name: "筛选已登记来源" });
     fireEvent.change(input, { target: { value: "ADaM" } });
 
     expect(await screen.findByText("Analysis Data Model Implementation Guide")).toBeInTheDocument();
@@ -140,7 +140,7 @@ describe("Knowledge Ledger App Shell", () => {
 
     renderApp();
 
-    expect(await screen.findByRole("heading", { name: "Sources" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "来源管理" })).toBeInTheDocument();
     expect(screen.getByLabelText("正在加载来源")).toHaveAttribute("aria-busy", "true");
     expect(
       await screen.findByText("Study Data Tabulation Model Implementation Guide"),
@@ -235,17 +235,17 @@ describe("Knowledge Ledger App Shell", () => {
     renderApp();
 
     fireEvent.click(await screen.findByText("登记新 SourceVersion"));
-    fireEvent.change(screen.getByLabelText("Source ID"), {
+    fireEvent.change(screen.getByLabelText("来源 ID"), {
       target: { value: "src-ui-upload" },
     });
-    fireEvent.change(screen.getByLabelText("Title"), {
+    fireEvent.change(screen.getByLabelText("标题"), {
       target: { value: "UI upload" },
     });
-    fireEvent.change(screen.getByLabelText("Version"), {
+    fireEvent.change(screen.getByLabelText("版本"), {
       target: { value: "1.0" },
     });
     const file = new File(["# Rule"], "rule.md", { type: "text/markdown" });
-    fireEvent.change(screen.getByLabelText("Source file"), {
+    fireEvent.change(screen.getByLabelText("来源文件"), {
       target: { files: [file] },
     });
     const submit = screen.getByRole("button", { name: "登记并启动处理" });
@@ -282,13 +282,13 @@ describe("Knowledge Ledger App Shell", () => {
     );
     renderApp("/processing");
 
-    expect(await screen.findByRole("heading", { name: "Processing" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "处理任务" })).toBeInTheDocument();
     expect(await screen.findByText("document.parse_tables")).toBeInTheDocument();
-    expect(screen.getAllByText("Original")).toHaveLength(3);
-    expect(screen.getAllByText("Derived")).toHaveLength(3);
-    expect(screen.getAllByText("Evidence")).toHaveLength(3);
-    expect(screen.getAllByText(/checkpoint ·/)).toHaveLength(3);
-    fireEvent.click(screen.getByRole("button", { name: "Retry linked attempt" }));
+    expect(screen.getAllByText("原始对象")).toHaveLength(3);
+    expect(screen.getAllByText("派生对象")).toHaveLength(3);
+    expect(screen.getAllByText("证据")).toHaveLength(3);
+    expect(screen.getAllByText(/检查点 ·/)).toHaveLength(3);
+    fireEvent.click(screen.getByRole("button", { name: "重试关联尝试" }));
     await waitFor(() => expect(retryCalls).toBe(1));
   });
 
@@ -329,22 +329,22 @@ describe("Knowledge Ledger App Shell", () => {
   it("projects Candidate author and independent review gates without claiming release", async () => {
     renderApp("/candidates");
 
-    expect(await screen.findByRole("heading", { name: "Candidates" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "知识候选" })).toBeInTheDocument();
     expect(
       await screen.findByText("AESEQ is the sequence identifier within the AE domain."),
     ).toBeInTheDocument();
     expect(screen.getByText("待作者确认")).toBeInTheDocument();
     expect(screen.getByText("待独立审核")).toBeInTheDocument();
-    expect(screen.getByText(/approved 仍不可供生产检索/)).toBeInTheDocument();
+    expect(screen.getByText(/已批准内容仍不可供/)).toBeInTheDocument();
   });
 
   it("navigates to Admin and renders product roles without credentials", async () => {
     renderApp();
 
     fireEvent.click(await screen.findByRole("link", { name: /系统管理/ }));
-    expect(await screen.findByRole("heading", { name: "Admin" })).toBeInTheDocument();
-    expect(await screen.findByText("Knowledge Reviewer")).toBeInTheDocument();
-    expect(screen.getByText("Secrets never echoed")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "系统管理" })).toBeInTheDocument();
+    expect(await screen.findByText("知识审核员")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "服务账号" })).toBeInTheDocument();
     expect(screen.queryByText(/password|token value/i)).not.toBeInTheDocument();
   });
 });

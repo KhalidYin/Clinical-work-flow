@@ -60,6 +60,15 @@ class FakePlatformRepository:
             )
         ]
         self.users: list[Any] = []
+        self.service_accounts = [
+            repository_module.ServiceAccountRecord(
+                service_account_id="svc-document-001",
+                display_name="文档处理 Worker",
+                worker_pool="document",
+                scopes=("source:read", "object:read", "processing:execute"),
+                status="active",
+            )
+        ]
         self.model_profiles: list[Any] = []
         self.model_profile_warnings: list[str] = []
         self.release = repository_module.CurrentReleaseRecord(
@@ -212,6 +221,9 @@ class FakePlatformRepository:
 
     def list_platform_users(self):
         return self.users, []
+
+    def list_service_accounts(self):
+        return self.service_accounts, []
 
     def list_model_profiles(self):
         return self.model_profiles, self.model_profile_warnings
@@ -776,6 +788,10 @@ def test_real_read_routes_return_database_views_not_fixtures_or_secrets(api_clie
 
     sources = client.get(f"{API_PREFIX}/sources", headers=_auth("admin-token")).json()
     users = client.get(f"{API_PREFIX}/admin/users", headers=_auth("admin-token")).json()
+    service_accounts = client.get(
+        f"{API_PREFIX}/admin/service-accounts",
+        headers=_auth("admin-token"),
+    ).json()
     release = client.get(
         f"{API_PREFIX}/releases/current",
         headers=_auth("admin-token"),
@@ -791,6 +807,14 @@ def test_real_read_routes_return_database_views_not_fixtures_or_secrets(api_clie
         {"issuer", "subject", "secretRef", "password", "accessToken"}.isdisjoint(item)
         for item in users["data"]["items"]
     )
+    assert service_accounts["data"]["items"][0] == {
+        "serviceAccountId": "svc-document-001",
+        "displayName": "文档处理 Worker",
+        "workerPool": "document",
+        "scopes": ["source:read", "object:read", "processing:execute"],
+        "status": "active",
+    }
+    assert "secret" not in service_accounts["data"]["items"][0]
 
 
 def test_source_registration_returns_202_run_and_never_confuses_object_with_evidence(
@@ -1099,8 +1123,9 @@ def test_checked_in_openapi_matches_runtime_paths_roles_and_responses(api_client
             f"{API_PREFIX}/audit-events",
             f"{API_PREFIX}/admin/users",
             f"{API_PREFIX}/admin/users/{{user_id}}/password/reset",
-            f"{API_PREFIX}/admin/users/{{user_id}}/status",
-            f"{API_PREFIX}/admin/model-profiles",
+                f"{API_PREFIX}/admin/users/{{user_id}}/status",
+                f"{API_PREFIX}/admin/service-accounts",
+                f"{API_PREFIX}/admin/model-profiles",
         }
     )
     assert spec["components"]["securitySchemes"]["sessionCookie"] == {

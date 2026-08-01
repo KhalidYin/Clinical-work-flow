@@ -63,42 +63,42 @@ export function AuditPage({ search, onSearchChange }: AuditPageProps) {
     <section className={styles.page} aria-labelledby="audit-title">
       <header className={styles.pageHeader}>
         <div>
-          <p className={styles.eyebrow}>KUI-10 / append-only governance ledger</p>
+          <p className={styles.eyebrow}>KUI-10 / 只追加治理账本</p>
           <h1 className={styles.title} id="audit-title">
-            Audit
+            审计记录
           </h1>
           <p className={styles.lede}>
-            只读查看 actor、action、object、版本事实、结果与 correlation ID。原始
-            details、凭据和敏感正文不会返回浏览器。
+            只读查看操作者、动作、对象、版本事实、结果与关联 ID。原始
+            详情、凭据和敏感正文不会返回浏览器。
           </p>
         </div>
         <div className={styles.headerAside}>
-          <span className={styles.asideLabel}>Ordering</span>
-          <span className={styles.asideValue}>Newest first · immutable</span>
+          <span className={styles.asideLabel}>排序</span>
+          <span className={styles.asideValue}>最新优先 · 不可变</span>
         </div>
       </header>
 
       <div className={styles.auditFilters}>
         <FilterField
-          label="Actor"
+          label="操作者"
           value={search.actor}
           placeholder="usr-review"
           onChange={(actor) => updateFilter({ actor })}
         />
         <FilterField
-          label="Action"
+          label="动作"
           value={search.action}
           placeholder="approved"
           onChange={(action) => updateFilter({ action })}
         />
         <FilterField
-          label="Object type"
+          label="对象类型"
           value={search.objectType}
           placeholder="knowledge_revision"
           onChange={(objectType) => updateFilter({ objectType })}
         />
         <FilterField
-          label="Result"
+          label="结果"
           value={search.result}
           placeholder="succeeded"
           onChange={(result) => updateFilter({ result })}
@@ -121,18 +121,18 @@ export function AuditPage({ search, onSearchChange }: AuditPageProps) {
         </button>
       </div>
 
-      <div className={styles.auditFacts} aria-label="Audit response facts">
+      <div className={styles.auditFacts} aria-label="审计响应事实">
         <span>
-          page size <b>25</b>
+          每页 <b>25</b>
         </span>
         <span>
-          returned <b>{items.length}</b> / {events.data?.data.total ?? 0}
+          返回 <b>{items.length}</b> / {events.data?.data.total ?? 0}
         </span>
         <span>
-          snapshot <b>{formatTime(events.data?.meta.generatedAt)}</b>
+          快照 <b>{formatTime(events.data?.meta.generatedAt)}</b>
         </span>
         <span>
-          latency <b>client not asserted</b>
+          延迟 <b>客户端未断言</b>
         </span>
       </div>
 
@@ -146,7 +146,7 @@ export function AuditPage({ search, onSearchChange }: AuditPageProps) {
       ) : null}
 
       <div className={styles.auditWorkbench}>
-        <div className={styles.auditList} aria-label="Audit events">
+        <div className={styles.auditList} aria-label="审计事件">
           {events.isPending ? <AuditSkeleton /> : null}
           {events.isError ? (
             <CompactAuditState
@@ -180,7 +180,7 @@ export function AuditPage({ search, onSearchChange }: AuditPageProps) {
               <small>
                 {event.objectType} · {event.objectId}
               </small>
-              <span className={styles.status}>{event.result ?? "no result"}</span>
+              <span className={styles.status}>{event.result ?? "无结果"}</span>
             </button>
           ))}
           <div className={styles.auditPagination}>
@@ -254,26 +254,26 @@ function AuditEventDetail({ event }: { event: AuditEvent }) {
     <article className={styles.auditPaper}>
       <header>
         <div>
-          <span className={styles.eyebrow}>Audit event</span>
+          <span className={styles.eyebrow}>审计事件</span>
           <h2>{event.action}</h2>
         </div>
-        <span className={styles.status}>{event.result ?? "no result"}</span>
+        <span className={styles.status}>{event.result ?? "无结果"}</span>
       </header>
       <dl className={styles.auditDefinition}>
-        <Fact label="Event ID" value={event.auditEventId} />
-        <Fact label="Actor" value={event.actorId} />
-        <Fact label="Object" value={`${event.objectType} / ${event.objectId}`} />
-        <Fact label="Run" value={event.runId ?? "not linked"} />
-        <Fact label="Correlation ID" value={event.correlationId ?? "not recorded"} />
-        <Fact label="Timestamp" value={formatTime(event.createdAt)} />
+        <Fact label="事件 ID" value={event.auditEventId} />
+        <Fact label="操作者" value={event.actorId} />
+        <Fact label="对象" value={`${event.objectType} / ${event.objectId}`} />
+        <Fact label="关联任务" value={event.runId ?? "未关联"} />
+        <Fact label="关联 ID" value={event.correlationId ?? "未记录"} />
+        <Fact label="时间" value={formatTime(event.createdAt)} />
       </dl>
       <div className={styles.versionCompare}>
-        <VersionCard title="Before facts" version={event.beforeVersion} />
+        <VersionCard title="变更前事实" version={event.beforeVersion} />
         <span aria-hidden="true">→</span>
-        <VersionCard title="After facts" version={event.afterVersion} />
+        <VersionCard title="变更后事实" version={event.afterVersion} />
       </div>
       <p className={styles.readOnlyNote}>
-        Append-only projection. No edit, delete or raw-details operation is exposed.
+        此为只追加投影，不提供编辑、删除或读取原始详情的操作。
       </p>
     </article>
   );
@@ -301,23 +301,23 @@ function VersionCard({
       {version ? (
         <>
           <strong>
-            revision {version.revisionNumber ?? "not recorded"}
+            修订 {version.revisionNumber ?? "未记录"}
           </strong>
           <code title={version.contentSha256 ?? undefined}>
             {version.contentSha256
               ? `sha256:${version.contentSha256.slice(0, 16)}`
-              : "hash not recorded"}
+                : "哈希未记录"}
           </code>
         </>
       ) : (
-        <strong>not recorded</strong>
+        <strong>未记录</strong>
       )}
     </div>
   );
 }
 
 function formatTime(value: string | undefined): string {
-  if (!value) return "pending";
+  if (!value) return "待生成";
   return new Intl.DateTimeFormat("zh-CN", {
     dateStyle: "medium",
     timeStyle: "medium",

@@ -127,6 +127,9 @@ from .contracts import (
     RetryResponse,
     SessionData,
     SessionResponse,
+    ServiceAccountCollectionData,
+    ServiceAccountCollectionResponse,
+    ServiceAccountData,
     SourceCollectionData,
     SourceCollectionResponse,
     SourceRegistrationData,
@@ -1224,6 +1227,46 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
         ]
         return UserCollectionResponse(
             data=UserCollectionData(
+                items=items,
+                total=len(items),
+                partial=bool(warnings),
+                warnings=list(warnings),
+            ),
+            meta=_meta(),
+        )
+
+    @app.get(
+        f"{API_PREFIX}/admin/service-accounts",
+        operation_id="listServiceAccounts",
+        response_model=ServiceAccountCollectionResponse,
+        responses=protected_responses,
+    )
+    def list_service_accounts(
+        _actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.ADMIN_READ)),
+        ],
+    ) -> ServiceAccountCollectionResponse:
+        try:
+            records, warnings = services.repository.list_service_accounts()
+        except SQLAlchemyError as exc:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="服务账号仓库不可用。",
+            ) from exc
+        items = [
+            ServiceAccountData(
+                service_account_id=record.service_account_id,
+                display_name=record.display_name,
+                worker_pool=record.worker_pool,
+                scopes=list(record.scopes),
+                status=record.status,
+            )
+            for record in records
+        ]
+        return ServiceAccountCollectionResponse(
+            data=ServiceAccountCollectionData(
                 items=items,
                 total=len(items),
                 partial=bool(warnings),

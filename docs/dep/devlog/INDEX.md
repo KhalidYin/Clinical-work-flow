@@ -89,5 +89,6 @@
 | R093 | 2026-08-01 | 13:14 | P12-knowledge-application-platform | P2-B3 | 完成零出站 ModelProfile registry、Admin 配置界面与真实产品 E2E | `clinical-llm-wiki/service/platform_api/`, `clinical-llm-wiki/frontend/src/`, `clinical-llm-wiki/scripts/start-demo.ps1`, `clinical-llm-wiki/tests/`, `docs/` | active/DEVLOG-R089-R128.md |
 | R094 | 2026-08-01 | 15:53 | P13-password-session-chinese-legacy-retirement | P1 | 冻结密码会话、旧 Wiki crosswalk、历史哈希和 Workflow 回归合同 | `clinical-llm-wiki/tests/`, `docs/dep/` | active/DEVLOG-R089-R128.md |
 | R095 | 2026-08-01 | 16:35 | P13-password-session-chinese-legacy-retirement | P2 | 落地 Argon2id 密码会话、Cookie/CSRF、管理员 API 与安全本地引导 | `clinical-llm-wiki/service/`, `clinical-llm-wiki/frontend/src/`, `clinical-llm-wiki/compose.yaml`, `docs/dep/` | active/DEVLOG-R089-R128.md |
+| R096 | 2026-08-01 | 17:08 | P13-password-session-chinese-legacy-retirement | P3 | 完成中文产品界面、用户管理与服务账号安全投影浏览器闭环 | `clinical-llm-wiki/frontend/src/`, `clinical-llm-wiki/service/platform_api/`, `docs/dep/` | active/DEVLOG-R089-R128.md |
 
 > Legacy rounds R001-R008 remain immutable in [DEVLOG-legacy.md](archive/DEVLOG-legacy.md). They predate the searchable index and were intentionally not rewritten during adoption.

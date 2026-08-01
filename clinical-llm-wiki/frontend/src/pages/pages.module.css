@@ -262,6 +262,79 @@
   grid-column: 1 / -1;
 }
 
+.roleFieldset {
+  display: grid;
+  min-width: 0;
+  padding: 12px;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 9px;
+  border: 1px solid var(--paper-300);
+  border-radius: var(--radius);
+}
+
+.roleFieldset legend {
+  padding: 0 6px;
+  color: var(--ink-500);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.roleFieldset label {
+  display: flex;
+  min-height: 34px;
+  flex-direction: row;
+  gap: 7px;
+  align-items: center;
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.roleFieldset input {
+  width: 15px;
+  min-height: 15px;
+}
+
+.roleFieldset code {
+  color: var(--ink-500);
+  font-size: 9px;
+}
+
+.temporaryCredential {
+  display: grid;
+  margin: 16px 0;
+  padding: 18px;
+  grid-template-columns: minmax(140px, 0.6fr) minmax(220px, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  color: var(--ink-950);
+  background: color-mix(in srgb, var(--amber-100) 68%, var(--paper-50));
+  border: 1px solid color-mix(in srgb, var(--amber-700) 32%, var(--paper-300));
+  border-radius: var(--radius);
+}
+
+.temporaryCredential strong,
+.temporaryCredential span {
+  display: block;
+}
+
+.temporaryCredential code {
+  padding: 10px 12px;
+  overflow-wrap: anywhere;
+  background: rgba(255, 254, 249, 0.72);
+  border: 1px solid var(--paper-300);
+}
+
+.temporaryCredential p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--ink-500);
+  font-size: 12px;
+}
+
 .modelGrid {
   display: grid;
   gap: 1px;
@@ -1575,6 +1648,10 @@
   .modelForm,
   .modelGrid,
   .modelCard dl {
+    grid-template-columns: 1fr;
+  }
+
+  .temporaryCredential {
     grid-template-columns: 1fr;
   }
 
