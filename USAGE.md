@@ -535,9 +535,15 @@ http://localhost:4173/app.html#/candidates
 ```
 
 本地身份保存在 gitignored 的 `.demo-runtime/access.json`，脚本和日志都不会回显 token。
-从文件复制 `author.token`、`reviewer.token` 或只读 `auditor.token`，在页面“连接本地产品”表单中登录；“更换本地
+从文件复制 `admin.token`、`author.token`、`reviewer.token` 或只读 `auditor.token`，在页面“连接本地产品”表单中登录；“更换本地
 身份”会清除当前 tab token 并重新经过 API 认证与数据库 RBAC。不要把该文件提交、截图或用作
 生产凭据。
+
+以 Demo Admin 登录后，可在 Admin → Model API Configuration 登记一个不可变 ModelProfile
+版本。表单只接受 provider/model、边界、限额以及 `env://`/`secret://` 引用，不接受或回显
+API Key。保存操作不会测试连接、运行 Worker、创建 ModelInvocation 或启用 live；页面固定显示
+`not verified` 与 `live disabled`。旧 demo runtime 省略 `-Reset` 再运行启动脚本时会幂等补齐
+Admin 身份，不删除现有 PostgreSQL 数据。
 
 推荐人工验收顺序：
 

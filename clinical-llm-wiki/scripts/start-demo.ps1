@@ -111,6 +111,42 @@ if (-not (Test-Path -LiteralPath $envPath)) {
     ) | Set-Content -LiteralPath $envPath -Encoding utf8NoBOM
 }
 
+# Existing demo runtimes created before KUI-09 have no administrator identity.
+# Upgrade them in place without resetting durable product data or printing tokens.
+$existingBundle = Get-Content -LiteralPath $identitiesPath -Raw | ConvertFrom-Json
+$existingAdmin = $existingBundle.identities |
+    Where-Object { $_.roles -contains "platform_admin" } |
+    Select-Object -First 1
+if ($null -eq $existingAdmin) {
+    $adminToken = New-RandomSecret
+    $adminIdentity = [ordered]@{
+        token = $adminToken
+        userId = "usr-demo-admin"
+        subject = "demo-admin"
+        displayName = "Demo Admin"
+        email = "admin@example.test"
+        roles = @("platform_admin")
+    }
+    [ordered]@{
+        version = $existingBundle.version
+        issuer = $existingBundle.issuer
+        identities = @($existingBundle.identities) + @($adminIdentity)
+    } | ConvertTo-Json -Depth 8 |
+        Set-Content -LiteralPath $identitiesPath -Encoding utf8NoBOM
+
+    $accessBundle = if (Test-Path -LiteralPath $accessPath) {
+        Get-Content -LiteralPath $accessPath -Raw | ConvertFrom-Json -AsHashtable
+    } else {
+        [ordered]@{}
+    }
+    $accessBundle["admin"] = [ordered]@{
+        displayName = "Demo Admin"
+        token = $adminToken
+    }
+    $accessBundle | ConvertTo-Json -Depth 5 |
+        Set-Content -LiteralPath $accessPath -Encoding utf8NoBOM
+}
+
 $identities = Get-Content -LiteralPath $identitiesPath -Raw | ConvertFrom-Json
 $author = $identities.identities |
     Where-Object { $_.roles -contains "knowledge_curator" } |
@@ -153,5 +189,5 @@ if (-not $candidateReady) {
 }
 
 Write-Host "Knowledge Ledger is ready at http://localhost:4173/app.html#/candidates"
-Write-Host "Local access identities are stored in .demo-runtime/access.json (not printed)."
+Write-Host "Local access identities, including Admin, are stored in .demo-runtime/access.json (not printed)."
 Write-Host "Use -Reset to remove only the clinical-knowledge-demo volumes and regenerate data."

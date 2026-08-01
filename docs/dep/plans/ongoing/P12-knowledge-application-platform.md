@@ -680,7 +680,7 @@ P2-B 不再作为一次性“大模型 + 关系图 + 全部审核 UI”交付。
 - [x] Relation 必须类型合法、端点存在且有 edge evidence；dangling、闭包/循环约束、conflicting/supersedes 语义由确定性校验完成。
 - [ ] Audit 可追溯一次 live invocation 到 Candidate revision 和 Evidence，但不记录 API secret、chain-of-thought 或未批准敏感正文。
 - [x] `[KUI-05]`、`[KUI-10]` 及对应组件/API/权限/浏览器测试通过。
-- [ ] `[KUI-09]` 可通过真实 API 查看并登记不可变 ModelProfile 版本；只保存非敏感配置与
+- [x] `[KUI-09]` 可通过真实 API 查看并登记不可变 ModelProfile 版本；只保存非敏感配置与
   secret reference，权限/冲突/错误/部分数据/窄屏状态通过自动化和浏览器测试，供应商调用为零。
 - [ ] P2 Gate 证明 Source → Evidence → AI Candidate → 作者确认 → 独立 Reviewer 闭环；`approved` 仍不等于 `released`。
 
@@ -910,6 +910,7 @@ P3 只消费 P2 已批准的 KnowledgeRevision。内部先构建可解释检索�
 | D18 | 同一 Knowledge Unit 的历史 revision 和当前 revision 都可能保留 proposed relation，直接合并会产生重复路径 | P2-B3 KUI | 数据投影（已解决） | Relation read adapter 只投影当前 KnowledgeRevision 的未发布 proposal；历史 proposal 继续留在 append-only Audit，不进入当前图 |
 | D19 | 通用 `--once` Worker 会领取队列中最早的 eligible run，不能保证命中已批准出站的单次测试 run | P2-B3 失败门 | 运行授权（已解决） | ledger/Worker 增加可选 `target_run_id`；P2-B3 先只读 preflight fresh run，再用 `--run-id ... --once` 定向领取，并以进程级 `max_calls=1` 限制调用 |
 | D20 | 模型 advisory 若只有类型和 Evidence 而没有描述，人工无法判断具体 duplicate/conflict/gap；若模型自行决定图语义则会绕过治理 | P2-B3 eligibility | 产品/数据（已解决） | advisory signal 强制描述与 Candidate Evidence；PostgreSQL canonical graph 上由确定性 validator 判定端点、互斥、cycle、closure 和 supersedes，模型输出仅供人工判断 |
+| D21 | 旧 demo runtime 只有 Author/Reviewer/Auditor，KUI-09 已实现但没有可用 Admin 身份进入 | P2-B3 KUI-09 | 产品可用性（已解决） | `start-demo.ps1` 对已有 runtime 幂等追加 gitignored Demo Admin，不重置数据、不打印 token；Admin 仍只获得内部 RBAC 的管理权限，不隐式获得审核或发布权限 |
 
 ## 关键决策记录
 
@@ -971,3 +972,4 @@ P3 只消费 P2 已批准的 KnowledgeRevision。内部先构建可解释检索�
 | 2026-07-31 | Relation/Audit prerelease API、KUI-05/KUI-10、真实 PostgreSQL/浏览器 tests、README/USAGE/SPEC-13、P12 memory | P2-B3 非出站产品切片完成：有限 Evidence relation、append-only Audit 和显式 MSW 边界通过；live ModelProfile/Secret/Evidence/预算仍是关闭 P2 Gate 的唯一下一输入 |
 | 2026-07-31 | `service/processing/live_preflight.py`、target-run ledger/Worker、失败分类/预算 tests、README/USAGE/SPEC-12/13、P12 memory | P2-B3 离线失败门完成：四类 provider failure 脱敏进入 ModelInvocation/StepAttempt，人工 retry 新建 lineage；单次 live vertical 已具备只读预检和定向执行入口，但未发起外部调用 |
 | 2026-07-31 | Candidate advisory/lineage、Relation eligibility、`0007` migration、KUI-04、PostgreSQL tests、README/USAGE/SPEC-12/13、P12 memory | P2-B3 离线资格门完成：模型只提交有描述且引用 Evidence 的 duplicate/conflict/gap 建议；确定性写事务拒绝悬空、自环、互斥、cycle、closure 和非法 supersedes；下一输入仅剩获授权 live vertical |
+| 2026-08-01 | KUI-09 ModelProfile registry/API/Admin UI、demo Admin migration、PostgreSQL/浏览器 tests | P2-B3 零出站配置切片完成：不可变 ModelProfile 只保存非敏感元数据与 secret reference；桌面/390px、权限/冲突/脱敏审计通过，真实登记前后 ModelInvocation 计数不变；live Gate 继续 open |

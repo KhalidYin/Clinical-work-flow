@@ -49,6 +49,7 @@ P12 在本目录原地把 Wiki 演进为独立知识产品，不新增第三个�
 - P2-B2 的 Enrichment Worker 通过无网络 fake/replay `ModelProviderPort` 从 canonical Evidence 产生 Candidate/proposal；相同模型输入 hash 可精确回放，新的 retry 仍保留独立 StepAttempt。
 - P2-B3 已完成不出站的失败门：timeout、rate limit、非法结构化输出和 provider error 以脱敏类别写入 ModelInvocation 与 StepAttempt；人工 retry 才建立新 attempt。`service.processing.live_preflight` 只读验证一个 fresh run，绝不调用供应商。
 - P2-B3 的离线资格门也已完成：`possible_duplicate`、`possible_conflict`、`explicit_gap` 必须带可读描述并引用 Candidate Evidence；无 Evidence 的输出不能创建 Candidate。Relation 端点、edge evidence、自环、反向 conflict、互斥类型、`depends_on`/`derived_from`/`supersedes` cycle/closure 与 governed supersedes 由写事务中的确定性校验决定，模型 confidence 不具备治理权限；
+- KUI-09 Model API Configuration 通过 Admin API 登记不可变 ModelProfile 版本，只接受非敏感配置与 `env://`/`secret://` 引用。保存不会测试连接、启用 live、启动 Worker 或创建 ModelInvocation；同一 ID/version 的不同内容返回 conflict；
 - Candidate 保存 `origin_model_invocation_id`，API/UI/Audit 可追溯 invocation → run/attempt → Evidence → Candidate；结构化 advisory schema 对应默认 prompt profile `atomic-candidate@1.1.0`，已有本地 Demo 数据需通过受控 `-Reset` 重建，不能把旧 `1.0.0` profile 静默当作新合同；
 - request-change 建立 Candidate revision N+1 并保留旧 Candidate、KnowledgeRevision 与 ReviewDecision；作者确认和独立 Reviewer 决策只能由真实后端 permission Gate 推进。
 - `service/demo_runtime.py` 只建立受控身份/RBAC/Profile/Source 和精确 replay record，再调用真实 Document/Enrichment worker；它不直写 Candidate，也不创建 Release。
@@ -66,9 +67,10 @@ Set-Location .\clinical-llm-wiki
 ```
 
 启动完成后打开 `http://localhost:4173/app.html#/candidates`。脚本不会回显 token；从
-gitignored 的 `.demo-runtime/access.json` 复制 Demo Author、Demo Reviewer 或 Demo Auditor token，在页面
+gitignored 的 `.demo-runtime/access.json` 复制 Demo Admin、Demo Author、Demo Reviewer 或 Demo Auditor token，在页面
 “连接本地产品”表单中登录。Document 与 Enrichment 是两个独立异步 worker pool，不是流式
 pipeline；页面显示 approved 后仍应看到 current release unavailable。
+Demo Admin 可在 Admin → Model API Configuration 登记配置引用；该操作不代表 Provider 已验证或 live 已授权。
 
 保留数据重启时省略 `-Reset`：
 

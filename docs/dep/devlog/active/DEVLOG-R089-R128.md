@@ -252,3 +252,55 @@
 - `clinical-llm-wiki/schemas/application/knowledge-api.prerelease.yaml`
 - `clinical-llm-wiki/tests/`
 - `USAGE.md`、Wiki README、SPEC-12/13、P12 plan/PLAN/memory
+
+### R093 [13:14] [P12-knowledge-application-platform] P2-B3: 完成零出站 Model API 配置产品闭环
+
+#### Done
+
+- 新增 Admin-only ModelProfile registry GET/POST：同一 ID/version 内容相同可幂等重放，内容
+  不同返回 conflict；请求只接受非敏感元数据和 `env://`/`secret://` 引用，明文 secret 与
+  多余字段在进入 repository 前失败，验证错误不回显输入。
+- SQLAlchemy repository 将不可变版本写入 PostgreSQL，并追加脱敏
+  `model_profile.registered / registered_not_verified` AuditEvent；配置保存不依赖 provider，
+  不创建 ModelInvocation，也不提供连接测试或 live 开关。
+- KUI-09 延续 Evidence Ledger 视觉基线，提供登记、加载、空、错误、partial、conflict-ready
+  状态，并固定展示 `not verified` / `live disabled`。表单根据 deployment class 约束数据边界，
+  窄屏降为单列。
+- `start-demo.ps1` 为已有 runtime 幂等补齐 gitignored Demo Admin，不重置数据、不打印 token；
+  登录提示同步包含 Admin。阶段提交 `6cecce6` 已推送远端。
+
+#### Issues / Blockers
+
+- 浏览器 E2E 首次无法进入 Admin。根因不是路由或 RBAC 缺陷，而是旧 demo identity bundle
+  从未生成 platform_admin；已加入保留数据的幂等身份迁移并通过真实 RBAC 登录。
+- 当前 demo 历史上已有 1 条 replay ModelInvocation；E2E 登记前后均为 1，证明本次配置没有
+  增量调用。真实 Provider 仍未配置、验证或调用，P2 live Gate 保持 open。
+- 首次真实调用前仍需核对 DeepSeek 对 JSON mode/structured output 与 thinking 默认行为的
+  实际参数兼容性；不得把 registry 登记当作 adapter 兼容性结论。
+
+#### Validation
+
+- 后端合同 20 passed；Ruff 通过；一次性 pgvector/PostgreSQL registry acceptance 1 passed。
+- 前端 Vitest 26 passed；TypeScript typecheck 和 Vite production build 通过。
+- 真实 Compose/FastAPI/PostgreSQL/Nginx 浏览器 E2E：Admin 登录、ModelProfile 登记、脱敏
+  Audit、桌面 2560px 与 390px 窄屏通过；390px `scrollWidth == innerWidth`。
+- 数据库 E2E：ModelProfile 1→2，ModelInvocation 1→1；Audit 不含 `secret_ref`，页面无 API
+  Key/secret value 输入和“测试连接/运行模型”按钮。供应商出站调用数为 0。
+
+#### Next
+
+1. 用户在 KUI-09 登记目标 profile/version 与 secret reference，并在受控环境注入实际 secret；
+   不在 UI、仓库、日志或聊天中粘贴密钥。
+2. 首次出站前修正并验证 DeepSeek `json_object`/thinking 参数映射，执行只读 preflight；用户
+   确认 synthetic Evidence 与 `max_calls=1` 后才运行一次定向 Worker。
+3. live Candidate 仍需 Author confirmation 与 independent Reviewer；完成 Audit lineage 后才
+   关闭 P2 并启动 P3。
+
+#### Files Changed
+
+- `clinical-llm-wiki/service/platform_api/`
+- `clinical-llm-wiki/schemas/application/knowledge-api.prerelease.yaml`
+- `clinical-llm-wiki/frontend/src/`
+- `clinical-llm-wiki/scripts/start-demo.ps1`
+- `clinical-llm-wiki/tests/`
+- Wiki README、`USAGE.md`、P12/PLAN/memory、DEVLOG

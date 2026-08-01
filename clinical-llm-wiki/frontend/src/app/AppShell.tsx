@@ -107,7 +107,7 @@ export function AppShell() {
               aria-describedby={loginError ? "local-login-error" : "local-login-help"}
             />
             <p id="local-login-help" className={styles.loginHelp}>
-              从 <code>.demo-runtime/access.json</code> 复制 Author、Reviewer 或 Auditor token。
+              从 <code>.demo-runtime/access.json</code> 复制 Admin、Author、Reviewer 或 Auditor token。
             </p>
             {loginError ? (
               <p id="local-login-error" className={styles.loginError} role="alert">

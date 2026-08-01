@@ -61,6 +61,10 @@ type: project
   synthetic Evidence 和调用预算。未取得这些输入前不得发起供应商调用，也不得把 KUI 完成
   解释为 P2 Gate、生产检索或 Release 授权；但不依赖出站的 Candidate/Relation 确定性资格门
   应继续实施，不能把外部授权误当成整个 P2-B3 的阻塞。
+- KUI-09 零出站配置闭环已于 2026-08-01 完成：Demo Admin 可经真实 FastAPI/PostgreSQL
+  查看并登记不可变 ModelProfile；仅保存非敏感元数据和 secret reference，保存不会测试连接、
+  启用 live 或创建 ModelInvocation。桌面与 390px 浏览器、权限、conflict、错误、部分数据及
+  脱敏 Audit 均通过；这不关闭 P2 live Gate。
 - P2-B3 的离线失败门已于 2026-07-31 完成：timeout、rate limit、非法结构化输出和 provider
   error 以脱敏类别同时进入 failed ModelInvocation 和对应 StepAttempt；LiteLLM 固定零 retry，
   只有人工 `processing:retry` 才能建立递增且带 `previous_attempt_id` 的新 attempt。
