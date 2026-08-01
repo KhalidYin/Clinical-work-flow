@@ -9,12 +9,17 @@ updated: 2026-08-01
 | # | 当前 Gate | 子计划 | 状态 |
 |---|----------|--------|------|
 | P12 | P2-B3 单一 live vertical（待用户配置） | [P12-knowledge-application-platform.md](plans/ongoing/P12-knowledge-application-platform.md) | KUI-09 配置 UI/API done · live 未授权、未调用 |
+| P13 | P2 人员密码、服务端会话与安全控制 | [P13-password-session-chinese-legacy-retirement.md](plans/ongoing/P13-password-session-chinese-legacy-retirement.md) | P1 done · P2 in progress · 不触发真实模型 |
 
 ## 待开始
 
-P12 P2-B3 是当前 Gate；P3、P4 保持 pending。P2-B2 完成不自动授权真实模型、发布、生产检索或迁移部署。P2-B3 的默认关闭、精确 profile/version/data-boundary/call-budget 运行门、供应商失败矩阵、Candidate duplicate/conflict/gap 建议、Relation 确定性资格判定、KUI-05 Relation Explorer、KUI-10 Audit 与零出站 KUI-09 Model API Configuration 均已完成。KUI-09 只登记不可变 ModelProfile 元数据和 `env://`/`secret://` 引用；不接收密钥、不测试连接、不启用 live，真实浏览器登记前后 `ModelInvocation` 计数不变。真实 vertical slice 仍由用户后续单独配置和触发。
+| # | 子计划 | 文件 | 预估轮次 | 依赖 |
+|---|--------|------|----------|------|
+| - | 当前无其他已批准子计划 | - | - | - |
 
-P12 是唯一可执行主线，产品结果固定为“受控 Source → Evidence → AI Candidate → 作者确认 → 独立审核 → 检索评估 → immutable Release → REST/MCP 消费”。D0 Evidence Ledger HTML 继续作为颜色、排版、布局和核心交互基线。P1 已关闭产品基础 Gate；P2-A 已关闭 Source Registry、对象一致性、确定性解析、Document Worker DAG/fan-in、Evidence lineage、`202 + run_id` API 与 KUI-02/03。P2-B1 已冻结 Candidate eligibility、edge evidence、作者确认、独立审核、stale/idempotency、released immutability 和 worker/admin 越权合同。P2-B2 已用无网络 replay 接通真实 Source → Evidence → Candidate → request-change/revision → 独立批准的可启动前后端闭环，并证明 approved 仍无 Release。P2-B3 的离线部分已完成 fail-closed live 授权/预算、供应商失败矩阵、定向 preflight、Candidate advisory/ModelInvocation lineage、确定性 Relation eligibility、当前 revision 的有限 Evidence relation 与 append-only Audit；下一步只在获得授权输入后接一个真实外部模型，完成一次 live invocation/人工治理 vertical slice 并关闭 P2。Docling/OCR、完整生产 OIDC/S3、GraphRAG/Neo4j、Workflow、Agent Runtime 和 Project Memory 均不牵引当前主线。
+P13 是当前立即执行 Gate；P12 P2-B3 live Gate 暂停并继续保持未授权、未调用。P13 不触发真实模型，不把认证、中文界面或旧 Wiki 退役误当作 live vertical 完成证据。P2-B3 的默认关闭、精确 profile/version/data-boundary/call-budget 运行门、供应商失败矩阵、Candidate duplicate/conflict/gap 建议、Relation 确定性资格判定、KUI-05 Relation Explorer、KUI-10 Audit 与零出站 KUI-09 Model API Configuration 均已完成。KUI-09 只登记不可变 ModelProfile 元数据和 `env://`/`secret://` 引用；不接收密钥、不测试连接、不启用 live，真实浏览器登记前后 `ModelInvocation` 计数不变。真实 vertical slice 仍由用户后续单独配置和触发。
+
+P12/P13 共同构成唯一知识产品主线：P12 保持可信知识闭环，P13 收敛人员认证、中文界面和旧 Wiki 迁移退役。产品结果固定为“受控 Source → Evidence → AI Candidate → 作者确认 → 独立审核 → 检索评估 → immutable Release → REST/MCP 消费”。D0 Evidence Ledger HTML 继续作为颜色、排版、布局和核心交互基线。P1 已关闭产品基础 Gate；P2-A 已关闭 Source Registry、对象一致性、确定性解析、Document Worker DAG/fan-in、Evidence lineage、`202 + run_id` API 与 KUI-02/03。P2-B1 已冻结 Candidate eligibility、edge evidence、作者确认、独立审核、stale/idempotency、released immutability 和 worker/admin 越权合同。P2-B2 已用无网络 replay 接通真实 Source → Evidence → Candidate → request-change/revision → 独立批准的可启动前后端闭环，并证明 approved 仍无 Release。Docling/OCR、GraphRAG/Neo4j、Workflow、Agent Runtime 和 Project Memory 均不牵引当前执行。
 
 ## 最近完成
 

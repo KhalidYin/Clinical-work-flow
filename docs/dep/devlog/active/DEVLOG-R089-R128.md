@@ -304,3 +304,58 @@
 - `clinical-llm-wiki/scripts/start-demo.ps1`
 - `clinical-llm-wiki/tests/`
 - Wiki README、`USAGE.md`、P12/PLAN/memory、DEVLOG
+
+### R094 [15:53] [P13-password-session-chinese-legacy-retirement] P1: 冻结认证与旧 Wiki 退役合同
+
+#### Done
+
+- 建立 P13 唯一执行子计划并关闭 P1：冻结人员“用户名 + Argon2id 密码哈希 + 服务端
+  HttpOnly Cookie 会话”和 Worker 独立最小权限机器凭据边界；P12 live 模型 Gate 继续暂停，
+  本轮出站调用数为 0。
+- 新增旧 Wiki crosswalk，清点 146 个 Vault 文件、104 条受治理且 ID 唯一的记录、来源
+  accession/package、3 个 snapshot、18 个历史 review 文件、审计、内容/PDF 脚本、旧 8787
+  runtime 引用和 13 个 P1-P11 历史计划。每类资产具有迁移、最小 fixture 或门禁后删除处置，
+  `unresolved_assets` 为零。
+- 对用户列出的 7 项问题逐项定性：历史脚本 SHA-256 的尾随 LF 语义保留为 verify-only；旧
+  Schema loader、stage 集合、snapshot 包装和 YAML 静默跳过由 fail-closed 迁移与旧服务删除解决；
+  P9 helper 与 prerelease evolution 版本不跨 Workflow 主线硬改。
+- 以 TDD 登记人员凭据/浏览器会话、恶意 YAML fail-closed、中文用户名密码登录和九项中文
+  导航合同；冻结 ADAE 在线/锁定离线知识 ID、引用和 byte-identical 结果语义。
+
+#### Issues / Blockers
+
+- RED 复验确认 `user_credentials`/`browser_sessions` 尚不存在，旧迁移扫描器也没有
+  fail-closed API；前端仍显示 token 登录和英文导航。这些是 P2/P3 的预期实现缺口，不是
+  被跳过的失败。
+- 既有 `test_adae_knowledge_workflow.py` 当前 5 项失败：夹具声明的 3 个审批证据文件从未纳入
+  Git，且测试没有按当前固定 pipeline 准备前置阶段，动作停在 `protocol_analysis`。已登记为
+  P13-001/002；P4 只修兼容接线和夹具，不改变临床阶段顺序或 Review 合同，P5 删除前必须转绿。
+- 项目唯一虚拟环境起初未安装 Workflow 自声明依赖，导致 MCP 工具静默降级为空。已从
+  `clinical-workflow/pyproject.toml` 安装 editable 依赖；产品源码和依赖声明未改。
+
+#### Validation
+
+- RED backend：显式 `--runxfail` 为 2 failed、3 passed；缺口分别是凭据/会话表和
+  fail-closed 扫描器。
+- 登记后的 backend contract：5 passed、2 xfailed；frontend contract：2 个 `it.fails`
+  预期失败合同通过。
+- Vault 静态清点：104 个 frontmatter governed records、104 个唯一 ID、0 个当前 YAML 解析错误。
+- Workflow 基线复验：运行依赖修复后仍为 5 failed，失败原因已进入 crosswalk 删除 Gate，未被
+  伪装为通过；供应商模型调用数为 0。
+
+#### Next
+
+1. P2 先写 Argon2id 凭据、会话哈希、登录/退出/改密、锁定与撤销的失败测试，再实现 ORM 和
+   `0008` Alembic 迁移。
+2. 将人员 HTTPBearer 替换为 Cookie-only 会话，并对修改请求加入 Origin + 自定义请求头
+   CSRF fail-closed；Worker service account 合同保持不变。
+3. P2 完成后独立提交并同步远端；主要风险是会话原值或临时密码进入数据库、日志、审计或
+   API，以及将机器身份误接到人员登录路径。
+
+#### Files Changed
+
+- `clinical-llm-wiki/tests/test_p13_legacy_retirement_contract.py`
+- `clinical-llm-wiki/tests/fixtures/migration/legacy-wiki-crosswalk.json`
+- `clinical-llm-wiki/frontend/src/test/auth-chinese-ui.test.tsx`
+- `docs/dep/plans/ongoing/P13-password-session-chinese-legacy-retirement.md`
+- `docs/dep/PLAN.md`、`docs/dep/TASK_STATE.md`、DEVLOG
