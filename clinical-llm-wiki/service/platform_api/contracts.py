@@ -395,6 +395,44 @@ class UserCollectionData(ApiModel):
     warnings: list[str]
 
 
+class ModelProfileRegistrationRequest(ApiModel):
+    profile_id: str = Field(min_length=1, max_length=160)
+    version: str = Field(min_length=1, max_length=80)
+    provider: str = Field(min_length=1, max_length=120)
+    model: str = Field(min_length=1, max_length=240)
+    deployment_class: Literal["enterprise_managed", "external_api"]
+    secret_ref: str = Field(pattern=r"^(env|secret)://[A-Za-z0-9_./-]+$")
+    endpoint_ref: str | None = Field(
+        default=None,
+        pattern=r"^(env|secret)://[A-Za-z0-9_./-]+$",
+    )
+    allowed_data_boundaries: list[
+        Literal["external_allowed", "enterprise_provider_only"]
+    ] = Field(min_length=1)
+    capabilities: list[Literal["structured_generation"]] = Field(min_length=1)
+    timeout_seconds: int = Field(ge=1, le=600)
+    max_output_tokens: int = Field(ge=1)
+    cost_policy: dict[str, Any] | None = None
+
+
+class ModelProfileData(ModelProfileRegistrationRequest):
+    created_at: datetime
+    connection_state: Literal["not_verified"] = "not_verified"
+    live_enabled: Literal[False] = False
+
+
+class ModelProfileCollectionData(ApiModel):
+    items: list[ModelProfileData]
+    total: int = Field(ge=0)
+    partial: bool
+    warnings: list[str]
+
+
+class ModelProfileRegistrationData(ApiModel):
+    profile: ModelProfileData
+    created: bool
+
+
 class ErrorData(ApiModel):
     code: Literal[
         "authentication_required",
@@ -410,6 +448,8 @@ class ErrorData(ApiModel):
         "invalid_governance_transition",
         "stale_revision",
         "duplicate_decision",
+        "invalid_request",
+        "model_profile_conflict",
     ]
     message: str
 
@@ -496,6 +536,16 @@ class CancelResponse(ApiModel):
 
 class UserCollectionResponse(ApiModel):
     data: UserCollectionData
+    meta: ResponseMeta
+
+
+class ModelProfileCollectionResponse(ApiModel):
+    data: ModelProfileCollectionData
+    meta: ResponseMeta
+
+
+class ModelProfileRegistrationResponse(ApiModel):
+    data: ModelProfileRegistrationData
     meta: ResponseMeta
 
 

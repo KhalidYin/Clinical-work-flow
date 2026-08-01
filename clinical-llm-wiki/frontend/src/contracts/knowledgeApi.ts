@@ -11,6 +11,7 @@ export const API_PATHS = {
   relationQuery: "/api/prerelease/v1/relations/query",
   auditEvents: "/api/prerelease/v1/audit-events",
   adminUsers: "/api/prerelease/v1/admin/users",
+  adminModelProfiles: "/api/prerelease/v1/admin/model-profiles",
 } as const;
 
 export function resolveApiPath(path: string): string {
@@ -453,4 +454,40 @@ export interface UserCollection {
   total: number;
   partial: boolean;
   warnings: string[];
+}
+
+export type ModelDeploymentClass = "enterprise_managed" | "external_api";
+export type ModelDataBoundary = "external_allowed" | "enterprise_provider_only";
+
+export interface ModelProfileRegistrationRequest {
+  profileId: string;
+  version: string;
+  provider: string;
+  model: string;
+  deploymentClass: ModelDeploymentClass;
+  secretRef: string;
+  endpointRef: string | null;
+  allowedDataBoundaries: ModelDataBoundary[];
+  capabilities: ["structured_generation"];
+  timeoutSeconds: number;
+  maxOutputTokens: number;
+  costPolicy: Record<string, unknown> | null;
+}
+
+export interface ModelProfile extends ModelProfileRegistrationRequest {
+  createdAt: string;
+  connectionState: "not_verified";
+  liveEnabled: false;
+}
+
+export interface ModelProfileCollection {
+  items: ModelProfile[];
+  total: number;
+  partial: boolean;
+  warnings: string[];
+}
+
+export interface ModelProfileRegistration {
+  profile: ModelProfile;
+  created: boolean;
 }

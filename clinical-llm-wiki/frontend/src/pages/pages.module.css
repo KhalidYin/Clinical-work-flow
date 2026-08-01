@@ -194,6 +194,140 @@
   box-shadow: var(--shadow);
 }
 
+.adminSection {
+  display: grid;
+  margin-bottom: 28px;
+  gap: 12px;
+}
+
+.sectionHeading {
+  display: flex;
+  gap: 18px;
+  align-items: end;
+  justify-content: space-between;
+}
+
+.sectionHeading h2,
+.modelCard h3 {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 600;
+}
+
+.sectionHeading h2 {
+  font-size: 28px;
+}
+
+.modelForm {
+  display: grid;
+  padding: 16px;
+  gap: 12px;
+  background: rgba(251, 250, 245, 0.9);
+  border: 1px solid var(--paper-300);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.modelForm label {
+  display: grid;
+  gap: 5px;
+  color: var(--ink-500);
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.modelForm input,
+.modelForm select {
+  min-height: 40px;
+  padding: 8px 10px;
+  color: var(--ink-900);
+  background: var(--white);
+  border: 1px solid var(--paper-300);
+  border-radius: var(--radius);
+  font-family: var(--mono);
+  text-transform: none;
+}
+
+.modelForm input[readonly] {
+  color: var(--ink-500);
+  background: var(--paper-200);
+}
+
+.formActions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  grid-column: 1 / -1;
+}
+
+.modelGrid {
+  display: grid;
+  gap: 1px;
+  background: var(--paper-300);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.modelCard {
+  min-width: 0;
+  padding: 16px;
+  background: var(--paper-50);
+}
+
+.modelCard header,
+.modelCard footer {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.modelCard h3 {
+  font-size: 23px;
+}
+
+.modelCard code {
+  max-width: 48%;
+  color: var(--ink-500);
+  font-size: 8px;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.modelCard dl {
+  display: grid;
+  margin: 16px 0;
+  gap: 1px;
+  background: var(--paper-300);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.modelCard dl div {
+  min-width: 0;
+  padding: 9px;
+  background: var(--white);
+}
+
+.modelCard dt {
+  color: var(--ink-500);
+  font-family: var(--mono);
+  font-size: 8px;
+  text-transform: uppercase;
+}
+
+.modelCard dd {
+  margin: 4px 0 0;
+  font-family: var(--mono);
+  font-size: 9px;
+  overflow-wrap: anywhere;
+}
+
+.modelCard footer {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
 .notice {
   display: flex;
   padding: 10px 14px;
@@ -1431,6 +1565,17 @@
 
   .headerAside {
     margin-top: 20px;
+  }
+
+  .sectionHeading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .modelForm,
+  .modelGrid,
+  .modelCard dl {
+    grid-template-columns: 1fr;
   }
 
   .toolbar {

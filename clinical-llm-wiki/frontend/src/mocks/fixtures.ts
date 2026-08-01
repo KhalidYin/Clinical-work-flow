@@ -14,6 +14,8 @@ import {
   type RelationQuery,
   type AuditEventCollection,
   type UserCollection,
+  type ModelProfileCollection,
+  type ModelProfileRegistration,
 } from "../contracts/knowledgeApi";
 
 const fixtureTime = "2026-07-29T14:58:00Z";
@@ -577,4 +579,34 @@ export const usersFixture = response<UserCollection>({
       lastActiveAt: null,
     },
   ],
+});
+
+export const modelProfilesFixture = response<ModelProfileCollection>({
+  total: 1,
+  partial: false,
+  warnings: [],
+  items: [
+    {
+      profileId: "deepseek-v4-flash-extractor",
+      version: "1.0.0",
+      provider: "deepseek",
+      model: "deepseek-v4-flash",
+      deploymentClass: "external_api",
+      secretRef: "env://KNOWLEDGE_MODEL_API_KEY",
+      endpointRef: "env://KNOWLEDGE_MODEL_ENDPOINT",
+      allowedDataBoundaries: ["external_allowed"],
+      capabilities: ["structured_generation"],
+      timeoutSeconds: 60,
+      maxOutputTokens: 4096,
+      costPolicy: { maxCostUsd: "0.05" },
+      createdAt: "2026-08-01T04:00:00Z",
+      connectionState: "not_verified",
+      liveEnabled: false,
+    },
+  ],
+});
+
+export const modelProfileRegistrationFixture = response<ModelProfileRegistration>({
+  profile: modelProfilesFixture.data.items[0],
+  created: true,
 });

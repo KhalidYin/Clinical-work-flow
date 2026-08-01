@@ -659,6 +659,10 @@ P2-B 不再作为一次性“大模型 + 关系图 + 全部审核 UI”交付。
 - 用户尚未提供获授权的 ModelProfile/Secret reference、允许出站 Evidence 或 live 调用预算，
   因此本 Phase 输入条件仍未完全满足；所有不依赖出站的 P2-B3 Gate 已关闭，但 live
   invocation 和端到端 P2 Gate 仍保持 open。
+- 2026-08-01 用户明确要求暂不运行真实 API 链路，真实配置与调用由用户后续单独触发；当前
+  继续完成不出站的 Admin Model API Configuration。该配置面只登记版本化 ModelProfile
+  元数据和 `env://`/`secret://` 引用，不接收明文密钥，不提供连接测试、preflight 或运行按钮，
+  保存配置也不能启用 live、创建 ModelInvocation 或消耗调用预算。
 
 #### 产出
 
@@ -676,6 +680,8 @@ P2-B 不再作为一次性“大模型 + 关系图 + 全部审核 UI”交付。
 - [x] Relation 必须类型合法、端点存在且有 edge evidence；dangling、闭包/循环约束、conflicting/supersedes 语义由确定性校验完成。
 - [ ] Audit 可追溯一次 live invocation 到 Candidate revision 和 Evidence，但不记录 API secret、chain-of-thought 或未批准敏感正文。
 - [x] `[KUI-05]`、`[KUI-10]` 及对应组件/API/权限/浏览器测试通过。
+- [ ] `[KUI-09]` 可通过真实 API 查看并登记不可变 ModelProfile 版本；只保存非敏感配置与
+  secret reference，权限/冲突/错误/部分数据/窄屏状态通过自动化和浏览器测试，供应商调用为零。
 - [ ] P2 Gate 证明 Source → Evidence → AI Candidate → 作者确认 → 独立 Reviewer 闭环；`approved` 仍不等于 `released`。
 
 #### 边界（本切片明确不做）
@@ -684,6 +690,8 @@ P2-B 不再作为一次性“大模型 + 关系图 + 全部审核 UI”交付。
 - 不让 LLM 代替 Author/Reviewer/Release Manager，不依据 confidence 自动确认或批准。
 - 不实现 Project Memory；外部 candidate submission 只在后续冻结 payload/inbox 语义。
 - 不部署 Neo4j，不实现 Microsoft GraphRAG provider 或全自动 graph extraction。
+- 本轮不接收明文 API Key，不提供“测试连接”或 live 执行入口；真实出站仍由后续人工 Gate
+  单独授权和验收。
 
 ### P2-B 涉及文件
 

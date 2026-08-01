@@ -11,7 +11,7 @@ from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
 import pytest
-from sqlalchemy import delete
+from sqlalchemy import delete, func, select
 
 from service.auth import IdentityAssertion, LocalIdentityProvider
 from service.db.models import (
@@ -21,6 +21,8 @@ from service.db.models import (
     KnowledgeCandidate,
     KnowledgeRevision,
     KnowledgeUnit,
+    ModelInvocation,
+    ModelProfile,
     PlatformUser,
     ProcessingRun,
     Release,
@@ -43,6 +45,105 @@ pytestmark = pytest.mark.skipif(
     not TEST_DATABASE_URL,
     reason="KNOWLEDGE_TEST_DATABASE_URL is required for PostgreSQL integration",
 )
+
+
+def test_model_profile_registry_is_immutable_audited_and_does_not_invoke_provider(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert TEST_DATABASE_URL is not None
+    monkeypatch.setenv("KNOWLEDGE_DATABASE_URL", TEST_DATABASE_URL)
+    command.upgrade(Config(ROOT / "alembic.ini"), "head")
+    engine = create_database_engine(TEST_DATABASE_URL)
+    session_factory = create_session_factory(engine)
+    profile_id = "integration-model-config"
+    version = "1.0.0"
+
+    with session_factory.begin() as session:
+        session.execute(
+            delete(AuditEvent).where(
+                AuditEvent.entity_type == "model_profile",
+                AuditEvent.entity_id == f"{profile_id}@{version}",
+            )
+        )
+        session.execute(
+            delete(ModelProfile).where(
+                ModelProfile.profile_id == profile_id,
+                ModelProfile.version == version,
+            )
+        )
+        invocation_count_before = session.scalar(
+            select(func.count()).select_from(ModelInvocation)
+        )
+
+    repository = SqlAlchemyPlatformRepository(session_factory)
+    created, was_created = repository.register_model_profile(
+        profile_id=profile_id,
+        version=version,
+        provider="deepseek",
+        model="deepseek-v4-flash",
+        deployment_class="external_api",
+        secret_ref="env://KNOWLEDGE_MODEL_API_KEY",
+        endpoint_ref="env://KNOWLEDGE_MODEL_ENDPOINT",
+        allowed_data_boundaries=["external_allowed"],
+        capabilities=["structured_generation"],
+        timeout_seconds=60,
+        max_output_tokens=4096,
+        cost_policy={"maxCostUsd": "0.05"},
+        actor_id="usr-p2b3-admin",
+        correlation_id="cfg-integration-001",
+    )
+    repeated, repeated_created = repository.register_model_profile(
+        profile_id=profile_id,
+        version=version,
+        provider="deepseek",
+        model="deepseek-v4-flash",
+        deployment_class="external_api",
+        secret_ref="env://KNOWLEDGE_MODEL_API_KEY",
+        endpoint_ref="env://KNOWLEDGE_MODEL_ENDPOINT",
+        allowed_data_boundaries=["external_allowed"],
+        capabilities=["structured_generation"],
+        timeout_seconds=60,
+        max_output_tokens=4096,
+        cost_policy={"maxCostUsd": "0.05"},
+        actor_id="usr-p2b3-admin",
+        correlation_id="cfg-integration-repeat",
+    )
+
+    assert was_created is True
+    assert repeated_created is False
+    assert repeated == created
+    assert created.secret_ref == "env://KNOWLEDGE_MODEL_API_KEY"
+    with session_factory() as session:
+        invocation_count_after = session.scalar(
+            select(func.count()).select_from(ModelInvocation)
+        )
+        events = list(
+            session.scalars(
+                select(AuditEvent).where(
+                    AuditEvent.entity_type == "model_profile",
+                    AuditEvent.entity_id == f"{profile_id}@{version}",
+                )
+            )
+        )
+    assert invocation_count_after == invocation_count_before
+    assert len(events) == 1
+    assert events[0].details["result"] == "registered_not_verified"
+    assert "secret_ref" not in events[0].details
+
+    with session_factory.begin() as session:
+        session.execute(
+            delete(AuditEvent).where(
+                AuditEvent.entity_type == "model_profile",
+                AuditEvent.entity_id == f"{profile_id}@{version}",
+            )
+        )
+        session.execute(
+            delete(ModelProfile).where(
+                ModelProfile.profile_id == profile_id,
+                ModelProfile.version == version,
+            )
+        )
+    engine.dispose()
 
 
 def test_real_postgres_repository_serves_authorized_read_routes(

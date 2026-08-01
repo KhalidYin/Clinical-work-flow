@@ -40,6 +40,8 @@ def _platform_modules():
 class FakePlatformRepository:
     def __init__(self, repository_module: Any) -> None:
         now = datetime(2026, 7, 30, 3, 0, tzinfo=timezone.utc)
+        self._repository_module = repository_module
+        self._now = now
         self._grants: dict[tuple[str, str], PlatformUserGrant] = {}
         self.sources = [
             repository_module.SourceSummaryRecord(
@@ -54,6 +56,8 @@ class FakePlatformRepository:
             )
         ]
         self.users: list[Any] = []
+        self.model_profiles: list[Any] = []
+        self.model_profile_warnings: list[str] = []
         self.release = repository_module.CurrentReleaseRecord(
             release_id="rel-001",
             version="2026.07-p1d",
@@ -204,6 +208,42 @@ class FakePlatformRepository:
 
     def list_platform_users(self):
         return self.users, []
+
+    def list_model_profiles(self):
+        return self.model_profiles, self.model_profile_warnings
+
+    def register_model_profile(self, *, actor_id: str, correlation_id: str, **facts: Any):
+        del actor_id, correlation_id
+        existing = next(
+            (
+                item
+                for item in self.model_profiles
+                if item.profile_id == facts["profile_id"] and item.version == facts["version"]
+            ),
+            None,
+        )
+        if existing is not None:
+            existing_facts = asdict(existing)
+            existing_facts.pop("created_at")
+            comparable_facts = {
+                **facts,
+                "allowed_data_boundaries": tuple(facts["allowed_data_boundaries"]),
+                "capabilities": tuple(facts["capabilities"]),
+            }
+            if existing_facts != comparable_facts:
+                from service.platform_api.repository import ModelProfileConflictError
+
+                raise ModelProfileConflictError("model profile version already exists")
+            return existing, False
+        record_facts = {
+            **facts,
+            "allowed_data_boundaries": tuple(facts["allowed_data_boundaries"]),
+            "capabilities": tuple(facts["capabilities"]),
+            "created_at": self._now,
+        }
+        profile = self._repository_module.ModelProfileRecord(**record_facts)
+        self.model_profiles.append(profile)
+        return profile, True
 
     def list_processing_runs(self):
         return self.processing_runs, []
@@ -580,6 +620,115 @@ def test_backend_permissions_protect_sources_release_and_admin(api_client) -> No
     assert (
         client.get(f"{API_PREFIX}/admin/users", headers=_auth("curator-token")).status_code == 403
     )
+    assert (
+        client.get(
+            f"{API_PREFIX}/admin/model-profiles",
+            headers=_auth("curator-token"),
+        ).status_code
+        == 403
+    )
+
+
+def test_admin_registers_immutable_model_profile_reference_without_live_call(api_client) -> None:
+    client, repository = api_client
+    payload = {
+        "profileId": "deepseek-v4-flash-extractor",
+        "version": "1.0.0",
+        "provider": "deepseek",
+        "model": "deepseek-v4-flash",
+        "deploymentClass": "external_api",
+        "secretRef": "env://KNOWLEDGE_MODEL_API_KEY",
+        "endpointRef": "env://KNOWLEDGE_MODEL_ENDPOINT",
+        "allowedDataBoundaries": ["external_allowed"],
+        "capabilities": ["structured_generation"],
+        "timeoutSeconds": 60,
+        "maxOutputTokens": 4096,
+        "costPolicy": {"maxCostUsd": "0.05"},
+    }
+
+    created = client.post(
+        f"{API_PREFIX}/admin/model-profiles",
+        headers={**_auth("admin-token"), "X-Correlation-ID": "cfg-deepseek-001"},
+        json=payload,
+    )
+
+    assert created.status_code == 201
+    assert created.json()["data"]["created"] is True
+    profile = created.json()["data"]["profile"]
+    assert profile["profileId"] == payload["profileId"]
+    assert profile["secretRef"] == "env://KNOWLEDGE_MODEL_API_KEY"
+    assert profile["connectionState"] == "not_verified"
+    assert profile["liveEnabled"] is False
+    assert {
+        "apiKey",
+        "secretValue",
+        "accessToken",
+        "connectionTest",
+    }.isdisjoint(profile)
+
+    listed = client.get(
+        f"{API_PREFIX}/admin/model-profiles",
+        headers=_auth("admin-token"),
+    )
+    assert listed.status_code == 200
+    assert listed.json()["data"]["items"] == [profile]
+    assert len(repository.model_profiles) == 1
+
+    repeated = client.post(
+        f"{API_PREFIX}/admin/model-profiles",
+        headers=_auth("admin-token"),
+        json=payload,
+    )
+    assert repeated.status_code == 201
+    assert repeated.json()["data"]["created"] is False
+    assert len(repository.model_profiles) == 1
+
+
+def test_model_profile_configuration_rejects_plaintext_secret_and_version_overwrite(
+    api_client,
+) -> None:
+    client, _ = api_client
+    payload = {
+        "profileId": "deepseek-v4-flash-extractor",
+        "version": "1.0.0",
+        "provider": "deepseek",
+        "model": "deepseek-v4-flash",
+        "deploymentClass": "external_api",
+        "secretRef": "literal-secret-value",
+        "endpointRef": "env://KNOWLEDGE_MODEL_ENDPOINT",
+        "allowedDataBoundaries": ["external_allowed"],
+        "capabilities": ["structured_generation"],
+        "timeoutSeconds": 60,
+        "maxOutputTokens": 4096,
+        "costPolicy": None,
+    }
+
+    plaintext = client.post(
+        f"{API_PREFIX}/admin/model-profiles",
+        headers=_auth("admin-token"),
+        json=payload,
+    )
+    assert plaintext.status_code == 422
+    assert "literal-secret-value" not in plaintext.text
+
+    payload["secretRef"] = "env://KNOWLEDGE_MODEL_API_KEY"
+    assert (
+        client.post(
+            f"{API_PREFIX}/admin/model-profiles",
+            headers=_auth("admin-token"),
+            json=payload,
+        ).status_code
+        == 201
+    )
+    payload["model"] = "deepseek-v4-pro"
+    conflict = client.post(
+        f"{API_PREFIX}/admin/model-profiles",
+        headers=_auth("admin-token"),
+        json=payload,
+    )
+    assert conflict.status_code == 409
+    assert conflict.json()["error"]["code"] == "model_profile_conflict"
+    assert "secret" not in conflict.json()["error"]["message"].lower()
 
 
 def test_repository_failure_is_a_sanitized_service_unavailable_response(api_client) -> None:
@@ -917,6 +1066,7 @@ def test_checked_in_openapi_matches_runtime_paths_roles_and_responses(api_client
             f"{API_PREFIX}/relations/query",
             f"{API_PREFIX}/audit-events",
             f"{API_PREFIX}/admin/users",
+            f"{API_PREFIX}/admin/model-profiles",
         }
     )
     assert spec["components"]["securitySchemes"]["bearerAuth"]["scheme"] == "bearer"
@@ -987,6 +1137,13 @@ def test_checked_in_openapi_matches_runtime_paths_roles_and_responses(api_client
         (
             "UserCollectionResponse",
             client.get(f"{API_PREFIX}/admin/users", headers=_auth("admin-token")),
+        ),
+        (
+            "ModelProfileCollectionResponse",
+            client.get(
+                f"{API_PREFIX}/admin/model-profiles",
+                headers=_auth("admin-token"),
+            ),
         ),
     ]
     for component_name, response in response_cases:

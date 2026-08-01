@@ -16,6 +16,8 @@ import {
   sourceRegistrationFixture,
   sourcesFixture,
   usersFixture,
+  modelProfilesFixture,
+  modelProfileRegistrationFixture,
 } from "./fixtures";
 
 export const handlers = [
@@ -111,4 +113,10 @@ export const handlers = [
     () => HttpResponse.json(cancelReceiptFixture, { status: 202 }),
   ),
   http.get(resolveApiPath(API_PATHS.adminUsers), () => HttpResponse.json(usersFixture)),
+  http.get(resolveApiPath(API_PATHS.adminModelProfiles), () =>
+    HttpResponse.json(modelProfilesFixture),
+  ),
+  http.post(resolveApiPath(API_PATHS.adminModelProfiles), () =>
+    HttpResponse.json(modelProfileRegistrationFixture, { status: 201 }),
+  ),
 ];

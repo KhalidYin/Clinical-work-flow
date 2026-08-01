@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import Annotated, Callable, TypeVar
 
 from fastapi import Depends, FastAPI, File, Form, Header, Query, Request, Security, UploadFile
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
@@ -74,6 +75,12 @@ from .contracts import (
     ErrorData,
     ErrorResponse,
     HealthResponse,
+    ModelProfileCollectionData,
+    ModelProfileCollectionResponse,
+    ModelProfileData,
+    ModelProfileRegistrationData,
+    ModelProfileRegistrationRequest,
+    ModelProfileRegistrationResponse,
     PlatformHealthData,
     PlatformUserData,
     ObjectReferenceData,
@@ -104,7 +111,12 @@ from .contracts import (
     UserCollectionData,
     UserCollectionResponse,
 )
-from .repository import PlatformReadRepository, ProcessingRunRecord
+from .repository import (
+    ModelProfileConflictError,
+    ModelProfileRecord,
+    PlatformReadRepository,
+    ProcessingRunRecord,
+)
 
 
 API_PREFIX = "/api/prerelease/v1"
@@ -168,6 +180,20 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
             meta=_meta(),
         )
         return JSONResponse(status_code=error.status_code, content=_dump(response))
+
+    @app.exception_handler(RequestValidationError)
+    async def handle_request_validation_error(
+        _request: Request,
+        _error: RequestValidationError,
+    ) -> JSONResponse:
+        response = ErrorResponse(
+            error=ErrorData(
+                code="invalid_request",
+                message="The request payload failed validation.",
+            ),
+            meta=_meta(),
+        )
+        return JSONResponse(status_code=422, content=_dump(response))
 
     def get_actor(
         credentials: Annotated[
@@ -1054,6 +1080,97 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
             meta=_meta(),
         )
 
+    @app.get(
+        f"{API_PREFIX}/admin/model-profiles",
+        operation_id="listModelProfiles",
+        response_model=ModelProfileCollectionResponse,
+        responses=protected_responses,
+    )
+    def list_model_profiles(
+        _actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.ADMIN_READ)),
+        ],
+    ) -> ModelProfileCollectionResponse:
+        try:
+            records, warnings = services.repository.list_model_profiles()
+        except SQLAlchemyError as exc:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="The model profile registry is unavailable.",
+            ) from exc
+        items = [_model_profile_data(record) for record in records]
+        return ModelProfileCollectionResponse(
+            data=ModelProfileCollectionData(
+                items=items,
+                total=len(items),
+                partial=bool(warnings),
+                warnings=list(warnings),
+            ),
+            meta=_meta(),
+        )
+
+    @app.post(
+        f"{API_PREFIX}/admin/model-profiles",
+        operation_id="registerModelProfile",
+        response_model=ModelProfileRegistrationResponse,
+        status_code=201,
+        responses={
+            **protected_responses,
+            409: {"model": ErrorResponse, "description": "Immutable version conflict."},
+            422: {"model": ErrorResponse, "description": "Configuration failed validation."},
+        },
+    )
+    def register_model_profile(
+        request: ModelProfileRegistrationRequest,
+        actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.ADMIN_MANAGE_SERVICE_ACCOUNTS)),
+        ],
+        correlation_id: Annotated[
+            str | None,
+            Header(alias="X-Correlation-ID", max_length=160),
+        ] = None,
+    ) -> ModelProfileRegistrationResponse:
+        safe_correlation_id = correlation_id or f"model-profile:{request.profile_id}:{request.version}"
+        try:
+            record, created = services.repository.register_model_profile(
+                profile_id=request.profile_id,
+                version=request.version,
+                provider=request.provider,
+                model=request.model,
+                deployment_class=request.deployment_class,
+                secret_ref=request.secret_ref,
+                endpoint_ref=request.endpoint_ref,
+                allowed_data_boundaries=request.allowed_data_boundaries,
+                capabilities=request.capabilities,
+                timeout_seconds=request.timeout_seconds,
+                max_output_tokens=request.max_output_tokens,
+                cost_policy=request.cost_policy,
+                actor_id=actor.actor_id,
+                correlation_id=safe_correlation_id,
+            )
+        except ModelProfileConflictError as exc:
+            raise PlatformApiError(
+                status_code=409,
+                code="model_profile_conflict",
+                message="This model profile ID/version is already registered with different configuration.",
+            ) from exc
+        except SQLAlchemyError as exc:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="The model profile registry is unavailable.",
+            ) from exc
+        return ModelProfileRegistrationResponse(
+            data=ModelProfileRegistrationData(
+                profile=_model_profile_data(record),
+                created=created,
+            ),
+            meta=_meta(),
+        )
+
     return app
 
 
@@ -1085,6 +1202,24 @@ def _processing_run_data(record: ProcessingRunRecord) -> ProcessingRunData:
             )
             for step in record.steps
         ],
+    )
+
+
+def _model_profile_data(record: ModelProfileRecord) -> ModelProfileData:
+    return ModelProfileData(
+        profile_id=record.profile_id,
+        version=record.version,
+        provider=record.provider,
+        model=record.model,
+        deployment_class=record.deployment_class,
+        secret_ref=record.secret_ref,
+        endpoint_ref=record.endpoint_ref,
+        allowed_data_boundaries=list(record.allowed_data_boundaries),
+        capabilities=list(record.capabilities),
+        timeout_seconds=record.timeout_seconds,
+        max_output_tokens=record.max_output_tokens,
+        cost_policy=record.cost_policy,
+        created_at=record.created_at,
     )
 
 
