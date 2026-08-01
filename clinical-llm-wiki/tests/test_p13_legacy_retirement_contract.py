@@ -113,7 +113,6 @@ def test_workflow_regression_contract_freezes_rule_and_artifact_semantics() -> N
     assert len(regression["known_baseline_defects"]) == 2
 
 
-@pytest.mark.xfail(strict=True, reason="P13 P2 尚未实现人员密码和服务端会话表")
 def test_password_and_browser_session_tables_are_frozen_before_implementation() -> None:
     credentials = Base.metadata.tables["user_credentials"]
     sessions = Base.metadata.tables["browser_sessions"]
@@ -126,7 +125,7 @@ def test_password_and_browser_session_tables_are_frozen_before_implementation() 
         "failed_attempts",
         "locked_until",
         "password_changed_at",
-    } <= set(credentials.columns)
+    } <= set(credentials.columns.keys())
     assert {
         "session_id_hash",
         "user_id",
@@ -134,9 +133,9 @@ def test_password_and_browser_session_tables_are_frozen_before_implementation() 
         "last_seen_at",
         "expires_at",
         "revoked_at",
-    } <= set(sessions.columns)
-    assert "password" not in credentials.columns
-    assert "session_id" not in sessions.columns
+    } <= set(sessions.columns.keys())
+    assert "password" not in credentials.columns.keys()
+    assert "session_id" not in sessions.columns.keys()
 
 
 @pytest.mark.xfail(strict=True, reason="P13 P4 尚未实现 fail-closed 旧 Vault 扫描器")

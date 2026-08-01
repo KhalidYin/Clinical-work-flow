@@ -125,8 +125,8 @@ syncs_to:
 | Phase | 目标 | 预估轮次 | 依赖 | 状态 |
 |-------|------|----------|------|------|
 | P1 | 冻结认证、迁移和删除合同 | R001-R003 | - | done |
-| P2 | 实现人员密码、会话和安全控制 | R004-R008 | P1 | in-progress |
-| P3 | 完成中文 UI 和用户管理闭环 | R009-R013 | P2 | pending |
+| P2 | 实现人员密码、会话和安全控制 | R004-R008 | P1 | done |
+| P3 | 完成中文 UI 和用户管理闭环 | R009-R013 | P2 | in-progress |
 | P4 | 迁移旧知识资产并替换 Workflow 兼容入口 | R014-R018 | P3 | pending |
 | P5 | 物理删除旧 Wiki 并完成全栈验收 | R019-R024 | P4 | pending |
 
@@ -192,11 +192,11 @@ syncs_to:
 
 ### 完成标准
 
-- [ ] Argon2id 哈希参数至少满足实施时 OWASP 基线，明文密码、人员会话值和机器 secret 不进入数据库、日志、审计或 API 响应。
-- [ ] 登录、登出、锁定、禁用、强制改密、管理员重置、会话过期/撤销和角色权限测试通过。
-- [ ] 浏览器业务请求不再支持人员 Authorization bearer；Worker 身份合同和最小 scope 测试保持通过。
-- [ ] 所有修改类浏览器请求在缺少允许 Origin 或自定义 CSRF 请求头时 fail closed。
-- [ ] Alembic 从空库升级和现有 P12 数据库升级均通过，迁移 downgrade/rollback 边界有明确测试或操作说明。
+- [x] Argon2id 固定为 `m=19456,t=2,p=1`；数据库仅保存密码哈希和会话 SHA-256；除管理员创建/重置时的单次临时密码响应外，HTTP 响应、审计与日志不返回明文密码，任何响应均不返回人员会话值。
+- [x] 登录、登出、锁定、禁用、强制改密、管理员创建/重置、会话过期/撤销和角色权限测试通过。
+- [x] 平台 API 与前端请求层已删除人员 Authorization bearer；Worker 仍使用独立 Service Account、pool 和最小 scope。
+- [x] 所有修改类浏览器请求在缺少精确允许 Origin 或 `X-CSRF-Protection` 时 fail closed。
+- [x] Alembic 已完成空库 upgrade→downgrade→upgrade，并在保留 P12 数据的 Compose PostgreSQL 上完成 `0007 → 0008` 原位升级。
 
 ### 边界（本 Phase 明确不做）
 
@@ -376,6 +376,7 @@ syncs_to:
 | P13-001 | ADAE 既有回归夹具引用 3 个从未纳入版本控制的审批证据文件 | P1 | 基线缺陷 | P4 替换兼容入口时补成 P12 发布知识夹具；P5 删除前必须转绿 |
 | P13-002 | ADAE 既有回归未按当前固定 pipeline 准备前置阶段，动作停在 `protocol_analysis` | P1 | 基线缺陷 | P4 只修测试接线，不改变临床阶段顺序或审核语义 |
 | P13-003 | Wiki 与 Workflow 当前共用的开发虚拟环境缺少 Workflow 自声明依赖 | P1 | 环境缺口 | 已从 `clinical-workflow/pyproject.toml` 安装 editable 运行依赖，无产品代码变更 |
+| P13-004 | Docker Hub 镜像代理在 P2 Compose 重建时暂时无法解析 `python:3.13-slim` 元数据 | P2 | 外部环境 | 已用既有受信镜像挂载当前源代码完成既有数据库迁移；P5 冷启动 Gate 必须重新完成完整镜像构建，不能把本次替代验证当作冷构建证据 |
 
 ## 关键决策记录
 
@@ -388,6 +389,7 @@ syncs_to:
 | 2026-08-01 | 历史脚本 SHA-256 | 统一 canonical / 保留历史算法 | 保留历史算法为 verify-only | 尾随 LF 是历史制品字节语义，改写会使旧锁定哈希失真 |
 | 2026-08-01 | 用户列出问题 2–5 | 先重构旧服务 / 迁移后删除 | 迁移后删除 | 旧 Schema loader、stage 集合、snapshot 异常包装和静默 YAML 路径属于退役 8787 服务，不扩大战时重构 |
 | 2026-08-01 | 用户列出问题 6–7 | 跨主线重构 / 保持兼容 | 保持兼容 | P9 helper 和 0.1.0 evolution receipt 不阻断 P13，且用户要求其他 Workflow 不变 |
+| 2026-08-01 | 本地管理员初始密码传递 | 配置文件 / 环境变量 / 标准输入 | 标准输入 | 启动脚本只在内存生成并一次性打印，容器通过 stdin 接收；仓库、`.demo-runtime`、容器配置和浏览器均不保存明文 |
 
 ## 同步记录
 

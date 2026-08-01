@@ -2,19 +2,22 @@
 
 from __future__ import annotations
 
-from hashlib import sha256
 import os
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import uvicorn
 
-from service.auth import IdentityAssertion, LocalIdentityProvider
+from service.auth.password_sessions import (
+    Argon2idPasswordHasher,
+    PasswordSessionService,
+    SqlAlchemyPasswordSessionRepository,
+)
 from service.db.session import (
     create_database_engine,
     create_session_factory,
     database_url_from_environment,
 )
-from service.demo_runtime import load_demo_identity_bundle
 from service.governance import (
     KnowledgeGovernanceService,
     SqlAlchemyGovernanceRepository,
@@ -35,26 +38,27 @@ def _required_environment(name: str) -> str:
 
 
 def create_environment_app():
-    """Wire the local identity adapter and existing PostgreSQL schema."""
+    """Wire password sessions and the existing PostgreSQL product services."""
 
-    identity_mode = os.environ.get("KNOWLEDGE_IDENTITY_MODE", "local")
-    if identity_mode != "local":
-        raise RuntimeError("P1-D only wires local identity; provider-specific OIDC is not enabled")
-
-    identity_provider = _local_identity_provider()
     engine = create_database_engine(database_url_from_environment())
     sessions = create_session_factory(engine)
     repository = SqlAlchemyPlatformRepository(sessions)
+    password_sessions = PasswordSessionService(
+        repository=SqlAlchemyPasswordSessionRepository(sessions),
+        hasher=Argon2idPasswordHasher(),
+    )
     object_store = LocalObjectStore(root=Path(_required_environment("KNOWLEDGE_OBJECT_STORE_ROOT")))
     ledger = PostgresProcessingLedger(sessions)
     return create_platform_app(
         PlatformApiServices(
-            identity_provider=identity_provider,
             repository=repository,
+            password_sessions=password_sessions,
             organization_name=os.environ.get(
                 "KNOWLEDGE_ORGANIZATION_NAME",
-                "Clinical Knowledge Platform",
+                "临床知识平台",
             ),
+            allowed_browser_origins=_browser_origins(),
+            secure_session_cookie=_secure_session_cookie(),
             object_store_available=object_store.healthcheck(),
             source_registry=SourceRegistryService(
                 repository=SqlAlchemySourceRegistryRepository(sessions),
@@ -69,34 +73,28 @@ def create_environment_app():
     )
 
 
-def _local_identity_provider() -> LocalIdentityProvider:
-    identities_path = os.environ.get("KNOWLEDGE_LOCAL_IDENTITIES_PATH")
-    if identities_path:
-        bundle = load_demo_identity_bundle(Path(identities_path))
-        return LocalIdentityProvider(
-            environment="local",
-            token_assertions=bundle.token_assertions(),
-        )
-
-    token = _required_environment("KNOWLEDGE_LOCAL_BEARER_TOKEN")
-    subject = _required_environment("KNOWLEDGE_LOCAL_SUBJECT")
-    display_name = _required_environment("KNOWLEDGE_LOCAL_DISPLAY_NAME")
-    email = _required_environment("KNOWLEDGE_LOCAL_EMAIL")
-    issuer = os.environ.get("KNOWLEDGE_LOCAL_ISSUER", "local://knowledge-platform")
-    assertion_facts = f"local_test\n{issuer}\n{subject}\n{display_name}\n{email}"
-    return LocalIdentityProvider(
-        environment="local",
-        token_assertions={
-            token: IdentityAssertion(
-                identity_source="local_test",
-                issuer=issuer,
-                subject=subject,
-                display_name=display_name,
-                email=email,
-                claims_sha256=sha256(assertion_facts.encode("utf-8")).hexdigest(),
-            )
-        },
+def _browser_origins() -> frozenset[str]:
+    configured = os.environ.get(
+        "KNOWLEDGE_BROWSER_ORIGINS",
+        "http://127.0.0.1:4173,http://localhost:4173",
     )
+    origins = frozenset(item.strip().rstrip("/") for item in configured.split(",") if item.strip())
+    if not origins:
+        raise RuntimeError("KNOWLEDGE_BROWSER_ORIGINS requires at least one exact origin")
+    for origin in origins:
+        parsed = urlsplit(origin)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc or parsed.path:
+            raise RuntimeError("KNOWLEDGE_BROWSER_ORIGINS accepts exact HTTP(S) origins only")
+    return origins
+
+
+def _secure_session_cookie() -> bool:
+    environment = os.environ.get("KNOWLEDGE_DEPLOYMENT_ENV", "local")
+    configured = os.environ.get("KNOWLEDGE_SESSION_COOKIE_SECURE")
+    secure = environment not in {"local", "test"} if configured is None else configured == "true"
+    if environment not in {"local", "test"} and not secure:
+        raise RuntimeError("non-local deployments require secure session cookies")
+    return secure
 
 
 def main() -> None:

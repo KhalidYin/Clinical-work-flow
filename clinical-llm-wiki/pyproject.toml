@@ -22,6 +22,7 @@ dependencies = [
     "alembic>=1.17,<2",
     "pgvector>=0.4,<1",
     "python-multipart>=0.0.20,<1",
+    "argon2-cffi>=25.1,<26",
 ]
 
 [project.optional-dependencies]

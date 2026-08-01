@@ -8,6 +8,7 @@ from typing import Any
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     Date,
     DateTime,
@@ -41,7 +42,7 @@ class PlatformUser(Base):
     __tablename__ = "platform_users"
     __table_args__ = (
         CheckConstraint(
-            "identity_source IN ('local_test', 'oidc')",
+            "identity_source IN ('local_password', 'local_test', 'oidc')",
             name="identity_source",
         ),
         CheckConstraint("status IN ('active', 'disabled')", name="user_status"),
@@ -80,6 +81,51 @@ class RoleBinding(Base):
     role: Mapped[str] = mapped_column(String(80), nullable=False)
     granted_by_actor_id: Mapped[str] = mapped_column(String(160), nullable=False)
     created_at: Mapped[datetime] = _created_at()
+
+
+class UserCredential(Base):
+    __tablename__ = "user_credentials"
+    __table_args__ = (
+        CheckConstraint("failed_attempts >= 0", name="failed_attempts_nonnegative"),
+        UniqueConstraint("username_normalized", name="username_normalized"),
+    )
+
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("platform_users.user_id", ondelete="CASCADE"), primary_key=True
+    )
+    username_normalized: Mapped[str] = mapped_column(String(160), nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    must_change_password: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("true")
+    )
+    failed_attempts: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    password_changed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class BrowserSession(Base):
+    __tablename__ = "browser_sessions"
+    __table_args__ = (
+        CheckConstraint("expires_at > created_at", name="expires_after_creation"),
+        Index("ix_browser_sessions_user_active", "user_id", "expires_at", "revoked_at"),
+    )
+
+    session_id_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("platform_users.user_id", ondelete="CASCADE"), nullable=False
+    )
+    created_at: Mapped[datetime] = _created_at()
+    last_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class ServiceAccount(Base):

@@ -57,6 +57,8 @@ export const sessionFixture = response<Session>({
     "admin:manage_service_accounts",
     "audit:read",
   ],
+  mustChangePassword: false,
+  sessionExpiresAt: "2026-07-29T22:58:00Z",
 });
 
 export const sourceRegistrationFixture = response<SourceRegistration>({

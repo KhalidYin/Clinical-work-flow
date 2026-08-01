@@ -359,3 +359,52 @@
 - `clinical-llm-wiki/frontend/src/test/auth-chinese-ui.test.tsx`
 - `docs/dep/plans/ongoing/P13-password-session-chinese-legacy-retirement.md`
 - `docs/dep/PLAN.md`、`docs/dep/TASK_STATE.md`、DEVLOG
+
+### R095 [16:35] [P13-password-session-chinese-legacy-retirement] P2: 落地密码会话与 Cookie 安全边界
+
+#### Done
+
+- 新增 `user_credentials`、`browser_sessions` 和 `20260801_0008` 迁移；密码使用固定参数
+  Argon2id 哈希，会话只保存 SHA-256 标识，登录具备未知用户等时验证、5 次失败锁定、8 小时
+  绝对期限和 30 分钟空闲期限。
+- 平台 API 删除人员 HTTP Bearer，改为 HttpOnly、SameSite=Strict 会话 Cookie；非本地部署
+  强制 Secure。全部修改请求必须同时匹配精确 Origin 和 `X-CSRF-Protection`，登录、退出、
+  强制/主动改密、管理员创建/重置/启停均有中文错误合同和审计；临时密码只在创建/重置响应
+  返回一次，审计与持久化层不记录明文。
+- 前端请求层移除 `sessionStorage` 和 Authorization 注入，接通用户名密码、强制改密、退出；
+  九个一级导航先行改为中文。旧 `.demo-runtime/access.json`、`identities.json` 已精确删除。
+- Demo 引导改为在 PowerShell 内存生成初始管理员密码，经 stdin 传入一次性容器并只向终端
+  显示一次；明文不写入 env、文件、数据库、日志或浏览器。三个 Worker 继续使用独立机器
+  Service Account、pool 和最小 scope。
+
+#### Issues / Blockers
+
+- Docker Hub 镜像代理临时无法解析 `python:3.13-slim` 元数据，导致本轮无法把完整镜像重建
+  作为冷启动证据。已使用此前受信镜像挂载当前源代码，对保留数据的 Compose PostgreSQL
+  执行真实 `0007 → 0008` 迁移；P5 仍必须重跑完整 cold build/start Gate。
+- 本轮只完成认证相关和一级导航中文；核心业务页、状态/角色字典、管理员用户操作 UI 和
+  窄屏视觉属于 P3，不能因认证页面通过而提前关闭中文产品 Gate。
+
+#### Validation
+
+- 后端定向合同 53 passed；平台 API 20 passed；Ruff 通过。
+- 新建 PostgreSQL 容器执行空库 upgrade→downgrade→upgrade；真实 SQLAlchemy/FastAPI 集成
+  2 passed。现有 Compose 数据库原位升级到 `20260801_0008`，两张新表存在且旧卷未重置。
+- 前端 Vitest 28 passed；TypeScript typecheck 与 Vite production build 通过；认证与中文一级
+  导航定向合同 12 passed。
+- Compose 配置解析通过；真实外部模型 API 调用数为 0。
+
+#### Next
+
+1. P3 先补管理员创建、一次性密码、重置、启停和越权组件测试，再实现用户管理界面。
+2. 建立集中中文展示映射并逐页清除用户可见英文，保留 API 字段、枚举、临床变量和模型名。
+3. 浏览器验证默认/加载/空/错误/partial/窄屏状态；风险是只翻译标题而遗漏按钮、表头、
+   无障碍标签和后端错误，或把机器合同错误翻译。
+
+#### Files Changed
+
+- `clinical-llm-wiki/service/auth/`、`service/db/`、`service/platform_api/`
+- `clinical-llm-wiki/schemas/application/knowledge-api.prerelease.yaml`
+- `clinical-llm-wiki/frontend/src/`
+- `clinical-llm-wiki/compose.yaml`、`scripts/start-demo.ps1`、`service/demo_runtime.py`
+- `clinical-llm-wiki/tests/`、P13/PLAN/TASK_STATE、DEVLOG

@@ -29,15 +29,16 @@ function renderApp(initialEntry = "/sources?q=") {
 }
 
 describe("Knowledge Ledger App Shell", () => {
-  it("accepts an opaque local access token without offering a fake role switch", async () => {
+  it("使用用户名和密码建立后端会话，不在浏览器存储人员令牌", async () => {
+    let authenticated = false;
     server.use(
-      http.get(resolveApiPath(API_PATHS.session), ({ request }) => {
-        if (request.headers.get("Authorization") !== "Bearer demo-author-token") {
+      http.get(resolveApiPath(API_PATHS.session), () => {
+        if (!authenticated) {
           return HttpResponse.json(
             {
               error: {
                 code: "authentication_required",
-                message: "A bearer identity is required.",
+                message: "需要登录。",
               },
               meta: sourcesFixture.meta,
             },
@@ -56,6 +57,31 @@ describe("Knowledge Ledger App Shell", () => {
               "candidate:write",
               "candidate:submit",
             ],
+            mustChangePassword: false,
+            sessionExpiresAt: "2026-07-29T22:58:00Z",
+          },
+          meta: sourcesFixture.meta,
+        });
+      }),
+      http.post(resolveApiPath(API_PATHS.login), async ({ request }) => {
+        const body = (await request.json()) as { username: string; password: string };
+        if (body.username !== "demo-author" || body.password !== "demo-password-123") {
+          return HttpResponse.json(
+            { error: { code: "invalid_credentials", message: "用户名或密码错误。" }, meta: sourcesFixture.meta },
+            { status: 401 },
+          );
+        }
+        authenticated = true;
+        return HttpResponse.json({
+          data: {
+            actorId: "usr-demo-author",
+            displayName: "演示知识工程师",
+            principalType: "human",
+            roles: ["knowledge_curator"],
+            organization: "临床知识平台",
+            permissions: ["candidate:read", "candidate:write", "candidate:submit"],
+            mustChangePassword: false,
+            sessionExpiresAt: "2026-07-29T22:58:00Z",
           },
           meta: sourcesFixture.meta,
         });
@@ -64,18 +90,19 @@ describe("Knowledge Ledger App Shell", () => {
     renderApp("/candidates");
 
     expect(
-      await screen.findByRole("heading", { name: "连接本地产品" }),
+      await screen.findByRole("heading", { name: "登录临床知识台账" }),
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Author|Reviewer/i })).not.toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Local access token"), {
-      target: { value: "demo-author-token" },
+    fireEvent.change(screen.getByLabelText("用户名"), {
+      target: { value: "demo-author" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "验证并进入" }));
+    fireEvent.change(screen.getByLabelText("密码"), {
+      target: { value: "demo-password-123" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "登录" }));
 
-    expect(await screen.findByText("Demo Author")).toBeInTheDocument();
-    expect(window.sessionStorage.getItem("knowledgeLedgerBearerToken")).toBe(
-      "demo-author-token",
-    );
+    expect(await screen.findByText("演示知识工程师")).toBeInTheDocument();
+    expect(window.sessionStorage.getItem("knowledgeLedgerBearerToken")).toBeNull();
   });
 
   it("renders API-backed platform facts and registered sources", async () => {
@@ -314,7 +341,7 @@ describe("Knowledge Ledger App Shell", () => {
   it("navigates to Admin and renders product roles without credentials", async () => {
     renderApp();
 
-    fireEvent.click(await screen.findByRole("link", { name: /Admin/ }));
+    fireEvent.click(await screen.findByRole("link", { name: /系统管理/ }));
     expect(await screen.findByRole("heading", { name: "Admin" })).toBeInTheDocument();
     expect(await screen.findByText("Knowledge Reviewer")).toBeInTheDocument();
     expect(screen.getByText("Secrets never echoed")).toBeInTheDocument();

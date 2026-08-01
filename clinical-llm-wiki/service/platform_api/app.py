@@ -4,21 +4,41 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Annotated, Callable, TypeVar
 
-from fastapi import Depends, FastAPI, File, Form, Header, Query, Request, Security, UploadFile
+from fastapi import (
+    Depends,
+    FastAPI,
+    File,
+    Form,
+    Header,
+    Query,
+    Request,
+    Response,
+    Security,
+    UploadFile,
+)
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
+from fastapi.security import APIKeyCookie
 from sqlalchemy.exc import SQLAlchemyError
 
 from service.auth import (
     ActorContext,
-    AuthenticationError,
     AuthorizationError,
-    IdentityProviderPort,
     Permission,
     require_permission,
-    resolve_human_actor,
+)
+from service.auth.password_sessions import (
+    AccountLockedError,
+    AuthenticatedPrincipal,
+    InvalidCredentialsError,
+    PasswordChangeError,
+    PasswordPolicyError,
+    PasswordSessionService,
+    SessionAuthenticationError,
+    UserConflictError,
+    UserManagementError,
+    UserNotFoundError,
 )
 from service.governance import KnowledgeGovernanceService
 from service.governance.service import (
@@ -54,6 +74,8 @@ from .contracts import (
     AuditEventCollectionResponse,
     AuditEventData,
     AuditVersionData,
+    AdminTemporaryPasswordData,
+    AdminTemporaryPasswordResponse,
     AuthorConfirmationData,
     AuthorConfirmationRequest,
     AuthorConfirmationResponse,
@@ -75,6 +97,7 @@ from .contracts import (
     ErrorData,
     ErrorResponse,
     HealthResponse,
+    LoginRequest,
     ModelProfileCollectionData,
     ModelProfileCollectionResponse,
     ModelProfileData,
@@ -83,6 +106,7 @@ from .contracts import (
     ModelProfileRegistrationResponse,
     PlatformHealthData,
     PlatformUserData,
+    PasswordChangeRequest,
     ObjectReferenceData,
     ProcessingAttemptData,
     ProcessingRunCollectionData,
@@ -110,6 +134,10 @@ from .contracts import (
     SourceSummaryData,
     UserCollectionData,
     UserCollectionResponse,
+    UserCreateRequest,
+    UserStatusData,
+    UserStatusRequest,
+    UserStatusResponse,
 )
 from .repository import (
     ModelProfileConflictError,
@@ -121,17 +149,24 @@ from .repository import (
 
 API_PREFIX = "/api/prerelease/v1"
 MAX_SOURCE_BYTES = 64 * 1024 * 1024
-_bearer = HTTPBearer(auto_error=False, scheme_name="bearerAuth")
 _ResponseModel = TypeVar("_ResponseModel", bound=BaseModel)
+SESSION_COOKIE_NAME = "clinical_knowledge_session"
+_session_cookie = APIKeyCookie(
+    name=SESSION_COOKIE_NAME,
+    auto_error=False,
+    scheme_name="sessionCookie",
+)
 
 
 @dataclass(frozen=True, slots=True)
 class PlatformApiServices:
     """Explicit ports and capability flags required by the HTTP adapter."""
 
-    identity_provider: IdentityProviderPort
     repository: PlatformReadRepository
+    password_sessions: PasswordSessionService
     organization_name: str
+    allowed_browser_origins: frozenset[str]
+    secure_session_cookie: bool
     object_store_available: bool = False
     semantic_index_available: bool = False
     source_registry: SourceRegistryService | None = None
@@ -170,6 +205,27 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
         redoc_url=None,
     )
 
+    @app.middleware("http")
+    async def enforce_browser_csrf(request: Request, call_next):
+        if request.url.path.startswith(API_PREFIX) and request.method in {
+            "POST",
+            "PUT",
+            "PATCH",
+            "DELETE",
+        }:
+            origin = request.headers.get("origin")
+            marker = request.headers.get("x-csrf-protection")
+            if origin not in services.allowed_browser_origins or marker != "1":
+                response = ErrorResponse(
+                    error=ErrorData(
+                        code="csrf_rejected",
+                        message="请求来源验证失败。",
+                    ),
+                    meta=_meta(),
+                )
+                return JSONResponse(status_code=403, content=_dump(response))
+        return await call_next(request)
+
     @app.exception_handler(PlatformApiError)
     async def handle_platform_api_error(
         _request: Request,
@@ -195,26 +251,16 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
         )
         return JSONResponse(status_code=422, content=_dump(response))
 
-    def get_actor(
-        credentials: Annotated[
-            HTTPAuthorizationCredentials | None,
-            Security(_bearer),
-        ] = None,
-    ) -> ActorContext:
-        if credentials is None:
+    def get_principal(
+        raw_session_id: Annotated[str | None, Security(_session_cookie)] = None,
+    ) -> AuthenticatedPrincipal:
+        try:
+            return services.password_sessions.authenticate_session(raw_session_id or "")
+        except SessionAuthenticationError as exc:
             raise PlatformApiError(
                 status_code=401,
                 code="authentication_required",
-                message="A bearer identity is required.",
-            )
-        try:
-            identity = services.identity_provider.verify_bearer_token(credentials.credentials)
-            return resolve_human_actor(identity, services.repository)
-        except AuthenticationError as exc:
-            raise PlatformApiError(
-                status_code=401,
-                code="invalid_identity",
-                message="The supplied identity is not active or recognized.",
+                message="需要登录。",
             ) from exc
         except SQLAlchemyError as exc:
             raise PlatformApiError(
@@ -222,6 +268,17 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
                 code="service_unavailable",
                 message="The authorization store is unavailable.",
             ) from exc
+
+    def get_actor(
+        principal: Annotated[AuthenticatedPrincipal, Depends(get_principal)],
+    ) -> ActorContext:
+        if principal.must_change_password:
+            raise PlatformApiError(
+                status_code=403,
+                code="password_change_required",
+                message="必须先修改密码。",
+            )
+        return principal.actor
 
     def permitted(permission: Permission) -> Callable[[ActorContext], ActorContext]:
         def dependency(actor: Annotated[ActorContext, Depends(get_actor)]) -> ActorContext:
@@ -277,15 +334,18 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
             meta=_meta(),
         )
 
-    @app.get(
-        f"{API_PREFIX}/session",
-        operation_id="getSession",
-        response_model=SessionResponse,
-        responses=protected_responses,
-    )
-    def get_session(
-        actor: Annotated[ActorContext, Depends(get_actor)],
-    ) -> SessionResponse:
+    def set_session_cookie(response: Response, raw_session_id: str) -> None:
+        response.set_cookie(
+            key=SESSION_COOKIE_NAME,
+            value=raw_session_id,
+            httponly=True,
+            secure=services.secure_session_cookie,
+            samesite="strict",
+            path="/",
+        )
+
+    def session_response(principal: AuthenticatedPrincipal) -> SessionResponse:
+        actor = principal.actor
         return SessionResponse(
             data=SessionData(
                 actor_id=actor.actor_id,
@@ -296,9 +356,101 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
                     actor.permissions,
                     key=lambda permission: permission.value,
                 ),
+                must_change_password=principal.must_change_password,
+                session_expires_at=principal.expires_at,
             ),
             meta=_meta(),
         )
+
+    @app.post(
+        f"{API_PREFIX}/auth/login",
+        operation_id="login",
+        response_model=SessionResponse,
+    )
+    def login(payload: LoginRequest, response: Response) -> SessionResponse:
+        try:
+            login_session = services.password_sessions.login(
+                username=payload.username,
+                password=payload.password.get_secret_value(),
+            )
+        except AccountLockedError as exc:
+            raise PlatformApiError(
+                status_code=423,
+                code="account_locked",
+                message="登录失败次数过多，请稍后重试。",
+            ) from exc
+        except (InvalidCredentialsError, PasswordPolicyError) as exc:
+            raise PlatformApiError(
+                status_code=401,
+                code="invalid_credentials",
+                message="用户名或密码错误。",
+            ) from exc
+        set_session_cookie(response, login_session.raw_session_id)
+        return session_response(login_session)
+
+    @app.post(
+        f"{API_PREFIX}/auth/password/change",
+        operation_id="changePassword",
+        response_model=SessionResponse,
+        responses=protected_responses,
+    )
+    def change_password(
+        payload: PasswordChangeRequest,
+        request: Request,
+        response: Response,
+        _principal: Annotated[AuthenticatedPrincipal, Depends(get_principal)],
+    ) -> SessionResponse:
+        try:
+            replacement = services.password_sessions.change_password(
+                raw_session_id=request.cookies.get(SESSION_COOKIE_NAME, ""),
+                current_password=payload.current_password.get_secret_value(),
+                new_password=payload.new_password.get_secret_value(),
+            )
+        except PasswordChangeError as exc:
+            raise PlatformApiError(
+                status_code=401,
+                code="current_password_invalid",
+                message="当前密码错误。",
+            ) from exc
+        except PasswordPolicyError as exc:
+            raise PlatformApiError(
+                status_code=422,
+                code="password_policy_failed",
+                message="新密码不符合安全要求。",
+            ) from exc
+        set_session_cookie(response, replacement.raw_session_id)
+        return session_response(replacement)
+
+    @app.post(
+        f"{API_PREFIX}/auth/logout",
+        operation_id="logout",
+        status_code=204,
+        responses=protected_responses,
+    )
+    def logout(
+        request: Request,
+        response: Response,
+        _principal: Annotated[AuthenticatedPrincipal, Depends(get_principal)],
+    ) -> None:
+        services.password_sessions.logout(request.cookies.get(SESSION_COOKIE_NAME, ""))
+        response.delete_cookie(
+            key=SESSION_COOKIE_NAME,
+            path="/",
+            httponly=True,
+            secure=services.secure_session_cookie,
+            samesite="strict",
+        )
+
+    @app.get(
+        f"{API_PREFIX}/session",
+        operation_id="getSession",
+        response_model=SessionResponse,
+        responses=protected_responses,
+    )
+    def get_session(
+        principal: Annotated[AuthenticatedPrincipal, Depends(get_principal)],
+    ) -> SessionResponse:
+        return session_response(principal)
 
     @app.get(
         f"{API_PREFIX}/releases/current",
@@ -1077,6 +1229,119 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
                 partial=bool(warnings),
                 warnings=list(warnings),
             ),
+            meta=_meta(),
+        )
+
+    @app.post(
+        f"{API_PREFIX}/admin/users",
+        operation_id="createPlatformUser",
+        response_model=AdminTemporaryPasswordResponse,
+        status_code=201,
+        responses=write_responses,
+    )
+    def create_platform_user(
+        payload: UserCreateRequest,
+        actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.ADMIN_MANAGE_USERS)),
+        ],
+    ) -> AdminTemporaryPasswordResponse:
+        try:
+            created = services.password_sessions.create_user(
+                actor=actor,
+                username=payload.username,
+                display_name=payload.display_name,
+                email=payload.email,
+                roles=tuple(payload.roles),
+            )
+        except UserConflictError as exc:
+            raise PlatformApiError(
+                status_code=409,
+                code="user_conflict",
+                message="用户名已存在。",
+            ) from exc
+        except UserManagementError as exc:
+            raise PlatformApiError(
+                status_code=422,
+                code="user_management_invalid",
+                message="用户资料不符合要求。",
+            ) from exc
+        return AdminTemporaryPasswordResponse(
+            data=AdminTemporaryPasswordData(
+                user_id=created.user_id,
+                username=created.username,
+                temporary_password=created.temporary_password,
+            ),
+            meta=_meta(),
+        )
+
+    @app.post(
+        f"{API_PREFIX}/admin/users/{{user_id}}/password/reset",
+        operation_id="resetPlatformUserPassword",
+        response_model=AdminTemporaryPasswordResponse,
+        responses=write_responses,
+    )
+    def reset_platform_user_password(
+        user_id: str,
+        actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.ADMIN_MANAGE_USERS)),
+        ],
+    ) -> AdminTemporaryPasswordResponse:
+        try:
+            reset = services.password_sessions.reset_user_password(
+                actor=actor,
+                user_id=user_id,
+            )
+        except UserNotFoundError as exc:
+            raise PlatformApiError(
+                status_code=404,
+                code="user_not_found",
+                message="用户不存在。",
+            ) from exc
+        return AdminTemporaryPasswordResponse(
+            data=AdminTemporaryPasswordData(
+                user_id=reset.user_id,
+                username=None,
+                temporary_password=reset.temporary_password,
+            ),
+            meta=_meta(),
+        )
+
+    @app.post(
+        f"{API_PREFIX}/admin/users/{{user_id}}/status",
+        operation_id="setPlatformUserStatus",
+        response_model=UserStatusResponse,
+        responses=write_responses,
+    )
+    def set_platform_user_status(
+        user_id: str,
+        payload: UserStatusRequest,
+        actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.ADMIN_MANAGE_USERS)),
+        ],
+    ) -> UserStatusResponse:
+        try:
+            services.password_sessions.set_user_status(
+                actor=actor,
+                user_id=user_id,
+                status=payload.status,
+            )
+        except UserNotFoundError as exc:
+            raise PlatformApiError(
+                status_code=404,
+                code="user_not_found",
+                message="用户不存在。",
+            ) from exc
+        except UserManagementError as exc:
+            raise PlatformApiError(
+                status_code=422,
+                code="user_management_invalid",
+                message="用户状态变更不符合要求。",
+            ) from exc
+        return UserStatusResponse(
+            data=UserStatusData(user_id=user_id, status=payload.status),
             meta=_meta(),
         )
 

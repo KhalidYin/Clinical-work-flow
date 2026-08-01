@@ -45,7 +45,6 @@ services:
     restart: "no"
     environment:
       <<: *application-environment
-      KNOWLEDGE_LOCAL_IDENTITIES_PATH: /run/knowledge/identities.json
       KNOWLEDGE_ENRICHMENT_RECORDS_PATH: /var/lib/clinical-knowledge/demo/replay-records.json
       KNOWLEDGE_DOCUMENT_WORKER_SERVICE_ACCOUNT_ID: ${KNOWLEDGE_DOCUMENT_WORKER_SERVICE_ACCOUNT_ID:-svc-demo-document}
       KNOWLEDGE_ENRICHMENT_WORKER_SERVICE_ACCOUNT_ID: ${KNOWLEDGE_ENRICHMENT_WORKER_SERVICE_ACCOUNT_ID:-svc-demo-enrichment}
@@ -58,7 +57,17 @@ services:
         condition: service_completed_successfully
     volumes:
       - knowledge-objects:/var/lib/clinical-knowledge
-      - ./.demo-runtime:/run/knowledge:ro
+
+  admin-bootstrap:
+    build: .
+    image: clinical-knowledge-platform:local
+    profiles: ["admin-bootstrap"]
+    command: ["python", "-m", "service.auth.bootstrap_admin"]
+    restart: "no"
+    environment: *application-environment
+    depends_on:
+      migration:
+        condition: service_completed_successfully
 
   api:
     build: .
@@ -70,9 +79,7 @@ services:
       KNOWLEDGE_API_HOST: 0.0.0.0
       KNOWLEDGE_API_PORT: "8788"
       KNOWLEDGE_API_BIND_SCOPE: compose_local
-      KNOWLEDGE_IDENTITY_MODE: local
-      KNOWLEDGE_LOCAL_IDENTITIES_PATH: /run/knowledge/identities.json
-      KNOWLEDGE_ORGANIZATION_NAME: ${KNOWLEDGE_ORGANIZATION_NAME:-Clinical Knowledge Platform}
+      KNOWLEDGE_ORGANIZATION_NAME: ${KNOWLEDGE_ORGANIZATION_NAME:-临床知识平台}
     depends_on:
       bootstrap:
         condition: service_completed_successfully
@@ -90,7 +97,6 @@ services:
     ports: ["127.0.0.1:8788:8788"]
     volumes:
       - knowledge-objects:/var/lib/clinical-knowledge
-      - ./.demo-runtime:/run/knowledge:ro
 
   frontend:
     build: ./frontend

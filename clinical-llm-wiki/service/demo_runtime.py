@@ -13,14 +13,11 @@ import os
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
-from sqlalchemy import delete, select
+from sqlalchemy import select
 
 from service.auth import (
     ActorContext,
-    IdentityAssertion,
     IdentitySource,
-    Permission,
     PrincipalType,
     ProductRole,
     ROLE_PERMISSIONS,
@@ -31,9 +28,7 @@ from service.db.models import (
     JobStep,
     KnowledgeUnit,
     ModelProfile as ModelProfileRow,
-    PlatformUser,
     PromptProfile as PromptProfileRow,
-    RoleBinding,
     ServiceAccount,
     StepAttempt,
 )
@@ -83,74 +78,6 @@ DEMO_SOURCE = (
 )
 
 
-class DemoIdentity(BaseModel):
-    """Local authentication material plus product-owned seed roles."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True, populate_by_name=True)
-
-    token: str = Field(min_length=8)
-    user_id: str = Field(alias="userId", min_length=1, max_length=160)
-    subject: str = Field(min_length=1, max_length=500)
-    display_name: str = Field(alias="displayName", min_length=1, max_length=240)
-    email: str = Field(pattern=r"^[^@\s]+@[^@\s]+$")
-    roles: tuple[ProductRole, ...] = Field(min_length=1)
-
-    @model_validator(mode="after")
-    def validate_human_roles(self) -> "DemoIdentity":
-        if ProductRole.SERVICE_ACCOUNT in self.roles:
-            raise ValueError("demo human identity cannot receive service_account")
-        if len(set(self.roles)) != len(self.roles):
-            raise ValueError("demo identity roles must be unique")
-        return self
-
-
-class DemoIdentityBundle(BaseModel):
-    """Versioned local identity file; opaque tokens never enter database rows."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    version: int = Field(ge=1, le=1)
-    issuer: str = Field(min_length=1, max_length=500)
-    identities: tuple[DemoIdentity, ...] = Field(min_length=2)
-
-    @model_validator(mode="after")
-    def validate_unique_identities_and_required_roles(self) -> "DemoIdentityBundle":
-        for values, label in (
-            ([item.token for item in self.identities], "token"),
-            ([item.user_id for item in self.identities], "userId"),
-            ([item.subject for item in self.identities], "subject"),
-        ):
-            if len(set(values)) != len(values):
-                raise ValueError(f"demo identity {label} values must be unique")
-        roles = {role for identity in self.identities for role in identity.roles}
-        if ProductRole.KNOWLEDGE_CURATOR not in roles or ProductRole.REVIEWER not in roles:
-            raise ValueError("demo identities require separate curator and reviewer roles")
-        return self
-
-    def token_assertions(self) -> dict[str, IdentityAssertion]:
-        assertions: dict[str, IdentityAssertion] = {}
-        for identity in self.identities:
-            facts = (
-                f"{IdentitySource.LOCAL_TEST.value}\n{self.issuer}\n{identity.subject}\n"
-                f"{identity.display_name}\n{identity.email}"
-            )
-            assertions[identity.token] = IdentityAssertion(
-                identity_source=IdentitySource.LOCAL_TEST,
-                issuer=self.issuer,
-                subject=identity.subject,
-                display_name=identity.display_name,
-                email=identity.email,
-                claims_sha256=sha256(facts.encode("utf-8")).hexdigest(),
-            )
-        return assertions
-
-
-def load_demo_identity_bundle(path: Path) -> DemoIdentityBundle:
-    """Load a fail-closed identity bundle from a local runtime-only file."""
-
-    return DemoIdentityBundle.model_validate_json(path.read_text(encoding="utf-8"))
-
-
 def build_demo_replay_output(
     context: EnrichmentContext,
     *,
@@ -197,7 +124,7 @@ def _required_path(name: str) -> Path:
     return Path(value)
 
 
-def _seed_configuration(session_factory, bundle: DemoIdentityBundle) -> None:
+def _seed_configuration(session_factory) -> None:
     prompt = PromptProfile(
         profile_id=DEMO_PROMPT_PROFILE_ID,
         version=DEMO_PROMPT_PROFILE_VERSION,
@@ -209,33 +136,6 @@ def _seed_configuration(session_factory, bundle: DemoIdentityBundle) -> None:
         output_schema=ENRICHMENT_OUTPUT_SCHEMA,
     )
     with session_factory.begin() as session:
-        for identity in bundle.identities:
-            row = session.get(PlatformUser, identity.user_id)
-            values = {
-                "identity_source": IdentitySource.LOCAL_TEST.value,
-                "issuer": bundle.issuer,
-                "subject": identity.subject,
-                "display_name": identity.display_name,
-                "email": identity.email,
-                "status": "active",
-            }
-            if row is None:
-                row = PlatformUser(user_id=identity.user_id, **values)
-                session.add(row)
-            else:
-                for name, value in values.items():
-                    setattr(row, name, value)
-            session.execute(delete(RoleBinding).where(RoleBinding.user_id == identity.user_id))
-            session.flush()
-            for role in identity.roles:
-                session.add(
-                    RoleBinding(
-                        user_id=identity.user_id,
-                        role=role.value,
-                        granted_by_actor_id="demo-bootstrap",
-                    )
-                )
-
         for pool in WorkerPool:
             account_id = os.environ.get(
                 f"KNOWLEDGE_{pool.value.upper()}_WORKER_SERVICE_ACCOUNT_ID",
@@ -320,16 +220,14 @@ def _seed_configuration(session_factory, bundle: DemoIdentityBundle) -> None:
             )
 
 
-def _human_actor(identity: DemoIdentity) -> ActorContext:
-    permissions: set[Permission] = set()
-    for role in identity.roles:
-        permissions.update(ROLE_PERMISSIONS[role])
+def _bootstrap_actor() -> ActorContext:
+    role = ProductRole.KNOWLEDGE_CURATOR
     return ActorContext(
-        actor_id=identity.user_id,
-        display_name=identity.display_name,
+        actor_id="demo-bootstrap",
+        display_name="演示数据引导程序",
         principal_type=PrincipalType.HUMAN,
-        roles=frozenset(identity.roles),
-        permissions=frozenset(permissions),
+        roles=frozenset({role}),
+        permissions=ROLE_PERMISSIONS[role],
         identity_source=IdentitySource.LOCAL_TEST,
     )
 
@@ -337,20 +235,13 @@ def _human_actor(identity: DemoIdentity) -> ActorContext:
 def bootstrap_demo() -> dict[str, str]:
     """Create the demo through public services and prepare exact replay input."""
 
-    identities_path = _required_path("KNOWLEDGE_LOCAL_IDENTITIES_PATH")
     object_root = _required_path("KNOWLEDGE_OBJECT_STORE_ROOT")
     records_path = _required_path("KNOWLEDGE_ENRICHMENT_RECORDS_PATH")
-    bundle = load_demo_identity_bundle(identities_path)
-    curator_identity = next(
-        identity
-        for identity in bundle.identities
-        if ProductRole.KNOWLEDGE_CURATOR in identity.roles
-    )
 
     engine = create_database_engine(database_url_from_environment())
     sessions = create_session_factory(engine)
     try:
-        _seed_configuration(sessions, bundle)
+        _seed_configuration(sessions)
         ledger = PostgresProcessingLedger(sessions)
         objects = LocalObjectStore(root=object_root)
         registry = SourceRegistryService(
@@ -359,7 +250,7 @@ def bootstrap_demo() -> dict[str, str]:
             ledger=ledger,
         )
         receipt = registry.register_and_start(
-            actor=_human_actor(curator_identity),
+            actor=_bootstrap_actor(),
             command=SourceRegistrationCommand(
                 source_id=DEMO_SOURCE_ID,
                 title="P12 Demo — SDTM AE sequence identifier",

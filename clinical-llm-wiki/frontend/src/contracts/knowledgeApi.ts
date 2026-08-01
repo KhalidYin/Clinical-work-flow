@@ -1,6 +1,9 @@
 export const CONTRACT_VERSION = "knowledge-api.prerelease.v1";
 
 export const API_PATHS = {
+  login: "/api/prerelease/v1/auth/login",
+  changePassword: "/api/prerelease/v1/auth/password/change",
+  logout: "/api/prerelease/v1/auth/logout",
   session: "/api/prerelease/v1/session",
   health: "/api/prerelease/v1/health",
   currentRelease: "/api/prerelease/v1/releases/current",
@@ -93,6 +96,18 @@ export interface Session {
   roles: HumanRole[];
   organization: string;
   permissions: ProductPermission[];
+  mustChangePassword: boolean;
+  sessionExpiresAt: string;
+}
+
+export interface LoginRequest {
+  username: string;
+  password: string;
+}
+
+export interface PasswordChangeRequest {
+  currentPassword: string;
+  newPassword: string;
 }
 
 export interface PlatformHealth {
@@ -406,6 +421,12 @@ export interface ReviewDecision {
 
 export type ApiErrorCode =
   | "authentication_required"
+  | "invalid_credentials"
+  | "account_locked"
+  | "password_change_required"
+  | "current_password_invalid"
+  | "password_policy_failed"
+  | "csrf_rejected"
   | "invalid_identity"
   | "permission_denied"
   | "service_unavailable"

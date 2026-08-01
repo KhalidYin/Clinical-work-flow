@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
 from service.auth import IdentitySource, Permission, PrincipalType, ProductRole
 
@@ -39,6 +39,18 @@ class SessionData(ApiModel):
     roles: list[ProductRole]
     organization: str
     permissions: list[Permission]
+    must_change_password: bool
+    session_expires_at: datetime
+
+
+class LoginRequest(ApiModel):
+    username: str = Field(min_length=1, max_length=160)
+    password: SecretStr
+
+
+class PasswordChangeRequest(ApiModel):
+    current_password: SecretStr
+    new_password: SecretStr
 
 
 class PlatformHealthData(ApiModel):
@@ -381,6 +393,29 @@ class PlatformUserData(ApiModel):
     last_active_at: datetime | None
 
 
+class UserCreateRequest(ApiModel):
+    username: str = Field(min_length=1, max_length=160)
+    display_name: str = Field(min_length=1, max_length=240)
+    email: str = Field(min_length=3, max_length=320)
+    roles: list[ProductRole] = Field(min_length=1)
+
+
+class UserStatusRequest(ApiModel):
+    status: Literal["active", "disabled"]
+
+
+class AdminTemporaryPasswordData(ApiModel):
+    user_id: str
+    username: str | None
+    temporary_password: str = Field(min_length=12, max_length=128)
+    must_change_password: Literal[True] = True
+
+
+class UserStatusData(ApiModel):
+    user_id: str
+    status: Literal["active", "disabled"]
+
+
 class SourceCollectionData(ApiModel):
     items: list[SourceSummaryData]
     total: int = Field(ge=0)
@@ -436,7 +471,16 @@ class ModelProfileRegistrationData(ApiModel):
 class ErrorData(ApiModel):
     code: Literal[
         "authentication_required",
+        "invalid_credentials",
         "invalid_identity",
+        "account_locked",
+        "password_change_required",
+        "current_password_invalid",
+        "password_policy_failed",
+        "csrf_rejected",
+        "user_conflict",
+        "user_not_found",
+        "user_management_invalid",
         "permission_denied",
         "service_unavailable",
         "registration_conflict",
@@ -536,6 +580,16 @@ class CancelResponse(ApiModel):
 
 class UserCollectionResponse(ApiModel):
     data: UserCollectionData
+    meta: ResponseMeta
+
+
+class AdminTemporaryPasswordResponse(ApiModel):
+    data: AdminTemporaryPasswordData
+    meta: ResponseMeta
+
+
+class UserStatusResponse(ApiModel):
+    data: UserStatusData
     meta: ResponseMeta
 
 

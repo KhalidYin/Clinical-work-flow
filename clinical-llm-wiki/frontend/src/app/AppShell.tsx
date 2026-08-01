@@ -5,27 +5,30 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ApiRequestError,
   getJson,
-  LOCAL_BEARER_STORAGE_KEY,
+  postJson,
+  postNoContent,
 } from "../api/client";
 import {
   API_PATHS,
   roleLabel,
   type CurrentRelease,
+  type LoginRequest,
+  type PasswordChangeRequest,
   type PlatformHealth,
   type Session,
 } from "../contracts/knowledgeApi";
 import styles from "./AppShell.module.css";
 
 const navigation = [
-  { index: "01", label: "Sources", to: "/sources", badge: "05" },
-  { index: "02", label: "Processing", to: "/processing", badge: "live" },
-  { index: "03", label: "Candidates", to: "/candidates", badge: "12" },
-  { index: "04", label: "Relations", to: "/relations", badge: null },
-  { index: "05", label: "Query Lab", to: "/query-lab", badge: null },
-  { index: "06", label: "Evaluation", to: "/evaluation", badge: "02" },
-  { index: "07", label: "Releases", to: "/releases", badge: "01" },
-  { index: "08", label: "Audit", to: "/audit", badge: null },
-  { index: "09", label: "Admin", to: "/admin", badge: null },
+  { index: "01", label: "来源管理", to: "/sources", badge: "05" },
+  { index: "02", label: "处理任务", to: "/processing", badge: "运行中" },
+  { index: "03", label: "知识候选", to: "/candidates", badge: "12" },
+  { index: "04", label: "关系浏览", to: "/relations", badge: null },
+  { index: "05", label: "检索实验室", to: "/query-lab", badge: null },
+  { index: "06", label: "质量评估", to: "/evaluation", badge: "02" },
+  { index: "07", label: "版本发布", to: "/releases", badge: "01" },
+  { index: "08", label: "审计记录", to: "/audit", badge: null },
+  { index: "09", label: "系统管理", to: "/admin", badge: null },
 ] as const;
 
 function initials(name: string): string {
@@ -39,8 +42,13 @@ function initials(name: string): string {
 
 export function AppShell() {
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [tokenDraft, setTokenDraft] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loginError, setLoginError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const queryClient = useQueryClient();
   const session = useQuery({
     queryKey: ["session"],
@@ -60,67 +68,132 @@ export function AppShell() {
 
   const authenticationRequired =
     session.error instanceof ApiRequestError && session.error.status === 401;
-  const submitToken = async (event: FormEvent<HTMLFormElement>) => {
+  const submitLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const token = tokenDraft.trim();
-    if (!token) {
-      setLoginError("请输入本地 access token。");
+    if (!username.trim() || !password) {
+      setLoginError("请输入用户名和密码。");
       return;
     }
-    window.sessionStorage.setItem(LOCAL_BEARER_STORAGE_KEY, token);
+    setSubmitting(true);
     setLoginError("");
-    const result = await session.refetch();
-    if (result.error instanceof ApiRequestError && result.error.status === 401) {
-      window.sessionStorage.removeItem(LOCAL_BEARER_STORAGE_KEY);
-      setLoginError("Token 无效或已失效，请检查本地 access 文件。");
+    try {
+      const response = await postJson<Session, LoginRequest>(API_PATHS.login, {
+        username: username.trim(),
+        password,
+      });
+      queryClient.setQueryData(["session"], response);
+      setPassword("");
+    } catch (error) {
+      setLoginError(
+        error instanceof ApiRequestError ? error.message : "登录失败，请稍后重试。",
+      );
+    } finally {
+      setSubmitting(false);
     }
   };
-  const changeIdentity = async () => {
-    window.sessionStorage.removeItem(LOCAL_BEARER_STORAGE_KEY);
-    setTokenDraft("");
+
+  const submitPasswordChange = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (newPassword !== confirmPassword) {
+      setLoginError("两次输入的新密码不一致。");
+      return;
+    }
+    setSubmitting(true);
     setLoginError("");
-    await queryClient.cancelQueries();
-    queryClient.removeQueries();
-    await session.refetch();
+    try {
+      const response = await postJson<Session, PasswordChangeRequest>(
+        API_PATHS.changePassword,
+        { currentPassword, newPassword },
+      );
+      queryClient.setQueryData(["session"], response);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error) {
+      setLoginError(
+        error instanceof ApiRequestError ? error.message : "修改密码失败，请稍后重试。",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const logout = async () => {
+    setLoginError("");
+    try {
+      await postNoContent(API_PATHS.logout);
+    } finally {
+      queryClient.removeQueries();
+      await session.refetch();
+    }
   };
 
   if (authenticationRequired) {
     return (
       <main className={styles.loginShell}>
-        <section className={styles.loginPanel} aria-labelledby="local-login-title">
+        <section className={styles.loginPanel} aria-labelledby="login-title">
           <div className={styles.loginMark} aria-hidden="true">
             K
           </div>
-          <p className={styles.loginEyebrow}>Knowledge Ledger · local runtime</p>
-          <h1 id="local-login-title">连接本地产品</h1>
+          <p className={styles.loginEyebrow}>临床知识台账 · 安全登录</p>
+          <h1 id="login-title">登录临床知识台账</h1>
           <p className={styles.loginLead}>
-            身份由后端验证并映射为内部权限。界面不会模拟角色，也不会展示或保存到长期存储。
+            使用管理员分配的用户名和密码。浏览器仅使用 HttpOnly 会话 Cookie，无法读取或保存人员凭据令牌。
           </p>
-          <form className={styles.loginForm} onSubmit={submitToken}>
-            <label htmlFor="local-access-token">Local access token</label>
+          <form className={styles.loginForm} onSubmit={submitLogin}>
+            <label htmlFor="username">用户名</label>
             <input
-              id="local-access-token"
-              type="password"
-              autoComplete="off"
-              value={tokenDraft}
-              onChange={(event) => setTokenDraft(event.target.value)}
-              aria-describedby={loginError ? "local-login-error" : "local-login-help"}
+              id="username"
+              type="text"
+              autoComplete="username"
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
             />
-            <p id="local-login-help" className={styles.loginHelp}>
-              从 <code>.demo-runtime/access.json</code> 复制 Admin、Author、Reviewer 或 Auditor token。
-            </p>
+            <label htmlFor="password">密码</label>
+            <input
+              id="password"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              aria-describedby={loginError ? "login-error" : undefined}
+            />
             {loginError ? (
-              <p id="local-login-error" className={styles.loginError} role="alert">
+              <p id="login-error" className={styles.loginError} role="alert">
                 {loginError}
               </p>
             ) : null}
-            <button type="submit" disabled={session.isFetching}>
-              {session.isFetching ? "正在验证…" : "验证并进入"}
+            <button type="submit" disabled={submitting}>
+              {submitting ? "正在登录…" : "登录"}
             </button>
           </form>
           <p className={styles.loginBoundary}>
-            Opaque bearer · sessionStorage only · product-owned RBAC
+            Argon2id 密码哈希 · HttpOnly 会话 · 产品级权限控制
           </p>
+        </section>
+      </main>
+    );
+  }
+
+  const sessionData = session.data?.data;
+  if (sessionData?.mustChangePassword) {
+    return (
+      <main className={styles.loginShell}>
+        <section className={styles.loginPanel} aria-labelledby="password-change-title">
+          <div className={styles.loginMark} aria-hidden="true">K</div>
+          <p className={styles.loginEyebrow}>首次登录安全门禁</p>
+          <h1 id="password-change-title">请先修改临时密码</h1>
+          <p className={styles.loginLead}>新密码长度应为 12–128 个字符，修改成功后会自动轮换会话。</p>
+          <form className={styles.loginForm} onSubmit={submitPasswordChange}>
+            <label htmlFor="current-password">当前临时密码</label>
+            <input id="current-password" type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} />
+            <label htmlFor="new-password">新密码</label>
+            <input id="new-password" type="password" autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} />
+            <label htmlFor="confirm-password">确认新密码</label>
+            <input id="confirm-password" type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
+            {loginError ? <p className={styles.loginError} role="alert">{loginError}</p> : null}
+            <button type="submit" disabled={submitting}>{submitting ? "正在修改…" : "修改密码并继续"}</button>
+          </form>
         </section>
       </main>
     );
@@ -138,8 +211,6 @@ export function AppShell() {
       ? "unavailable"
       : release.data?.data.version ?? "not released";
   const indexLabel = release.data?.data.indexVersion ?? "not built";
-  const sessionData = session.data?.data;
-
   const closeDrawer = () => setDrawerOpen(false);
 
   return (
@@ -170,7 +241,7 @@ export function AppShell() {
         </div>
 
         <nav className={styles.nav}>
-          <p className={styles.navGroup}>Knowledge operations</p>
+          <p className={styles.navGroup}>知识治理工作区</p>
           {navigation.map((item) => (
             <Link
               key={item.to}
@@ -239,9 +310,9 @@ export function AppShell() {
             <span>
               <span className={styles.identityName}>
                 {session.isPending
-                  ? "Loading identity"
+                  ? "正在加载身份"
                   : session.isError
-                    ? "Identity unavailable"
+                    ? "身份不可用"
                     : sessionData?.displayName}
               </span>
               <span className={styles.identityRole}>
@@ -252,9 +323,9 @@ export function AppShell() {
               <button
                 type="button"
                 className={styles.changeIdentity}
-                onClick={changeIdentity}
+                onClick={logout}
               >
-                更换本地身份
+                退出登录
               </button>
             ) : null}
           </div>

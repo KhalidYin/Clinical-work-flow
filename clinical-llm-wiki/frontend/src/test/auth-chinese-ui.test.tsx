@@ -22,7 +22,7 @@ function renderApp(initialEntry = "/sources?q=") {
 }
 
 describe("P13 中文密码会话合同", () => {
-  it.fails("未认证用户只看到中文用户名和密码表单", async () => {
+  it("未认证用户只看到中文用户名和密码表单", async () => {
     server.use(
       http.get(resolveApiPath(API_PATHS.session), () =>
         HttpResponse.json(
@@ -43,7 +43,7 @@ describe("P13 中文密码会话合同", () => {
     expect(window.sessionStorage.getItem("knowledgeLedgerBearerToken")).toBeNull();
   });
 
-  it.fails("已登录应用壳显示完整中文一级导航", async () => {
+  it("已登录应用壳显示完整中文一级导航", async () => {
     renderApp();
 
     for (const label of [

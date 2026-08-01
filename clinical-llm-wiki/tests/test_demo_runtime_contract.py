@@ -1,61 +1,10 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import yaml
 
-from service.auth import IdentitySource, ProductRole
-
-
 ROOT = Path(__file__).resolve().parents[1]
-
-
-def test_local_identity_bundle_keeps_authentication_separate_from_internal_roles(
-    tmp_path: Path,
-) -> None:
-    from service.demo_runtime import load_demo_identity_bundle
-
-    path = tmp_path / "identities.json"
-    path.write_text(
-        json.dumps(
-            {
-                "version": 1,
-                "issuer": "local://p12-demo",
-                "identities": [
-                    {
-                        "token": "author-token-at-least-eight",
-                        "userId": "usr-demo-author",
-                        "subject": "demo-author",
-                        "displayName": "Demo Author",
-                        "email": "author@example.test",
-                        "roles": ["knowledge_curator"],
-                    },
-                    {
-                        "token": "reviewer-token-at-least-eight",
-                        "userId": "usr-demo-reviewer",
-                        "subject": "demo-reviewer",
-                        "displayName": "Demo Reviewer",
-                        "email": "reviewer@example.test",
-                        "roles": ["reviewer"],
-                    },
-                ],
-            }
-        ),
-        encoding="utf-8",
-    )
-
-    bundle = load_demo_identity_bundle(path)
-    assertions = bundle.token_assertions()
-
-    assert set(assertions) == {
-        "author-token-at-least-eight",
-        "reviewer-token-at-least-eight",
-    }
-    assert assertions["author-token-at-least-eight"].identity_source is IdentitySource.LOCAL_TEST
-    assert assertions["author-token-at-least-eight"].subject == "demo-author"
-    assert bundle.identities[0].roles == (ProductRole.KNOWLEDGE_CURATOR,)
-    assert "roles" not in assertions["author-token-at-least-eight"].model_dump()
 
 
 def test_demo_replay_output_cites_only_canonical_evidence() -> None:
@@ -126,7 +75,7 @@ def test_compose_bootstrap_precedes_api_and_independent_workers() -> None:
     ].endswith("/demo/replay-records.json")
 
 
-def test_demo_start_script_generates_local_credentials_and_waits_for_health() -> None:
+def test_demo_start_script_bootstraps_password_without_writing_human_secret() -> None:
     script = (ROOT / "scripts" / "start-demo.ps1").read_text(encoding="utf-8")
 
     assert "RandomNumberGenerator" in script
@@ -134,7 +83,16 @@ def test_demo_start_script_generates_local_credentials_and_waits_for_health() ->
     assert "--wait" in script
     assert "--volumes" in script
     assert "KNOWLEDGE_POSTGRES_PASSWORD=" in script
-    assert (
-        "Knowledge Ledger is ready at "
-        "http://localhost:4173/app.html#/candidates"
-    ) in script
+    assert "run --rm -T admin-bootstrap" in script
+    assert "一次性临时密码" in script
+    assert "access.json" in script and "Remove-Item" in script
+    assert "token =" not in script
+    assert "临床知识台账已就绪：http://localhost:4173/app.html#/candidates" in script
+
+
+def test_compose_has_no_human_bearer_identity_mount() -> None:
+    content = (ROOT / "compose.yaml").read_text(encoding="utf-8")
+
+    assert "KNOWLEDGE_LOCAL_IDENTITIES_PATH" not in content
+    assert "identities.json" not in content
+    assert "service.auth.bootstrap_admin" in content

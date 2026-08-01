@@ -53,6 +53,8 @@ const authorSession = response<Session>({
   roles: ["knowledge_curator"],
   organization: "Clinical Knowledge Lab",
   permissions: ["candidate:read", "candidate:write", "candidate:submit"],
+  mustChangePassword: false,
+  sessionExpiresAt: "2026-07-31T09:00:00Z",
 });
 
 const reviewerSession = response<Session>({
@@ -62,6 +64,8 @@ const reviewerSession = response<Session>({
   roles: ["reviewer"],
   organization: "Clinical Knowledge Lab",
   permissions: ["candidate:read", "review:decide"],
+  mustChangePassword: false,
+  sessionExpiresAt: "2026-07-31T09:00:00Z",
 });
 
 function authorDetail(

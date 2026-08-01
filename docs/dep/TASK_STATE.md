@@ -1,38 +1,40 @@
 ---
 status: in-progress
 created: 2026-08-01 15:42
-updated: 2026-08-01 16:05
+updated: 2026-08-01 16:35
 ---
 
 # Current Task
 
 ## Goal
 
-P1 — 冻结认证、迁移和删除合同（子计划：`docs/dep/plans/ongoing/P13-password-session-chinese-legacy-retirement.md`）。
+P3 — 完成中文 UI 和用户管理闭环（子计划：`docs/dep/plans/ongoing/P13-password-session-chinese-legacy-retirement.md`）。
 
 ## Progress
 
-- [x] 建立 Goal，加载 Development/TDD 规范并核对上轮恢复点。
-- [x] 审计用户列出的 7 项问题并判定当前运行边界。
-- [x] 编写认证、迁移 fail-closed、旧哈希兼容和中文界面的 RED 合同测试。
-- [x] 生成旧 Wiki 文件/引用/知识资产处置清单与固定 ADAE 回归合同。
-- [x] 验证 P1 完成标准并更新计划/DevLog；阶段提交和远端同步正在执行。
+- [x] P1 契约与 crosswalk 已提交并同步远端（`72a0e33`）。
+- [x] 新增 Argon2id 凭据、服务端会话、锁定/过期/撤销、管理员用户操作和 0008 迁移。
+- [x] 平台 API 切换为 HttpOnly Cookie，所有修改请求启用精确 Origin + 自定义头 CSRF 门禁。
+- [x] 前端请求层删除 sessionStorage/Authorization，登录、强制改密、退出已接入 Cookie 会话。
+- [x] 本地引导改为 stdin 一次性管理员密码，删除运行时 `access.json`/`identities.json`；Worker 机器凭据不变。
+- [x] 空库迁移回滚、实库 API 集成、既有 P12 数据库原位升级、前后端单测和构建均通过。
+- [ ] 完成 P2 阶段提交与远端同步后进入全部核心页面中文化和用户管理前端闭环。
 
 ## Working Context
 
-- **Files being edited**：`docs/dep/plans/ongoing/P13-password-session-chinese-legacy-retirement.md`、`docs/dep/PLAN.md`、P1 新合同测试与 fixture。
-- **Last command run**：安装 Workflow 自声明依赖后复验 `test_adae_knowledge_workflow.py`；5 项仍因既有夹具审批证据缺失和固定阶段推进失效而失败。
-- **Key decisions**：旧 `_script_style_sha256` 代表历史带尾换行制品算法，不改写历史；1–5 由迁移/删除 Gate 处理，6–7 因 Workflow 不变而不做无收益重构或版本硬改。
-- **Blocker**：P1 无阻断；既有 ADAE 回归基线存在两项已登记缺陷，必须在 P4 替换兼容入口时修复并在 P5 删除前转绿。
+- **Files being edited**：`clinical-llm-wiki/service/auth/`、`service/platform_api/`、`service/db/`、`frontend/src/`、Compose/启动脚本与 P13 文档。
+- **Last command run**：使用既有受信镜像挂载当前源代码，将现有 Compose PostgreSQL 从 `20260731_0007` 原位升级到 `20260801_0008` 并确认两张新表。
+- **Key decisions**：人员只使用密码+HttpOnly 会话；初始密码经 stdin 传入且只输出一次；Worker 保持独立机器凭据；不保留 Bearer 双轨兼容。
+- **Blocker**：P2 无产品阻断；Docker Hub 镜像代理暂时不可达，完整冷构建推迟到 P5 强制 Gate，已登记 P13-004。
 
 ## Phase Context
 
 - **Sub-plan**：`docs/dep/plans/ongoing/P13-password-session-chinese-legacy-retirement.md`
-- **Phase**：P1 — 冻结认证、迁移和删除合同。
-- **Input conditions**：P12 基线可读；三项设计已批准；开始实施前保护现有用户改动。
-- **Completion criteria**：RED 测试证据；完整旧资产处置清单；每项有效资产唯一目标；冻结 Workflow 结果语义回归。
-- **Boundaries**：本 Phase 不修改生产代码、数据库或旧资产；不按文件名猜测删除资格。
+- **Phase**：P3 — 中文 UI 和用户管理闭环。
+- **Input conditions**：P2 密码会话、Cookie/CSRF API、用户管理 API 与迁移已通过单元和实库 Gate。
+- **Completion criteria**：全部核心页面中文；创建/重置/启停用户组件测试与浏览器 E2E；服务账号无 secret；默认/加载/空/错误/部分/窄屏验证。
+- **Boundaries**：保持 D0 色彩与布局；不翻译机器合同、临床标准变量和模型名称；不触发真实模型。
 
 ## Resume From
 
-完成 P1 契约、处置表和 RED 证据的阶段提交与远端同步；随后进入 P2，先为 Argon2id 凭据表、服务端会话和 Cookie/CSRF API 编写失败测试。
+提交并同步 P2；随后先补用户管理 UI 的失败测试，再实现创建、一次性临时密码、重置和启停，最后逐页完成中文文案与状态映射。

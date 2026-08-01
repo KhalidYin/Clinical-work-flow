@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from hashlib import sha256
 import os
 from pathlib import Path
 
@@ -13,7 +12,11 @@ from fastapi.testclient import TestClient
 import pytest
 from sqlalchemy import delete, func, select
 
-from service.auth import IdentityAssertion, LocalIdentityProvider
+from service.auth.password_sessions import (
+    Argon2idPasswordHasher,
+    PasswordSessionService,
+    SqlAlchemyPasswordSessionRepository,
+)
 from service.db.models import (
     AuditEvent,
     CandidateRelationProposal,
@@ -32,6 +35,7 @@ from service.db.models import (
     Source,
     SourceArtifact,
     SourceVersion,
+    UserCredential,
 )
 from service.db.session import create_database_engine, create_session_factory
 from service.platform_api.app import PlatformApiServices, create_platform_app
@@ -161,7 +165,7 @@ def test_real_postgres_repository_serves_authorized_read_routes(
             [
                 PlatformUser(
                     user_id="usr-p1d-integration",
-                    identity_source="local_test",
+                    identity_source="local_password",
                     issuer="local://p1d-integration",
                     subject="p1d-admin",
                     display_name="P1-D Admin",
@@ -199,6 +203,14 @@ def test_real_postgres_repository_serves_authorized_read_routes(
                     user_id="usr-p1d-integration",
                     role="platform_admin",
                     granted_by_actor_id="bootstrap-p1d-integration",
+                ),
+                UserCredential(
+                    user_id="usr-p1d-integration",
+                    username_normalized="p1d-admin",
+                    password_hash=Argon2idPasswordHasher().hash(
+                        "P1-D integration password 2026!"
+                    ),
+                    must_change_password=False,
                 ),
                 SourceVersion(
                     source_version_id="srcv-p1d-integration",
@@ -349,40 +361,41 @@ def test_real_postgres_repository_serves_authorized_read_routes(
             )
         )
 
-    assertion = IdentityAssertion(
-        identity_source="local_test",
-        issuer="local://p1d-integration",
-        subject="p1d-admin",
-        display_name="P1-D Admin",
-        email="p1d-admin@example.test",
-        claims_sha256=sha256(b"p1d-admin").hexdigest(),
-    )
-    provider = LocalIdentityProvider(
-        environment="test",
-        token_assertions={"p1d-integration-token": assertion},
+    password_sessions = PasswordSessionService(
+        repository=SqlAlchemyPasswordSessionRepository(session_factory),
+        hasher=Argon2idPasswordHasher(),
     )
     client = TestClient(
         create_platform_app(
             PlatformApiServices(
-                identity_provider=provider,
                 repository=SqlAlchemyPlatformRepository(session_factory),
+                password_sessions=password_sessions,
                 organization_name="Clinical Knowledge Lab",
+                allowed_browser_origins=frozenset({"http://testserver"}),
+                secure_session_cookie=False,
             )
         )
     )
-    headers = {"Authorization": "Bearer p1d-integration-token"}
+    login = client.post(
+        "/api/prerelease/v1/auth/login",
+        headers={"Origin": "http://testserver", "X-CSRF-Protection": "1"},
+        json={
+            "username": "p1d-admin",
+            "password": "P1-D integration password 2026!",
+        },
+    )
+    assert login.status_code == 200
 
     try:
-        session = client.get("/api/prerelease/v1/session", headers=headers)
-        sources = client.get("/api/prerelease/v1/sources", headers=headers)
-        users = client.get("/api/prerelease/v1/admin/users", headers=headers)
-        release = client.get("/api/prerelease/v1/releases/current", headers=headers)
+        session = client.get("/api/prerelease/v1/session")
+        sources = client.get("/api/prerelease/v1/sources")
+        users = client.get("/api/prerelease/v1/admin/users")
+        release = client.get("/api/prerelease/v1/releases/current")
         relations = client.get(
             "/api/prerelease/v1/relations/query",
-            headers=headers,
             params={"node_id": "ku-p1d-source", "depth": 1},
         )
-        audit = client.get("/api/prerelease/v1/audit-events", headers=headers)
+        audit = client.get("/api/prerelease/v1/audit-events")
 
         assert session.status_code == sources.status_code == users.status_code == 200
         assert release.status_code == relations.status_code == audit.status_code == 200

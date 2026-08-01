@@ -16,8 +16,12 @@ import yaml
 
 from service.auth import (
     IdentityAssertion,
-    LocalIdentityProvider,
     PlatformUserGrant,
+    resolve_human_actor,
+)
+from service.auth.password_sessions import (
+    AuthenticatedPrincipal,
+    SessionAuthenticationError,
 )
 from service.object_store import ObjectDescriptor
 from service.sources import SourceRegistrationReceipt
@@ -462,6 +466,20 @@ class FakeGovernanceService:
         )
 
 
+class FakePasswordSessions:
+    def __init__(self, principals: dict[str, AuthenticatedPrincipal]) -> None:
+        self.principals = principals
+
+    def authenticate_session(self, raw_session_id: str) -> AuthenticatedPrincipal:
+        principal = self.principals.get(raw_session_id)
+        if principal is None:
+            raise SessionAuthenticationError("会话无效或已过期。")
+        return principal
+
+    def logout(self, raw_session_id: str) -> None:
+        self.principals.pop(raw_session_id, None)
+
+
 def _identity(subject: str, display_name: str) -> IdentityAssertion:
     return IdentityAssertion(
         identity_source="local_test",
@@ -497,10 +515,6 @@ def api_client():
         "disabled-token": _identity("disabled", "Disabled User"),
         "unmapped-token": _identity("unmapped", "Unmapped User"),
     }
-    identity_provider = LocalIdentityProvider(
-        environment="test",
-        token_assertions=assertions,
-    )
     repository = FakePlatformRepository(repository_module)
     grants = [
         _grant("admin", "Platform Admin", "platform_admin"),
@@ -522,10 +536,21 @@ def api_client():
                 last_active_at=None,
             )
         )
+    principals = {
+        token: AuthenticatedPrincipal(
+            actor=resolve_human_actor(assertion, repository),
+            must_change_password=False,
+            expires_at=datetime(2026, 8, 1, tzinfo=timezone.utc),
+        )
+        for token, assertion in assertions.items()
+        if token not in {"disabled-token", "unmapped-token"}
+    }
     services = app_module.PlatformApiServices(
-        identity_provider=identity_provider,
         repository=repository,
+        password_sessions=FakePasswordSessions(principals),
         organization_name="Clinical Knowledge Lab",
+        allowed_browser_origins=frozenset({"http://testserver"}),
+        secure_session_cookie=False,
         object_store_available=False,
         semantic_index_available=False,
         source_registry=FakeSourceRegistry(),
@@ -536,7 +561,11 @@ def api_client():
 
 
 def _auth(token: str) -> dict[str, str]:
-    return {"Authorization": f"Bearer {token}"}
+    return {
+        "Cookie": f"clinical_knowledge_session={token}",
+        "Origin": "http://testserver",
+        "X-CSRF-Protection": "1",
+    }
 
 
 def test_health_is_public_and_reports_unimplemented_capabilities(api_client) -> None:
@@ -569,9 +598,9 @@ def test_health_reports_database_failure_without_exposing_an_exception(api_clien
     ("token", "expected_code"),
     [
         (None, "authentication_required"),
-        ("unknown-token", "invalid_identity"),
-        ("unmapped-token", "invalid_identity"),
-        ("disabled-token", "invalid_identity"),
+        ("unknown-token", "authentication_required"),
+        ("unmapped-token", "authentication_required"),
+        ("disabled-token", "authentication_required"),
     ],
 )
 def test_session_fails_closed_for_missing_invalid_unmapped_or_disabled_identity(
@@ -1051,6 +1080,9 @@ def test_checked_in_openapi_matches_runtime_paths_roles_and_responses(api_client
         == checked_paths
         == {
             f"{API_PREFIX}/session",
+            f"{API_PREFIX}/auth/login",
+            f"{API_PREFIX}/auth/logout",
+            f"{API_PREFIX}/auth/password/change",
             f"{API_PREFIX}/health",
             f"{API_PREFIX}/releases/current",
             f"{API_PREFIX}/sources",
@@ -1066,10 +1098,16 @@ def test_checked_in_openapi_matches_runtime_paths_roles_and_responses(api_client
             f"{API_PREFIX}/relations/query",
             f"{API_PREFIX}/audit-events",
             f"{API_PREFIX}/admin/users",
+            f"{API_PREFIX}/admin/users/{{user_id}}/password/reset",
+            f"{API_PREFIX}/admin/users/{{user_id}}/status",
             f"{API_PREFIX}/admin/model-profiles",
         }
     )
-    assert spec["components"]["securitySchemes"]["bearerAuth"]["scheme"] == "bearer"
+    assert spec["components"]["securitySchemes"]["sessionCookie"] == {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "clinical_knowledge_session",
+    }
     assert spec["components"]["schemas"]["HumanRole"]["enum"] == [
         "platform_admin",
         "knowledge_curator",
@@ -1078,11 +1116,15 @@ def test_checked_in_openapi_matches_runtime_paths_roles_and_responses(api_client
         "consumer",
     ]
     assert spec["components"]["schemas"]["IdentitySource"]["enum"] == [
+        "local_password",
         "local_test",
         "oidc",
     ]
     assert runtime_spec["paths"][f"{API_PREFIX}/health"]["get"].get("security") is None
-    assert runtime_spec["paths"][f"{API_PREFIX}/session"]["get"]["security"] == [{"bearerAuth": []}]
+    assert runtime_spec["paths"][f"{API_PREFIX}/auth/login"]["post"].get("security") is None
+    assert runtime_spec["paths"][f"{API_PREFIX}/session"]["get"]["security"] == [
+        {"sessionCookie": []}
+    ]
 
     response_cases = [
         ("HealthResponse", client.get(f"{API_PREFIX}/health")),
