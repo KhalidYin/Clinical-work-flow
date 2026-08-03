@@ -541,3 +541,34 @@
    vertical；失败时保持 fail closed。
 3. 风险：外部模型数据处理条款、超时/限流和实际输出 Schema 可能与 replay 不同，必须先小范围证据
    运行并保留 invocation lineage，不能直接开放批量文档。
+
+---
+
+## 2026-08-03
+
+### R099 [20:21] 修复前端根路径重定向端口丢失
+
+#### Done
+
+- 复现 Docker Desktop 打开 `http://localhost:4173/` 后，Nginx 将请求错误重定向到未发布的宿主机 80 端口。
+- 先增加失败部署契约，再通过 `absolute_redirect off` 让 `/app.html` 使用相对重定向并保留任意宿主机端口。
+- 仅重建 frontend；API、数据库、Worker、认证及端口映射均未修改。
+
+#### Issues / Blockers
+
+- 独立 `nginx -t` 容器首次因不在 Compose 网络中而无法解析 `api`；接入 `clinical-knowledge-demo_default` 后语法验证通过。
+
+#### Validation
+
+- 部署契约 `6 passed`，Nginx 配置语法通过，前端 production build 通过。
+- 根路径返回 `Location: /app.html`；自动跟随最终为 `http://localhost:4173/app.html`，本机及 WLAN 根路径、页面和同源健康 API 均为 200。
+
+#### Next
+
+Done — no next steps。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/frontend/nginx.conf`
+- `clinical-llm-wiki/tests/test_p1e_deployment_contract.py`
+- `(uncommitted)`

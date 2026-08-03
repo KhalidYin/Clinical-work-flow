@@ -66,6 +66,13 @@ def test_demo_startup_provisions_a_separate_runtime_consumer_credential() -> Non
     assert "HttpOnly" not in startup  # the browser session is created by the API, not shell.
 
 
+def test_frontend_root_redirect_preserves_the_published_host_port() -> None:
+    nginx = (ROOT / "frontend/nginx.conf").read_text(encoding="utf-8")
+
+    assert "absolute_redirect off;" in nginx
+    assert "return 302 /app.html;" in nginx
+
+
 def test_worker_module_exposes_one_pool_parameterized_entrypoint() -> None:
     signature = inspect.signature(worker.main)
 
