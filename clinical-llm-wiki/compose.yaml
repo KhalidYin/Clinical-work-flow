@@ -95,7 +95,9 @@ services:
       interval: 10s
       timeout: 3s
       retries: 12
-    ports: ["127.0.0.1:8788:8788"]
+    # Bind to all host interfaces by default so the demo can be opened from a
+    # LAN device. Set KNOWLEDGE_BIND_ADDRESS=127.0.0.1 for loopback-only use.
+    ports: ["${KNOWLEDGE_BIND_ADDRESS:-0.0.0.0}:8788:8788"]
     volumes:
       - knowledge-objects:/var/lib/clinical-knowledge
 
@@ -106,7 +108,7 @@ services:
     depends_on:
       api:
         condition: service_healthy
-    ports: ["127.0.0.1:4173:80"]
+    ports: ["${KNOWLEDGE_BIND_ADDRESS:-0.0.0.0}:4173:80"]
 
   worker-document:
     <<: *worker

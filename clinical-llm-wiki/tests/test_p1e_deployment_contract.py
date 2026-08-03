@@ -12,7 +12,7 @@ from service.processing import worker
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_compose_keeps_one_codebase_three_pools_and_loopback_publication() -> None:
+def test_compose_keeps_one_codebase_three_pools_and_configurable_publication() -> None:
     compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
     services = compose["services"]
 
@@ -21,8 +21,8 @@ def test_compose_keeps_one_codebase_three_pools_and_loopback_publication() -> No
     assert worker_names <= set(services)
     assert services["postgres"]["image"].startswith("pgvector/pgvector:")
     assert services["migration"]["command"] == ["alembic", "upgrade", "head"]
-    assert services["api"]["ports"] == ["127.0.0.1:8788:8788"]
-    assert services["frontend"]["ports"] == ["127.0.0.1:4173:80"]
+    assert services["api"]["ports"] == ["${KNOWLEDGE_BIND_ADDRESS:-0.0.0.0}:8788:8788"]
+    assert services["frontend"]["ports"] == ["${KNOWLEDGE_BIND_ADDRESS:-0.0.0.0}:4173:80"]
 
     worker_builds = {str(services[name]["build"]) for name in worker_names}
     worker_images = {services[name]["image"] for name in worker_names}

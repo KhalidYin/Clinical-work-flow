@@ -7,7 +7,9 @@ Set-Location .\clinical-llm-wiki
 .\scripts\start-demo.ps1 -Reset
 ```
 
-服务只发布到 loopback：前端 `127.0.0.1:4173`，API `127.0.0.1:8788`。Compose 包含 PostgreSQL、migration、bootstrap、API、frontend、Document Worker 和 Enrichment Worker；Release Worker 仍需显式 profile/产品 Gate。
+默认发布到所有宿主网卡：前端 `0.0.0.0:4173`，API `0.0.0.0:8788`，因此可以从局域网通过宿主机 IP 访问。若只允许本机访问，在 `.demo-runtime/demo.env` 中设置 `KNOWLEDGE_BIND_ADDRESS=127.0.0.1` 后重建 Compose 项目。Compose 包含 PostgreSQL、migration、bootstrap、API、frontend、Document Worker 和 Enrichment Worker；Release Worker 仍需显式 profile/产品 Gate。
+
+例如宿主机 WLAN 地址为 `192.168.31.189` 时，浏览器打开 `http://192.168.31.189:4173/app.html`。若远端仍无法连接，还需在宿主机防火墙放行 TCP 4173（API 8788 通常只应由前端 Nginx 内部代理使用）。
 
 ## 安全配置
 

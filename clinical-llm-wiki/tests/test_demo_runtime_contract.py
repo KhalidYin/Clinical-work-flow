@@ -94,7 +94,9 @@ def test_demo_start_script_bootstraps_password_without_writing_human_secret() ->
     assert "一次性临时密码" in script
     assert "access.json" not in script
     assert "token =" not in script
-    assert "临床知识台账已就绪：http://localhost:4173/app.html#/candidates" in script
+    assert 'KNOWLEDGE_DEMO_HOST' in script
+    assert 'Get-NetIPConfiguration' in script
+    assert '本机回环地址：http://localhost:4173/app.html#/candidates' in script
 
 
 def test_compose_has_no_human_bearer_identity_mount() -> None:

@@ -17,7 +17,7 @@ Set-Location .\clinical-llm-wiki
 
 启动脚本会构建并运行 PostgreSQL、数据库迁移、FastAPI、React/Nginx，以及彼此独立的 Document 与 Enrichment Worker。终端只在首次初始化时显示一次管理员临时密码；浏览器使用用户名、密码和 HttpOnly 会话 Cookie，不接触认证 token。
 
-打开 `http://localhost:4173/app.html`，使用用户名 `admin` 和终端显示的一次性密码登录并立即改密。
+默认使用宿主机 IP 打开 `http://<宿主机IP>:4173/app.html`（本机也可使用 `localhost`），使用用户名 `admin` 和终端显示的一次性密码登录并立即改密。仅本机访问时可设置 `KNOWLEDGE_BIND_ADDRESS=127.0.0.1`。
 
 完整操作见 [USAGE.md](USAGE.md)，部署与恢复见 [DEPLOY_GUIDE.md](docs/deploy/DEPLOY_GUIDE.md)。当前架构权威见 [SPEC-18](docs/specs/18-P0-Alignment.md)、[SPEC-21](docs/specs/21-Knowledge-Workflow-Integration.md) 与 [SPEC-22](docs/specs/22-Knowledge-Application-Platform.md)。
 

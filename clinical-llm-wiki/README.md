@@ -23,7 +23,7 @@ Markdown Wiki、SQLite 派生索引和旧服务已完成一次性迁移并退役
 .\scripts\start-demo.ps1 -Reset
 ```
 
-打开 `http://localhost:4173/app.html`，以终端一次性显示的 `admin` 临时密码登录并改密。浏览器只使用 HttpOnly Cookie；Worker 与 Workflow 消费者分别使用独立机器凭据。
+默认使用宿主机 IP 打开 `http://<宿主机IP>:4173/app.html`（本机也可使用 `localhost`），以终端一次性显示的 `admin` 临时密码登录并改密。浏览器只使用 HttpOnly Cookie；Worker 与 Workflow 消费者分别使用独立机器凭据。
 
 模型默认采用 fake/replay，不调用真实外部 API。管理员页面保存的是模型配置与 secret reference，不保存密钥值。
 

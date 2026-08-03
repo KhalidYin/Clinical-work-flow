@@ -121,7 +121,27 @@ if (-not $candidateReady) {
     throw "平台已启动，但异步富化 Worker 未生成知识候选。"
 }
 
-Write-Host "临床知识台账已就绪：http://localhost:4173/app.html#/candidates"
+$displayHost = $env:KNOWLEDGE_DEMO_HOST
+if ([string]::IsNullOrWhiteSpace($displayHost)) {
+    $ipConfigurations = @(
+        Get-NetIPConfiguration -ErrorAction SilentlyContinue |
+            Where-Object { $_.IPv4DefaultGateway -and $_.IPv4Address }
+    )
+    $preferredConfigurations = @(
+        $ipConfigurations | Where-Object {
+            $_.InterfaceAlias -match "WLAN|Wi-Fi|Ethernet|以太网"
+        }
+    )
+    $displayHost = @(
+        @($preferredConfigurations + $ipConfigurations) |
+            ForEach-Object { $_.IPv4Address.IPAddress }
+    ) | Select-Object -First 1
+}
+if ([string]::IsNullOrWhiteSpace($displayHost)) {
+    $displayHost = "localhost"
+}
+Write-Host "临床知识台账已就绪：http://${displayHost}:4173/app.html#/candidates"
+Write-Host "本机回环地址：http://localhost:4173/app.html#/candidates"
 if ($null -ne $initialAdminPassword) {
     Write-Host "初始管理员用户名：admin"
     Write-Host "一次性临时密码：$initialAdminPassword"

@@ -26,7 +26,7 @@ Set-Location .\clinical-llm-wiki
 - 用户名：`admin`
 - 随机临时密码：只在终端显示，不写入文件
 
-打开 `http://localhost:4173/app.html`。首次登录必须改密。之后可在“系统管理 → 用户与权限”创建用户、重置密码、启用或禁用账号。
+默认绑定所有宿主网卡。使用宿主机 IP 打开 `http://<宿主机IP>:4173/app.html`；本机也可使用 `http://localhost:4173/app.html`。首次登录必须改密。之后可在“系统管理 → 用户与权限”创建用户、重置密码、启用或禁用账号。仅需本机访问时，在 `.demo-runtime/demo.env` 设置 `KNOWLEDGE_BIND_ADDRESS=127.0.0.1` 后重建服务。
 
 保留数据库重启：
 
