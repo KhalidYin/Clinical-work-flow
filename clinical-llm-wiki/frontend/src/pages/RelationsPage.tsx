@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { getJson } from "../api/client";
@@ -8,6 +9,9 @@ import {
   type RelationQuery,
 } from "../contracts/knowledgeApi";
 import { relationTypeLabel, statusLabel } from "../i18n/labels";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
+import { CompactState } from "../components/CompactState";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import styles from "./pages.module.css";
 
 export interface RelationsSearch {
@@ -32,11 +36,15 @@ function nodeLabel(node: RelationNode | undefined, fallback: string): string {
 }
 
 export function RelationsPage({ search, onSearchChange }: RelationsPageProps) {
+  useDocumentTitle("关系浏览");
+  const [localQuery, setLocalQuery] = useState(search.q);
+  const debouncedQuery = useDebouncedValue(localQuery, 250);
+
   const directory = useQuery({
-    queryKey: ["relation-directory", search.q],
+    queryKey: ["relation-directory", debouncedQuery],
     queryFn: ({ signal }) =>
       getJson<RelationQuery>(
-        relationPath({ q: search.q, depth: "0" }),
+        relationPath({ q: debouncedQuery, depth: "0" }),
         signal,
       ),
     staleTime: 30_000,
@@ -57,8 +65,11 @@ export function RelationsPage({ search, onSearchChange }: RelationsPageProps) {
 
   const directoryNodes = directory.data?.data.nodes ?? [];
   const graphData = graph.data?.data;
-  const graphNodes = new Map(
-    (graphData?.nodes ?? []).map((node) => [node.knowledgeUnitId, node]),
+  const graphNodes = useMemo(
+    () => new Map(
+      (graphData?.nodes ?? []).map((node) => [node.knowledgeUnitId, node]),
+    ),
+    [graphData?.nodes],
   );
 
   return (
@@ -88,10 +99,10 @@ export function RelationsPage({ search, onSearchChange }: RelationsPageProps) {
               <input
                 className={styles.search}
                 type="search"
-                value={search.q}
+                value={localQuery}
                 placeholder="stable key、type 或 claim"
                 onChange={(event) =>
-                  onSearchChange({ q: event.target.value })
+                  setLocalQuery(event.target.value)
                 }
               />
             </label>
@@ -324,23 +335,6 @@ function RelationTable({
           ))}
         </tbody>
       </table>
-    </div>
-  );
-}
-
-function CompactState({
-  title,
-  text,
-  error = false,
-}: {
-  title: string;
-  text: string;
-  error?: boolean;
-}) {
-  return (
-    <div className={`${styles.compactState} ${error ? styles.error : ""}`}>
-      <strong>{title}</strong>
-      <span>{text}</span>
     </div>
   );
 }

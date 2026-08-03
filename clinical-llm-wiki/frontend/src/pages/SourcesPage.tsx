@@ -14,7 +14,9 @@ import {
   type SourceRegistration,
   type SourceSummary,
 } from "../contracts/knowledgeApi";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { boundaryLabel, rightsLabel, statusLabel } from "../i18n/labels";
+import { statusClass } from "../i18n/statusClass";
 import styles from "./pages.module.css";
 
 const columnHelper = createColumnHelper<SourceSummary>();
@@ -45,7 +47,7 @@ const columns = [
     header: "生命周期",
     cell: (info) => (
       <span
-        className={`${styles.status} ${styles[`status${capitalize(info.getValue())}`] ?? ""}`}
+        className={`${styles.status} ${statusClass(info.getValue())}`}
       >
         {statusLabel(info.getValue())}
       </span>
@@ -61,18 +63,16 @@ const columns = [
   }),
 ];
 
-function capitalize(value: string): string {
-  return `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
-}
-
 interface SourcesPageProps {
   query: string;
   onQueryChange: (query: string) => void;
 }
 
 export function SourcesPage({ query, onQueryChange }: SourcesPageProps) {
+  useDocumentTitle("来源管理");
   const queryClient = useQueryClient();
   const [uploadResult, setUploadResult] = useState<SourceRegistration | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const sources = useQuery({
     queryKey: ["sources"],
     queryFn: ({ signal }) => getJson<SourceCollection>(API_PATHS.sources, signal),
@@ -119,11 +119,19 @@ export function SourcesPage({ query, onQueryChange }: SourcesPageProps) {
   async function handleRegistration(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setUploadResult(null);
+    setValidationError(null);
     const formElement = event.currentTarget;
     const fileInput = formElement.elements.namedItem("file");
     const file =
       fileInput instanceof HTMLInputElement ? fileInput.files?.[0] : null;
     if (!file || file.size === 0) {
+      return;
+    }
+    const MAX_SIZE_BYTES = 200 * 1024 * 1024; // 200 MB
+    if (file.size > MAX_SIZE_BYTES) {
+      setValidationError(
+        `文件过大（${(file.size / (1024 * 1024)).toFixed(0)} MB），最大允许 200 MB。`,
+      );
       return;
     }
     const form = new FormData(formElement);
@@ -225,6 +233,11 @@ export function SourcesPage({ query, onQueryChange }: SourcesPageProps) {
             登记失败；Source 不会以半发布状态出现在列表中。
           </p>
         ) : null}
+        {validationError ? (
+          <p className={styles.formError} role="alert">
+            {validationError}
+          </p>
+        ) : null}
         {uploadResult ? (
           <p className={styles.receipt} role="status">
             已登记 <span className={styles.mono}>{uploadResult.sourceVersionId}</span>；
@@ -323,7 +336,7 @@ function LoadingTable() {
           <tr>
             {["已登记来源", "版本", "媒体类型", "权利分类", "生命周期", "来源哈希"].map(
               (header) => (
-                <th key={header}>{header}</th>
+                <th key={header} scope="col">{header}</th>
               ),
             )}
           </tr>

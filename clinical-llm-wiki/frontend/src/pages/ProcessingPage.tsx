@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { getJson, postAction } from "../api/client";
@@ -8,13 +9,20 @@ import {
   type ProcessingRunCollection,
   type RetryReceipt,
 } from "../contracts/knowledgeApi";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { statusLabel, workerPoolLabel } from "../i18n/labels";
+import { statusClass } from "../i18n/statusClass";
 import styles from "./pages.module.css";
 
 const ACTIVE_STATUSES = new Set(["queued", "processing"]);
 
 export function ProcessingPage() {
+  useDocumentTitle("处理任务");
   const queryClient = useQueryClient();
+  const [pendingAction, setPendingAction] = useState<{
+    runId: string;
+    stepId?: string;
+  } | null>(null);
   const runs = useQuery({
     queryKey: ["processing-runs"],
     queryFn: ({ signal }) =>
@@ -29,12 +37,20 @@ export function ProcessingPage() {
       postAction<RetryReceipt>(
         `${API_PATHS.processingRuns}/${runId}/steps/${stepId}/retry`,
       ),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["processing-runs"] }),
+    onSuccess: () => {
+      setPendingAction(null);
+      void queryClient.invalidateQueries({ queryKey: ["processing-runs"] });
+    },
+    onError: () => setPendingAction(null),
   });
   const cancel = useMutation({
     mutationFn: (runId: string) =>
       postAction<CancelReceipt>(`${API_PATHS.processingRuns}/${runId}/cancel`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["processing-runs"] }),
+    onSuccess: () => {
+      setPendingAction(null);
+      void queryClient.invalidateQueries({ queryKey: ["processing-runs"] });
+    },
+    onError: () => setPendingAction(null),
   });
 
   const items = runs.data?.data.items ?? [];
@@ -88,9 +104,16 @@ export function ProcessingPage() {
             <RunCard
               key={run.runId}
               run={run}
-              onRetry={(stepId) => retry.mutate({ runId: run.runId, stepId })}
-              onCancel={() => cancel.mutate(run.runId)}
-              actionPending={retry.isPending || cancel.isPending}
+              onRetry={(stepId) => {
+                setPendingAction({ runId: run.runId, stepId });
+                retry.mutate({ runId: run.runId, stepId });
+              }}
+              onCancel={() => {
+                setPendingAction({ runId: run.runId });
+                cancel.mutate(run.runId);
+              }}
+              pendingRunId={pendingAction?.runId ?? null}
+              pendingStepId={pendingAction?.stepId ?? null}
             />
           ))}
         </div>
@@ -103,12 +126,14 @@ function RunCard({
   run,
   onRetry,
   onCancel,
-  actionPending,
+  pendingRunId,
+  pendingStepId,
 }: {
   run: ProcessingRun;
   onRetry: (stepId: string) => void;
   onCancel: () => void;
-  actionPending: boolean;
+  pendingRunId: string | null;
+  pendingStepId: string | null;
 }) {
   return (
     <article className={styles.runCard}>
@@ -162,10 +187,12 @@ function RunCard({
               <button
                 className={styles.secondaryButton}
                 type="button"
-                disabled={actionPending}
+                disabled={pendingRunId === run.runId && pendingStepId === step.stepId}
                 onClick={() => onRetry(step.stepId)}
               >
-                重试关联尝试
+                {pendingRunId === run.runId && pendingStepId === step.stepId
+                  ? "重试中…"
+                  : "重试关联尝试"}
               </button>
             ) : (
               <span className={styles.mono}>{statusLabel(step.status)}</span>
@@ -177,20 +204,12 @@ function RunCard({
         <button
           className={styles.dangerButton}
           type="button"
-          disabled={actionPending}
+          disabled={pendingRunId === run.runId}
           onClick={onCancel}
         >
-          取消任务
+          {pendingRunId === run.runId ? "取消中…" : "取消任务"}
         </button>
       ) : null}
     </article>
   );
-}
-
-function statusClass(status: string): string {
-  const name = `status${status
-    .split("_")
-    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
-    .join("")}`;
-  return styles[name] ?? "";
 }

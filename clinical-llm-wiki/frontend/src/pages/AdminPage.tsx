@@ -20,6 +20,7 @@ import {
   type UserStatusReceipt,
   type UserStatusRequest,
 } from "../contracts/knowledgeApi";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { identitySourceLabel, statusLabel, workerPoolLabel } from "../i18n/labels";
 import styles from "./pages.module.css";
 
@@ -55,6 +56,7 @@ const initialUser: UserCreateRequest = {
 };
 
 export function AdminPage() {
+  useDocumentTitle("系统管理");
   const queryClient = useQueryClient();
   const [showProfileForm, setShowProfileForm] = useState(false);
   const [profileDraft, setProfileDraft] = useState(initialProfile);

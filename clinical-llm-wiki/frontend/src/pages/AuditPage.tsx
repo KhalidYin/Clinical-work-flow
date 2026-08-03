@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { getJson } from "../api/client";
 import {
   API_PATHS,
@@ -34,6 +36,7 @@ function auditPath(search: AuditSearch): string {
 }
 
 export function AuditPage({ search, onSearchChange }: AuditPageProps) {
+  useDocumentTitle("审计记录");
   const events = useQuery({
     queryKey: [
       "audit-events",

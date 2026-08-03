@@ -1,0 +1,90 @@
+.compactState {
+  display: grid;
+  padding: 22px 14px;
+  gap: 5px;
+  color: var(--ink-700);
+  text-align: center;
+}
+
+.compactState strong {
+  font-family: var(--serif);
+  font-size: 18px;
+}
+
+.compactState span {
+  font-size: 11px;
+}
+
+.statePanel {
+  display: grid;
+  min-height: 300px;
+  padding: 42px;
+  place-items: center;
+  text-align: center;
+}
+
+.stateSymbol {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 16px;
+  place-items: center;
+  color: var(--blue-700);
+  background: var(--blue-100);
+  border: 1px solid rgba(31, 92, 120, 0.2);
+  border-radius: 50%;
+  font-family: var(--serif);
+  font-size: 24px;
+}
+
+.stateTitle {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 26px;
+}
+
+.stateText {
+  max-width: 540px;
+  margin: 8px auto 0;
+  color: var(--ink-700);
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table td {
+  padding: 15px 14px;
+  border-bottom: 1px solid var(--paper-200);
+}
+
+.skeleton {
+  display: block;
+  height: 13px;
+  background: linear-gradient(90deg, var(--paper-200), var(--paper-50), var(--paper-200));
+  background-size: 200% 100%;
+  animation: shimmer 1.2s linear infinite;
+}
+
+.error {
+  color: var(--red-700);
+  background: var(--red-100);
+}
+
+@media (max-width: 720px) {
+  .statePanel {
+    min-height: 260px;
+    padding: 32px 20px;
+  }
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}

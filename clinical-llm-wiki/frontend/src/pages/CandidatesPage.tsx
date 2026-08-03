@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { ApiRequestError, getJson, postJson } from "../api/client";
 import {
   API_PATHS,
@@ -33,6 +34,7 @@ interface CandidateDraft {
 }
 
 export function CandidatesPage() {
+  useDocumentTitle("知识候选");
   const queryClient = useQueryClient();
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -86,7 +88,7 @@ export function CandidatesPage() {
         expectedRevisionNumber: candidate.revisionNumber,
         expectedContentSha256: candidate.contentSha256,
         claim: draft.claim.trim(),
-        scope: parseRecord(draft.scope, "适用范围"),
+        scope: parseRecord(draft.scope, "范围"),
         applicability: parseRecord(draft.applicability, "适用范围"),
         conditions: parseRecordList(draft.conditions, "条件"),
         exceptions: parseRecordList(draft.exceptions, "例外"),
@@ -621,7 +623,7 @@ function CandidateEditor({
       />
       <div className={styles.editorPair}>
         <label>
-          适用范围（JSON object）
+          范围（JSON object）
           <textarea
             value={draft.scope}
             disabled={disabled}

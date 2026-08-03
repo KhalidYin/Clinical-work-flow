@@ -1,4 +1,4 @@
-import type { HumanRole } from "../contracts/knowledgeApi";
+import { roleLabel, type HumanRole } from "../contracts/knowledgeApi";
 
 const STATUS_LABELS: Record<string, string> = {
   active: "已启用",
@@ -27,14 +27,8 @@ const STATUS_LABELS: Record<string, string> = {
   unversioned: "未版本化",
   not_released: "未发布",
   not_verified: "未验证",
-};
-
-const ROLE_LABELS: Record<HumanRole, string> = {
-  platform_admin: "平台管理员",
-  knowledge_curator: "知识工程师",
-  reviewer: "知识审核员",
-  release_manager: "发布管理员",
-  consumer: "知识使用者",
+  leased: "已租用",
+  draft: "草稿",
 };
 
 export function statusLabel(value: string | null | undefined): string {
@@ -42,9 +36,7 @@ export function statusLabel(value: string | null | undefined): string {
   return STATUS_LABELS[value] ?? value;
 }
 
-export function humanRoleLabel(value: HumanRole): string {
-  return ROLE_LABELS[value];
-}
+export { roleLabel } from "../contracts/knowledgeApi";
 
 export function identitySourceLabel(value: string): string {
   return {

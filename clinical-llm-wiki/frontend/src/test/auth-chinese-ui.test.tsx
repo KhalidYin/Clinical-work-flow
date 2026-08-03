@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import { HttpResponse, http } from "msw";
 
+import { ErrorBoundary } from "../components/ErrorBoundary";
 import { API_PATHS, resolveApiPath } from "../contracts/knowledgeApi";
 import { sourcesFixture } from "../mocks/fixtures";
 import { server } from "../mocks/server";
@@ -15,9 +16,11 @@ function renderApp(initialEntry = "/sources?q=") {
     defaultOptions: { queries: { retry: false } },
   });
   render(
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>,
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    </ErrorBoundary>,
   );
 }
 

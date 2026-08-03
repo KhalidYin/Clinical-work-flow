@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, Outlet } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -11,24 +11,27 @@ import {
 import {
   API_PATHS,
   roleLabel,
+  type CandidateCollection,
   type CurrentRelease,
   type LoginRequest,
   type PasswordChangeRequest,
   type PlatformHealth,
+  type ProcessingRunCollection,
   type Session,
+  type SourceCollection,
 } from "../contracts/knowledgeApi";
 import styles from "./AppShell.module.css";
 
-const navigation = [
-  { index: "01", label: "来源管理", to: "/sources", badge: "05" },
-  { index: "02", label: "处理任务", to: "/processing", badge: "运行中" },
-  { index: "03", label: "知识候选", to: "/candidates", badge: "12" },
-  { index: "04", label: "关系浏览", to: "/relations", badge: null },
-  { index: "05", label: "检索实验室", to: "/query-lab", badge: null },
-  { index: "06", label: "质量评估", to: "/evaluation", badge: "02" },
-  { index: "07", label: "版本发布", to: "/releases", badge: "01" },
-  { index: "08", label: "审计记录", to: "/audit", badge: null },
-  { index: "09", label: "系统管理", to: "/admin", badge: null },
+const navigationBase = [
+  { index: "01", label: "来源管理", to: "/sources", countKey: "sources" as const },
+  { index: "02", label: "处理任务", to: "/processing", countKey: "processing" as const },
+  { index: "03", label: "知识候选", to: "/candidates", countKey: "candidates" as const },
+  { index: "04", label: "关系浏览", to: "/relations", countKey: null },
+  { index: "05", label: "检索实验室", to: "/query-lab", countKey: null },
+  { index: "06", label: "质量评估", to: "/evaluation", countKey: null },
+  { index: "07", label: "版本发布", to: "/releases", countKey: null },
+  { index: "08", label: "审计记录", to: "/audit", countKey: null },
+  { index: "09", label: "系统管理", to: "/admin", countKey: null, adminOnly: true as const },
 ] as const;
 
 function initials(name: string): string {
@@ -49,25 +52,105 @@ export function AppShell() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return false;
+    return window.matchMedia("(max-width: 980px)").matches;
+  });
   const queryClient = useQueryClient();
   const session = useQuery({
     queryKey: ["session"],
     queryFn: ({ signal }) => getJson<Session>(API_PATHS.session, signal),
     staleTime: 60_000,
   });
+  const authenticationRequired =
+    session.error instanceof ApiRequestError && session.error.status === 401;
+  const sessionAuthenticated = !authenticationRequired && !session.isPending;
+
   const health = useQuery({
     queryKey: ["health"],
     queryFn: ({ signal }) => getJson<PlatformHealth>(API_PATHS.health, signal),
     refetchInterval: 30_000,
+    enabled: sessionAuthenticated,
   });
   const release = useQuery({
     queryKey: ["release", "current"],
     queryFn: ({ signal }) => getJson<CurrentRelease>(API_PATHS.currentRelease, signal),
     staleTime: 30_000,
+    enabled: sessionAuthenticated,
+  });
+  const sourcesCount = useQuery({
+    queryKey: ["sources"],
+    queryFn: ({ signal }) => getJson<SourceCollection>(API_PATHS.sources, signal),
+    staleTime: 30_000,
+    enabled: sessionAuthenticated,
+  });
+  const processingCount = useQuery({
+    queryKey: ["processing-runs"],
+    queryFn: ({ signal }) =>
+      getJson<ProcessingRunCollection>(API_PATHS.processingRuns, signal),
+    staleTime: 30_000,
+    enabled: sessionAuthenticated,
+  });
+  const candidatesCount = useQuery({
+    queryKey: ["candidates"],
+    queryFn: ({ signal }) =>
+      getJson<CandidateCollection>(API_PATHS.candidates, signal),
+    staleTime: 30_000,
+    enabled: sessionAuthenticated,
   });
 
-  const authenticationRequired =
-    session.error instanceof ApiRequestError && session.error.status === 401;
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mql = window.matchMedia("(max-width: 980px)");
+    const onChange = (event: MediaQueryListEvent) => setIsMobile(event.matches);
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
+
+  const navigation = useMemo(() => {
+    const counts: Record<string, string | null> = {};
+    const sourceData = sourcesCount.data?.data;
+    if (sourceData?.total !== undefined) {
+      counts.sources = String(sourceData.total).padStart(2, "0");
+    }
+    const procData = processingCount.data?.data;
+    if (procData?.items !== undefined) {
+      const active = procData.items.filter(
+        (run) => run.status === "queued" || run.status === "processing",
+      ).length;
+      counts.processing = active > 0 ? `${active}活跃` : String(procData.total).padStart(2, "0");
+    }
+    const candData = candidatesCount.data?.data;
+    if (candData?.total !== undefined) {
+      counts.candidates = String(candData.total).padStart(2, "0");
+    }
+    return navigationBase
+      .filter((item) => {
+        if ("adminOnly" in item && item.adminOnly) {
+          return session.data?.data?.permissions?.includes("admin:read") ?? false;
+        }
+        return true;
+      })
+      .map((item) => ({
+        ...item,
+        badge: item.countKey ? (counts[item.countKey] ?? null) : null,
+      }));
+  }, [
+    sourcesCount.data?.data,
+    processingCount.data?.data,
+    candidatesCount.data?.data,
+    session.data?.data?.permissions,
+  ]);
+
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setDrawerOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [drawerOpen]);
+
   const submitLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!username.trim() || !password) {
@@ -122,9 +205,14 @@ export function AppShell() {
     setLoginError("");
     try {
       await postNoContent(API_PATHS.logout);
-    } finally {
       queryClient.removeQueries();
       await session.refetch();
+    } catch (error) {
+      setLoginError(
+        error instanceof ApiRequestError
+          ? error.message
+          : "退出登录失败，请稍后重试。",
+      );
     }
   };
 
@@ -217,6 +305,8 @@ export function AppShell() {
   const indexLabel = release.data?.data.indexVersion ?? "尚未构建";
   const closeDrawer = () => setDrawerOpen(false);
 
+  const sidebarInert = isMobile && !drawerOpen;
+
   return (
     <div className={styles.shell}>
       <a className={styles.skipLink} href="#main-content">
@@ -233,6 +323,8 @@ export function AppShell() {
       <aside
         className={`${styles.sidebar} ${drawerOpen ? styles.sidebarOpen : ""}`}
         aria-label="知识平台主导航"
+        inert={sidebarInert || undefined}
+        aria-hidden={sidebarInert || undefined}
       >
         <div className={styles.brand}>
           <span className={styles.brandMark} aria-hidden="true">
