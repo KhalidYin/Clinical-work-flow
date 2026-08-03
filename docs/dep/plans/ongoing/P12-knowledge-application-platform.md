@@ -596,8 +596,8 @@ P2-B 不再作为一次性“大模型 + 关系图 + 全部审核 UI”交付。
 
 - 阶段提交：`5292150`（replay/governance backend）、`72a94c8`（KUI-04）、
   `7953331`（完整本地产品）、`e2958bb`（真实 E2E 与 request-change 修复），均已同步远端。
-- 单命令启动 `scripts/start-demo.ps1 -Reset` 从 migration、受控 bootstrap、真实 Document
-  Worker、独立 Enrichment Worker、FastAPI 到 production frontend；bootstrap 不直写
+- 直接 `docker compose --project-name clinical-knowledge-demo up -d --build --wait` 从 migration、
+  环境驱动且幂等的 bootstrap、真实 Document Worker、独立 Enrichment Worker、FastAPI 到 production frontend；bootstrap 不直写
   Candidate，replay record 使用与 Worker 相同的 canonical request hash。
 - 真实浏览器完成 Author confirm → independent Reviewer request-change → Candidate revision 2
   → Author reconfirm → independent approve。无认证、作者越权审核和陈旧 hash 分别返回
@@ -910,7 +910,7 @@ P3 只消费 P2 已批准的 KnowledgeRevision。内部先构建可解释检索�
 | D18 | 同一 Knowledge Unit 的历史 revision 和当前 revision 都可能保留 proposed relation，直接合并会产生重复路径 | P2-B3 KUI | 数据投影（已解决） | Relation read adapter 只投影当前 KnowledgeRevision 的未发布 proposal；历史 proposal 继续留在 append-only Audit，不进入当前图 |
 | D19 | 通用 `--once` Worker 会领取队列中最早的 eligible run，不能保证命中已批准出站的单次测试 run | P2-B3 失败门 | 运行授权（已解决） | ledger/Worker 增加可选 `target_run_id`；P2-B3 先只读 preflight fresh run，再用 `--run-id ... --once` 定向领取，并以进程级 `max_calls=1` 限制调用 |
 | D20 | 模型 advisory 若只有类型和 Evidence 而没有描述，人工无法判断具体 duplicate/conflict/gap；若模型自行决定图语义则会绕过治理 | P2-B3 eligibility | 产品/数据（已解决） | advisory signal 强制描述与 Candidate Evidence；PostgreSQL canonical graph 上由确定性 validator 判定端点、互斥、cycle、closure 和 supersedes，模型输出仅供人工判断 |
-| D21 | 旧 demo runtime 只有 Author/Reviewer/Auditor，KUI-09 已实现但没有可用 Admin 身份进入 | P2-B3 KUI-09 | 产品可用性（已解决） | `start-demo.ps1` 对已有 runtime 幂等追加 gitignored Demo Admin，不重置数据、不打印 token；Admin 仍只获得内部 RBAC 的管理权限，不隐式获得审核或发布权限 |
+| D21 | 旧 demo runtime 只有 Author/Reviewer/Auditor，KUI-09 已实现但没有可用 Admin 身份进入 | P2-B3 KUI-09 | 产品可用性（已解决） | Compose `admin-bootstrap` 从 gitignored `.env` 幂等创建初始 Admin，已有用户时不重置密码；Admin 仍只获得内部 RBAC 的管理权限，不隐式获得审核或发布权限 |
 
 ## 关键决策记录
 

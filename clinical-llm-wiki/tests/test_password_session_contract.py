@@ -166,6 +166,20 @@ def test_login_normalizes_username_and_persists_only_session_sha256() -> None:
     assert result.expires_at == NOW + timedelta(hours=8)
 
 
+def test_login_allows_an_existing_short_password_to_be_upgraded() -> None:
+    contract, _, service = _service(password="legacy12")
+
+    login = service.login(username="admin", password="legacy12")
+    replacement = service.change_password(
+        raw_session_id=login.raw_session_id,
+        current_password="legacy12",
+        new_password="A replacement password meeting policy 2026!",
+    )
+
+    assert login.must_change_password is True
+    assert service.authenticate_session(replacement.raw_session_id).must_change_password is False
+
+
 def test_unknown_and_wrong_password_share_the_same_public_error() -> None:
     contract, _, service = _service()
 
@@ -285,10 +299,29 @@ def test_admin_reset_and_disable_are_auditable_without_using_human_password_for_
 
 @pytest.mark.parametrize(
     "password",
-    ["short", "x" * 129, "contains-null\x00password"],
+    ["", "x" * 129, "contains-null\x00password"],
 )
-def test_password_policy_rejects_unsafe_lengths_and_nul(password: str) -> None:
+def test_login_rejects_empty_oversized_and_nul_password_inputs(password: str) -> None:
     contract, _, service = _service()
 
     with pytest.raises(contract.PasswordPolicyError):
         service.login(username="admin", password=password)
+
+
+@pytest.mark.parametrize(
+    "password",
+    ["short", "x" * 129, "contains-null\x00password"],
+)
+def test_password_change_rejects_unsafe_new_password(password: str) -> None:
+    contract, _, service = _service()
+    login = service.login(
+        username="admin",
+        password="Correct horse battery staple 2026!",
+    )
+
+    with pytest.raises(contract.PasswordPolicyError):
+        service.change_password(
+            raw_session_id=login.raw_session_id,
+            current_password="Correct horse battery staple 2026!",
+            new_password=password,
+        )

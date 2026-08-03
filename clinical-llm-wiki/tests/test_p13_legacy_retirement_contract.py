@@ -87,7 +87,6 @@ def test_current_product_runtime_has_no_legacy_wiki_dependency() -> None:
     )
     runtime_files = [
         ROOT / "compose.yaml",
-        ROOT / "scripts/start-demo.ps1",
     ]
     for runtime_root in runtime_roots:
         runtime_files.extend(

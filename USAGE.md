@@ -18,27 +18,23 @@ Document、Enrichment、Release 是独立 Worker pool，通过 PostgreSQL 中的
 
 ```powershell
 Set-Location .\clinical-llm-wiki
-.\scripts\start-demo.ps1 -Reset
+Copy-Item .env.example .env
+# 编辑 .env，为所有 replace-with-* 项填写本机秘密值
+docker compose --project-name clinical-knowledge-demo up -d --build --wait
 ```
 
-`-Reset` 只重建固定的 `clinical-knowledge-demo` Compose 项目卷。首次启动会在终端一次性显示：
+Compose 自动读取当前目录的 `.env`。该文件必须包含数据库、初始管理员、三个 Worker 和 Workflow consumer 的初始化值。管理员引导幂等：空库首次创建管理员，已有账号时不覆盖数据库中的密码。
 
-- 用户名：`admin`
-- 随机临时密码：只在终端显示，不写入文件
-
-默认绑定所有宿主网卡。使用宿主机 IP 打开 `http://<宿主机IP>:4173/app.html`；本机也可使用 `http://localhost:4173/app.html`。首次登录必须改密。之后可在“系统管理 → 用户与权限”创建用户、重置密码、启用或禁用账号。仅需本机访问时，在 `.demo-runtime/demo.env` 设置 `KNOWLEDGE_BIND_ADDRESS=127.0.0.1` 后重建服务。
-
-保留数据库重启：
+如需明确重建本项目数据（会删除知识数据库和对象卷）：
 
 ```powershell
-.\scripts\start-demo.ps1
+docker compose --project-name clinical-knowledge-demo down --volumes --remove-orphans
+docker compose --project-name clinical-knowledge-demo up -d --build --wait
 ```
 
-停止服务但保留数据：
+默认绑定所有宿主网卡。使用宿主机 IP 打开 `http://<宿主机IP>:4173/app.html`；本机也可使用 `http://localhost:4173/app.html`。首次登录必须改密。之后可在“系统管理 → 用户与权限”创建用户、重置密码、启用或禁用账号。仅需本机访问时，在 `.env` 设置 `KNOWLEDGE_BIND_ADDRESS=127.0.0.1` 后重建服务。
 
-```powershell
-docker compose --project-name clinical-knowledge-demo --env-file .demo-runtime/demo.env down
-```
+停止服务但保留数据：`docker compose --project-name clinical-knowledge-demo down`。
 
 ## 3. 认证与机器身份
 
@@ -48,7 +44,7 @@ docker compose --project-name clinical-knowledge-demo --env-file .demo-runtime/d
 - Worker：分别使用 Document、Enrichment、Release 的机器凭据和最小 scope；机器 secret 不进入前端。
 - Workflow 知识消费者：使用单独的 `KNOWLEDGE_RUNTIME_CONSUMER_SECRET`，不复用人员或 Worker 身份。
 
-`.demo-runtime/demo.env` 是本地 gitignored 机器运行配置，不包含人员明文密码或浏览器会话值。
+`.env` 是本地 gitignored 初始化配置。按本地 Demo 要求它包含初始管理员明文密码，因此本机 Docker 管理员可读取它及容器配置；首次登录后应改密，并且非本地部署必须改用受控 Secret Store。浏览器会话值永远不写入 `.env`。
 
 ## 4. 模型 API 配置
 

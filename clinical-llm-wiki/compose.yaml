@@ -53,7 +53,7 @@ services:
       P12_ENRICHMENT_WORKER_TOKEN: ${P12_ENRICHMENT_WORKER_TOKEN:?set P12_ENRICHMENT_WORKER_TOKEN}
       P12_RELEASE_WORKER_TOKEN: ${P12_RELEASE_WORKER_TOKEN:?set P12_RELEASE_WORKER_TOKEN}
     depends_on:
-      migration:
+      admin-bootstrap:
         condition: service_completed_successfully
     volumes:
       - knowledge-objects:/var/lib/clinical-knowledge
@@ -61,10 +61,15 @@ services:
   admin-bootstrap:
     build: .
     image: clinical-knowledge-platform:local
-    profiles: ["admin-bootstrap"]
     command: ["python", "-m", "service.auth.bootstrap_admin"]
     restart: "no"
-    environment: *application-environment
+    environment:
+      <<: *application-environment
+      KNOWLEDGE_ADMIN_USERNAME: ${KNOWLEDGE_ADMIN_USERNAME:?set initial administrator username}
+      KNOWLEDGE_ADMIN_PASSWORD: ${KNOWLEDGE_ADMIN_PASSWORD:?set initial administrator password}
+      KNOWLEDGE_ADMIN_DISPLAY_NAME: ${KNOWLEDGE_ADMIN_DISPLAY_NAME:?set initial administrator display name}
+      KNOWLEDGE_ADMIN_EMAIL: ${KNOWLEDGE_ADMIN_EMAIL:?set initial administrator email}
+      KNOWLEDGE_ADMIN_INITIAL_PASSWORD_MIN_LENGTH: ${KNOWLEDGE_ADMIN_INITIAL_PASSWORD_MIN_LENGTH:-12}
     depends_on:
       migration:
         condition: service_completed_successfully

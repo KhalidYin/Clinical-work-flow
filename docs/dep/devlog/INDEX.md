@@ -93,5 +93,6 @@
 | R097 | 2026-08-01 | 17:51 | P13-password-session-chinese-legacy-retirement | P4 | 完成 104 项幂等迁移、P12 发布知识机器边界与 ADAE 新旧语义回归 | `clinical-llm-wiki/service/`, `clinical-workflow/src/knowledge/`, `clinical-workflow/tests/`, `docs/dep/` | active/DEVLOG-R089-R128.md |
 | R098 | 2026-08-01 | 18:40 | P13-password-session-chinese-legacy-retirement | P5 | 物理退役 269 个旧运行资产并关闭空卷 Compose、密码会话中文 E2E、全仓回归与零出站 Gate | `clinical-llm-wiki/`, `clinical-workflow/tests/fixtures/knowledge/`, `README.md`, `USAGE.md`, `docs/` | active/DEVLOG-R089-R128.md |
 | R099 | 2026-08-03 | 20:21 | - | - | 修复前端根路径重定向丢失宿主机发布端口 | `clinical-llm-wiki/frontend/nginx.conf`, `clinical-llm-wiki/tests/test_p1e_deployment_contract.py` | active/DEVLOG-R089-R128.md |
+| R100 | 2026-08-03 | 20:58 | P12-knowledge-application-platform | deployment | 统一直接 Compose 环境初始化并完成空卷管理员登录 E2E | `clinical-llm-wiki/compose.yaml`, `clinical-llm-wiki/service/auth/`, `.env.example`, `docs/` | active/DEVLOG-R089-R128.md |
 
 > Legacy rounds R001-R008 remain immutable in [DEVLOG-legacy.md](archive/DEVLOG-legacy.md). They predate the searchable index and were intentionally not rewritten during adoption.

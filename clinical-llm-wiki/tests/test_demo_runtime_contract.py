@@ -65,7 +65,10 @@ def test_compose_bootstrap_precedes_api_and_independent_workers() -> None:
     services = compose["services"]
 
     assert services["bootstrap"]["command"] == ["python", "-m", "service.demo_runtime"]
-    assert services["bootstrap"]["depends_on"]["migration"]["condition"] == (
+    assert services["admin-bootstrap"]["depends_on"]["migration"]["condition"] == (
+        "service_completed_successfully"
+    )
+    assert services["bootstrap"]["depends_on"]["admin-bootstrap"]["condition"] == (
         "service_completed_successfully"
     )
     for name in ("api", "worker-document", "worker-enrichment"):
@@ -82,21 +85,31 @@ def test_compose_bootstrap_precedes_api_and_independent_workers() -> None:
     ].endswith("/demo/replay-records.json")
 
 
-def test_demo_start_script_bootstraps_password_without_writing_human_secret() -> None:
-    script = (ROOT / "scripts" / "start-demo.ps1").read_text(encoding="utf-8")
+def test_direct_compose_bootstraps_admin_from_local_environment() -> None:
+    compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
+    admin = compose["services"]["admin-bootstrap"]
 
-    assert "RandomNumberGenerator" in script
-    assert ".demo-runtime" in script
-    assert "--wait" in script
-    assert "--volumes" in script
-    assert "KNOWLEDGE_POSTGRES_PASSWORD=" in script
-    assert "run --rm -T admin-bootstrap" in script
-    assert "一次性临时密码" in script
-    assert "access.json" not in script
-    assert "token =" not in script
-    assert 'KNOWLEDGE_DEMO_HOST' in script
-    assert 'Get-NetIPConfiguration' in script
-    assert '本机回环地址：http://localhost:4173/app.html#/candidates' in script
+    assert "profiles" not in admin
+    assert admin["command"] == ["python", "-m", "service.auth.bootstrap_admin"]
+    assert admin["environment"]["KNOWLEDGE_ADMIN_USERNAME"].startswith("${")
+    assert admin["environment"]["KNOWLEDGE_ADMIN_PASSWORD"].startswith("${")
+    assert admin["environment"]["KNOWLEDGE_ADMIN_DISPLAY_NAME"].startswith("${")
+    assert admin["environment"]["KNOWLEDGE_ADMIN_EMAIL"].startswith("${")
+    assert admin["environment"]["KNOWLEDGE_ADMIN_INITIAL_PASSWORD_MIN_LENGTH"].startswith(
+        "${"
+    )
+
+    example = (ROOT / ".env.example").read_text(encoding="utf-8")
+    assert "KNOWLEDGE_ADMIN_USERNAME=admin" in example
+    assert "KNOWLEDGE_ADMIN_PASSWORD=" in example
+    example_password = next(
+        line.partition("=")[2]
+        for line in example.splitlines()
+        if line.startswith("KNOWLEDGE_ADMIN_PASSWORD=")
+    )
+    assert example_password.startswith("replace-with-")
+    assert len(example_password) >= 12
+    assert not (ROOT / "scripts" / "start-demo.ps1").exists()
 
 
 def test_compose_has_no_human_bearer_identity_mount() -> None:

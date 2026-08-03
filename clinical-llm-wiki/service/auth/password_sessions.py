@@ -268,7 +268,7 @@ class PasswordSessionService:
         self._dummy_password_hash = hasher.hash("P13 dummy verification password only")
 
     def login(self, *, username: str, password: str) -> NewBrowserSession:
-        self._validate_password_shape(password)
+        self._validate_existing_password_shape(password)
         username_normalized = self.normalize_username(username)
         now = self._clock()
         credential = self._repository.find_credential(username_normalized)
@@ -348,7 +348,7 @@ class PasswordSessionService:
         current_password: str,
         new_password: str,
     ) -> NewBrowserSession:
-        self._validate_password_shape(current_password)
+        self._validate_existing_password_shape(current_password)
         self._validate_password_shape(new_password)
         principal = self.authenticate_session(raw_session_id)
         now = self._clock()
@@ -473,6 +473,16 @@ class PasswordSessionService:
         if (
             "\x00" in password
             or len(password) < self._policy.minimum_password_length
+            or len(password) > self._policy.maximum_password_length
+        ):
+            raise PasswordPolicyError("密码长度或字符不符合安全要求。")
+
+    def _validate_existing_password_shape(self, password: str) -> None:
+        """Permit legacy/bootstrap hashes to authenticate so they can be upgraded."""
+
+        if (
+            not password
+            or "\x00" in password
             or len(password) > self._policy.maximum_password_length
         ):
             raise PasswordPolicyError("密码长度或字符不符合安全要求。")

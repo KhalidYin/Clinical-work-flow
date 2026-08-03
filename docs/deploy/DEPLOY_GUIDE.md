@@ -4,16 +4,18 @@
 
 ```powershell
 Set-Location .\clinical-llm-wiki
-.\scripts\start-demo.ps1 -Reset
+Copy-Item .env.example .env
+# 编辑 .env 后执行
+docker compose --project-name clinical-knowledge-demo up -d --build --wait
 ```
 
-默认发布到所有宿主网卡：前端 `0.0.0.0:4173`，API `0.0.0.0:8788`，因此可以从局域网通过宿主机 IP 访问。若只允许本机访问，在 `.demo-runtime/demo.env` 中设置 `KNOWLEDGE_BIND_ADDRESS=127.0.0.1` 后重建 Compose 项目。Compose 包含 PostgreSQL、migration、bootstrap、API、frontend、Document Worker 和 Enrichment Worker；Release Worker 仍需显式 profile/产品 Gate。
+默认发布到所有宿主网卡：前端 `0.0.0.0:4173`，API `0.0.0.0:8788`，因此可以从局域网通过宿主机 IP 访问。若只允许本机访问，在 `.env` 中设置 `KNOWLEDGE_BIND_ADDRESS=127.0.0.1` 后重建 Compose 项目。Compose 包含 PostgreSQL、migration、管理员和 Demo 数据 bootstrap、API、frontend、Document Worker 和 Enrichment Worker；Release Worker 仍需显式 profile/产品 Gate。
 
 例如宿主机 WLAN 地址为 `192.168.31.189` 时，浏览器打开 `http://192.168.31.189:4173/app.html`。若远端仍无法连接，还需在宿主机防火墙放行 TCP 4173（API 8788 通常只应由前端 Nginx 内部代理使用）。
 
 ## 安全配置
 
-`.demo-runtime/demo.env` 仅用于本机且不进入 Git。它保存数据库密码和最小权限机器凭据，不保存人员密码。初始管理员密码通过标准输入进入一次性 bootstrap，并只在终端显示一次。
+`.env` 仅用于本机且不进入 Git。按本地 Demo 初始化约定，它保存数据库密码、初始管理员信息和彼此独立的最小权限机器凭据。管理员密码只在空库首次引导时生效，数据库保存 Argon2id 哈希；重复启动不会把用户已修改的密码重置回 `.env`。明文值可被本机 Docker 管理员查看，因此非本地部署必须改用受控 Secret Store。
 
 非本地部署必须：
 

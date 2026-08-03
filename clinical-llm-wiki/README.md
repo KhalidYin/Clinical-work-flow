@@ -20,10 +20,12 @@ Markdown Wiki、SQLite 派生索引和旧服务已完成一次性迁移并退役
 ## 启动
 
 ```powershell
-.\scripts\start-demo.ps1 -Reset
+Copy-Item .env.example .env
+# 编辑 .env 后执行
+docker compose --project-name clinical-knowledge-demo up -d --build --wait
 ```
 
-默认使用宿主机 IP 打开 `http://<宿主机IP>:4173/app.html`（本机也可使用 `localhost`），以终端一次性显示的 `admin` 临时密码登录并改密。浏览器只使用 HttpOnly Cookie；Worker 与 Workflow 消费者分别使用独立机器凭据。
+Compose 自动执行 Alembic、管理员和 Demo 数据的幂等初始化。默认使用宿主机 IP 打开 `http://<宿主机IP>:4173/app.html`（本机也可使用 `localhost`），以 `.env` 中的初始管理员账号登录并立即改密。浏览器只使用 HttpOnly Cookie；Worker 与 Workflow 消费者分别使用独立机器凭据。
 
 模型默认采用 fake/replay，不调用真实外部 API。管理员页面保存的是模型配置与 secret reference，不保存密钥值。
 

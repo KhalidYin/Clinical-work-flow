@@ -36,6 +36,10 @@ docs/                     平台规格、计划、DevLog 与部署说明
 KNOWLEDGE_DATABASE_URL
 KNOWLEDGE_OBJECT_STORE_ROOT
 KNOWLEDGE_POSTGRES_PASSWORD                 # Compose
+KNOWLEDGE_ADMIN_USERNAME                    # 仅空库首次引导
+KNOWLEDGE_ADMIN_PASSWORD                    # 本地 .env / 生产 Secret Store
+KNOWLEDGE_ADMIN_DISPLAY_NAME
+KNOWLEDGE_ADMIN_EMAIL
 P12_DOCUMENT_WORKER_TOKEN
 P12_ENRICHMENT_WORKER_TOKEN
 P12_RELEASE_WORKER_TOKEN
@@ -53,7 +57,7 @@ KNOWLEDGE_ALLOWED_ORIGINS=http://localhost:4173
 KNOWLEDGE_SESSION_COOKIE_SECURE=false       # 仅 loopback；非本地必须 true
 ```
 
-人员密码不使用环境变量长期保存。`admin-bootstrap` 从标准输入读取一次性临时密码。会话值不写配置，数据库只保存 SHA-256。
+`admin-bootstrap` 在空库首次启动时读取上述环境变量，幂等创建本地管理员并强制首次登录改密；已有管理员时不覆盖密码。人员密码在数据库中只保存 Argon2id 哈希，会话值不写配置且数据库只保存会话标识的 SHA-256。`KNOWLEDGE_ADMIN_INITIAL_PASSWORD_MIN_LENGTH` 默认 12；低于 12 的本地例外必须显式配置且不得用于非本地部署。
 
 ### Worker
 
@@ -79,12 +83,11 @@ KNOWLEDGE_LIVE_MODEL_MAX_CALLS
 ## 3. 本地运行文件
 
 ```text
-clinical-llm-wiki/.demo-runtime/
-  demo.env          # gitignored；数据库和机器凭据
-  admin.initialized # gitignored；只标记一次性 bootstrap 已完成
+clinical-llm-wiki/.env          # gitignored；本机初始化值
+clinical-llm-wiki/.env.example  # 已跟踪；仅变量名与安全占位符
 ```
 
-该目录不保存人员密码或浏览器认证值。启动脚本会清理不再受支持的旧人员凭据文件。
+`.env` 可含本地初始管理员明文密码，但不含浏览器会话值。它不是生产 Secret Store，也不得提交到 Git；正式部署必须用部署平台的受控 Secret 注入机制。
 
 ## 4. Study 运行文件
 
@@ -102,7 +105,7 @@ Postgres  仅 Compose 内网
 
 ```powershell
 Set-Location .\clinical-llm-wiki
-.\scripts\start-demo.ps1 -Reset
+docker compose --project-name clinical-knowledge-demo up -d --build --wait
 ```
 
 CLI 可通过 `--knowledge-service-url http://127.0.0.1:8788` 指向发布知识 API，并从后端环境读取 `KNOWLEDGE_RUNTIME_CONSUMER_SECRET`。

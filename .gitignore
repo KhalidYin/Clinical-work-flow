@@ -64,3 +64,4 @@ Desktop.ini
 # Environment
 .env
 .env.local
+!clinical-llm-wiki/.env.example

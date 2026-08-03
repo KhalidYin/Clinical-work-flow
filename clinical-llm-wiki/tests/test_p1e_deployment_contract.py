@@ -59,11 +59,13 @@ def test_compose_has_no_legacy_vault_migration_runtime() -> None:
     assert "/migration-source" not in (ROOT / "compose.yaml").read_text(encoding="utf-8")
 
 
-def test_demo_startup_provisions_a_separate_runtime_consumer_credential() -> None:
-    startup = (ROOT / "scripts/start-demo.ps1").read_text(encoding="utf-8")
+def test_compose_requires_a_separate_runtime_consumer_credential() -> None:
+    compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
 
-    assert "KNOWLEDGE_RUNTIME_CONSUMER_SECRET=$(New-RandomSecret)" in startup
-    assert "HttpOnly" not in startup  # the browser session is created by the API, not shell.
+    value = compose["services"]["api"]["environment"][
+        "KNOWLEDGE_RUNTIME_CONSUMER_SECRET"
+    ]
+    assert value.startswith("${KNOWLEDGE_RUNTIME_CONSUMER_SECRET:?")
 
 
 def test_frontend_root_redirect_preserves_the_published_host_port() -> None:
@@ -71,6 +73,13 @@ def test_frontend_root_redirect_preserves_the_published_host_port() -> None:
 
     assert "absolute_redirect off;" in nginx
     assert "return 302 /app.html;" in nginx
+
+
+def test_frontend_document_metadata_uses_the_chinese_product_name() -> None:
+    document = (ROOT / "frontend/app.html").read_text(encoding="utf-8")
+
+    assert "<title>临床知识台账</title>" in document
+    assert 'content="临床知识台账——证据驱动的知识治理工作台。"' in document
 
 
 def test_worker_module_exposes_one_pool_parameterized_entrypoint() -> None:

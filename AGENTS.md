@@ -23,7 +23,7 @@
 
 ```powershell
 Set-Location clinical-llm-wiki
-.\scripts\start-demo.ps1 -Reset
+docker compose --project-name clinical-knowledge-demo up -d --build --wait
 ```
 
 ```powershell

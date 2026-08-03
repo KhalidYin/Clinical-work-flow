@@ -571,4 +571,51 @@ Done — no next steps。
 
 - `clinical-llm-wiki/frontend/nginx.conf`
 - `clinical-llm-wiki/tests/test_p1e_deployment_contract.py`
-- `(uncommitted)`
+- `2119080`
+
+### R100 [20:58] [P12-knowledge-application-platform] 本地 Compose 环境初始化与空卷 E2E
+
+#### Done
+
+- 移除重复维护的 `start-demo.ps1` 路径，直接 Docker Compose 自动读取 gitignored `.env`，按
+  PostgreSQL → Alembic → 管理员引导 → Demo 数据 → API/Worker 的确定顺序启动；新增已跟踪的
+  `.env.example`，数据库、初始管理员、三个 Worker 和 Workflow consumer 初始化值均有明确入口。
+- 管理员引导从环境变量读取用户名、密码、显示名、邮箱和初始密码下限，空库创建、已有用户不覆盖；
+  数据库只保存 Argon2id 哈希，浏览器仍只接收 HttpOnly/SameSite 会话 Cookie。
+- 将既有密码验证与新密码策略分离：本地已批准的短初始密码可登录并进入强制改密 Gate，新密码仍按
+  12–128 位正式策略校验；空值、超长和 NUL 输入继续失败关闭。
+- 精确删除并重建 `clinical-knowledge-demo` 的 PostgreSQL/ObjectStore 两卷，未影响同机其他 Compose
+  项目；同步 README、USAGE、部署指南、SPEC-13、P12 计划/memory 和开发指引，浏览器标题也统一为中文。
+
+#### Issues / Blockers
+
+- 第一次 E2E 登录被正式最小密码长度提前拒绝。根因是登录复用了“新密码”策略，导致短初始/历史
+  Argon2id 凭据无法认证后升级；已用失败测试拆分既有凭据验证与新密码策略，没有降低改密强度。
+- HTTP 健康状态为 `degraded`，唯一原因是当前计划明确禁用 semantic index；API、数据库、对象存储、
+  前端和两个默认 Worker 均健康，不是服务故障。
+- `.env` 和一次性 bootstrap 容器配置可被本机 Docker 管理员查看，因此环境明文初始密码只适用于
+  本地 Demo；非本地部署仍必须使用 Secret Store、TLS 与 Secure Cookie。
+
+#### Validation
+
+- TDD 定向认证/Compose 合同：36 passed；最终知识产品后端：191 passed、8 skipped，Ruff 通过。
+- 前端 Vitest：30 passed；TypeScript/Vite production build 通过；临床 Workflow：366 passed、
+  1 skipped，Ruff 通过；`git diff --check` 通过，无真实模型 API 调用。
+- 空卷 Alembic 达到 `20260801_0008`，Demo Candidate=1；管理员记录为 Argon2id 且首次改密=true。
+  重复 Compose 明确返回“已存在，未修改”，证明不会把已改密码重置回环境值。
+- 真实 HTTP/浏览器从 4173 同源登录成功，Cookie 为 HttpOnly + SameSite=Strict，进入中文首次改密页；
+  部署后的前端标题为“临床知识台账”。
+
+#### Next
+
+1. 用户使用本地初始管理员账号登录并立即完成 12 位以上密码变更；变更后 `.env` 中的初始密码不再
+   是数据库当前密码，也不会被重复 Compose 覆盖回去。
+2. 后续在“模型 API 配置”登记单一获授权 ModelProfile/secret reference；在用户明确批准出站数据和
+   单次预算前，继续保持 replay/fake 与 live Gate 关闭。
+3. 风险是把本地 `.env` 误用为生产 Secret Store；进入非本地部署前必须另建部署安全 Gate。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/compose.yaml`、`.env.example`、`service/auth/`、前端元数据与部署合同测试
+- `README.md`、`USAGE.md`、`AGENTS.md`、`CLAUDE.md`、Wiki README、部署/SPEC/P12 计划与 memory
+- `clinical-llm-wiki/scripts/start-demo.ps1`（删除）
