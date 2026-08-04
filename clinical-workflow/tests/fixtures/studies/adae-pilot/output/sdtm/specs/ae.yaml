@@ -1,0 +1,3 @@
+domain: AE
+study_id: SYNTH-ONCO-001
+variables: [STUDYID, USUBJID, AESEQ, AESTDTC, AEENDTC]

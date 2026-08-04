@@ -23,6 +23,38 @@ def test_admin_bootstrap_config_reads_all_initial_identity_fields_from_environme
     assert config.display_name == "系统管理员"
     assert config.email == "admin@knowledge.local"
     assert config.minimum_password_length == 12
+    assert config.require_password_change is True
+
+
+def test_admin_bootstrap_require_password_change_defaults_to_true_when_unset() -> None:
+    config = admin_bootstrap_config_from_environment(_environment())
+
+    assert config.require_password_change is True
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    (
+        ("false", False),
+        ("False", False),
+        ("0", False),
+        ("no", False),
+        ("off", False),
+        ("true", True),
+        ("True", True),
+        ("1", True),
+        ("", True),
+    ),
+)
+def test_admin_bootstrap_require_password_change_respects_environment(
+    value: str,
+    expected: bool,
+) -> None:
+    environment = _environment()
+    environment["KNOWLEDGE_ADMIN_REQUIRE_PASSWORD_CHANGE"] = value
+    config = admin_bootstrap_config_from_environment(environment)
+
+    assert config.require_password_change is expected
 
 
 @pytest.mark.parametrize(

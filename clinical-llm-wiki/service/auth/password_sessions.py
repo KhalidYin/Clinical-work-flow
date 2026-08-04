@@ -389,6 +389,7 @@ class PasswordSessionService:
         display_name: str,
         email: str,
         roles: tuple[ProductRole, ...],
+        require_password_change: bool = True,
     ) -> AdminTemporaryPasswordResult:
         require_permission(actor, Permission.ADMIN_MANAGE_USERS)
         require_permission(actor, Permission.ADMIN_MANAGE_ROLES)
@@ -412,7 +413,7 @@ class PasswordSessionService:
             email=email.strip(),
             roles=roles,
             password_hash=self._hasher.hash(temporary_password),
-            must_change_password=True,
+            must_change_password=require_password_change,
             created_at=self._clock(),
             actor_id=actor.actor_id,
         )

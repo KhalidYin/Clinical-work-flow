@@ -33,6 +33,7 @@ class AdminBootstrapConfig:
     display_name: str
     email: str
     minimum_password_length: int
+    require_password_change: bool
 
 
 def admin_bootstrap_config_from_environment(
@@ -62,12 +63,17 @@ def admin_bootstrap_config_from_environment(
     if not 8 <= minimum_password_length <= 128:
         raise RuntimeError(f"{length_name} 必须在 8 到 128 之间")
 
+    require_name = "KNOWLEDGE_ADMIN_REQUIRE_PASSWORD_CHANGE"
+    raw_require = environment.get(require_name, "true").strip().casefold()
+    require_password_change = raw_require not in {"false", "0", "no", "off"}
+
     return AdminBootstrapConfig(
         username=values["KNOWLEDGE_ADMIN_USERNAME"],
         password=values["KNOWLEDGE_ADMIN_PASSWORD"],
         display_name=values["KNOWLEDGE_ADMIN_DISPLAY_NAME"],
         email=values["KNOWLEDGE_ADMIN_EMAIL"],
         minimum_password_length=minimum_password_length,
+        require_password_change=require_password_change,
     )
 
 
@@ -79,6 +85,7 @@ def bootstrap_local_admin(
     display_name: str,
     email: str,
     minimum_password_length: int = 12,
+    require_password_change: bool = True,
 ) -> bool:
     """Create the first local administrator; never overwrite an existing credential."""
 
@@ -106,6 +113,7 @@ def bootstrap_local_admin(
         display_name=display_name,
         email=email,
         roles=(ProductRole.PLATFORM_ADMIN,),
+        require_password_change=require_password_change,
     )
     return True
 
@@ -123,6 +131,7 @@ def main(environment: Mapping[str, str] | None = None) -> None:
             display_name=config.display_name,
             email=config.email,
             minimum_password_length=config.minimum_password_length,
+            require_password_change=config.require_password_change,
         )
     finally:
         engine.dispose()
