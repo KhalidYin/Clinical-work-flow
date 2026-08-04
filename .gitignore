@@ -43,6 +43,11 @@ output/
 downloads/ctgov/
 clinical-workflow/src/review_panel/out/
 
+# Generated learning-manual build artifacts
+doc/main/knowledge/
+doc/main/临床试验统计师核心知识体系.pdf
+tmp/pdfs/
+
 # Audit trail (runtime log, regenerated)
 audit_trail.jsonl
 !clinical-llm-wiki/audit_trail.jsonl
@@ -58,3 +63,4 @@ Desktop.ini
 # Environment
 .env
 .env.local
+doc/main/临床试验统计师核心知识体系.md
