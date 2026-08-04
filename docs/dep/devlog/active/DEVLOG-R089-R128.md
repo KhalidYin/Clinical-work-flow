@@ -252,3 +252,370 @@
 - `clinical-llm-wiki/schemas/application/knowledge-api.prerelease.yaml`
 - `clinical-llm-wiki/tests/`
 - `USAGE.md`、Wiki README、SPEC-12/13、P12 plan/PLAN/memory
+
+### R093 [13:14] [P12-knowledge-application-platform] P2-B3: 完成零出站 Model API 配置产品闭环
+
+#### Done
+
+- 新增 Admin-only ModelProfile registry GET/POST：同一 ID/version 内容相同可幂等重放，内容
+  不同返回 conflict；请求只接受非敏感元数据和 `env://`/`secret://` 引用，明文 secret 与
+  多余字段在进入 repository 前失败，验证错误不回显输入。
+- SQLAlchemy repository 将不可变版本写入 PostgreSQL，并追加脱敏
+  `model_profile.registered / registered_not_verified` AuditEvent；配置保存不依赖 provider，
+  不创建 ModelInvocation，也不提供连接测试或 live 开关。
+- KUI-09 延续 Evidence Ledger 视觉基线，提供登记、加载、空、错误、partial、conflict-ready
+  状态，并固定展示 `not verified` / `live disabled`。表单根据 deployment class 约束数据边界，
+  窄屏降为单列。
+- `start-demo.ps1` 为已有 runtime 幂等补齐 gitignored Demo Admin，不重置数据、不打印 token；
+  登录提示同步包含 Admin。阶段提交 `6cecce6` 已推送远端。
+
+#### Issues / Blockers
+
+- 浏览器 E2E 首次无法进入 Admin。根因不是路由或 RBAC 缺陷，而是旧 demo identity bundle
+  从未生成 platform_admin；已加入保留数据的幂等身份迁移并通过真实 RBAC 登录。
+- 当前 demo 历史上已有 1 条 replay ModelInvocation；E2E 登记前后均为 1，证明本次配置没有
+  增量调用。真实 Provider 仍未配置、验证或调用，P2 live Gate 保持 open。
+- 首次真实调用前仍需核对 DeepSeek 对 JSON mode/structured output 与 thinking 默认行为的
+  实际参数兼容性；不得把 registry 登记当作 adapter 兼容性结论。
+
+#### Validation
+
+- 后端合同 20 passed；Ruff 通过；一次性 pgvector/PostgreSQL registry acceptance 1 passed。
+- 前端 Vitest 26 passed；TypeScript typecheck 和 Vite production build 通过。
+- 真实 Compose/FastAPI/PostgreSQL/Nginx 浏览器 E2E：Admin 登录、ModelProfile 登记、脱敏
+  Audit、桌面 2560px 与 390px 窄屏通过；390px `scrollWidth == innerWidth`。
+- 数据库 E2E：ModelProfile 1→2，ModelInvocation 1→1；Audit 不含 `secret_ref`，页面无 API
+  Key/secret value 输入和“测试连接/运行模型”按钮。供应商出站调用数为 0。
+
+#### Next
+
+1. 用户在 KUI-09 登记目标 profile/version 与 secret reference，并在受控环境注入实际 secret；
+   不在 UI、仓库、日志或聊天中粘贴密钥。
+2. 首次出站前修正并验证 DeepSeek `json_object`/thinking 参数映射，执行只读 preflight；用户
+   确认 synthetic Evidence 与 `max_calls=1` 后才运行一次定向 Worker。
+3. live Candidate 仍需 Author confirmation 与 independent Reviewer；完成 Audit lineage 后才
+   关闭 P2 并启动 P3。
+
+#### Files Changed
+
+- `clinical-llm-wiki/service/platform_api/`
+- `clinical-llm-wiki/schemas/application/knowledge-api.prerelease.yaml`
+- `clinical-llm-wiki/frontend/src/`
+- `clinical-llm-wiki/scripts/start-demo.ps1`
+- `clinical-llm-wiki/tests/`
+- Wiki README、`USAGE.md`、P12/PLAN/memory、DEVLOG
+
+### R094 [15:53] [P13-password-session-chinese-legacy-retirement] P1: 冻结认证与旧 Wiki 退役合同
+
+#### Done
+
+- 建立 P13 唯一执行子计划并关闭 P1：冻结人员“用户名 + Argon2id 密码哈希 + 服务端
+  HttpOnly Cookie 会话”和 Worker 独立最小权限机器凭据边界；P12 live 模型 Gate 继续暂停，
+  本轮出站调用数为 0。
+- 新增旧 Wiki crosswalk，清点 146 个 Vault 文件、104 条受治理且 ID 唯一的记录、来源
+  accession/package、3 个 snapshot、18 个历史 review 文件、审计、内容/PDF 脚本、旧 8787
+  runtime 引用和 13 个 P1-P11 历史计划。每类资产具有迁移、最小 fixture 或门禁后删除处置，
+  `unresolved_assets` 为零。
+- 对用户列出的 7 项问题逐项定性：历史脚本 SHA-256 的尾随 LF 语义保留为 verify-only；旧
+  Schema loader、stage 集合、snapshot 包装和 YAML 静默跳过由 fail-closed 迁移与旧服务删除解决；
+  P9 helper 与 prerelease evolution 版本不跨 Workflow 主线硬改。
+- 以 TDD 登记人员凭据/浏览器会话、恶意 YAML fail-closed、中文用户名密码登录和九项中文
+  导航合同；冻结 ADAE 在线/锁定离线知识 ID、引用和 byte-identical 结果语义。
+
+#### Issues / Blockers
+
+- RED 复验确认 `user_credentials`/`browser_sessions` 尚不存在，旧迁移扫描器也没有
+  fail-closed API；前端仍显示 token 登录和英文导航。这些是 P2/P3 的预期实现缺口，不是
+  被跳过的失败。
+- 既有 `test_adae_knowledge_workflow.py` 当前 5 项失败：夹具声明的 3 个审批证据文件从未纳入
+  Git，且测试没有按当前固定 pipeline 准备前置阶段，动作停在 `protocol_analysis`。已登记为
+  P13-001/002；P4 只修兼容接线和夹具，不改变临床阶段顺序或 Review 合同，P5 删除前必须转绿。
+- 项目唯一虚拟环境起初未安装 Workflow 自声明依赖，导致 MCP 工具静默降级为空。已从
+  `clinical-workflow/pyproject.toml` 安装 editable 依赖；产品源码和依赖声明未改。
+
+#### Validation
+
+- RED backend：显式 `--runxfail` 为 2 failed、3 passed；缺口分别是凭据/会话表和
+  fail-closed 扫描器。
+- 登记后的 backend contract：5 passed、2 xfailed；frontend contract：2 个 `it.fails`
+  预期失败合同通过。
+- Vault 静态清点：104 个 frontmatter governed records、104 个唯一 ID、0 个当前 YAML 解析错误。
+- Workflow 基线复验：运行依赖修复后仍为 5 failed，失败原因已进入 crosswalk 删除 Gate，未被
+  伪装为通过；供应商模型调用数为 0。
+
+#### Next
+
+1. P2 先写 Argon2id 凭据、会话哈希、登录/退出/改密、锁定与撤销的失败测试，再实现 ORM 和
+   `0008` Alembic 迁移。
+2. 将人员 HTTPBearer 替换为 Cookie-only 会话，并对修改请求加入 Origin + 自定义请求头
+   CSRF fail-closed；Worker service account 合同保持不变。
+3. P2 完成后独立提交并同步远端；主要风险是会话原值或临时密码进入数据库、日志、审计或
+   API，以及将机器身份误接到人员登录路径。
+
+#### Files Changed
+
+- `clinical-llm-wiki/tests/test_p13_legacy_retirement_contract.py`
+- `clinical-llm-wiki/tests/fixtures/migration/legacy-wiki-crosswalk.json`
+- `clinical-llm-wiki/frontend/src/test/auth-chinese-ui.test.tsx`
+- `docs/dep/plans/ongoing/P13-password-session-chinese-legacy-retirement.md`
+- `docs/dep/PLAN.md`、`docs/dep/TASK_STATE.md`、DEVLOG
+
+### R095 [16:35] [P13-password-session-chinese-legacy-retirement] P2: 落地密码会话与 Cookie 安全边界
+
+#### Done
+
+- 新增 `user_credentials`、`browser_sessions` 和 `20260801_0008` 迁移；密码使用固定参数
+  Argon2id 哈希，会话只保存 SHA-256 标识，登录具备未知用户等时验证、5 次失败锁定、8 小时
+  绝对期限和 30 分钟空闲期限。
+- 平台 API 删除人员 HTTP Bearer，改为 HttpOnly、SameSite=Strict 会话 Cookie；非本地部署
+  强制 Secure。全部修改请求必须同时匹配精确 Origin 和 `X-CSRF-Protection`，登录、退出、
+  强制/主动改密、管理员创建/重置/启停均有中文错误合同和审计；临时密码只在创建/重置响应
+  返回一次，审计与持久化层不记录明文。
+- 前端请求层移除 `sessionStorage` 和 Authorization 注入，接通用户名密码、强制改密、退出；
+  九个一级导航先行改为中文。旧 `.demo-runtime/access.json`、`identities.json` 已精确删除。
+- Demo 引导改为在 PowerShell 内存生成初始管理员密码，经 stdin 传入一次性容器并只向终端
+  显示一次；明文不写入 env、文件、数据库、日志或浏览器。三个 Worker 继续使用独立机器
+  Service Account、pool 和最小 scope。
+
+#### Issues / Blockers
+
+- Docker Hub 镜像代理临时无法解析 `python:3.13-slim` 元数据，导致本轮无法把完整镜像重建
+  作为冷启动证据。已使用此前受信镜像挂载当前源代码，对保留数据的 Compose PostgreSQL
+  执行真实 `0007 → 0008` 迁移；P5 仍必须重跑完整 cold build/start Gate。
+- 本轮只完成认证相关和一级导航中文；核心业务页、状态/角色字典、管理员用户操作 UI 和
+  窄屏视觉属于 P3，不能因认证页面通过而提前关闭中文产品 Gate。
+
+#### Validation
+
+- 后端定向合同 53 passed；平台 API 20 passed；Ruff 通过。
+- 新建 PostgreSQL 容器执行空库 upgrade→downgrade→upgrade；真实 SQLAlchemy/FastAPI 集成
+  2 passed。现有 Compose 数据库原位升级到 `20260801_0008`，两张新表存在且旧卷未重置。
+- 前端 Vitest 28 passed；TypeScript typecheck 与 Vite production build 通过；认证与中文一级
+  导航定向合同 12 passed。
+- Compose 配置解析通过；真实外部模型 API 调用数为 0。
+
+#### Next
+
+1. P3 先补管理员创建、一次性密码、重置、启停和越权组件测试，再实现用户管理界面。
+2. 建立集中中文展示映射并逐页清除用户可见英文，保留 API 字段、枚举、临床变量和模型名。
+3. 浏览器验证默认/加载/空/错误/partial/窄屏状态；风险是只翻译标题而遗漏按钮、表头、
+   无障碍标签和后端错误，或把机器合同错误翻译。
+
+#### Files Changed
+
+- `clinical-llm-wiki/service/auth/`、`service/db/`、`service/platform_api/`
+- `clinical-llm-wiki/schemas/application/knowledge-api.prerelease.yaml`
+- `clinical-llm-wiki/frontend/src/`
+- `clinical-llm-wiki/compose.yaml`、`scripts/start-demo.ps1`、`service/demo_runtime.py`
+- `clinical-llm-wiki/tests/`、P13/PLAN/TASK_STATE、DEVLOG
+
+### R096 [17:08] [P13-password-session-chinese-legacy-retirement] P3: 完成中文界面与用户管理闭环
+
+#### Done
+
+- 保持 D0 色彩、字体和布局基线，将产品名、九个一级导航、页面标题、按钮、表头、状态、
+  错误和无障碍标签统一为中文展示；API 字段、枚举、临床标准变量和模型名称保持原值。
+- 系统管理页接通创建用户、产品角色、多状态列表、一次性临时密码、重置密码和启停操作；
+  新增服务账号只读 API/UI，只投影 ID、名称、pool、scope 和状态，不返回 `secret_ref` 或值。
+- 新增集中展示字典，覆盖角色、状态、数据边界、权利分类、Worker pool 和关系类型；请求层继续
+  只使用同源 HttpOnly Cookie 与 CSRF 头，不恢复 sessionStorage/Authorization 双轨。
+- 使用当前源码完成 API、Worker、migration、bootstrap 和前端全镜像 rebuild/up/health，保留既有
+  PostgreSQL 卷；P2 的镜像代理问题已恢复。
+
+#### Issues / Blockers
+
+- 当前 Compose 数据保留 P12 的三条 `local_test` 用户投影，不能以人员密码登录；P4/P5 必须随
+  旧资产迁移清除，不能误当作第二种人员认证路径。
+- 当前发布尚未建立，因此顶部如实显示平台降级、当前发布不可用；P3 不通过伪造 Release 修饰状态。
+
+#### Validation
+
+- 平台 API 合同 20 passed，Ruff 通过；前端 Vitest 30 passed、TypeScript typecheck 和 Vite
+  production build 通过。
+- 真实浏览器完成 `/admin` 目标 URL 登录、首次强制改密和会话轮换；Cookie 为 HttpOnly、
+  SameSite=Strict、Path=/，`document.cookie`、localStorage、sessionStorage 和人员 bearer 均为空。
+- 真实管理员创建受限审核员，确认临时密码仅显示一次，随后重置并禁用；服务账号响应仅含
+  5 个安全字段且 `hasSecret=false`。现有 ModelInvocation 只有 2026-07-30 的 replay 记录，本轮
+  未调用外部模型。
+- 浏览器验证默认、延迟加载、失败、partial+empty 和 390px 窄屏；窄屏 `bodyWidth=390`、无横向
+  溢出、侧栏默认关闭。截图保存在忽略目录 `.demo-runtime/`，不携带 Cookie 或凭据。
+
+#### Next
+
+1. P4 先把 crosswalk 的 `migrate/fixture/delete` 项映射到 P12 canonical 表、ObjectStore 和
+   immutable Release，先写幂等与 hash/review 失败测试。
+2. 将 `clinical-workflow` 知识兼容入口从 8787/Vault 切到 P12 已发布知识边界，修复 P13-001/002
+   固定回归接线但不改变临床阶段和 Review 合同。
+3. 风险是迁移时丢失旧 ID/version/citation/review、把 approved 误当 released，或为清理旧代码
+   顺手改动 Workflow 语义；任一情况均阻断 P4 提交。
+
+#### Files Changed
+
+- `clinical-llm-wiki/frontend/src/`、`clinical-llm-wiki/service/platform_api/`
+- `clinical-llm-wiki/schemas/application/knowledge-api.prerelease.yaml`
+- `clinical-llm-wiki/tests/test_platform_api_contract.py`
+- P13/PLAN/TASK_STATE、DEVLOG
+
+### R097 [17:51] [P13-password-session-chinese-legacy-retirement] P4: 迁移旧知识并替换 Workflow 兼容入口
+
+#### Done
+
+- 新迁移扫描器对所有带 frontmatter 的页面 fail closed，104 个带 ID/type 的旧页面全部形成确定性
+  Source/Evidence/Candidate/KnowledgeRevision crosswalk；历史 content hash 和 review ID 只读保留，新报告统一使用
+  canonical JSON SHA-256。
+- 迁移程序将原始 Markdown 与 canonical record 写入 ObjectStore，将 73 个已批准 revision 绑定到 immutable
+  `release-p13-legacy-wiki-v1`；同一 PostgreSQL/ObjectStore 连续执行两次结果完全一致，不覆盖既有 revision。
+- P12 增加 `/api/prerelease/v1/runtime-knowledge/{version,resolve}`，仅接受独立运行时机器凭据；浏览器
+  Cookie、人员密码和 Worker pool 身份均不复用。Workflow 默认端口切到 8788，旧 8787/Vault 不再是
+  runtime/test 依赖。
+- ADAE 固定回归改用独立 P12 Release fixture，补齐 approval packet/decision/confirmation 与前四阶段
+  合成证据；在线/离线知识 ID、版本、引用和生成制品 hash 保持一致，临床阶段与 Review 合同未修改。
+
+#### Issues / Blockers
+
+- 首次真实迁移测试误建了一个独立 `clinical-llm-wiki` Compose project；确认仅含本轮临时数据库和对象卷后
+  已精确 `down --volumes` 清除，正式迁移重新写入既有 `clinical-knowledge-demo` 项目。
+- 发现 Windows/ Linux `Path` 排序差异会改变 domain snapshot 聚合 hash；已改为 POSIX 相对路径字符串
+  排序，随后真实 HTTP 在线解析通过。
+
+#### Validation
+
+- 迁移报告：104 records、0 unresolved；PostgreSQL 实查 104 个迁移 KnowledgeUnit、73 个 ReleaseItem，
+  Release manifest SHA-256 为 `f46dc6008e959eea96baad65cd4039a6353de5e0eca92c53ac54831a10451422`。
+- Compose 中同一迁移执行两次均返回同一 report/release hash；P12 机器鉴权 version endpoint 和真实
+  Workflow `adam_spec` HTTP 解析通过，得到 1 条 workflow、23 条 domain、1 条 Study rule，context executable。
+- ADAE 回归 5 passed；P13 migration/platform/knowledge client 定向测试与 Ruff 通过；没有触发真实模型 API。
+
+#### Next
+
+1. P5 按 crosswalk 精确删除旧 Vault/Obsidian/8787 服务、来源包/快照/审核文件及 P1-P11 旧计划。
+2. 同步主规格、README/USAGE/AGENTS/CLAUDE 和环境合同，确保不再指向旧入口。
+3. 风险是误删仍被测试使用的 schema/通用 PDF 工具，或空卷启动遗漏运行时机器凭据；删除后必须执行
+   `rg` 零引用、全测试、空卷 Compose 和真实浏览器 E2E 四重 Gate。
+
+#### Files Changed
+
+- `clinical-llm-wiki/service/maintenance/legacy_migration.py`、`service/published_knowledge.py`
+- `clinical-llm-wiki/service/platform_api/`、OpenAPI、Compose 与迁移测试
+- `clinical-workflow/src/knowledge/client.py`、Runtime 默认入口与 ADAE P12 Release fixture/regression
+- P13/PLAN/TASK_STATE、DEVLOG
+
+### R098 [18:40] [P13-password-session-chinese-legacy-retirement] P5: 物理退役旧 Wiki 并关闭全栈 Gate
+
+#### Done
+
+- 按已验证 crosswalk 精确删除 269 个旧运行资产：Vault/Obsidian、8787 服务、旧来源包与快照、
+  Review Queue、审计文件、专用内容/PDF/质量脚本、重复 Engine Schema 和 P1–P11 旧计划；历史仅由
+  Git 恢复，不新建 `legacy/` 产品或第三个服务目录。
+- 将 Workflow 的 P7/P9 固定样例收敛到 `clinical-workflow/tests/fixtures/knowledge/` 最小只读知识包；
+  生产 Runtime 继续只消费 P12 published-knowledge API，旧 Wiki 路径不再出现在生产源码。
+- 修正 Demo 启动脚本的空卷升级顺序，补齐独立 runtime consumer secret；人员仍只通过 Argon2id
+  密码和 HttpOnly Cookie，会话退出后撤销。Worker 继续使用各自机器凭据；offline-replay Profile
+  使用明确的无供应商密钥引用，不再复用或指向 Enrichment Worker token。
+- 同步当前 README、USAGE、部署指南、SPEC-12/13/18/21/22、PLAN 和 TASK_STATE，并将 P13 移入
+  complete；crosswalk 的 runtime reference Gate 标记为 passed。
+
+#### Issues / Blockers
+
+- 全量测试首次暴露本机缺少项目已声明的 `argon2-cffi` 与 `pyreadstat`，已从声明的 PyPI 依赖安装；
+  未新增产品依赖。
+- 两个历史 Workflow 测试依赖机器绝对队列路径或未显式传入锁定知识夹具；仅修复测试接线，未修改
+  临床阶段、Review Packet/Decision Receipt 或异步 Worker DAG。
+- P12 live 模型 vertical 仍未授权；当前唯一 invocation 为 `offline-replay`，本轮没有真实外部请求。
+
+#### Validation
+
+- 知识平台 `177 passed, 8 skipped`；临床 Workflow `366 passed, 1 skipped`；前端 `30 passed`，
+  TypeScript/Vite production build 与两个 Python 项目 Ruff 全部通过。
+- 从空卷执行 Compose build/migrate/bootstrap/start：PostgreSQL、API、前端、Document Worker 与
+  Enrichment Worker 正常，Alembic 为 `20260801_0008`；API/前端 HTTP 均为 200。
+- 真实浏览器完成首次改密、持久会话、管理员创建/重置/禁用/启用、390px 窄屏和退出；退出后回到
+  中文登录页，`document.cookie`、localStorage、sessionStorage 均为空。
+- 运行时零引用自动化测试与 `rg` 通过；模型账本只有 1 条 `offline-replay/replayed`，无 live 调用。
+
+#### Next
+
+1. 用户后续在系统管理页登记真实 ModelProfile 的版本化引用，并在服务端注入 secret；不得把密钥放入
+   浏览器、数据库或仓库。
+2. 仅在 P12 preflight 的数据边界、预算、provider/profile/version 均匹配后，执行单一 P2-B3 live
+   vertical；失败时保持 fail closed。
+3. 风险：外部模型数据处理条款、超时/限流和实际输出 Schema 可能与 replay 不同，必须先小范围证据
+   运行并保留 invocation lineage，不能直接开放批量文档。
+
+---
+
+## 2026-08-03
+
+### R099 [20:21] 修复前端根路径重定向端口丢失
+
+#### Done
+
+- 复现 Docker Desktop 打开 `http://localhost:4173/` 后，Nginx 将请求错误重定向到未发布的宿主机 80 端口。
+- 先增加失败部署契约，再通过 `absolute_redirect off` 让 `/app.html` 使用相对重定向并保留任意宿主机端口。
+- 仅重建 frontend；API、数据库、Worker、认证及端口映射均未修改。
+
+#### Issues / Blockers
+
+- 独立 `nginx -t` 容器首次因不在 Compose 网络中而无法解析 `api`；接入 `clinical-knowledge-demo_default` 后语法验证通过。
+
+#### Validation
+
+- 部署契约 `6 passed`，Nginx 配置语法通过，前端 production build 通过。
+- 根路径返回 `Location: /app.html`；自动跟随最终为 `http://localhost:4173/app.html`，本机及 WLAN 根路径、页面和同源健康 API 均为 200。
+
+#### Next
+
+Done — no next steps。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/frontend/nginx.conf`
+- `clinical-llm-wiki/tests/test_p1e_deployment_contract.py`
+- `2119080`
+
+### R100 [20:58] [P12-knowledge-application-platform] 本地 Compose 环境初始化与空卷 E2E
+
+#### Done
+
+- 移除重复维护的 `start-demo.ps1` 路径，直接 Docker Compose 自动读取 gitignored `.env`，按
+  PostgreSQL → Alembic → 管理员引导 → Demo 数据 → API/Worker 的确定顺序启动；新增已跟踪的
+  `.env.example`，数据库、初始管理员、三个 Worker 和 Workflow consumer 初始化值均有明确入口。
+- 管理员引导从环境变量读取用户名、密码、显示名、邮箱和初始密码下限，空库创建、已有用户不覆盖；
+  数据库只保存 Argon2id 哈希，浏览器仍只接收 HttpOnly/SameSite 会话 Cookie。
+- 将既有密码验证与新密码策略分离：本地已批准的短初始密码可登录并进入强制改密 Gate，新密码仍按
+  12–128 位正式策略校验；空值、超长和 NUL 输入继续失败关闭。
+- 精确删除并重建 `clinical-knowledge-demo` 的 PostgreSQL/ObjectStore 两卷，未影响同机其他 Compose
+  项目；同步 README、USAGE、部署指南、SPEC-13、P12 计划/memory 和开发指引，浏览器标题也统一为中文。
+
+#### Issues / Blockers
+
+- 第一次 E2E 登录被正式最小密码长度提前拒绝。根因是登录复用了“新密码”策略，导致短初始/历史
+  Argon2id 凭据无法认证后升级；已用失败测试拆分既有凭据验证与新密码策略，没有降低改密强度。
+- HTTP 健康状态为 `degraded`，唯一原因是当前计划明确禁用 semantic index；API、数据库、对象存储、
+  前端和两个默认 Worker 均健康，不是服务故障。
+- `.env` 和一次性 bootstrap 容器配置可被本机 Docker 管理员查看，因此环境明文初始密码只适用于
+  本地 Demo；非本地部署仍必须使用 Secret Store、TLS 与 Secure Cookie。
+
+#### Validation
+
+- TDD 定向认证/Compose 合同：36 passed；最终知识产品后端：191 passed、8 skipped，Ruff 通过。
+- 前端 Vitest：30 passed；TypeScript/Vite production build 通过；临床 Workflow：366 passed、
+  1 skipped，Ruff 通过；`git diff --check` 通过，无真实模型 API 调用。
+- 空卷 Alembic 达到 `20260801_0008`，Demo Candidate=1；管理员记录为 Argon2id 且首次改密=true。
+  重复 Compose 明确返回“已存在，未修改”，证明不会把已改密码重置回环境值。
+- 真实 HTTP/浏览器从 4173 同源登录成功，Cookie 为 HttpOnly + SameSite=Strict，进入中文首次改密页；
+  部署后的前端标题为“临床知识台账”。
+
+#### Next
+
+1. 用户使用本地初始管理员账号登录并立即完成 12 位以上密码变更；变更后 `.env` 中的初始密码不再
+   是数据库当前密码，也不会被重复 Compose 覆盖回去。
+2. 后续在“模型 API 配置”登记单一获授权 ModelProfile/secret reference；在用户明确批准出站数据和
+   单次预算前，继续保持 replay/fake 与 live Gate 关闭。
+3. 风险是把本地 `.env` 误用为生产 Secret Store；进入非本地部署前必须另建部署安全 Gate。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/compose.yaml`、`.env.example`、`service/auth/`、前端元数据与部署合同测试
+- `README.md`、`USAGE.md`、`AGENTS.md`、`CLAUDE.md`、Wiki README、部署/SPEC/P12 计划与 memory
+- `clinical-llm-wiki/scripts/start-demo.ps1`（删除）

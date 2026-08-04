@@ -14,13 +14,16 @@ import {
   type SourceRegistration,
   type SourceSummary,
 } from "../contracts/knowledgeApi";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
+import { boundaryLabel, rightsLabel, statusLabel } from "../i18n/labels";
+import { statusClass } from "../i18n/statusClass";
 import styles from "./pages.module.css";
 
 const columnHelper = createColumnHelper<SourceSummary>();
 
 const columns = [
   columnHelper.accessor("title", {
-    header: "Registered source",
+    header: "已登记来源",
     cell: (info) => (
       <span>
         <span className={styles.primary}>{info.getValue()}</span>
@@ -29,29 +32,29 @@ const columns = [
     ),
   }),
   columnHelper.accessor("version", {
-    header: "Version",
+    header: "版本",
     cell: (info) => <span className={styles.mono}>{info.getValue()}</span>,
   }),
   columnHelper.accessor("mediaType", {
-    header: "Media",
+    header: "媒体类型",
     cell: (info) => <span className={styles.mono}>{info.getValue()}</span>,
   }),
   columnHelper.accessor("rights", {
-    header: "Rights",
-    cell: (info) => <span className={styles.mono}>{info.getValue()}</span>,
+    header: "权利分类",
+    cell: (info) => <span>{rightsLabel(info.getValue())}</span>,
   }),
   columnHelper.accessor("status", {
-    header: "Lifecycle",
+    header: "生命周期",
     cell: (info) => (
       <span
-        className={`${styles.status} ${styles[`status${capitalize(info.getValue())}`] ?? ""}`}
+        className={`${styles.status} ${statusClass(info.getValue())}`}
       >
-        {info.getValue()}
+        {statusLabel(info.getValue())}
       </span>
     ),
   }),
   columnHelper.accessor("sourceHash", {
-    header: "Source hash",
+    header: "来源哈希",
     cell: (info) => (
       <span className={styles.mono} title={`sha256:${info.getValue()}`}>
         sha256:{info.getValue().slice(0, 12)}
@@ -60,18 +63,16 @@ const columns = [
   }),
 ];
 
-function capitalize(value: string): string {
-  return `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
-}
-
 interface SourcesPageProps {
   query: string;
   onQueryChange: (query: string) => void;
 }
 
 export function SourcesPage({ query, onQueryChange }: SourcesPageProps) {
+  useDocumentTitle("来源管理");
   const queryClient = useQueryClient();
   const [uploadResult, setUploadResult] = useState<SourceRegistration | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const sources = useQuery({
     queryKey: ["sources"],
     queryFn: ({ signal }) => getJson<SourceCollection>(API_PATHS.sources, signal),
@@ -118,11 +119,19 @@ export function SourcesPage({ query, onQueryChange }: SourcesPageProps) {
   async function handleRegistration(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setUploadResult(null);
+    setValidationError(null);
     const formElement = event.currentTarget;
     const fileInput = formElement.elements.namedItem("file");
     const file =
       fileInput instanceof HTMLInputElement ? fileInput.files?.[0] : null;
     if (!file || file.size === 0) {
+      return;
+    }
+    const MAX_SIZE_BYTES = 200 * 1024 * 1024; // 200 MB
+    if (file.size > MAX_SIZE_BYTES) {
+      setValidationError(
+        `文件过大（${(file.size / (1024 * 1024)).toFixed(0)} MB），最大允许 200 MB。`,
+      );
       return;
     }
     const form = new FormData(formElement);
@@ -139,23 +148,23 @@ export function SourcesPage({ query, onQueryChange }: SourcesPageProps) {
     <section className={styles.page} aria-labelledby="sources-title">
       <header className={styles.pageHeader}>
         <div>
-          <p className={styles.eyebrow}>Source registry / canonical accession</p>
+          <p className={styles.eyebrow}>来源登记 / 规范接入</p>
           <h1 className={styles.title} id="sources-title">
-            Sources
+            来源管理
           </h1>
           <p className={styles.lede}>
-            登记来源、版本、rights 和 source hash。上传只产生 SourceVersion，不直接产生知识。
+            登记来源、版本、权利分类和来源哈希。上传只产生来源版本，不直接产生知识。
           </p>
         </div>
         <div className={styles.headerAside}>
-          <span className={styles.asideLabel}>Authority</span>
-          <span className={styles.asideValue}>Knowledge API</span>
+          <span className={styles.asideLabel}>权威数据源</span>
+          <span className={styles.asideValue}>知识 API</span>
         </div>
       </header>
 
       <div className={styles.toolbar}>
         <label>
-          <span className={styles.asideLabel}>Filter registered sources</span>
+          <span className={styles.asideLabel}>筛选已登记来源</span>
           <input
             className={styles.search}
             type="search"
@@ -165,7 +174,7 @@ export function SourcesPage({ query, onQueryChange }: SourcesPageProps) {
           />
         </label>
         <span className={styles.count} aria-live="polite">
-          {sources.isPending ? "loading" : `${filtered.length} / ${sources.data?.data.total ?? 0}`}
+          {sources.isPending ? "读取中" : `${filtered.length} / ${sources.data?.data.total ?? 0}`}
         </span>
       </div>
 
@@ -173,35 +182,33 @@ export function SourcesPage({ query, onQueryChange }: SourcesPageProps) {
         <summary>登记新 SourceVersion</summary>
         <form className={styles.intakeForm} onSubmit={handleRegistration}>
           <label>
-            <span className={styles.asideLabel}>Source ID</span>
+            <span className={styles.asideLabel}>来源 ID</span>
             <input name="source_id" required pattern="src-[a-z0-9][a-z0-9._-]*" />
           </label>
           <label>
-            <span className={styles.asideLabel}>Title</span>
+            <span className={styles.asideLabel}>标题</span>
             <input name="title" required />
           </label>
           <label>
-            <span className={styles.asideLabel}>Version</span>
+            <span className={styles.asideLabel}>版本</span>
             <input name="version" required />
           </label>
           <label>
-            <span className={styles.asideLabel}>Rights</span>
+            <span className={styles.asideLabel}>权利分类</span>
             <select name="rights_classification" defaultValue="internal">
-              <option value="licensed">licensed</option>
-              <option value="internal">internal</option>
-              <option value="restricted">restricted</option>
+              <option value="licensed">已许可（licensed）</option>
+              <option value="internal">内部（internal）</option>
+              <option value="restricted">受限（restricted）</option>
             </select>
           </label>
           <label>
-            <span className={styles.asideLabel}>Data boundary</span>
+            <span className={styles.asideLabel}>数据边界</span>
             <select name="data_boundary" defaultValue="local_processing_only">
-              <option value="local_processing_only">local processing only</option>
-              <option value="enterprise_provider_only">enterprise provider only</option>
-              <option value="external_allowed">external allowed</option>
+              {["local_processing_only", "enterprise_provider_only", "external_allowed"].map((value) => <option key={value} value={value}>{boundaryLabel(value)}（{value}）</option>)}
             </select>
           </label>
           <label className={styles.fileField}>
-            <span className={styles.asideLabel}>Source file</span>
+            <span className={styles.asideLabel}>来源文件</span>
             <input
               name="file"
               type="file"
@@ -224,6 +231,11 @@ export function SourcesPage({ query, onQueryChange }: SourcesPageProps) {
         {registration.isError ? (
           <p className={styles.formError} role="alert">
             登记失败；Source 不会以半发布状态出现在列表中。
+          </p>
+        ) : null}
+        {validationError ? (
+          <p className={styles.formError} role="alert">
+            {validationError}
           </p>
         ) : null}
         {uploadResult ? (
@@ -258,8 +270,8 @@ export function SourcesPage({ query, onQueryChange }: SourcesPageProps) {
             title={query ? "没有匹配来源" : "尚未登记来源"}
             text={
               query
-                ? "清除筛选条件，或使用 source ID、版本和 rights 重新搜索。"
-                : "Source Registry 为空；登记来源后仍需独立处理和治理。"
+                ? "清除筛选条件，或使用来源 ID、版本和权利分类重新搜索。"
+                : "来源登记表为空；登记来源后仍需独立处理和治理。"
             }
           />
         ) : null}
@@ -322,9 +334,9 @@ function LoadingTable() {
       <table className={styles.table}>
         <thead>
           <tr>
-            {["Registered source", "Version", "Media", "Rights", "Lifecycle", "Source hash"].map(
+            {["已登记来源", "版本", "媒体类型", "权利分类", "生命周期", "来源哈希"].map(
               (header) => (
-                <th key={header}>{header}</th>
+                <th key={header} scope="col">{header}</th>
               ),
             )}
           </tr>

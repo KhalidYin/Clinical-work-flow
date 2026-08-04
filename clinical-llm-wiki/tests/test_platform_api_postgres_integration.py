@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from hashlib import sha256
 import os
 from pathlib import Path
 
@@ -11,9 +10,13 @@ from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
 import pytest
-from sqlalchemy import delete
+from sqlalchemy import delete, func, select
 
-from service.auth import IdentityAssertion, LocalIdentityProvider
+from service.auth.password_sessions import (
+    Argon2idPasswordHasher,
+    PasswordSessionService,
+    SqlAlchemyPasswordSessionRepository,
+)
 from service.db.models import (
     AuditEvent,
     CandidateRelationProposal,
@@ -21,6 +24,8 @@ from service.db.models import (
     KnowledgeCandidate,
     KnowledgeRevision,
     KnowledgeUnit,
+    ModelInvocation,
+    ModelProfile,
     PlatformUser,
     ProcessingRun,
     Release,
@@ -30,6 +35,7 @@ from service.db.models import (
     Source,
     SourceArtifact,
     SourceVersion,
+    UserCredential,
 )
 from service.db.session import create_database_engine, create_session_factory
 from service.platform_api.app import PlatformApiServices, create_platform_app
@@ -43,6 +49,105 @@ pytestmark = pytest.mark.skipif(
     not TEST_DATABASE_URL,
     reason="KNOWLEDGE_TEST_DATABASE_URL is required for PostgreSQL integration",
 )
+
+
+def test_model_profile_registry_is_immutable_audited_and_does_not_invoke_provider(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert TEST_DATABASE_URL is not None
+    monkeypatch.setenv("KNOWLEDGE_DATABASE_URL", TEST_DATABASE_URL)
+    command.upgrade(Config(ROOT / "alembic.ini"), "head")
+    engine = create_database_engine(TEST_DATABASE_URL)
+    session_factory = create_session_factory(engine)
+    profile_id = "integration-model-config"
+    version = "1.0.0"
+
+    with session_factory.begin() as session:
+        session.execute(
+            delete(AuditEvent).where(
+                AuditEvent.entity_type == "model_profile",
+                AuditEvent.entity_id == f"{profile_id}@{version}",
+            )
+        )
+        session.execute(
+            delete(ModelProfile).where(
+                ModelProfile.profile_id == profile_id,
+                ModelProfile.version == version,
+            )
+        )
+        invocation_count_before = session.scalar(
+            select(func.count()).select_from(ModelInvocation)
+        )
+
+    repository = SqlAlchemyPlatformRepository(session_factory)
+    created, was_created = repository.register_model_profile(
+        profile_id=profile_id,
+        version=version,
+        provider="deepseek",
+        model="deepseek-v4-flash",
+        deployment_class="external_api",
+        secret_ref="env://KNOWLEDGE_MODEL_API_KEY",
+        endpoint_ref="env://KNOWLEDGE_MODEL_ENDPOINT",
+        allowed_data_boundaries=["external_allowed"],
+        capabilities=["structured_generation"],
+        timeout_seconds=60,
+        max_output_tokens=4096,
+        cost_policy={"maxCostUsd": "0.05"},
+        actor_id="usr-p2b3-admin",
+        correlation_id="cfg-integration-001",
+    )
+    repeated, repeated_created = repository.register_model_profile(
+        profile_id=profile_id,
+        version=version,
+        provider="deepseek",
+        model="deepseek-v4-flash",
+        deployment_class="external_api",
+        secret_ref="env://KNOWLEDGE_MODEL_API_KEY",
+        endpoint_ref="env://KNOWLEDGE_MODEL_ENDPOINT",
+        allowed_data_boundaries=["external_allowed"],
+        capabilities=["structured_generation"],
+        timeout_seconds=60,
+        max_output_tokens=4096,
+        cost_policy={"maxCostUsd": "0.05"},
+        actor_id="usr-p2b3-admin",
+        correlation_id="cfg-integration-repeat",
+    )
+
+    assert was_created is True
+    assert repeated_created is False
+    assert repeated == created
+    assert created.secret_ref == "env://KNOWLEDGE_MODEL_API_KEY"
+    with session_factory() as session:
+        invocation_count_after = session.scalar(
+            select(func.count()).select_from(ModelInvocation)
+        )
+        events = list(
+            session.scalars(
+                select(AuditEvent).where(
+                    AuditEvent.entity_type == "model_profile",
+                    AuditEvent.entity_id == f"{profile_id}@{version}",
+                )
+            )
+        )
+    assert invocation_count_after == invocation_count_before
+    assert len(events) == 1
+    assert events[0].details["result"] == "registered_not_verified"
+    assert "secret_ref" not in events[0].details
+
+    with session_factory.begin() as session:
+        session.execute(
+            delete(AuditEvent).where(
+                AuditEvent.entity_type == "model_profile",
+                AuditEvent.entity_id == f"{profile_id}@{version}",
+            )
+        )
+        session.execute(
+            delete(ModelProfile).where(
+                ModelProfile.profile_id == profile_id,
+                ModelProfile.version == version,
+            )
+        )
+    engine.dispose()
 
 
 def test_real_postgres_repository_serves_authorized_read_routes(
@@ -60,7 +165,7 @@ def test_real_postgres_repository_serves_authorized_read_routes(
             [
                 PlatformUser(
                     user_id="usr-p1d-integration",
-                    identity_source="local_test",
+                    identity_source="local_password",
                     issuer="local://p1d-integration",
                     subject="p1d-admin",
                     display_name="P1-D Admin",
@@ -98,6 +203,14 @@ def test_real_postgres_repository_serves_authorized_read_routes(
                     user_id="usr-p1d-integration",
                     role="platform_admin",
                     granted_by_actor_id="bootstrap-p1d-integration",
+                ),
+                UserCredential(
+                    user_id="usr-p1d-integration",
+                    username_normalized="p1d-admin",
+                    password_hash=Argon2idPasswordHasher().hash(
+                        "P1-D integration password 2026!"
+                    ),
+                    must_change_password=False,
                 ),
                 SourceVersion(
                     source_version_id="srcv-p1d-integration",
@@ -248,40 +361,41 @@ def test_real_postgres_repository_serves_authorized_read_routes(
             )
         )
 
-    assertion = IdentityAssertion(
-        identity_source="local_test",
-        issuer="local://p1d-integration",
-        subject="p1d-admin",
-        display_name="P1-D Admin",
-        email="p1d-admin@example.test",
-        claims_sha256=sha256(b"p1d-admin").hexdigest(),
-    )
-    provider = LocalIdentityProvider(
-        environment="test",
-        token_assertions={"p1d-integration-token": assertion},
+    password_sessions = PasswordSessionService(
+        repository=SqlAlchemyPasswordSessionRepository(session_factory),
+        hasher=Argon2idPasswordHasher(),
     )
     client = TestClient(
         create_platform_app(
             PlatformApiServices(
-                identity_provider=provider,
                 repository=SqlAlchemyPlatformRepository(session_factory),
+                password_sessions=password_sessions,
                 organization_name="Clinical Knowledge Lab",
+                allowed_browser_origins=frozenset({"http://testserver"}),
+                secure_session_cookie=False,
             )
         )
     )
-    headers = {"Authorization": "Bearer p1d-integration-token"}
+    login = client.post(
+        "/api/prerelease/v1/auth/login",
+        headers={"Origin": "http://testserver", "X-CSRF-Protection": "1"},
+        json={
+            "username": "p1d-admin",
+            "password": "P1-D integration password 2026!",
+        },
+    )
+    assert login.status_code == 200
 
     try:
-        session = client.get("/api/prerelease/v1/session", headers=headers)
-        sources = client.get("/api/prerelease/v1/sources", headers=headers)
-        users = client.get("/api/prerelease/v1/admin/users", headers=headers)
-        release = client.get("/api/prerelease/v1/releases/current", headers=headers)
+        session = client.get("/api/prerelease/v1/session")
+        sources = client.get("/api/prerelease/v1/sources")
+        users = client.get("/api/prerelease/v1/admin/users")
+        release = client.get("/api/prerelease/v1/releases/current")
         relations = client.get(
             "/api/prerelease/v1/relations/query",
-            headers=headers,
             params={"node_id": "ku-p1d-source", "depth": 1},
         )
-        audit = client.get("/api/prerelease/v1/audit-events", headers=headers)
+        audit = client.get("/api/prerelease/v1/audit-events")
 
         assert session.status_code == sources.status_code == users.status_code == 200
         assert release.status_code == relations.status_code == audit.status_code == 200

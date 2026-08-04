@@ -16,8 +16,12 @@ import yaml
 
 from service.auth import (
     IdentityAssertion,
-    LocalIdentityProvider,
     PlatformUserGrant,
+    resolve_human_actor,
+)
+from service.auth.password_sessions import (
+    AuthenticatedPrincipal,
+    SessionAuthenticationError,
 )
 from service.object_store import ObjectDescriptor
 from service.sources import SourceRegistrationReceipt
@@ -40,6 +44,8 @@ def _platform_modules():
 class FakePlatformRepository:
     def __init__(self, repository_module: Any) -> None:
         now = datetime(2026, 7, 30, 3, 0, tzinfo=timezone.utc)
+        self._repository_module = repository_module
+        self._now = now
         self._grants: dict[tuple[str, str], PlatformUserGrant] = {}
         self.sources = [
             repository_module.SourceSummaryRecord(
@@ -54,6 +60,17 @@ class FakePlatformRepository:
             )
         ]
         self.users: list[Any] = []
+        self.service_accounts = [
+            repository_module.ServiceAccountRecord(
+                service_account_id="svc-document-001",
+                display_name="文档处理 Worker",
+                worker_pool="document",
+                scopes=("source:read", "object:read", "processing:execute"),
+                status="active",
+            )
+        ]
+        self.model_profiles: list[Any] = []
+        self.model_profile_warnings: list[str] = []
         self.release = repository_module.CurrentReleaseRecord(
             release_id="rel-001",
             version="2026.07-p1d",
@@ -204,6 +221,45 @@ class FakePlatformRepository:
 
     def list_platform_users(self):
         return self.users, []
+
+    def list_service_accounts(self):
+        return self.service_accounts, []
+
+    def list_model_profiles(self):
+        return self.model_profiles, self.model_profile_warnings
+
+    def register_model_profile(self, *, actor_id: str, correlation_id: str, **facts: Any):
+        del actor_id, correlation_id
+        existing = next(
+            (
+                item
+                for item in self.model_profiles
+                if item.profile_id == facts["profile_id"] and item.version == facts["version"]
+            ),
+            None,
+        )
+        if existing is not None:
+            existing_facts = asdict(existing)
+            existing_facts.pop("created_at")
+            comparable_facts = {
+                **facts,
+                "allowed_data_boundaries": tuple(facts["allowed_data_boundaries"]),
+                "capabilities": tuple(facts["capabilities"]),
+            }
+            if existing_facts != comparable_facts:
+                from service.platform_api.repository import ModelProfileConflictError
+
+                raise ModelProfileConflictError("model profile version already exists")
+            return existing, False
+        record_facts = {
+            **facts,
+            "allowed_data_boundaries": tuple(facts["allowed_data_boundaries"]),
+            "capabilities": tuple(facts["capabilities"]),
+            "created_at": self._now,
+        }
+        profile = self._repository_module.ModelProfileRecord(**record_facts)
+        self.model_profiles.append(profile)
+        return profile, True
 
     def list_processing_runs(self):
         return self.processing_runs, []
@@ -422,6 +478,20 @@ class FakeGovernanceService:
         )
 
 
+class FakePasswordSessions:
+    def __init__(self, principals: dict[str, AuthenticatedPrincipal]) -> None:
+        self.principals = principals
+
+    def authenticate_session(self, raw_session_id: str) -> AuthenticatedPrincipal:
+        principal = self.principals.get(raw_session_id)
+        if principal is None:
+            raise SessionAuthenticationError("会话无效或已过期。")
+        return principal
+
+    def logout(self, raw_session_id: str) -> None:
+        self.principals.pop(raw_session_id, None)
+
+
 def _identity(subject: str, display_name: str) -> IdentityAssertion:
     return IdentityAssertion(
         identity_source="local_test",
@@ -457,10 +527,6 @@ def api_client():
         "disabled-token": _identity("disabled", "Disabled User"),
         "unmapped-token": _identity("unmapped", "Unmapped User"),
     }
-    identity_provider = LocalIdentityProvider(
-        environment="test",
-        token_assertions=assertions,
-    )
     repository = FakePlatformRepository(repository_module)
     grants = [
         _grant("admin", "Platform Admin", "platform_admin"),
@@ -482,10 +548,21 @@ def api_client():
                 last_active_at=None,
             )
         )
+    principals = {
+        token: AuthenticatedPrincipal(
+            actor=resolve_human_actor(assertion, repository),
+            must_change_password=False,
+            expires_at=datetime(2026, 8, 1, tzinfo=timezone.utc),
+        )
+        for token, assertion in assertions.items()
+        if token not in {"disabled-token", "unmapped-token"}
+    }
     services = app_module.PlatformApiServices(
-        identity_provider=identity_provider,
         repository=repository,
+        password_sessions=FakePasswordSessions(principals),
         organization_name="Clinical Knowledge Lab",
+        allowed_browser_origins=frozenset({"http://testserver"}),
+        secure_session_cookie=False,
         object_store_available=False,
         semantic_index_available=False,
         source_registry=FakeSourceRegistry(),
@@ -496,7 +573,11 @@ def api_client():
 
 
 def _auth(token: str) -> dict[str, str]:
-    return {"Authorization": f"Bearer {token}"}
+    return {
+        "Cookie": f"clinical_knowledge_session={token}",
+        "Origin": "http://testserver",
+        "X-CSRF-Protection": "1",
+    }
 
 
 def test_health_is_public_and_reports_unimplemented_capabilities(api_client) -> None:
@@ -529,9 +610,9 @@ def test_health_reports_database_failure_without_exposing_an_exception(api_clien
     ("token", "expected_code"),
     [
         (None, "authentication_required"),
-        ("unknown-token", "invalid_identity"),
-        ("unmapped-token", "invalid_identity"),
-        ("disabled-token", "invalid_identity"),
+        ("unknown-token", "authentication_required"),
+        ("unmapped-token", "authentication_required"),
+        ("disabled-token", "authentication_required"),
     ],
 )
 def test_session_fails_closed_for_missing_invalid_unmapped_or_disabled_identity(
@@ -580,6 +661,115 @@ def test_backend_permissions_protect_sources_release_and_admin(api_client) -> No
     assert (
         client.get(f"{API_PREFIX}/admin/users", headers=_auth("curator-token")).status_code == 403
     )
+    assert (
+        client.get(
+            f"{API_PREFIX}/admin/model-profiles",
+            headers=_auth("curator-token"),
+        ).status_code
+        == 403
+    )
+
+
+def test_admin_registers_immutable_model_profile_reference_without_live_call(api_client) -> None:
+    client, repository = api_client
+    payload = {
+        "profileId": "deepseek-v4-flash-extractor",
+        "version": "1.0.0",
+        "provider": "deepseek",
+        "model": "deepseek-v4-flash",
+        "deploymentClass": "external_api",
+        "secretRef": "env://KNOWLEDGE_MODEL_API_KEY",
+        "endpointRef": "env://KNOWLEDGE_MODEL_ENDPOINT",
+        "allowedDataBoundaries": ["external_allowed"],
+        "capabilities": ["structured_generation"],
+        "timeoutSeconds": 60,
+        "maxOutputTokens": 4096,
+        "costPolicy": {"maxCostUsd": "0.05"},
+    }
+
+    created = client.post(
+        f"{API_PREFIX}/admin/model-profiles",
+        headers={**_auth("admin-token"), "X-Correlation-ID": "cfg-deepseek-001"},
+        json=payload,
+    )
+
+    assert created.status_code == 201
+    assert created.json()["data"]["created"] is True
+    profile = created.json()["data"]["profile"]
+    assert profile["profileId"] == payload["profileId"]
+    assert profile["secretRef"] == "env://KNOWLEDGE_MODEL_API_KEY"
+    assert profile["connectionState"] == "not_verified"
+    assert profile["liveEnabled"] is False
+    assert {
+        "apiKey",
+        "secretValue",
+        "accessToken",
+        "connectionTest",
+    }.isdisjoint(profile)
+
+    listed = client.get(
+        f"{API_PREFIX}/admin/model-profiles",
+        headers=_auth("admin-token"),
+    )
+    assert listed.status_code == 200
+    assert listed.json()["data"]["items"] == [profile]
+    assert len(repository.model_profiles) == 1
+
+    repeated = client.post(
+        f"{API_PREFIX}/admin/model-profiles",
+        headers=_auth("admin-token"),
+        json=payload,
+    )
+    assert repeated.status_code == 201
+    assert repeated.json()["data"]["created"] is False
+    assert len(repository.model_profiles) == 1
+
+
+def test_model_profile_configuration_rejects_plaintext_secret_and_version_overwrite(
+    api_client,
+) -> None:
+    client, _ = api_client
+    payload = {
+        "profileId": "deepseek-v4-flash-extractor",
+        "version": "1.0.0",
+        "provider": "deepseek",
+        "model": "deepseek-v4-flash",
+        "deploymentClass": "external_api",
+        "secretRef": "literal-secret-value",
+        "endpointRef": "env://KNOWLEDGE_MODEL_ENDPOINT",
+        "allowedDataBoundaries": ["external_allowed"],
+        "capabilities": ["structured_generation"],
+        "timeoutSeconds": 60,
+        "maxOutputTokens": 4096,
+        "costPolicy": None,
+    }
+
+    plaintext = client.post(
+        f"{API_PREFIX}/admin/model-profiles",
+        headers=_auth("admin-token"),
+        json=payload,
+    )
+    assert plaintext.status_code == 422
+    assert "literal-secret-value" not in plaintext.text
+
+    payload["secretRef"] = "env://KNOWLEDGE_MODEL_API_KEY"
+    assert (
+        client.post(
+            f"{API_PREFIX}/admin/model-profiles",
+            headers=_auth("admin-token"),
+            json=payload,
+        ).status_code
+        == 201
+    )
+    payload["model"] = "deepseek-v4-pro"
+    conflict = client.post(
+        f"{API_PREFIX}/admin/model-profiles",
+        headers=_auth("admin-token"),
+        json=payload,
+    )
+    assert conflict.status_code == 409
+    assert conflict.json()["error"]["code"] == "model_profile_conflict"
+    assert "secret" not in conflict.json()["error"]["message"].lower()
 
 
 def test_repository_failure_is_a_sanitized_service_unavailable_response(api_client) -> None:
@@ -598,6 +788,10 @@ def test_real_read_routes_return_database_views_not_fixtures_or_secrets(api_clie
 
     sources = client.get(f"{API_PREFIX}/sources", headers=_auth("admin-token")).json()
     users = client.get(f"{API_PREFIX}/admin/users", headers=_auth("admin-token")).json()
+    service_accounts = client.get(
+        f"{API_PREFIX}/admin/service-accounts",
+        headers=_auth("admin-token"),
+    ).json()
     release = client.get(
         f"{API_PREFIX}/releases/current",
         headers=_auth("admin-token"),
@@ -613,6 +807,14 @@ def test_real_read_routes_return_database_views_not_fixtures_or_secrets(api_clie
         {"issuer", "subject", "secretRef", "password", "accessToken"}.isdisjoint(item)
         for item in users["data"]["items"]
     )
+    assert service_accounts["data"]["items"][0] == {
+        "serviceAccountId": "svc-document-001",
+        "displayName": "文档处理 Worker",
+        "workerPool": "document",
+        "scopes": ["source:read", "object:read", "processing:execute"],
+        "status": "active",
+    }
+    assert "secret" not in service_accounts["data"]["items"][0]
 
 
 def test_source_registration_returns_202_run_and_never_confuses_object_with_evidence(
@@ -902,8 +1104,13 @@ def test_checked_in_openapi_matches_runtime_paths_roles_and_responses(api_client
         == checked_paths
         == {
             f"{API_PREFIX}/session",
+            f"{API_PREFIX}/auth/login",
+            f"{API_PREFIX}/auth/logout",
+            f"{API_PREFIX}/auth/password/change",
             f"{API_PREFIX}/health",
             f"{API_PREFIX}/releases/current",
+            f"{API_PREFIX}/runtime-knowledge/version",
+            f"{API_PREFIX}/runtime-knowledge/resolve",
             f"{API_PREFIX}/sources",
             f"{API_PREFIX}/processing-runs",
             f"{API_PREFIX}/processing-runs/{{run_id}}",
@@ -917,9 +1124,17 @@ def test_checked_in_openapi_matches_runtime_paths_roles_and_responses(api_client
             f"{API_PREFIX}/relations/query",
             f"{API_PREFIX}/audit-events",
             f"{API_PREFIX}/admin/users",
+            f"{API_PREFIX}/admin/users/{{user_id}}/password/reset",
+                f"{API_PREFIX}/admin/users/{{user_id}}/status",
+                f"{API_PREFIX}/admin/service-accounts",
+                f"{API_PREFIX}/admin/model-profiles",
         }
     )
-    assert spec["components"]["securitySchemes"]["bearerAuth"]["scheme"] == "bearer"
+    assert spec["components"]["securitySchemes"]["sessionCookie"] == {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "clinical_knowledge_session",
+    }
     assert spec["components"]["schemas"]["HumanRole"]["enum"] == [
         "platform_admin",
         "knowledge_curator",
@@ -928,11 +1143,15 @@ def test_checked_in_openapi_matches_runtime_paths_roles_and_responses(api_client
         "consumer",
     ]
     assert spec["components"]["schemas"]["IdentitySource"]["enum"] == [
+        "local_password",
         "local_test",
         "oidc",
     ]
     assert runtime_spec["paths"][f"{API_PREFIX}/health"]["get"].get("security") is None
-    assert runtime_spec["paths"][f"{API_PREFIX}/session"]["get"]["security"] == [{"bearerAuth": []}]
+    assert runtime_spec["paths"][f"{API_PREFIX}/auth/login"]["post"].get("security") is None
+    assert runtime_spec["paths"][f"{API_PREFIX}/session"]["get"]["security"] == [
+        {"sessionCookie": []}
+    ]
 
     response_cases = [
         ("HealthResponse", client.get(f"{API_PREFIX}/health")),
@@ -987,6 +1206,13 @@ def test_checked_in_openapi_matches_runtime_paths_roles_and_responses(api_client
         (
             "UserCollectionResponse",
             client.get(f"{API_PREFIX}/admin/users", headers=_auth("admin-token")),
+        ),
+        (
+            "ModelProfileCollectionResponse",
+            client.get(
+                f"{API_PREFIX}/admin/model-profiles",
+                headers=_auth("admin-token"),
+            ),
         ),
     ]
     for component_name, response in response_cases:

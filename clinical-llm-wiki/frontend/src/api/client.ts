@@ -5,8 +5,6 @@ import {
   type ErrorResponse,
 } from "../contracts/knowledgeApi";
 
-export const LOCAL_BEARER_STORAGE_KEY = "knowledgeLedgerBearerToken";
-
 export class ApiRequestError extends Error {
   readonly status: number;
   readonly code: ApiErrorCode | null;
@@ -22,11 +20,7 @@ export class ApiRequestError extends Error {
 export async function getJson<T>(path: string, signal?: AbortSignal): Promise<ApiResponse<T>> {
   const requestUrl = resolveApiPath(path);
   const headers: Record<string, string> = { Accept: "application/json" };
-  const bearerToken = window.sessionStorage.getItem(LOCAL_BEARER_STORAGE_KEY);
-  if (bearerToken) {
-    headers.Authorization = `Bearer ${bearerToken}`;
-  }
-  const requestInit: RequestInit = { headers };
+  const requestInit: RequestInit = { headers, credentials: "same-origin" };
 
   if (signal && acceptsAbortSignal(requestUrl, signal)) {
     requestInit.signal = signal;
@@ -63,6 +57,21 @@ export async function postAction<T>(path: string): Promise<ApiResponse<T>> {
   });
 }
 
+export async function postNoContent(path: string): Promise<void> {
+  const requestUrl = resolveApiPath(path);
+  const response = await fetch(requestUrl, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: {
+      Accept: "application/json",
+      "X-CSRF-Protection": "1",
+    },
+  });
+  if (!response.ok) {
+    throw await apiError(response);
+  }
+}
+
 export async function postJson<T, TBody extends object>(
   path: string,
   body: TBody,
@@ -80,11 +89,12 @@ export async function postJson<T, TBody extends object>(
 async function requestJson<T>(path: string, init: RequestInit): Promise<ApiResponse<T>> {
   const requestUrl = resolveApiPath(path);
   const headers = new Headers(init.headers);
-  const bearerToken = window.sessionStorage.getItem(LOCAL_BEARER_STORAGE_KEY);
-  if (bearerToken) {
-    headers.set("Authorization", `Bearer ${bearerToken}`);
-  }
-  const response = await fetch(requestUrl, { ...init, headers });
+  headers.set("X-CSRF-Protection", "1");
+  const response = await fetch(requestUrl, {
+    ...init,
+    credentials: "same-origin",
+    headers,
+  });
   if (!response.ok) {
     throw await apiError(response);
   }

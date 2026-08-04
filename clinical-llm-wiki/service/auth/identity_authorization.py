@@ -15,6 +15,7 @@ class StrictContractModel(BaseModel):
 
 
 class IdentitySource(str, Enum):
+    LOCAL_PASSWORD = "local_password"
     LOCAL_TEST = "local_test"
     OIDC = "oidc"
 

@@ -27,6 +27,7 @@ import asyncio
 import hashlib
 import json
 import logging
+import os
 import shutil
 import subprocess
 import sys
@@ -69,7 +70,7 @@ logger = logging.getLogger(__name__)
 
 
 def build_runtime_context_resolver(
-    knowledge_service_url: str = "http://127.0.0.1:8787",
+    knowledge_service_url: str = "http://127.0.0.1:8788",
     *,
     timeout_seconds: float = 5.0,
     require_domain: bool = False,
@@ -111,7 +112,9 @@ def build_runtime_context_resolver(
         raise RuntimeContextError("Engine contract bundle hash is malformed")
     client = KnowledgeServiceClient(
         HttpKnowledgeTransport(
-            knowledge_service_url.rstrip("/"), timeout_seconds=timeout_seconds
+            knowledge_service_url.rstrip("/"),
+            timeout_seconds=timeout_seconds,
+            machine_credential=os.environ.get("KNOWLEDGE_RUNTIME_CONSUMER_SECRET"),
         ),
         bundle_version=bundle_version,
         bundle_sha256=bundle_sha256,
@@ -1329,7 +1332,7 @@ async def main() -> None:
         help="Disable automatic git commits",
     )
     parser.add_argument(
-        "--knowledge-service-url", default="http://127.0.0.1:8787",
+        "--knowledge-service-url", default="http://127.0.0.1:8788",
         help=(
             "Loopback Knowledge Service origin; connection failure uses only the "
             "manifest-locked Study snapshots"

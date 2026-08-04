@@ -596,8 +596,8 @@ P2-B 不再作为一次性“大模型 + 关系图 + 全部审核 UI”交付。
 
 - 阶段提交：`5292150`（replay/governance backend）、`72a94c8`（KUI-04）、
   `7953331`（完整本地产品）、`e2958bb`（真实 E2E 与 request-change 修复），均已同步远端。
-- 单命令启动 `scripts/start-demo.ps1 -Reset` 从 migration、受控 bootstrap、真实 Document
-  Worker、独立 Enrichment Worker、FastAPI 到 production frontend；bootstrap 不直写
+- 直接 `docker compose --project-name clinical-knowledge-demo up -d --build --wait` 从 migration、
+  环境驱动且幂等的 bootstrap、真实 Document Worker、独立 Enrichment Worker、FastAPI 到 production frontend；bootstrap 不直写
   Candidate，replay record 使用与 Worker 相同的 canonical request hash。
 - 真实浏览器完成 Author confirm → independent Reviewer request-change → Candidate revision 2
   → Author reconfirm → independent approve。无认证、作者越权审核和陈旧 hash 分别返回
@@ -659,6 +659,10 @@ P2-B 不再作为一次性“大模型 + 关系图 + 全部审核 UI”交付。
 - 用户尚未提供获授权的 ModelProfile/Secret reference、允许出站 Evidence 或 live 调用预算，
   因此本 Phase 输入条件仍未完全满足；所有不依赖出站的 P2-B3 Gate 已关闭，但 live
   invocation 和端到端 P2 Gate 仍保持 open。
+- 2026-08-01 用户明确要求暂不运行真实 API 链路，真实配置与调用由用户后续单独触发；当前
+  继续完成不出站的 Admin Model API Configuration。该配置面只登记版本化 ModelProfile
+  元数据和 `env://`/`secret://` 引用，不接收明文密钥，不提供连接测试、preflight 或运行按钮，
+  保存配置也不能启用 live、创建 ModelInvocation 或消耗调用预算。
 
 #### 产出
 
@@ -676,6 +680,8 @@ P2-B 不再作为一次性“大模型 + 关系图 + 全部审核 UI”交付。
 - [x] Relation 必须类型合法、端点存在且有 edge evidence；dangling、闭包/循环约束、conflicting/supersedes 语义由确定性校验完成。
 - [ ] Audit 可追溯一次 live invocation 到 Candidate revision 和 Evidence，但不记录 API secret、chain-of-thought 或未批准敏感正文。
 - [x] `[KUI-05]`、`[KUI-10]` 及对应组件/API/权限/浏览器测试通过。
+- [x] `[KUI-09]` 可通过真实 API 查看并登记不可变 ModelProfile 版本；只保存非敏感配置与
+  secret reference，权限/冲突/错误/部分数据/窄屏状态通过自动化和浏览器测试，供应商调用为零。
 - [ ] P2 Gate 证明 Source → Evidence → AI Candidate → 作者确认 → 独立 Reviewer 闭环；`approved` 仍不等于 `released`。
 
 #### 边界（本切片明确不做）
@@ -684,6 +690,8 @@ P2-B 不再作为一次性“大模型 + 关系图 + 全部审核 UI”交付。
 - 不让 LLM 代替 Author/Reviewer/Release Manager，不依据 confidence 自动确认或批准。
 - 不实现 Project Memory；外部 candidate submission 只在后续冻结 payload/inbox 语义。
 - 不部署 Neo4j，不实现 Microsoft GraphRAG provider 或全自动 graph extraction。
+- 本轮不接收明文 API Key，不提供“测试连接”或 live 执行入口；真实出站仍由后续人工 Gate
+  单独授权和验收。
 
 ### P2-B 涉及文件
 
@@ -902,6 +910,7 @@ P3 只消费 P2 已批准的 KnowledgeRevision。内部先构建可解释检索�
 | D18 | 同一 Knowledge Unit 的历史 revision 和当前 revision 都可能保留 proposed relation，直接合并会产生重复路径 | P2-B3 KUI | 数据投影（已解决） | Relation read adapter 只投影当前 KnowledgeRevision 的未发布 proposal；历史 proposal 继续留在 append-only Audit，不进入当前图 |
 | D19 | 通用 `--once` Worker 会领取队列中最早的 eligible run，不能保证命中已批准出站的单次测试 run | P2-B3 失败门 | 运行授权（已解决） | ledger/Worker 增加可选 `target_run_id`；P2-B3 先只读 preflight fresh run，再用 `--run-id ... --once` 定向领取，并以进程级 `max_calls=1` 限制调用 |
 | D20 | 模型 advisory 若只有类型和 Evidence 而没有描述，人工无法判断具体 duplicate/conflict/gap；若模型自行决定图语义则会绕过治理 | P2-B3 eligibility | 产品/数据（已解决） | advisory signal 强制描述与 Candidate Evidence；PostgreSQL canonical graph 上由确定性 validator 判定端点、互斥、cycle、closure 和 supersedes，模型输出仅供人工判断 |
+| D21 | 旧 demo runtime 只有 Author/Reviewer/Auditor，KUI-09 已实现但没有可用 Admin 身份进入 | P2-B3 KUI-09 | 产品可用性（已解决） | Compose `admin-bootstrap` 从 gitignored `.env` 幂等创建初始 Admin，已有用户时不重置密码；Admin 仍只获得内部 RBAC 的管理权限，不隐式获得审核或发布权限 |
 
 ## 关键决策记录
 
@@ -963,3 +972,4 @@ P3 只消费 P2 已批准的 KnowledgeRevision。内部先构建可解释检索�
 | 2026-07-31 | Relation/Audit prerelease API、KUI-05/KUI-10、真实 PostgreSQL/浏览器 tests、README/USAGE/SPEC-13、P12 memory | P2-B3 非出站产品切片完成：有限 Evidence relation、append-only Audit 和显式 MSW 边界通过；live ModelProfile/Secret/Evidence/预算仍是关闭 P2 Gate 的唯一下一输入 |
 | 2026-07-31 | `service/processing/live_preflight.py`、target-run ledger/Worker、失败分类/预算 tests、README/USAGE/SPEC-12/13、P12 memory | P2-B3 离线失败门完成：四类 provider failure 脱敏进入 ModelInvocation/StepAttempt，人工 retry 新建 lineage；单次 live vertical 已具备只读预检和定向执行入口，但未发起外部调用 |
 | 2026-07-31 | Candidate advisory/lineage、Relation eligibility、`0007` migration、KUI-04、PostgreSQL tests、README/USAGE/SPEC-12/13、P12 memory | P2-B3 离线资格门完成：模型只提交有描述且引用 Evidence 的 duplicate/conflict/gap 建议；确定性写事务拒绝悬空、自环、互斥、cycle、closure 和非法 supersedes；下一输入仅剩获授权 live vertical |
+| 2026-08-01 | KUI-09 ModelProfile registry/API/Admin UI、demo Admin migration、PostgreSQL/浏览器 tests | P2-B3 零出站配置切片完成：不可变 ModelProfile 只保存非敏感元数据与 secret reference；桌面/390px、权限/冲突/脱敏审计通过，真实登记前后 ModelInvocation 计数不变；live Gate 继续 open |

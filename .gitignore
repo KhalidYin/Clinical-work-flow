@@ -32,6 +32,9 @@ venv/
 !clinical-llm-wiki/.review_queue/*.json
 !clinical-workflow/study_template/.review_queue/
 !clinical-workflow/study_template/.review_queue/.gitkeep
+!clinical-workflow/tests/fixtures/studies/adae-pilot/.review_queue/
+!clinical-workflow/tests/fixtures/studies/adae-pilot/.review_queue/archive/
+!clinical-workflow/tests/fixtures/studies/adae-pilot/.review_queue/archive/*.json
 !clinical-studies/**/.review_queue/
 !clinical-studies/**/.review_queue/**
 
@@ -40,6 +43,9 @@ project/outputs/
 project/output/
 outputs/
 output/
+!clinical-workflow/tests/fixtures/studies/adae-pilot/output/
+!clinical-workflow/tests/fixtures/studies/adae-pilot/output/**/
+!clinical-workflow/tests/fixtures/studies/adae-pilot/output/**/*
 downloads/ctgov/
 clinical-workflow/src/review_panel/out/
 
@@ -64,3 +70,4 @@ Desktop.ini
 .env
 .env.local
 doc/main/临床试验统计师核心知识体系.md
+!clinical-llm-wiki/.env.example

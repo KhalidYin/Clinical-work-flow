@@ -37,6 +37,7 @@ def test_database_runtime_dependencies_are_explicit() -> None:
 def test_canonical_metadata_owns_the_p2a_database_tables() -> None:
     assert set(Base.metadata.tables) == {
         "audit_events",
+        "browser_sessions",
         "candidate_evidence",
         "candidate_relation_proposals",
         "evidence",
@@ -63,6 +64,7 @@ def test_canonical_metadata_owns_the_p2a_database_tables() -> None:
         "source_versions",
         "sources",
         "step_attempts",
+        "user_credentials",
     }
 
 
@@ -295,8 +297,8 @@ def test_alembic_has_linear_reviewable_revisions(monkeypatch: pytest.MonkeyPatch
     assert script.get_heads() == [script.get_current_head()]
     head = script.get_revision(script.get_current_head())
     assert head is not None
-    assert head.revision == "20260731_0007"
-    assert head.down_revision == "20260730_0006"
+    assert head.revision == "20260801_0008"
+    assert head.down_revision == "20260731_0007"
     initial = script.get_revision("20260730_0001")
     assert initial is not None
     assert initial.down_revision is None
@@ -329,6 +331,7 @@ def test_linear_revision_columns_match_canonical_metadata(
         "20260730_0005",
         "20260730_0006",
         "20260731_0007",
+        "20260801_0008",
     ]
 
     class MigrationRecorder:

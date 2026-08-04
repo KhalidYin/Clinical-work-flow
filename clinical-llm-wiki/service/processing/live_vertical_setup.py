@@ -12,7 +12,6 @@ from sqlalchemy import func, select
 from service.auth import (
     ActorContext,
     IdentitySource,
-    Permission,
     PrincipalType,
     ProductRole,
     ROLE_PERMISSIONS,
@@ -30,7 +29,6 @@ from service.db.session import (
     create_session_factory,
     database_url_from_environment,
 )
-from service.demo_runtime import DemoIdentity, load_demo_identity_bundle
 from service.object_store import LocalObjectStore
 from service.processing.document_worker import (
     DocumentWorkerService,
@@ -111,16 +109,14 @@ def _required_path(name: str) -> Path:
     return Path(value)
 
 
-def _curator_actor(identity: DemoIdentity) -> ActorContext:
-    permissions: set[Permission] = set()
-    for role in identity.roles:
-        permissions.update(ROLE_PERMISSIONS[role])
+def _setup_actor() -> ActorContext:
+    role = ProductRole.KNOWLEDGE_CURATOR
     return ActorContext(
-        actor_id=identity.user_id,
-        display_name=identity.display_name,
+        actor_id="live-vertical-setup",
+        display_name="实时链路准备程序",
         principal_type=PrincipalType.HUMAN,
-        roles=frozenset(identity.roles),
-        permissions=frozenset(permissions),
+        roles=frozenset({role}),
+        permissions=ROLE_PERMISSIONS[role],
         identity_source=IdentitySource.LOCAL_TEST,
     )
 
@@ -176,14 +172,7 @@ def _ensure_live_profile(session_factory) -> None:
 def prepare_live_vertical() -> dict[str, object]:
     """Create canonical Evidence for one synthetic run, but never invoke a model."""
 
-    identities_path = _required_path("KNOWLEDGE_LOCAL_IDENTITIES_PATH")
     object_root = _required_path("KNOWLEDGE_OBJECT_STORE_ROOT")
-    bundle = load_demo_identity_bundle(identities_path)
-    curator = next(
-        identity
-        for identity in bundle.identities
-        if ProductRole.KNOWLEDGE_CURATOR in identity.roles
-    )
 
     engine = create_database_engine(database_url_from_environment())
     sessions = create_session_factory(engine)
@@ -196,7 +185,7 @@ def prepare_live_vertical() -> dict[str, object]:
             object_store=objects,
             ledger=ledger,
         ).register_and_start(
-            actor=_curator_actor(curator),
+            actor=_setup_actor(),
             command=live_source_command(),
             content=LIVE_SOURCE,
         )

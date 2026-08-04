@@ -45,7 +45,6 @@ services:
     restart: "no"
     environment:
       <<: *application-environment
-      KNOWLEDGE_LOCAL_IDENTITIES_PATH: /run/knowledge/identities.json
       KNOWLEDGE_ENRICHMENT_RECORDS_PATH: /var/lib/clinical-knowledge/demo/replay-records.json
       KNOWLEDGE_DOCUMENT_WORKER_SERVICE_ACCOUNT_ID: ${KNOWLEDGE_DOCUMENT_WORKER_SERVICE_ACCOUNT_ID:-svc-demo-document}
       KNOWLEDGE_ENRICHMENT_WORKER_SERVICE_ACCOUNT_ID: ${KNOWLEDGE_ENRICHMENT_WORKER_SERVICE_ACCOUNT_ID:-svc-demo-enrichment}
@@ -54,11 +53,26 @@ services:
       P12_ENRICHMENT_WORKER_TOKEN: ${P12_ENRICHMENT_WORKER_TOKEN:?set P12_ENRICHMENT_WORKER_TOKEN}
       P12_RELEASE_WORKER_TOKEN: ${P12_RELEASE_WORKER_TOKEN:?set P12_RELEASE_WORKER_TOKEN}
     depends_on:
-      migration:
+      admin-bootstrap:
         condition: service_completed_successfully
     volumes:
       - knowledge-objects:/var/lib/clinical-knowledge
-      - ./.demo-runtime:/run/knowledge:ro
+
+  admin-bootstrap:
+    build: .
+    image: clinical-knowledge-platform:local
+    command: ["python", "-m", "service.auth.bootstrap_admin"]
+    restart: "no"
+    environment:
+      <<: *application-environment
+      KNOWLEDGE_ADMIN_USERNAME: ${KNOWLEDGE_ADMIN_USERNAME:?set initial administrator username}
+      KNOWLEDGE_ADMIN_PASSWORD: ${KNOWLEDGE_ADMIN_PASSWORD:?set initial administrator password}
+      KNOWLEDGE_ADMIN_DISPLAY_NAME: ${KNOWLEDGE_ADMIN_DISPLAY_NAME:?set initial administrator display name}
+      KNOWLEDGE_ADMIN_EMAIL: ${KNOWLEDGE_ADMIN_EMAIL:?set initial administrator email}
+      KNOWLEDGE_ADMIN_INITIAL_PASSWORD_MIN_LENGTH: ${KNOWLEDGE_ADMIN_INITIAL_PASSWORD_MIN_LENGTH:-12}
+    depends_on:
+      migration:
+        condition: service_completed_successfully
 
   api:
     build: .
@@ -70,9 +84,8 @@ services:
       KNOWLEDGE_API_HOST: 0.0.0.0
       KNOWLEDGE_API_PORT: "8788"
       KNOWLEDGE_API_BIND_SCOPE: compose_local
-      KNOWLEDGE_IDENTITY_MODE: local
-      KNOWLEDGE_LOCAL_IDENTITIES_PATH: /run/knowledge/identities.json
-      KNOWLEDGE_ORGANIZATION_NAME: ${KNOWLEDGE_ORGANIZATION_NAME:-Clinical Knowledge Platform}
+      KNOWLEDGE_ORGANIZATION_NAME: ${KNOWLEDGE_ORGANIZATION_NAME:-临床知识平台}
+      KNOWLEDGE_RUNTIME_CONSUMER_SECRET: ${KNOWLEDGE_RUNTIME_CONSUMER_SECRET:?set runtime consumer machine credential}
     depends_on:
       bootstrap:
         condition: service_completed_successfully
@@ -87,10 +100,11 @@ services:
       interval: 10s
       timeout: 3s
       retries: 12
-    ports: ["127.0.0.1:8788:8788"]
+    # Bind to all host interfaces by default so the demo can be opened from a
+    # LAN device. Set KNOWLEDGE_BIND_ADDRESS=127.0.0.1 for loopback-only use.
+    ports: ["${KNOWLEDGE_BIND_ADDRESS:-0.0.0.0}:8788:8788"]
     volumes:
       - knowledge-objects:/var/lib/clinical-knowledge
-      - ./.demo-runtime:/run/knowledge:ro
 
   frontend:
     build: ./frontend
@@ -99,7 +113,7 @@ services:
     depends_on:
       api:
         condition: service_healthy
-    ports: ["127.0.0.1:4173:80"]
+    ports: ["${KNOWLEDGE_BIND_ADDRESS:-0.0.0.0}:4173:80"]
 
   worker-document:
     <<: *worker

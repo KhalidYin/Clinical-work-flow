@@ -16,6 +16,7 @@ tmp/
 # Secrets and local-only source material
 .env
 .env.local
+!.env.example
 .demo-runtime/
 sources/**/original/
 !sources/**/original/.gitkeep

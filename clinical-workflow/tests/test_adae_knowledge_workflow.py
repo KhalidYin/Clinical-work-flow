@@ -6,13 +6,11 @@ import asyncio
 import hashlib
 import json
 import shutil
-import sys
 from pathlib import Path
 from typing import Any, Mapping
 
 import pytest
 import yaml
-from fastapi.testclient import TestClient
 
 from src.knowledge.client import (
     KnowledgeServiceClient,
@@ -34,14 +32,13 @@ from src.runtime.review_protocol import Decision, DecisionReceipt, FindingDecisi
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PLATFORM_ROOT = ROOT.parent
-WIKI_ROOT = PLATFORM_ROOT / "clinical-llm-wiki"
 FIXTURE = ROOT / "tests" / "fixtures" / "studies" / "adae-pilot"
-if str(WIKI_ROOT) not in sys.path:
-    sys.path.insert(0, str(WIKI_ROOT))
+P12_RELEASE_FIXTURE = ROOT / "tests" / "fixtures" / "knowledge" / "p12-adae-release.json"
 
-from service.app import create_app  # noqa: E402
-from service.config import WikiServiceConfig  # noqa: E402
+from service.published_knowledge import (  # noqa: E402
+    published_version,
+    resolve_published_runtime_context,
+)
 
 
 WORKFLOW_IDS = ("wp-adam-spec-baseline",)
@@ -53,9 +50,9 @@ DOMAIN_IDS = (
 )
 
 
-class _WikiTransport:
-    def __init__(self, client: TestClient) -> None:
-        self.client = client
+class _P12PublishedTransport:
+    def __init__(self, release: Mapping[str, Any]) -> None:
+        self.release = release
 
     def __call__(
         self,
@@ -63,12 +60,11 @@ class _WikiTransport:
         path: str,
         payload: Mapping[str, Any] | None = None,
     ) -> Mapping[str, Any]:
-        response = self.client.request(method, path, json=payload)
-        if response.status_code >= 400:
-            raise KnowledgeServiceContractError(
-                f"Wiki service rejected {path}: {response.status_code} {response.text}"
-            )
-        return response.json()
+        if method == "GET" and path.endswith("/version"):
+            return published_version(self.release)
+        if method == "POST" and path.endswith("/resolve") and payload is not None:
+            return resolve_published_runtime_context(self.release, payload)
+        raise KnowledgeServiceContractError(f"P12 published API rejected {method} {path}")
 
 
 class _OfflineTransport:
@@ -81,31 +77,10 @@ class _OfflineTransport:
         raise KnowledgeServiceUnavailable(f"synthetic offline fixture: {method} {path}")
 
 
-def _prepare_wiki(tmp_path: Path) -> tuple[TestClient, dict[str, Any], dict[str, Any]]:
-    root = tmp_path / "wiki"
-    shutil.copytree(WIKI_ROOT / "vault", root / "vault")
-    shutil.copytree(WIKI_ROOT / ".review_queue", root / ".review_queue")
-    shutil.copytree(WIKI_ROOT / "schemas" / "engine", root / "schemas")
-    client = TestClient(create_app(WikiServiceConfig(vault_root=root, schemas_dir=root / "schemas")))
-    workflow = client.post(
-        "/api/v1/snapshots",
-        json={
-            "item_ids": list(WORKFLOW_IDS),
-            "snapshot_id": "snapshot-workflow-synth-adae",
-            "version": "1.0.0",
-        },
-    )
-    domain = client.post(
-        "/api/v1/snapshots",
-        json={
-            "item_ids": list(DOMAIN_IDS),
-            "snapshot_id": "snapshot-domain-synth-adae",
-            "version": "1.0.0",
-        },
-    )
-    assert workflow.status_code == 201, workflow.text
-    assert domain.status_code == 201, domain.text
-    return client, workflow.json(), domain.json()
+def _prepare_release() -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], dict[str, str]]:
+    release = json.loads(P12_RELEASE_FIXTURE.read_text(encoding="utf-8"))
+    workflow, domain = release["runtime_snapshots"]
+    return release, workflow, domain, published_version(release)
 
 
 def _prepare_study(
@@ -183,15 +158,14 @@ def _execute_adae_draft(
 def test_adae_online_and_offline_use_identical_locked_references_and_artifact(
     tmp_path: Path,
 ) -> None:
-    wiki, workflow, domain = _prepare_wiki(tmp_path)
-    bundle = wiki.get("/api/v1/version").json()
+    release, workflow, domain, bundle = _prepare_release()
     online_study = _prepare_study(
         tmp_path, workflow, domain, bundle, name="online-study"
     )
     offline_study = _prepare_study(
         tmp_path, workflow, domain, bundle, name="offline-study"
     )
-    online_resolver = _resolver(_WikiTransport(wiki), bundle)
+    online_resolver = _resolver(_P12PublishedTransport(release), bundle)
     offline_resolver = _resolver(_OfflineTransport(), bundle)
 
     online_context = RuntimeContextResolver(online_resolver).resolve_for_stage(
@@ -225,8 +199,7 @@ def test_adae_online_and_offline_use_identical_locked_references_and_artifact(
 
 
 def test_cli_resolver_factory_reproduces_adae_from_locked_snapshots(tmp_path: Path) -> None:
-    wiki, workflow, domain = _prepare_wiki(tmp_path)
-    bundle = wiki.get("/api/v1/version").json()
+    _release, workflow, domain, bundle = _prepare_release()
     study = _prepare_study(tmp_path, workflow, domain, bundle, name="cli-offline-study")
     runtime = AgentRuntime(
         project_dir=study,
@@ -253,10 +226,11 @@ def test_cli_resolver_factory_reproduces_adae_from_locked_snapshots(tmp_path: Pa
 def test_adae_draft_is_not_pipeline_evidence_until_review_is_applied(
     tmp_path: Path,
 ) -> None:
-    wiki, workflow, domain = _prepare_wiki(tmp_path)
-    bundle = wiki.get("/api/v1/version").json()
+    release, workflow, domain, bundle = _prepare_release()
     study = _prepare_study(tmp_path, workflow, domain, bundle, name="review-study")
-    runtime, result = _execute_adae_draft(study, _resolver(_WikiTransport(wiki), bundle))
+    runtime, result = _execute_adae_draft(
+        study, _resolver(_P12PublishedTransport(release), bundle)
+    )
 
     canonical = study / "output" / "adam" / "specs" / "adae-spec.yaml"
     assert result["status"] == "awaiting_human"
@@ -291,13 +265,14 @@ def test_adae_draft_is_not_pipeline_evidence_until_review_is_applied(
 def test_adae_missing_approved_study_rule_blocks_before_artifact_creation(
     tmp_path: Path,
 ) -> None:
-    wiki, workflow, domain = _prepare_wiki(tmp_path)
-    bundle = wiki.get("/api/v1/version").json()
+    release, workflow, domain, bundle = _prepare_release()
     study = _prepare_study(tmp_path, workflow, domain, bundle, name="missing-rule-study")
     (study / "knowledge" / "decisions" / "teae-window.json").unlink()
     runtime = AgentRuntime(
         project_dir=study,
-        context_resolver=RuntimeContextResolver(_resolver(_WikiTransport(wiki), bundle)),
+        context_resolver=RuntimeContextResolver(
+            _resolver(_P12PublishedTransport(release), bundle)
+        ),
         git_auto_commit=False,
     )
     _load_mcp_tools(runtime)
@@ -328,4 +303,6 @@ def test_approved_study_rule_only_generates_a_local_unreviewed_promotion_candida
     assert artifact.candidate.eligible_for_wiki_proposal is False
     serialized = artifact.path.read_text(encoding="utf-8")
     assert "SYNTH-ONCO-001" not in serialized
-    assert not any((WIKI_ROOT / "vault" / "70_Prior-Studies").rglob("*.json"))
+    assert list((study / "knowledge" / "promotion_candidates").glob("*.json")) == [
+        artifact.path
+    ]

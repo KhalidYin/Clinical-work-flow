@@ -1,6 +1,9 @@
 export const CONTRACT_VERSION = "knowledge-api.prerelease.v1";
 
 export const API_PATHS = {
+  login: "/api/prerelease/v1/auth/login",
+  changePassword: "/api/prerelease/v1/auth/password/change",
+  logout: "/api/prerelease/v1/auth/logout",
   session: "/api/prerelease/v1/session",
   health: "/api/prerelease/v1/health",
   currentRelease: "/api/prerelease/v1/releases/current",
@@ -11,6 +14,8 @@ export const API_PATHS = {
   relationQuery: "/api/prerelease/v1/relations/query",
   auditEvents: "/api/prerelease/v1/audit-events",
   adminUsers: "/api/prerelease/v1/admin/users",
+  adminServiceAccounts: "/api/prerelease/v1/admin/service-accounts",
+  adminModelProfiles: "/api/prerelease/v1/admin/model-profiles",
 } as const;
 
 export function resolveApiPath(path: string): string {
@@ -54,11 +59,11 @@ export type ProductPermission =
   | "audit:read";
 
 export const ROLE_LABELS: Record<HumanRole, string> = {
-  platform_admin: "Admin",
-  knowledge_curator: "Knowledge Curator",
-  reviewer: "Knowledge Reviewer",
-  release_manager: "Release Manager",
-  consumer: "Consumer",
+  platform_admin: "平台管理员",
+  knowledge_curator: "知识工程师",
+  reviewer: "知识审核员",
+  release_manager: "发布管理员",
+  consumer: "知识使用者",
 };
 
 export function roleLabel(role: HumanRole): string {
@@ -92,6 +97,26 @@ export interface Session {
   roles: HumanRole[];
   organization: string;
   permissions: ProductPermission[];
+  mustChangePassword: boolean;
+  sessionExpiresAt: string;
+}
+
+export function adminUserPasswordResetPath(userId: string): string {
+  return `${API_PATHS.adminUsers}/${encodeURIComponent(userId)}/password/reset`;
+}
+
+export function adminUserStatusPath(userId: string): string {
+  return `${API_PATHS.adminUsers}/${encodeURIComponent(userId)}/status`;
+}
+
+export interface LoginRequest {
+  username: string;
+  password: string;
+}
+
+export interface PasswordChangeRequest {
+  currentPassword: string;
+  newPassword: string;
 }
 
 export interface PlatformHealth {
@@ -405,6 +430,12 @@ export interface ReviewDecision {
 
 export type ApiErrorCode =
   | "authentication_required"
+  | "invalid_credentials"
+  | "account_locked"
+  | "password_change_required"
+  | "current_password_invalid"
+  | "password_policy_failed"
+  | "csrf_rejected"
   | "invalid_identity"
   | "permission_denied"
   | "service_unavailable"
@@ -442,7 +473,7 @@ export interface PlatformUser {
   userId: string;
   displayName: string;
   email: string;
-  identitySource: "local_test" | "oidc";
+  identitySource: "local_password" | "local_test" | "oidc";
   roles: HumanRole[];
   status: "active" | "disabled";
   lastActiveAt: string | null;
@@ -453,4 +484,78 @@ export interface UserCollection {
   total: number;
   partial: boolean;
   warnings: string[];
+}
+
+export interface UserCreateRequest {
+  username: string;
+  displayName: string;
+  email: string;
+  roles: HumanRole[];
+}
+
+export interface AdminTemporaryPassword {
+  userId: string;
+  username: string | null;
+  temporaryPassword: string;
+  mustChangePassword: true;
+}
+
+export interface UserStatusRequest {
+  status: "active" | "disabled";
+}
+
+export interface UserStatusReceipt {
+  userId: string;
+  status: "active" | "disabled";
+}
+
+export interface ServiceAccountSummary {
+  serviceAccountId: string;
+  displayName: string;
+  workerPool: "document" | "enrichment" | "release";
+  scopes: ProductPermission[];
+  status: "active" | "disabled";
+}
+
+export interface ServiceAccountCollection {
+  items: ServiceAccountSummary[];
+  total: number;
+  partial: boolean;
+  warnings: string[];
+}
+
+export type ModelDeploymentClass = "enterprise_managed" | "external_api";
+export type ModelDataBoundary = "external_allowed" | "enterprise_provider_only";
+
+export interface ModelProfileRegistrationRequest {
+  profileId: string;
+  version: string;
+  provider: string;
+  model: string;
+  deploymentClass: ModelDeploymentClass;
+  secretRef: string;
+  endpointRef: string | null;
+  allowedDataBoundaries: ModelDataBoundary[];
+  capabilities: ["structured_generation"];
+  timeoutSeconds: number;
+  maxOutputTokens: number;
+  costPolicy: Record<string, unknown> | null;
+}
+
+export interface ModelProfile extends ModelProfileRegistrationRequest {
+  createdAt: string;
+  connectionState: "not_verified";
+  liveEnabled: false;
+}
+
+export interface ModelProfileCollection {
+  items: ModelProfile[];
+  total: number;
+  partial: boolean;
+  warnings: string[];
+}
+
+export interface ModelProfileRegistration {
+  profile: ModelProfile;
+  created: boolean;
 }

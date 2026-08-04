@@ -5,14 +5,14 @@ from pathlib import Path
 
 import yaml
 
-from service.maintenance import backfill, legacy_migration
+from service.maintenance import backfill
 from service.processing import worker
 
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_compose_keeps_one_codebase_three_pools_and_loopback_publication() -> None:
+def test_compose_keeps_one_codebase_three_pools_and_configurable_publication() -> None:
     compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
     services = compose["services"]
 
@@ -21,8 +21,8 @@ def test_compose_keeps_one_codebase_three_pools_and_loopback_publication() -> No
     assert worker_names <= set(services)
     assert services["postgres"]["image"].startswith("pgvector/pgvector:")
     assert services["migration"]["command"] == ["alembic", "upgrade", "head"]
-    assert services["api"]["ports"] == ["127.0.0.1:8788:8788"]
-    assert services["frontend"]["ports"] == ["127.0.0.1:4173:80"]
+    assert services["api"]["ports"] == ["${KNOWLEDGE_BIND_ADDRESS:-0.0.0.0}:8788:8788"]
+    assert services["frontend"]["ports"] == ["${KNOWLEDGE_BIND_ADDRESS:-0.0.0.0}:4173:80"]
 
     worker_builds = {str(services[name]["build"]) for name in worker_names}
     worker_images = {services[name]["image"] for name in worker_names}
@@ -43,16 +43,43 @@ def test_compose_keeps_one_codebase_three_pools_and_loopback_publication() -> No
     assert all(component not in serialized for component in ("kafka", "redis", "neo4j"))
 
 
-def test_ddl_backfill_and_legacy_migration_have_distinct_fail_closed_entrypoints() -> None:
+def test_ddl_and_backfill_have_distinct_fail_closed_entrypoints() -> None:
     backfill_source = inspect.getsource(backfill)
-    legacy_source = inspect.getsource(legacy_migration)
 
     assert "alembic" not in backfill_source.lower()
     assert "legacy" not in backfill.REGISTERED_BACKFILLS
     assert set(backfill.REGISTERED_BACKFILLS) == {"p2b1-evidence-ready"}
-    assert "alembic" not in legacy_source.lower()
     assert backfill.main(["--list"]) == 0
-    assert legacy_migration.main(["--list"]) == 0
+
+
+def test_compose_has_no_legacy_vault_migration_runtime() -> None:
+    compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
+
+    assert "legacy-migration" not in compose["services"]
+    assert "/migration-source" not in (ROOT / "compose.yaml").read_text(encoding="utf-8")
+
+
+def test_compose_requires_a_separate_runtime_consumer_credential() -> None:
+    compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
+
+    value = compose["services"]["api"]["environment"][
+        "KNOWLEDGE_RUNTIME_CONSUMER_SECRET"
+    ]
+    assert value.startswith("${KNOWLEDGE_RUNTIME_CONSUMER_SECRET:?")
+
+
+def test_frontend_root_redirect_preserves_the_published_host_port() -> None:
+    nginx = (ROOT / "frontend/nginx.conf").read_text(encoding="utf-8")
+
+    assert "absolute_redirect off;" in nginx
+    assert "return 302 /app.html;" in nginx
+
+
+def test_frontend_document_metadata_uses_the_chinese_product_name() -> None:
+    document = (ROOT / "frontend/app.html").read_text(encoding="utf-8")
+
+    assert "<title>临床知识台账</title>" in document
+    assert 'content="临床知识台账——证据驱动的知识治理工作台。"' in document
 
 
 def test_worker_module_exposes_one_pool_parameterized_entrypoint() -> None:

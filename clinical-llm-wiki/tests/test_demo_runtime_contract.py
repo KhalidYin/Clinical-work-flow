@@ -1,61 +1,17 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import yaml
 
-from service.auth import IdentitySource, ProductRole
-
-
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_local_identity_bundle_keeps_authentication_separate_from_internal_roles(
-    tmp_path: Path,
-) -> None:
-    from service.demo_runtime import load_demo_identity_bundle
+def test_demo_replay_profile_never_reuses_worker_machine_credential() -> None:
+    from service.demo_runtime import DEMO_REPLAY_SECRET_REF
 
-    path = tmp_path / "identities.json"
-    path.write_text(
-        json.dumps(
-            {
-                "version": 1,
-                "issuer": "local://p12-demo",
-                "identities": [
-                    {
-                        "token": "author-token-at-least-eight",
-                        "userId": "usr-demo-author",
-                        "subject": "demo-author",
-                        "displayName": "Demo Author",
-                        "email": "author@example.test",
-                        "roles": ["knowledge_curator"],
-                    },
-                    {
-                        "token": "reviewer-token-at-least-eight",
-                        "userId": "usr-demo-reviewer",
-                        "subject": "demo-reviewer",
-                        "displayName": "Demo Reviewer",
-                        "email": "reviewer@example.test",
-                        "roles": ["reviewer"],
-                    },
-                ],
-            }
-        ),
-        encoding="utf-8",
-    )
-
-    bundle = load_demo_identity_bundle(path)
-    assertions = bundle.token_assertions()
-
-    assert set(assertions) == {
-        "author-token-at-least-eight",
-        "reviewer-token-at-least-eight",
-    }
-    assert assertions["author-token-at-least-eight"].identity_source is IdentitySource.LOCAL_TEST
-    assert assertions["author-token-at-least-eight"].subject == "demo-author"
-    assert bundle.identities[0].roles == (ProductRole.KNOWLEDGE_CURATOR,)
-    assert "roles" not in assertions["author-token-at-least-eight"].model_dump()
+    assert DEMO_REPLAY_SECRET_REF == "secret://offline-replay/no-provider-secret"
+    assert "WORKER_TOKEN" not in DEMO_REPLAY_SECRET_REF
 
 
 def test_demo_replay_output_cites_only_canonical_evidence() -> None:
@@ -109,7 +65,10 @@ def test_compose_bootstrap_precedes_api_and_independent_workers() -> None:
     services = compose["services"]
 
     assert services["bootstrap"]["command"] == ["python", "-m", "service.demo_runtime"]
-    assert services["bootstrap"]["depends_on"]["migration"]["condition"] == (
+    assert services["admin-bootstrap"]["depends_on"]["migration"]["condition"] == (
+        "service_completed_successfully"
+    )
+    assert services["bootstrap"]["depends_on"]["admin-bootstrap"]["condition"] == (
         "service_completed_successfully"
     )
     for name in ("api", "worker-document", "worker-enrichment"):
@@ -126,15 +85,36 @@ def test_compose_bootstrap_precedes_api_and_independent_workers() -> None:
     ].endswith("/demo/replay-records.json")
 
 
-def test_demo_start_script_generates_local_credentials_and_waits_for_health() -> None:
-    script = (ROOT / "scripts" / "start-demo.ps1").read_text(encoding="utf-8")
+def test_direct_compose_bootstraps_admin_from_local_environment() -> None:
+    compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
+    admin = compose["services"]["admin-bootstrap"]
 
-    assert "RandomNumberGenerator" in script
-    assert ".demo-runtime" in script
-    assert "--wait" in script
-    assert "--volumes" in script
-    assert "KNOWLEDGE_POSTGRES_PASSWORD=" in script
-    assert (
-        "Knowledge Ledger is ready at "
-        "http://localhost:4173/app.html#/candidates"
-    ) in script
+    assert "profiles" not in admin
+    assert admin["command"] == ["python", "-m", "service.auth.bootstrap_admin"]
+    assert admin["environment"]["KNOWLEDGE_ADMIN_USERNAME"].startswith("${")
+    assert admin["environment"]["KNOWLEDGE_ADMIN_PASSWORD"].startswith("${")
+    assert admin["environment"]["KNOWLEDGE_ADMIN_DISPLAY_NAME"].startswith("${")
+    assert admin["environment"]["KNOWLEDGE_ADMIN_EMAIL"].startswith("${")
+    assert admin["environment"]["KNOWLEDGE_ADMIN_INITIAL_PASSWORD_MIN_LENGTH"].startswith(
+        "${"
+    )
+
+    example = (ROOT / ".env.example").read_text(encoding="utf-8")
+    assert "KNOWLEDGE_ADMIN_USERNAME=admin" in example
+    assert "KNOWLEDGE_ADMIN_PASSWORD=" in example
+    example_password = next(
+        line.partition("=")[2]
+        for line in example.splitlines()
+        if line.startswith("KNOWLEDGE_ADMIN_PASSWORD=")
+    )
+    assert example_password.startswith("replace-with-")
+    assert len(example_password) >= 12
+    assert not (ROOT / "scripts" / "start-demo.ps1").exists()
+
+
+def test_compose_has_no_human_bearer_identity_mount() -> None:
+    content = (ROOT / "compose.yaml").read_text(encoding="utf-8")
+
+    assert "KNOWLEDGE_LOCAL_IDENTITIES_PATH" not in content
+    assert "identities.json" not in content
+    assert "service.auth.bootstrap_admin" in content

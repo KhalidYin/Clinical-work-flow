@@ -1,0 +1,244 @@
+{
+  "schema_version": "1.0.0",
+  "crosswalk_id": "p13-legacy-wiki-retirement-v1",
+  "canonical_target": "p12-postgresql-object-store",
+  "governed_id_policy": "preserve_legacy_id",
+  "hash_algorithms": {
+    "canonical_json": {
+      "serialization": "json-sort-keys-compact-utf8-no-trailing-newline",
+      "disposition": "p12-canonical"
+    },
+    "legacy_script_json": {
+      "serialization": "json-sort-keys-compact-utf8-with-one-trailing-lf",
+      "disposition": "verify-only-never-rewrite"
+    },
+    "schema_bundle": {
+      "serialization": "canonical_json",
+      "disposition": "verify-before-old-loader-removal"
+    }
+  },
+  "asset_rules": [
+    {
+      "path": "vault",
+      "disposition": "migrate",
+      "target": "Source/Evidence/KnowledgeRevision/Relation",
+      "tracked_file_count": 146,
+      "governed_record_count": 104,
+      "unique_governed_id_count": 104
+    },
+    {
+      "path": "sources/accessions",
+      "disposition": "migrate",
+      "target": "Source/SourceVersion",
+      "tracked_file_count": 7
+    },
+    {
+      "path": "sources/packages",
+      "disposition": "migrate",
+      "target": "ObjectStore/migration-report",
+      "tracked_file_count": 16
+    },
+    {
+      "path": "snapshots",
+      "disposition": "migrate",
+      "target": "Release/ReleaseItem/ObjectStore",
+      "tracked_file_count": 3
+    },
+    {
+      "path": ".review_queue",
+      "disposition": "migrate",
+      "target": "ReviewDecision/AuditEvent",
+      "tracked_file_count": 18
+    },
+    {
+      "path": "audit_trail.jsonl",
+      "disposition": "migrate",
+      "target": "AuditEvent/migration-report"
+    },
+    {
+      "path": "service/app.py",
+      "disposition": "delete_after_migration",
+      "target": "service/platform_api"
+    },
+    {
+      "path": "service/main.py",
+      "disposition": "delete_after_migration",
+      "target": "service/platform_api/main.py"
+    },
+    {
+      "path": "service/config.py",
+      "disposition": "delete_after_migration",
+      "target": "P12 environment contract"
+    },
+    {
+      "path": "service/contracts.py",
+      "disposition": "delete_after_migration",
+      "target": "P12 application schemas"
+    },
+    {
+      "path": "service/repository.py",
+      "disposition": "delete_after_migration",
+      "target": "P12 SQL repositories"
+    },
+    {
+      "path": "service/resolver.py",
+      "disposition": "delete_after_migration",
+      "target": "P12 released knowledge API"
+    },
+    {
+      "path": "service/snapshot.py",
+      "disposition": "delete_after_migration",
+      "target": "P12 immutable Release"
+    },
+    {
+      "path": "scripts/content",
+      "disposition": "delete_after_migration",
+      "target": "P12 worker and migration report",
+      "tracked_file_count": 14
+    },
+    {
+      "path": "scripts/pdf",
+      "disposition": "fixture_or_delete",
+      "target": "tests/fixtures or Document Worker",
+      "tracked_file_count": 8
+    },
+    {
+      "path": "scripts/quality",
+      "disposition": "delete_after_migration",
+      "target": "P12 Document Worker tests",
+      "tracked_file_count": 2
+    },
+    {
+      "path": "schemas/engine",
+      "disposition": "delete_after_migration",
+      "target": "clinical-workflow/schemas canonical bundle",
+      "tracked_file_count": 13
+    },
+    {
+      "path": "README-vault.md",
+      "disposition": "delete_after_docs_sync",
+      "target": "README.md/USAGE.md"
+    }
+  ],
+  "runtime_reference_groups": [
+    {
+      "scope": "clinical-workflow/src/knowledge",
+      "disposition": "replaced",
+      "target": "P12 published knowledge compatibility adapter"
+    },
+    {
+      "scope": "clinical-workflow/src/runtime/agent_loop.py",
+      "disposition": "replaced",
+      "target": "P12 platform API endpoint configuration"
+    },
+    {
+      "scope": "clinical-workflow/tests/test_adae_knowledge_workflow.py",
+      "disposition": "replaced",
+      "target": "P12 published-knowledge regression fixture"
+    },
+    {
+      "scope": "README.md|USAGE.md|AGENTS.md|CLAUDE.md|docs/specs|docs/deploy",
+      "disposition": "replaced",
+      "target": "P12/P13 product authority and runbook"
+    }
+  ],
+  "documentation_retirement": [
+    "docs/dep/plans/deferred/P1-clinical-statistics-knowledge-base.md",
+    "docs/dep/plans/deferred/P1-RISK-REDUCTION-PLAN.md",
+    "docs/dep/plans/deferred/P2-workflow-knowledge-integration.md",
+    "docs/dep/plans/complete/P3-clinical-knowledge-workflow-platform.md",
+    "docs/dep/plans/complete/P4-obsidian-workflow-visualization.md",
+    "docs/dep/plans/complete/P5-obsidian-curated-relation-graph.md",
+    "docs/dep/plans/complete/P6-clinical-knowledge-evolution.md",
+    "docs/dep/plans/complete/P7-safety-analysis-vertical-workflow.md",
+    "docs/dep/plans/complete/P8-workflow-api-study-console.md",
+    "docs/dep/plans/complete/P9-metadata-driven-sdtm-ae-minimal-poc.md",
+    "docs/dep/plans/deferred/P9-multi-study-intranet-collaboration.md",
+    "docs/dep/plans/deferred/P10-general-knowledge-unit-retrieval.md",
+    "docs/dep/plans/deferred/P11-ten-stage-production-validation-poc.md"
+  ],
+  "reported_findings": [
+    {
+      "id": 1,
+      "decision": "preserve_legacy_hash_semantics",
+      "reason": "changing the trailing-LF algorithm would invalidate historical artifact locks"
+    },
+    {
+      "id": 2,
+      "decision": "delete_duplicate_old_loader_after_cross-check",
+      "reason": "the old SchemaBundle loader belongs to the retiring 8787 service"
+    },
+    {
+      "id": 3,
+      "decision": "delete_old_resolver",
+      "reason": "the hard-coded stage set belongs to the retiring Vault resolver"
+    },
+    {
+      "id": 4,
+      "decision": "delete_old_snapshot_service",
+      "reason": "P12 immutable Release replaces the legacy snapshot implementation"
+    },
+    {
+      "id": 5,
+      "decision": "new_migration_scanner_must_fail_closed",
+      "reason": "malformed YAML cannot disappear from the migration inventory"
+    },
+    {
+      "id": 6,
+      "decision": "leave_workflow_behavior_unchanged",
+      "reason": "helper duplication in the P9 workflow is not a P13 runtime blocker"
+    },
+    {
+      "id": 7,
+      "decision": "preserve_prerelease_contract_until_explicit_migration",
+      "reason": "changing 0.1.0 without a compatibility migration would break old receipts"
+    }
+  ],
+  "workflow_regression": {
+    "test": "clinical-workflow/tests/test_adae_knowledge_workflow.py",
+    "workflow_rule_ids": [
+      "wp-adam-spec-baseline"
+    ],
+    "domain_rule_ids": [
+      "kr-adae-adverse-event-analysis",
+      "pattern-adam-derivation-metadata",
+      "pattern-analysis-dataset-traceability",
+      "pattern-treatment-emergent-ae"
+    ],
+    "study_rule_ids": [
+      "study-decision-synth-onco-001-teae"
+    ],
+    "required_outcome": "online and locked-offline ADAE artifacts remain byte-identical",
+    "known_baseline_defects": [
+      "fixture references three approval artifacts that were never tracked",
+      "fixture no longer advances the fixed pipeline to adam_spec before execution"
+    ],
+    "must_pass_before_legacy_delete": true
+  },
+  "migration_execution": {
+    "status": "verified",
+    "migration_id": "p13-legacy-wiki-v1",
+    "record_count": 104,
+    "released_revision_count": 73,
+    "unresolved_count": 0,
+    "report_object_key": "migration/p13/legacy-wiki-migration-report-v1.json",
+    "report_sha256": "70185891f053d61b9dda6651fb1b123c31c5ccc1dea8514fc9f2b87277f586cb",
+    "release_id": "release-p13-legacy-wiki-v1",
+    "release_manifest_sha256": "f46dc6008e959eea96baad65cd4039a6353de5e0eca92c53ac54831a10451422",
+    "runtime_api": "/api/prerelease/v1/runtime-knowledge",
+    "idempotent_replays_verified": 2
+  },
+  "retirement_execution": {
+    "status": "verified",
+    "deleted_tracked_asset_count": 269,
+    "historical_recovery": "git-history-only",
+    "runtime_reference_gate": "passed"
+  },
+  "deletion_gates": [
+    "crosswalk_has_no_unresolved_assets",
+    "workflow_regression_passes",
+    "p12_canonical_targets_are_verified",
+    "runtime_reference_scan_is_zero"
+  ],
+  "unresolved_assets": []
+}

@@ -31,22 +31,22 @@ describe("KUI-05 Relation Explorer", () => {
     expect(
       await screen.findByText("AESEQ uniquely identifies a record within the AE domain."),
     ).toBeInTheDocument();
-    expect(screen.getByText("applies_to")).toBeInTheDocument();
+    expect(screen.getByText("适用于")).toBeInTheDocument();
     expect(
-      screen.getAllByText(/release · rel-2026-07-29-001/).length,
+      screen.getAllByText(/发布版本 · rel-2026-07-29-001/).length,
     ).toBeGreaterThan(0);
     await waitFor(() =>
       expect(router.state.location.search.node).toBe("KU-SDTM-AE"),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "2 hop" }));
-    fireEvent.click(screen.getByRole("button", { name: "list" }));
+    fireEvent.click(screen.getByRole("button", { name: "2 跳" }));
+    fireEvent.click(screen.getByRole("button", { name: "列表" }));
     await waitFor(() => {
       expect(router.state.location.search.depth).toBe(2);
       expect(router.state.location.search.view).toBe("list");
     });
     expect(
-      await screen.findByRole("columnheader", { name: "Direction" }),
+      await screen.findByRole("columnheader", { name: "方向" }),
     ).toBeInTheDocument();
   });
 
@@ -98,10 +98,10 @@ describe("KUI-10 Audit ledger", () => {
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /knowledge_revision\.approved/i }));
     expect(await screen.findByText("review-aeseq-002")).toBeInTheDocument();
-    expect(screen.getByText(/Append-only projection/)).toBeInTheDocument();
+    expect(screen.getByText(/只追加投影/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /edit|delete/i })).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText("Action"), {
+    fireEvent.change(screen.getByLabelText("动作"), {
       target: { value: "author_confirmed" },
     });
     await waitFor(() =>

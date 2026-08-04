@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol, Sequence
+from uuid import NAMESPACE_URL, uuid5
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
@@ -21,12 +22,14 @@ from service.db.models import (
     KnowledgeRelation,
     KnowledgeRevision,
     KnowledgeUnit,
+    ModelProfile,
     PlatformUser,
     ProcessingRun,
     Release,
     ReleaseItem,
     RelationProposalEvidence,
     RoleBinding,
+    ServiceAccount,
     Source,
     SourceArtifact,
     SourceVersion,
@@ -41,6 +44,8 @@ class CurrentReleaseRecord:
     status: str
     index_version: str
     released_at: datetime | None
+    manifest_object_key: str | None = None
+    manifest_sha256: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,6 +69,36 @@ class PlatformUserRecord:
     roles: tuple[str, ...]
     status: str
     last_active_at: datetime | None
+
+
+@dataclass(frozen=True, slots=True)
+class ServiceAccountRecord:
+    service_account_id: str
+    display_name: str
+    worker_pool: str
+    scopes: tuple[str, ...]
+    status: str
+
+
+@dataclass(frozen=True, slots=True)
+class ModelProfileRecord:
+    profile_id: str
+    version: str
+    provider: str
+    model: str
+    deployment_class: str
+    secret_ref: str
+    endpoint_ref: str | None
+    allowed_data_boundaries: tuple[str, ...]
+    capabilities: tuple[str, ...]
+    timeout_seconds: int
+    max_output_tokens: int
+    cost_policy: dict[str, object] | None
+    created_at: datetime
+
+
+class ModelProfileConflictError(RuntimeError):
+    """An immutable profile ID/version already exists with different facts."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -240,6 +275,33 @@ class PlatformReadRepository(Protocol):
         self,
     ) -> tuple[Sequence[PlatformUserRecord], Sequence[str]]: ...
 
+    def list_service_accounts(
+        self,
+    ) -> tuple[Sequence[ServiceAccountRecord], Sequence[str]]: ...
+
+    def list_model_profiles(
+        self,
+    ) -> tuple[Sequence[ModelProfileRecord], Sequence[str]]: ...
+
+    def register_model_profile(
+        self,
+        *,
+        profile_id: str,
+        version: str,
+        provider: str,
+        model: str,
+        deployment_class: str,
+        secret_ref: str,
+        endpoint_ref: str | None,
+        allowed_data_boundaries: Sequence[str],
+        capabilities: Sequence[str],
+        timeout_seconds: int,
+        max_output_tokens: int,
+        cost_policy: dict[str, object] | None,
+        actor_id: str,
+        correlation_id: str,
+    ) -> tuple[ModelProfileRecord, bool]: ...
+
     def list_processing_runs(
         self,
     ) -> tuple[Sequence[ProcessingRunRecord], Sequence[str]]: ...
@@ -273,7 +335,7 @@ class PlatformReadRepository(Protocol):
 
 
 class SqlAlchemyPlatformRepository:
-    """Read-only adapter over the canonical SQLAlchemy metadata."""
+    """API adapter over canonical reads and the bounded ModelProfile registry."""
 
     def __init__(self, session_factory: sessionmaker[Session]) -> None:
         self._session_factory = session_factory
@@ -332,6 +394,8 @@ class SqlAlchemyPlatformRepository:
             status="released",
             index_version=release.index_manifest_version,
             released_at=release.published_at,
+            manifest_object_key=release.manifest_object_key,
+            manifest_sha256=release.manifest_sha256,
         )
 
     def list_sources(self) -> tuple[list[SourceSummaryRecord], list[str]]:
@@ -436,6 +500,107 @@ class SqlAlchemyPlatformRepository:
                 )
             )
         return items, warnings
+
+    def list_service_accounts(self) -> tuple[list[ServiceAccountRecord], list[str]]:
+        with self._session_factory() as session:
+            accounts = list(
+                session.scalars(
+                    select(ServiceAccount).order_by(
+                        ServiceAccount.worker_pool,
+                        ServiceAccount.service_account_id,
+                    )
+                )
+            )
+        return [
+            ServiceAccountRecord(
+                service_account_id=account.service_account_id,
+                display_name=account.display_name,
+                worker_pool=account.worker_pool,
+                scopes=tuple(account.scopes),
+                status=account.status,
+            )
+            for account in accounts
+        ], []
+
+    def list_model_profiles(self) -> tuple[list[ModelProfileRecord], list[str]]:
+        with self._session_factory() as session:
+            profiles = list(
+                session.scalars(
+                    select(ModelProfile).order_by(
+                        ModelProfile.provider,
+                        ModelProfile.model,
+                        ModelProfile.profile_id,
+                        ModelProfile.version,
+                    )
+                )
+            )
+        return [_model_profile_record(profile) for profile in profiles], []
+
+    def register_model_profile(
+        self,
+        *,
+        profile_id: str,
+        version: str,
+        provider: str,
+        model: str,
+        deployment_class: str,
+        secret_ref: str,
+        endpoint_ref: str | None,
+        allowed_data_boundaries: Sequence[str],
+        capabilities: Sequence[str],
+        timeout_seconds: int,
+        max_output_tokens: int,
+        cost_policy: dict[str, object] | None,
+        actor_id: str,
+        correlation_id: str,
+    ) -> tuple[ModelProfileRecord, bool]:
+        desired = {
+            "provider": provider,
+            "model": model,
+            "deployment_class": deployment_class,
+            "secret_ref": secret_ref,
+            "endpoint_ref": endpoint_ref,
+            "allowed_data_boundaries": sorted(set(allowed_data_boundaries)),
+            "capabilities": sorted(set(capabilities)),
+            "timeout_seconds": timeout_seconds,
+            "max_output_tokens": max_output_tokens,
+            "cost_policy": cost_policy,
+        }
+        with self._session_factory.begin() as session:
+            existing = session.get(ModelProfile, (profile_id, version))
+            if existing is not None:
+                if _model_profile_facts(existing) != desired:
+                    raise ModelProfileConflictError(
+                        "model profile ID/version already exists with different configuration"
+                    )
+                return _model_profile_record(existing), False
+
+            profile = ModelProfile(
+                profile_id=profile_id,
+                version=version,
+                **desired,
+            )
+            session.add(profile)
+            session.flush()
+            session.add(
+                AuditEvent(
+                    audit_event_id=f"audit-{uuid5(NAMESPACE_URL, f'model-profile:{profile_id}:{version}').hex}",
+                    actor_subject=actor_id,
+                    action="model_profile.registered",
+                    entity_type="model_profile",
+                    entity_id=f"{profile_id}@{version}",
+                    run_id=None,
+                    details={
+                        "provider": provider,
+                        "model": model,
+                        "deployment_class": deployment_class,
+                        "result": "registered_not_verified",
+                        "correlation_id": correlation_id,
+                    },
+                )
+            )
+            session.flush()
+            return _model_profile_record(profile), True
 
     def list_processing_runs(self) -> tuple[list[ProcessingRunRecord], list[str]]:
         with self._session_factory() as session:
@@ -1043,6 +1208,39 @@ def _media_type_label(media_type: str, object_key: str) -> str | None:
     if normalized in {"text/markdown", "text/plain"} or suffix in {"md", "markdown"}:
         return "Markdown"
     return None
+
+
+def _model_profile_record(profile: ModelProfile) -> ModelProfileRecord:
+    return ModelProfileRecord(
+        profile_id=profile.profile_id,
+        version=profile.version,
+        provider=profile.provider,
+        model=profile.model,
+        deployment_class=profile.deployment_class,
+        secret_ref=profile.secret_ref,
+        endpoint_ref=profile.endpoint_ref,
+        allowed_data_boundaries=tuple(profile.allowed_data_boundaries),
+        capabilities=tuple(profile.capabilities),
+        timeout_seconds=profile.timeout_seconds,
+        max_output_tokens=profile.max_output_tokens,
+        cost_policy=profile.cost_policy,
+        created_at=profile.created_at,
+    )
+
+
+def _model_profile_facts(profile: ModelProfile) -> dict[str, object]:
+    return {
+        "provider": profile.provider,
+        "model": profile.model,
+        "deployment_class": profile.deployment_class,
+        "secret_ref": profile.secret_ref,
+        "endpoint_ref": profile.endpoint_ref,
+        "allowed_data_boundaries": sorted(set(profile.allowed_data_boundaries)),
+        "capabilities": sorted(set(profile.capabilities)),
+        "timeout_seconds": profile.timeout_seconds,
+        "max_output_tokens": profile.max_output_tokens,
+        "cost_policy": profile.cost_policy,
+    }
 
 
 def _rights_label(rights: object) -> str | None:

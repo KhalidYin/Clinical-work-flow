@@ -57,24 +57,24 @@ function SourcesRoute() {
 const scopeRoutes = [
   {
     path: "/query-lab",
-    eyebrow: "Explainable hybrid retrieval",
-    title: "Query Lab",
-    description: "metadata、FTS、vector 与 bounded relation expansion 分路可解释。",
-    phase: "KUI-06 · implementation planned in P4",
+    eyebrow: "可解释混合检索",
+    title: "检索实验室",
+    description: "元数据、全文检索、向量检索与有界关系扩展均提供可解释路径。",
+    phase: "KUI-06 · 计划在 P4 实现",
   },
   {
     path: "/evaluation",
-    eyebrow: "Gold set regression evidence",
-    title: "Evaluation",
-    description: "指标必须回溯 Gold case、expected evidence、版本与失败类别。",
-    phase: "KUI-07 · implementation planned in P5",
+    eyebrow: "黄金集回归证据",
+    title: "质量评估",
+    description: "指标必须回溯黄金用例、预期证据、版本与失败类别。",
+    phase: "KUI-07 · 计划在 P5 实现",
   },
   {
     path: "/releases",
-    eyebrow: "Immutable publication gate",
-    title: "Releases",
+    eyebrow: "不可变发布门禁",
+    title: "版本发布",
     description: "未批准、评估失败、hash drift 或职责分离违规都必须阻断发布。",
-    phase: "KUI-08 · implementation planned in P5",
+    phase: "KUI-08 · 计划在 P5 实现",
   },
 ] as const;
 

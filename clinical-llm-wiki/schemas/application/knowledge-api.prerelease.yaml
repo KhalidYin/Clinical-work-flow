@@ -9,11 +9,54 @@ info:
 servers:
   - url: /api/prerelease/v1
 paths:
+  /auth/login:
+    post:
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginRequest" }
+      responses:
+        "200":
+          description: Username/password accepted and an HttpOnly session cookie set.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionResponse" }
+        "401": { $ref: "#/components/responses/AuthenticationError" }
+        "423": { $ref: "#/components/responses/AuthenticationError" }
+  /auth/password/change:
+    post:
+      operationId: changePassword
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PasswordChangeRequest" }
+      responses:
+        "200":
+          description: Password changed, old sessions revoked and cookie rotated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionResponse" }
+        "401": { $ref: "#/components/responses/AuthenticationError" }
+        "422": { $ref: "#/components/responses/AuthenticationError" }
+  /auth/logout:
+    post:
+      operationId: logout
+      security:
+        - sessionCookie: []
+      responses:
+        "204": { description: Server-side session revoked and cookie cleared. }
+        "401": { $ref: "#/components/responses/AuthenticationError" }
   /session:
     get:
       operationId: getSession
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       responses:
         "200":
           description: Authenticated platform identity and product role.
@@ -40,7 +83,7 @@ paths:
     get:
       operationId: getCurrentRelease
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       responses:
         "200":
           description: Current immutable release pointer and index manifest.
@@ -58,7 +101,7 @@ paths:
     get:
       operationId: listSources
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       responses:
         "200":
           description: Registered source versions; never inferred from object keys.
@@ -75,7 +118,7 @@ paths:
     post:
       operationId: registerSource
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       parameters:
         - in: header
           name: Idempotency-Key
@@ -137,7 +180,7 @@ paths:
     get:
       operationId: listProcessingRuns
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       responses:
         "200":
           description: Discrete durable runs with step and latest-attempt state.
@@ -155,7 +198,7 @@ paths:
     get:
       operationId: getProcessingRun
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       parameters:
         - in: path
           name: run_id
@@ -180,7 +223,7 @@ paths:
     post:
       operationId: retryProcessingStep
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       parameters:
         - in: path
           name: run_id
@@ -209,7 +252,7 @@ paths:
     post:
       operationId: cancelProcessingRun
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       parameters:
         - in: path
           name: run_id
@@ -234,7 +277,7 @@ paths:
     get:
       operationId: listCandidates
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       responses:
         "200":
           description: Evidence-backed candidate revisions and their current human gate.
@@ -252,7 +295,7 @@ paths:
     get:
       operationId: getCandidate
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       parameters:
         - in: path
           name: candidate_id
@@ -276,7 +319,7 @@ paths:
     post:
       operationId: reviseCandidate
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       parameters:
         - in: path
           name: candidate_id
@@ -307,7 +350,7 @@ paths:
     post:
       operationId: confirmCandidateAuthor
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       parameters:
         - in: path
           name: candidate_id
@@ -338,7 +381,7 @@ paths:
     post:
       operationId: decideKnowledgeRevision
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       parameters:
         - in: path
           name: revision_id
@@ -369,7 +412,7 @@ paths:
     get:
       operationId: queryRelations
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       parameters:
         - in: query
           name: node_id
@@ -396,7 +439,7 @@ paths:
     get:
       operationId: listAuditEvents
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       parameters:
         - in: query
           name: actor
@@ -432,7 +475,7 @@ paths:
     get:
       operationId: listPlatformUsers
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       responses:
         "200":
           description: Product authorization mapping; credentials and raw tokens are excluded.
@@ -446,12 +489,192 @@ paths:
           $ref: "#/components/responses/AuthenticationError"
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
+  /runtime-knowledge/version:
+    get:
+      operationId: getPublishedRuntimeKnowledgeVersion
+      security:
+        - machineCredential: []
+      responses:
+        "200":
+          description: Engine schema bundle identity locked by the current immutable Release.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [bundle_id, bundle_version, bundle_sha256]
+                properties:
+                  bundle_id: { type: string }
+                  bundle_version: { type: string }
+                  bundle_sha256: { type: string, pattern: "^[0-9a-f]{64}$" }
+        "401": { $ref: "#/components/responses/AuthenticationError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /runtime-knowledge/resolve:
+    post:
+      operationId: resolvePublishedRuntimeKnowledge
+      security:
+        - machineCredential: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [study_id, stage, runtime_manifest, schema_bundle]
+              properties:
+                study_id: { type: string }
+                stage: { type: string }
+                runtime_manifest: { type: object }
+                schema_bundle: { type: object }
+                require_workflow: { type: boolean, default: true }
+                require_domain: { type: boolean, default: false }
+      responses:
+        "200":
+          description: Engine-validated ExecutionContext projection from locked Release snapshots.
+          content:
+            application/json:
+              schema: { type: object }
+        "401": { $ref: "#/components/responses/AuthenticationError" }
+        "409": { $ref: "#/components/responses/ConflictError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+    post:
+      operationId: createPlatformUser
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UserCreateRequest" }
+      responses:
+        "201":
+          description: Local user created; temporary password is returned once.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminTemporaryPasswordResponse" }
+        "401": { $ref: "#/components/responses/AuthenticationError" }
+        "403": { $ref: "#/components/responses/AuthorizationError" }
+        "409": { $ref: "#/components/responses/ConflictError" }
+        "422": { $ref: "#/components/responses/InvalidSourceError" }
+  /admin/users/{user_id}/password/reset:
+    post:
+      operationId: resetPlatformUserPassword
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: user_id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Password reset, sessions revoked and temporary password returned once.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminTemporaryPasswordResponse" }
+        "401": { $ref: "#/components/responses/AuthenticationError" }
+        "403": { $ref: "#/components/responses/AuthorizationError" }
+        "404": { $ref: "#/components/responses/NotFoundError" }
+  /admin/users/{user_id}/status:
+    post:
+      operationId: setPlatformUserStatus
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: user_id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UserStatusRequest" }
+      responses:
+        "200":
+          description: User status changed; disabling revokes active sessions.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserStatusResponse" }
+        "401": { $ref: "#/components/responses/AuthenticationError" }
+        "403": { $ref: "#/components/responses/AuthorizationError" }
+        "404": { $ref: "#/components/responses/NotFoundError" }
+        "422": { $ref: "#/components/responses/InvalidSourceError" }
+  /admin/service-accounts:
+    get:
+      operationId: listServiceAccounts
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Read-only worker identity projection without secret references or values.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ServiceAccountCollectionResponse" }
+        "401": { $ref: "#/components/responses/AuthenticationError" }
+        "403": { $ref: "#/components/responses/AuthorizationError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /admin/model-profiles:
+    get:
+      operationId: listModelProfiles
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Versioned non-secret model configuration registry.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ModelProfileCollectionResponse" }
+        "401":
+          $ref: "#/components/responses/AuthenticationError"
+        "403":
+          $ref: "#/components/responses/AuthorizationError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+    post:
+      operationId: registerModelProfile
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: header
+          name: X-Correlation-ID
+          required: false
+          schema: { type: [string, "null"], maxLength: 160 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ModelProfileRegistrationRequest" }
+      responses:
+        "201":
+          description: Immutable profile version registered without testing or enabling live access.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ModelProfileRegistrationResponse" }
+        "401":
+          $ref: "#/components/responses/AuthenticationError"
+        "403":
+          $ref: "#/components/responses/AuthorizationError"
+        "409":
+          $ref: "#/components/responses/ConflictError"
+        "422":
+          description: Configuration facts or references failed validation.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
 components:
   securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: opaque-local-or-verified-oidc
+    machineCredential:
+      type: apiKey
+      in: header
+      name: X-Knowledge-Machine-Credential
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: clinical_knowledge_session
   responses:
     AuthenticationError:
       description: Identity is missing, invalid, unmapped or disabled.
@@ -493,7 +716,7 @@ components:
     HumanRole:
       enum: [platform_admin, knowledge_curator, reviewer, release_manager, consumer]
     IdentitySource:
-      enum: [local_test, oidc]
+      enum: [local_password, local_test, oidc]
     PrincipalType:
       const: human
     Permission:
@@ -540,7 +763,15 @@ components:
     Session:
       type: object
       additionalProperties: false
-      required: [actorId, displayName, principalType, roles, organization, permissions]
+      required:
+        - actorId
+        - displayName
+        - principalType
+        - roles
+        - organization
+        - permissions
+        - mustChangePassword
+        - sessionExpiresAt
       properties:
         actorId: { type: string }
         displayName: { type: string }
@@ -555,6 +786,22 @@ components:
           type: array
           uniqueItems: true
           items: { $ref: "#/components/schemas/Permission" }
+        mustChangePassword: { type: boolean }
+        sessionExpiresAt: { type: string, format: date-time }
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [username, password]
+      properties:
+        username: { type: string, minLength: 1, maxLength: 160 }
+        password: { type: string, format: password, writeOnly: true }
+    PasswordChangeRequest:
+      type: object
+      additionalProperties: false
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword: { type: string, format: password, writeOnly: true }
+        newPassword: { type: string, format: password, writeOnly: true }
     PlatformHealth:
       type: object
       additionalProperties: false
@@ -1099,6 +1346,58 @@ components:
           items: { $ref: "#/components/schemas/HumanRole" }
         status: { enum: [active, disabled] }
         lastActiveAt: { type: [string, "null"], format: date-time }
+    UserCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [username, displayName, email, roles]
+      properties:
+        username: { type: string, minLength: 1, maxLength: 160 }
+        displayName: { type: string, minLength: 1, maxLength: 240 }
+        email: { type: string, format: email }
+        roles:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { $ref: "#/components/schemas/HumanRole" }
+    UserStatusRequest:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status: { enum: [active, disabled] }
+    AdminTemporaryPassword:
+      type: object
+      additionalProperties: false
+      required: [userId, username, temporaryPassword, mustChangePassword]
+      properties:
+        userId: { type: string }
+        username: { type: [string, "null"] }
+        temporaryPassword:
+          type: string
+          minLength: 12
+          maxLength: 128
+          writeOnly: true
+        mustChangePassword: { const: true }
+    UserStatus:
+      type: object
+      additionalProperties: false
+      required: [userId, status]
+      properties:
+        userId: { type: string }
+        status: { enum: [active, disabled] }
+    ServiceAccount:
+      type: object
+      additionalProperties: false
+      required: [serviceAccountId, displayName, workerPool, scopes, status]
+      properties:
+        serviceAccountId: { type: string }
+        displayName: { type: string }
+        workerPool: { enum: [document, enrichment, release] }
+        scopes:
+          type: array
+          uniqueItems: true
+          items: { $ref: "#/components/schemas/ProductPermission" }
+        status: { enum: [active, disabled] }
     SourceCollection:
       type: object
       additionalProperties: false
@@ -1125,6 +1424,121 @@ components:
         warnings:
           type: array
           items: { type: string }
+    ServiceAccountCollection:
+      type: object
+      additionalProperties: false
+      required: [items, total, partial, warnings]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ServiceAccount" }
+        total: { type: integer, minimum: 0 }
+        partial: { type: boolean }
+        warnings:
+          type: array
+          items: { type: string }
+    ModelProfileRegistrationRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - profileId
+        - version
+        - provider
+        - model
+        - deploymentClass
+        - secretRef
+        - allowedDataBoundaries
+        - capabilities
+        - timeoutSeconds
+        - maxOutputTokens
+      properties:
+        profileId: { type: string, minLength: 1, maxLength: 160 }
+        version: { type: string, minLength: 1, maxLength: 80 }
+        provider: { type: string, minLength: 1, maxLength: 120 }
+        model: { type: string, minLength: 1, maxLength: 240 }
+        deploymentClass: { enum: [enterprise_managed, external_api] }
+        secretRef:
+          type: string
+          pattern: "^(env|secret)://[A-Za-z0-9_./-]+$"
+        endpointRef:
+          type: [string, "null"]
+          pattern: "^(env|secret)://[A-Za-z0-9_./-]+$"
+        allowedDataBoundaries:
+          type: array
+          minItems: 1
+          items: { enum: [external_allowed, enterprise_provider_only] }
+        capabilities:
+          type: array
+          minItems: 1
+          items: { const: structured_generation }
+        timeoutSeconds: { type: integer, minimum: 1, maximum: 600 }
+        maxOutputTokens: { type: integer, minimum: 1 }
+        costPolicy: { type: [object, "null"] }
+    ModelProfile:
+      type: object
+      additionalProperties: false
+      required:
+        - profileId
+        - version
+        - provider
+        - model
+        - deploymentClass
+        - secretRef
+        - endpointRef
+        - allowedDataBoundaries
+        - capabilities
+        - timeoutSeconds
+        - maxOutputTokens
+        - costPolicy
+        - createdAt
+        - connectionState
+        - liveEnabled
+      properties:
+        profileId: { type: string, minLength: 1, maxLength: 160 }
+        version: { type: string, minLength: 1, maxLength: 80 }
+        provider: { type: string, minLength: 1, maxLength: 120 }
+        model: { type: string, minLength: 1, maxLength: 240 }
+        deploymentClass: { enum: [enterprise_managed, external_api] }
+        secretRef:
+          type: string
+          pattern: "^(env|secret)://[A-Za-z0-9_./-]+$"
+        endpointRef:
+          type: [string, "null"]
+          pattern: "^(env|secret)://[A-Za-z0-9_./-]+$"
+        allowedDataBoundaries:
+          type: array
+          minItems: 1
+          items: { enum: [external_allowed, enterprise_provider_only] }
+        capabilities:
+          type: array
+          minItems: 1
+          items: { const: structured_generation }
+        timeoutSeconds: { type: integer, minimum: 1, maximum: 600 }
+        maxOutputTokens: { type: integer, minimum: 1 }
+        costPolicy: { type: [object, "null"] }
+        createdAt: { type: string, format: date-time }
+        connectionState: { const: not_verified }
+        liveEnabled: { const: false }
+    ModelProfileCollection:
+      type: object
+      additionalProperties: false
+      required: [items, total, partial, warnings]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ModelProfile" }
+        total: { type: integer, minimum: 0 }
+        partial: { type: boolean }
+        warnings:
+          type: array
+          items: { type: string }
+    ModelProfileRegistration:
+      type: object
+      additionalProperties: false
+      required: [profile, created]
+      properties:
+        profile: { $ref: "#/components/schemas/ModelProfile" }
+        created: { type: boolean }
     SessionResponse:
       allOf:
         - $ref: "#/components/schemas/Envelope"
@@ -1227,6 +1641,36 @@ components:
         - type: object
           properties:
             data: { $ref: "#/components/schemas/UserCollection" }
+    AdminTemporaryPasswordResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/AdminTemporaryPassword" }
+    UserStatusResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/UserStatus" }
+    ServiceAccountCollectionResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/ServiceAccountCollection" }
+    ModelProfileCollectionResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/ModelProfileCollection" }
+    ModelProfileRegistrationResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/ModelProfileRegistration" }
     ErrorResponse:
       type: object
       additionalProperties: false
@@ -1240,7 +1684,16 @@ components:
             code:
               enum:
                 - authentication_required
+                - invalid_credentials
                 - invalid_identity
+                - account_locked
+                - password_change_required
+                - current_password_invalid
+                - password_policy_failed
+                - csrf_rejected
+                - user_conflict
+                - user_not_found
+                - user_management_invalid
                 - permission_denied
                 - service_unavailable
                 - registration_conflict
@@ -1252,6 +1705,8 @@ components:
                 - invalid_governance_transition
                 - stale_revision
                 - duplicate_decision
+                - invalid_request
+                - model_profile_conflict
             message: { type: string }
         meta: { $ref: "#/components/schemas/ResponseMeta" }
     Envelope:

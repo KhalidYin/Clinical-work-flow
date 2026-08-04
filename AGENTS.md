@@ -1,122 +1,34 @@
 # Clinical AI Workflow — Codex Project Guide
 
-## Overview
+## 产品边界
 
-AI-powered clinical statistical programming: Protocol → SDTM → ADaM → TFL → Submission.
-**Agent-native architecture (v3.0):** Runtime follows a fixed clinical dependency
-pipeline and applies dynamic review strategy. Humans review structured packets,
-not chat messages.
+- `clinical-workflow/`：固定临床 Pipeline、Agent Runtime、MCP、Review Protocol。
+- `clinical-llm-wiki/`：P12/P13 临床知识台账前后端产品。
+- `clinical-studies/`：Study 实例，不是独立产品。
 
-Current P0 authority: `docs/specs/18-P0-Alignment.md`.
+当前权威为 `docs/specs/18-P0-Alignment.md`、`21-Knowledge-Workflow-Integration.md` 和 `22-Knowledge-Application-Platform.md`。
 
-## Architecture
+## 不可破坏的规则
 
-```
-AGENT RUNTIME (fixed pipeline + dynamic review loop)
-├── STRUCTURED REVIEW PROTOCOL  — Review Packet ↔ Decision Receipt (file-based)
-├── CORE MCP TOOLS              — 6 deterministic clinical operations, stateless
-├── AUXILIARY TOOLS             — source discovery/import helpers, not core workflow gates
-└── KNOWLEDGE BASE              — CDISC standards + TA knowledge (dynamic loading)
-```
+1. 临床阶段顺序固定为 Protocol → SAP → SDTM → ADaM → TFL → QC → Submission；动态行为仅限知识加载、审核策略与错误恢复。
+2. 人工交互使用结构化 ReviewPacket/DecisionReceipt，不用聊天替代治理证据。
+3. Study 文件系统和 Git 是 Workflow 状态；知识产品状态由 PostgreSQL canonical entities 与不可变对象共同构成。
+4. 人类使用用户名、Argon2id 密码和 HttpOnly 会话 Cookie；浏览器不接触认证 token。
+5. Document、Enrichment、Release Worker 以及 Workflow consumer 均使用彼此独立的最小权限机器凭据。
+6. 知识生产是异步非线性 durable DAG，不得误改为流式 pipeline。
+7. Workflow 只消费 immutable Release，不直连知识数据库或写入知识。
+8. 外部模型默认 fake/replay；未经用户配置与 live Gate 不得真实出站。
 
-## Project Structure
+## 常用命令
 
-```
-clinical-workflow/             — Workflow Engine module
-├── src/
-│   ├── runtime/               — Fixed pipeline loop, router, context and review protocol
-│   ├── agents/                — ProtocolSAP / DataStandards / TFLQCSubmission executors
-│   ├── mcp_tools/             — Core deterministic tools + auxiliary source tools
-│   ├── knowledge/             — Engine client/models/resolver/snapshot code only
-│   ├── review_panel/          — VSCode Extension sidebar (batch review UI)
-│   ├── change_management/     — ChangeRecord, VersionManager, ImpactAnalyzer
-│   └── config/                — Runtime settings
-├── schemas/                   — Shared machine contracts owned by Engine
-├── study_template/            — Study scaffold template
-└── tests/
-
-clinical-llm-wiki/             — Obsidian Vault + Knowledge Service module
-├── vault/                     — Governed Markdown knowledge source
-├── service/                   — Loopback Knowledge Service
-├── scripts/                   — Source/PDF/content quality tooling
-├── sources/                   — Source accessions and derived evidence
-└── tests/
-
-clinical-studies/              — Study instance container scaffold
-
-docs/                          — Platform-level specs, plans, dev logs and reviews
+```powershell
+Set-Location clinical-llm-wiki
+docker compose --project-name clinical-knowledge-demo up -d --build --wait
 ```
 
-## Key Design Decisions
-
-1. **Fixed dependency pipeline + dynamic review**: The clinical order is fixed
-   (Protocol → SAP → SDTM → ADaM → TFL → QC → Submission). Dynamic behavior is
-   limited to review strategy, knowledge loading, and error recovery.
-2. **Structured Review Protocol, not chat**: Agent submits `ReviewPacket` JSON →
-   human batch-approves in Review Panel → `DecisionReceipt` JSON returned.
-   No conversational back-and-forth per finding.
-3. **JSON Schema enforced, not prompt-hoped**: Review output structure is guaranteed
-   by Agent SDK `schema` parameter — fields, types, enums all validated at the API level.
-4. **File system is state**: Project folder IS the workflow state. `.review_queue/`
-   pending files = awaiting human. Git HEAD = progress. No in-memory state machine.
-5. **Git is version control**: Every agent action = a commit. Review packets and
-   decisions are git-versioned. `git log` = complete operational history.
-6. **Core MCP tools are deterministic and stateless**: The 6 core clinical tools are
-   pure functions with no LLM inside. CTGov/EDC helpers are auxiliary source tools,
-   not additional core workflow gates.
-7. **Knowledge base replaces hardcoded templates**: Governed knowledge lives in
-   `clinical-llm-wiki/vault/` and is consumed through the Knowledge Service or locked
-   snapshots. `clinical-workflow/src/knowledge/clinical_standards.py` is a deprecated,
-   non-runtime migration source only; production modules must not import it.
-
-## Human Interaction
-
-```
-Agent writes review_packet.json → .review_queue/
-  ↓
-Review Panel renders all findings (fixed layout per review type)
-  ↓
-Human batch-approves: [✓] [✗] [✏️] → Submit All
-  ↓
-Panel writes decision_receipt.json → Agent reads → continues
+```powershell
+Set-Location clinical-workflow
+python -m src.runtime.agent_loop --project-dir ../clinical-studies/STUDY-001 --knowledge-service-url http://127.0.0.1:8788
 ```
 
-## Usage
-
-### Agent Runtime
-
-```bash
-cd clinical-workflow
-python -m src.runtime.agent_loop --project-dir ../clinical-studies/STUDY-001 --knowledge-service-url http://127.0.0.1:8787
-```
-
-### MCP Server
-
-```bash
-cd clinical-workflow
-python -m src.mcp_tools.server
-```
-
-### Review Panel (VSCode Extension)
-
-```
-Cmd+Shift+P → "Clinical Review Panel: Open"
-```
-
-### Codex Terminal
-
-```
-> analyze protocol, generate SDTM specs for Phase III NSCLC
-> review pending items in .review_queue/
-> show project status
-```
-
-## Migration from v2.1
-
-| Removed | Replaced by |
-|---------|-------------|
-| `clinical-workflow/src/workflow/state_machine.py` | File system + Git |
-| `clinical-workflow/src/agents/stage_checklists.py` | JSON Schema required fields in ReviewFinding |
-| `clinical-workflow/src/agents/main_agent.py` | `clinical-workflow/src/runtime/agent_loop.py` |
-| `clinical-workflow/src/templates/` (hardcoded configs) | `clinical-llm-wiki/vault/` governed knowledge |
-| Skills (`/sap-review`, `/tfl-qc`, etc.) | Review Panel (batch UI) |
+修改数据库结构必须新增 Alembic migration；应用启动不得 `create_all`。修改功能先写失败测试，阶段完成后运行后端、前端、Workflow 与 E2E 门禁。

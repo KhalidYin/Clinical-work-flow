@@ -1,4 +1,4 @@
-"""Strict client for the Clinical LLM Wiki structured runtime endpoint.
+"""Strict client for the P12 published-knowledge runtime endpoint.
 
 The client deliberately has no free-form chat API.  The only production call is
 the schema-locked ``runtime-context/resolve`` endpoint and its response remains
@@ -42,19 +42,28 @@ class KnowledgeServiceVersion:
 class HttpKnowledgeTransport:
     """Small stdlib transport so the Engine does not acquire an HTTP SDK dependency."""
 
-    def __init__(self, base_url: str, *, timeout_seconds: float = 5.0) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        *,
+        timeout_seconds: float = 5.0,
+        machine_credential: str | None = None,
+    ) -> None:
         if not base_url.startswith(("http://", "https://")):
             raise ValueError("knowledge service URL must use HTTP(S)")
         self._base_url = base_url.rstrip("/")
         self._timeout_seconds = timeout_seconds
+        self._machine_credential = machine_credential
 
     def __call__(
         self, method: str, path: str, payload: Mapping[str, Any] | None = None
     ) -> Mapping[str, Any]:
-        if not path.startswith("/api/v1/"):
-            raise KnowledgeServiceContractError("unsupported Knowledge Service endpoint")
+        if not path.startswith("/api/prerelease/v1/runtime-knowledge/"):
+            raise KnowledgeServiceContractError("unsupported P12 published-knowledge endpoint")
         data = None
         headers = {"Accept": "application/json"}
+        if self._machine_credential:
+            headers["X-Knowledge-Machine-Credential"] = self._machine_credential
         if payload is not None:
             data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
             headers["Content-Type"] = "application/json"
@@ -97,7 +106,7 @@ class KnowledgeServiceClient:
         return {"version": self._bundle_version, "sha256": self._bundle_sha256}
 
     def version(self) -> KnowledgeServiceVersion:
-        response = self._call("GET", "/api/v1/version")
+        response = self._call("GET", "/api/prerelease/v1/runtime-knowledge/version")
         try:
             version = KnowledgeServiceVersion(
                 bundle_id=_required_string(response, "bundle_id"),
@@ -130,7 +139,9 @@ class KnowledgeServiceClient:
             "require_domain": require_domain,
         }
         self.version()
-        return self._call("POST", "/api/v1/runtime-context/resolve", request)
+        return self._call(
+            "POST", "/api/prerelease/v1/runtime-knowledge/resolve", request
+        )
 
     def _call(
         self, method: str, path: str, payload: Mapping[str, Any] | None = None

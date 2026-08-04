@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { ApiRequestError, getJson, postJson } from "../api/client";
 import {
   API_PATHS,
@@ -33,6 +34,7 @@ interface CandidateDraft {
 }
 
 export function CandidatesPage() {
+  useDocumentTitle("知识候选");
   const queryClient = useQueryClient();
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -86,10 +88,10 @@ export function CandidatesPage() {
         expectedRevisionNumber: candidate.revisionNumber,
         expectedContentSha256: candidate.contentSha256,
         claim: draft.claim.trim(),
-        scope: parseRecord(draft.scope, "适用范围"),
-        applicability: parseRecord(draft.applicability, "Applicability"),
-        conditions: parseRecordList(draft.conditions, "Conditions"),
-        exceptions: parseRecordList(draft.exceptions, "Exceptions"),
+        scope: parseRecord(draft.scope, "范围"),
+        applicability: parseRecord(draft.applicability, "适用范围"),
+        conditions: parseRecordList(draft.conditions, "条件"),
+        exceptions: parseRecordList(draft.exceptions, "例外"),
         idempotencyKey: idempotencyKey("revision", candidate),
       };
       if (!request.claim) {
@@ -210,17 +212,17 @@ export function CandidatesPage() {
     <section className={styles.page} aria-labelledby="candidates-title">
       <header className={styles.pageHeader}>
         <div>
-          <p className={styles.eyebrow}>Evidence to governed knowledge</p>
+          <p className={styles.eyebrow}>从证据到受治理知识</p>
           <h1 className={styles.title} id="candidates-title">
-            Candidates
+            知识候选
           </h1>
           <p className={styles.lede}>
-            Candidate revision 先由作者确认，再由独立 Reviewer
-            决策；approved 仍不可供生产检索，只有 immutable release 可被消费。
+            知识候选修订先由作者确认，再由独立审核员决策；已批准内容仍不可供
+            生产检索，只有不可变发布版本可被消费。
           </p>
         </div>
         <div className={styles.headerAside}>
-          <span className={styles.asideLabel}>Gate records</span>
+          <span className={styles.asideLabel}>门禁记录</span>
           <span className={styles.asideValue}>{items.length}</span>
         </div>
       </header>
@@ -232,25 +234,25 @@ export function CandidatesPage() {
       ) : null}
       {candidates.isPending ? (
         <div className={styles.statePanel} aria-busy="true">
-          <p>正在读取 Candidate governance facts…</p>
+          <p>正在读取知识候选治理事实…</p>
         </div>
       ) : null}
       {candidates.isError ? (
         <div className={`${styles.statePanel} ${styles.error}`} role="alert">
-          <p>无法读取 Candidate；页面不会从 ProcessingRun 状态伪造候选。</p>
+          <p>无法读取知识候选；页面不会从处理任务状态伪造候选。</p>
         </div>
       ) : null}
       {candidates.isSuccess && items.length === 0 ? (
         <div className={styles.statePanel}>
-          <p>尚无 Candidate。Evidence ready 不等于等待作者确认。</p>
+          <p>尚无知识候选。证据就绪不等于等待作者确认。</p>
         </div>
       ) : null}
 
       {items.length > 0 ? (
         <div className={styles.candidateWorkbench}>
-          <aside className={styles.candidateQueue} aria-label="Candidate 审核队列">
+          <aside className={styles.candidateQueue} aria-label="知识候选审核队列">
             <div className={styles.queueHeader}>
-              <span>Governance queue</span>
+              <span>治理队列</span>
               <span>{items.length.toString().padStart(2, "0")}</span>
             </div>
             {items.map((item) => (
@@ -348,12 +350,12 @@ function CandidatePicker({
       onClick={onSelect}
     >
       <span className={styles.queueMeta}>
-        {candidate.candidateId} · revision {candidate.revisionNumber}
+        {candidate.candidateId} · 修订 {candidate.revisionNumber}
       </span>
       <strong>{candidate.claim}</strong>
       <span className={styles.queueFoot}>
         <span className={styles.status}>{gateLabel(candidate)}</span>
-        <span>{candidate.evidenceCount} evidence</span>
+        <span>{candidate.evidenceCount} 条证据</span>
       </span>
     </button>
   );
@@ -409,10 +411,10 @@ function CandidateReviewPanel({
       <section className={styles.evidenceColumn} aria-labelledby="evidence-title">
         <header className={styles.columnHeader}>
           <div>
-            <span className={styles.columnIndex}>01 / Ground truth</span>
+            <span className={styles.columnIndex}>01 / 事实依据</span>
             <h2 id="evidence-title">原始证据</h2>
           </div>
-          <span className={styles.panelMeta}>SOURCE HASH VERIFIED</span>
+          <span className={styles.panelMeta}>来源哈希已验证</span>
         </header>
         <div className={styles.columnBody}>
           {candidate.evidence.map((evidence) => (
@@ -421,15 +423,15 @@ function CandidateReviewPanel({
               <p>{evidence.content}</p>
               <dl className={styles.evidenceMeta}>
                 <div>
-                  <dt>Locator</dt>
+                  <dt>定位信息</dt>
                   <dd>{formatRecord(evidence.locator)}</dd>
                 </div>
                 <div>
-                  <dt>Rights</dt>
+                  <dt>权利分类</dt>
                   <dd>{formatRecord(evidence.rights)}</dd>
                 </div>
                 <div>
-                  <dt>Source</dt>
+                  <dt>来源</dt>
                   <dd>{evidence.sourceVersionId}</dd>
                 </div>
               </dl>
@@ -444,22 +446,22 @@ function CandidateReviewPanel({
       <section className={styles.governanceColumn} aria-labelledby="candidate-detail-title">
         <header className={styles.columnHeader}>
           <div>
-            <span className={styles.columnIndex}>02 / Human judgment</span>
+            <span className={styles.columnIndex}>02 / 人工判断</span>
             <h2 id="candidate-detail-title">知识候选</h2>
           </div>
           <span className={styles.panelMeta}>
-            {candidate.candidateId} · revision {candidate.revisionNumber}
+            {candidate.candidateId} · 修订 {candidate.revisionNumber}
           </span>
         </header>
         <div className={styles.columnBody}>
           <div className={styles.gateBanner}>
             <span className={styles.gateNumber}>{reviewerGate ? "2" : "1"}</span>
             <div>
-              <strong>{reviewerGate ? "独立 Reviewer Gate" : "作者确认 Gate"}</strong>
+              <strong>{reviewerGate ? "独立审核门禁" : "作者确认门禁"}</strong>
               <p>
                 {reviewerGate
-                  ? "审核精确 revision；approved 仍需 Release Gate 才能被消费。"
-                  : "确认 claim、范围、适用性和关系建议忠于左侧证据。"}
+                  ? "审核精确修订；批准后仍需通过发布门禁才能被消费。"
+                  : "确认主张、范围、适用性和关系建议忠于左侧证据。"}
               </p>
             </div>
           </div>
@@ -496,7 +498,7 @@ function CandidateReviewPanel({
                 disabled={isMutating}
                 onClick={onSaveRevision}
               >
-                保存为 revision {candidate.revisionNumber + 1}
+                保存为修订 {candidate.revisionNumber + 1}
               </button>
               <button
                 className={styles.secondaryButton}
@@ -521,7 +523,7 @@ function CandidateReviewPanel({
 
           {reviewerGate && canReview && ownCandidate ? (
             <div className={styles.sodWarning} role="alert">
-              作者不能审核自己的 Candidate；后端职责分离 Gate 仍会拒绝该操作。
+              作者不能审核自己的知识候选；后端职责分离门禁仍会拒绝该操作。
             </div>
           ) : null}
           {reviewerGate && canReview && !ownCandidate ? (
@@ -583,11 +585,11 @@ function CandidateReadView({ candidate }: { candidate: CandidateDetail }) {
       </div>
       <div className={styles.recordPair}>
         <div>
-          <span>Scope</span>
+          <span>范围</span>
           <pre>{pretty(candidate.scope)}</pre>
         </div>
         <div>
-          <span>Applicability</span>
+          <span>适用范围</span>
           <pre>{pretty(candidate.applicability)}</pre>
         </div>
       </div>
@@ -621,7 +623,7 @@ function CandidateEditor({
       />
       <div className={styles.editorPair}>
         <label>
-          适用范围（JSON object）
+          范围（JSON object）
           <textarea
             value={draft.scope}
             disabled={disabled}
@@ -629,7 +631,7 @@ function CandidateEditor({
           />
         </label>
         <label>
-          Applicability（JSON object）
+          适用范围（JSON 对象）
           <textarea
             value={draft.applicability}
             disabled={disabled}
@@ -637,7 +639,7 @@ function CandidateEditor({
           />
         </label>
         <label>
-          Conditions（JSON array）
+          条件（JSON 数组）
           <textarea
             value={draft.conditions}
             disabled={disabled}
@@ -645,7 +647,7 @@ function CandidateEditor({
           />
         </label>
         <label>
-          Exceptions（JSON array）
+          例外（JSON 数组）
           <textarea
             value={draft.exceptions}
             disabled={disabled}
@@ -654,7 +656,7 @@ function CandidateEditor({
         </label>
       </div>
       <p className={styles.editNote}>
-        保存会建立 revision {candidate.revisionNumber + 1}，不会覆盖当前事实。
+        保存会建立修订 {candidate.revisionNumber + 1}，不会覆盖当前事实。
       </p>
     </div>
   );
@@ -665,7 +667,7 @@ function AdvisorySignalTable({ candidate }: { candidate: CandidateDetail }) {
     <div className={styles.relationSection}>
       <div className={styles.sectionLabel}>
         <span>模型提示</span>
-        <span>Advisory only · {candidate.advisorySignals.length}</span>
+        <span>仅供参考 · {candidate.advisorySignals.length}</span>
       </div>
       {candidate.originModelInvocationId ? (
         <code className={styles.hashLine}>
@@ -684,7 +686,7 @@ function AdvisorySignalTable({ candidate }: { candidate: CandidateDetail }) {
                 <th>类型</th>
                 <th>说明</th>
                 <th>目标</th>
-                <th>Evidence</th>
+                <th>证据</th>
               </tr>
             </thead>
             <tbody>
@@ -711,10 +713,10 @@ function RelationProposalTable({ candidate }: { candidate: CandidateDetail }) {
     <div className={styles.relationSection}>
       <div className={styles.sectionLabel}>
         <span>关系建议</span>
-        <span>Proposal only · {candidate.relationProposals.length}</span>
+        <span>仅为建议 · {candidate.relationProposals.length}</span>
       </div>
       {candidate.relationProposals.length === 0 ? (
-        <p className={styles.readOnlyNote}>此 Candidate 没有关系建议。</p>
+        <p className={styles.readOnlyNote}>此知识候选没有关系建议。</p>
       ) : (
         <div className={styles.relationTableWrap}>
           <table className={styles.relationTable}>
@@ -722,7 +724,7 @@ function RelationProposalTable({ candidate }: { candidate: CandidateDetail }) {
               <tr>
                 <th>关系</th>
                 <th>目标</th>
-                <th>Evidence</th>
+                <th>证据</th>
                 <th>状态</th>
               </tr>
             </thead>

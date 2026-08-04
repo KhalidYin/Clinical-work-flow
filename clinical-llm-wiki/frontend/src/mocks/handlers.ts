@@ -13,12 +13,20 @@ import {
   relationQueryFixture,
   retryReceiptFixture,
   sessionFixture,
+  serviceAccountsFixture,
   sourceRegistrationFixture,
   sourcesFixture,
   usersFixture,
+  modelProfilesFixture,
+  modelProfileRegistrationFixture,
 } from "./fixtures";
 
 export const handlers = [
+  http.post(resolveApiPath(API_PATHS.login), () => HttpResponse.json(sessionFixture)),
+  http.post(resolveApiPath(API_PATHS.changePassword), () =>
+    HttpResponse.json(sessionFixture),
+  ),
+  http.post(resolveApiPath(API_PATHS.logout), () => new HttpResponse(null, { status: 204 })),
   http.get(resolveApiPath(API_PATHS.session), () => HttpResponse.json(sessionFixture)),
   http.get(resolveApiPath(API_PATHS.health), () => HttpResponse.json(healthFixture)),
   http.get(resolveApiPath(API_PATHS.currentRelease), () => HttpResponse.json(releaseFixture)),
@@ -111,4 +119,13 @@ export const handlers = [
     () => HttpResponse.json(cancelReceiptFixture, { status: 202 }),
   ),
   http.get(resolveApiPath(API_PATHS.adminUsers), () => HttpResponse.json(usersFixture)),
+  http.get(resolveApiPath(API_PATHS.adminServiceAccounts), () =>
+    HttpResponse.json(serviceAccountsFixture),
+  ),
+  http.get(resolveApiPath(API_PATHS.adminModelProfiles), () =>
+    HttpResponse.json(modelProfilesFixture),
+  ),
+  http.post(resolveApiPath(API_PATHS.adminModelProfiles), () =>
+    HttpResponse.json(modelProfileRegistrationFixture, { status: 201 }),
+  ),
 ];
