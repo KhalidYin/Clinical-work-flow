@@ -1,5 +1,7 @@
 # Code Generation — SAS/R 双后端 + 跨语言 QC
 
+> 文档地位：历史设计参考。后续架构以 [`docs/main/PROJECT_GUIDE.md`](../main/PROJECT_GUIDE.md) 与 [`PROJECT_SPEC.md`](../main/PROJECT_SPEC.md) 为准。
+
 ## 文档编号: SPEC-17
 ## 版本: 1.0
 ## 依赖: SPEC-00 (v3.0), SPEC-08 (Capability Domains), SPEC-09 (MCP Tools)

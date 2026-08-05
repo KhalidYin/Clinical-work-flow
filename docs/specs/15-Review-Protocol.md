@@ -1,5 +1,7 @@
 # Review Protocol 详细规格 — Agent↔Human 结构化交互层
 
+> 文档地位：历史协议设计参考。后续架构以 [`docs/main/PROJECT_GUIDE.md`](../main/PROJECT_GUIDE.md) 与 [`PROJECT_SPEC.md`](../main/PROJECT_SPEC.md) 为准；已落地的机器合同仍以代码和 Schema 为事实来源。
+
 ## 文档编号: SPEC-15
 ## 版本: 1.2（中文审核内容默认）
 ## 依赖: SPEC-00 (v3.0 总体架构)

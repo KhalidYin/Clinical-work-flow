@@ -1,5 +1,7 @@
 # 变更管理与审计追踪
 
+> 文档地位：历史设计参考。后续架构以 [`docs/main/PROJECT_GUIDE.md`](../main/PROJECT_GUIDE.md) 与 [`PROJECT_SPEC.md`](../main/PROJECT_SPEC.md) 为准。
+
 ## 文档编号: SPEC-11
 ## 主题: 临床试验中间修改、版本追踪、影响分析、审计追踪
 ## 版本: 3.0

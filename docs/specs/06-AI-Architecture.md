@@ -1,5 +1,7 @@
 # AI 架构深度分析 v3.0 — Agent-Native Runtime
 
+> 文档地位：历史设计参考。本文的自建 Agent 方案已停止作为后续方向；当前架构以 [`docs/main/PROJECT_GUIDE.md`](../main/PROJECT_GUIDE.md) 与 [`PROJECT_SPEC.md`](../main/PROJECT_SPEC.md) 为准。
+
 ## 文档编号: SPEC-06
 ## 版本: 3.0
 ## 主题: 固定管线 + 动态审核策略 + Structured Review Protocol + Deterministic Toolbelt

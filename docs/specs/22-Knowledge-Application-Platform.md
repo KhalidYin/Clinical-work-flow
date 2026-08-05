@@ -1,7 +1,9 @@
 # SPEC-22：临床知识应用平台
 
 > 版本：1.0
-> 状态：P12/P13 当前产品权威
+> 状态：P12/P13 历史产品参考；当前权威见 [`docs/main/PROJECT_GUIDE.md`](../main/PROJECT_GUIDE.md) 与 [`PROJECT_SPEC.md`](../main/PROJECT_SPEC.md)
+
+> 归档说明：本文保留知识产品既往目标和门禁。未实现的 Query、Evaluation、通用 Release、标准 MCP 与 Harness 不得因本文表述被视为现有能力。
 
 ## 1. 产品目标
 

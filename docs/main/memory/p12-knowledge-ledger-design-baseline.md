@@ -9,7 +9,8 @@ type: project
 ## 权威与状态
 
 - 用户于 2026-07-29 批准 `clinical-llm-wiki/frontend/index.html` 作为正式设计基线，包括颜色、排版、布局、视觉密度、状态语义和五段核心交互。
-- P12 的产品与 Gate 约束仍以 `docs/dep/plans/ongoing/P12-knowledge-application-platform.md` 为权威。
+- 本页只保留 GUI 视觉和交互参考；产品边界与后续架构以 `docs/main/PROJECT_GUIDE.md`、`PROJECT_SPEC.md` 为权威。
+- P12 lifecycle 仍记录当前执行 Gate；本视觉记忆不定义后续架构或任务授权，也不能覆盖四份 canonical 主文档。
 - HTML 是设计权威，不是运行时、API、权限、排名、发布资格或真实数据权威。
 
 ## 已冻结的视觉语言
@@ -30,7 +31,7 @@ type: project
 
 ## 后续应用规则
 
-- P1 的 React/TypeScript/Vite 实现应复用 HTML 中的 CSS token、信息架构和状态语义，不重新设计；任何实质偏离必须在 P12 偏差清单记录并获用户确认。
+- 后续 React/TypeScript/Vite 细化应复用 HTML 中的 CSS token、信息架构和状态语义；任何实质偏离必须按当前主文档和届时获授权的执行计划审批并记录，不再写入 P12 偏差清单作为架构授权。
 - P1 应先把颜色、字体、间距、圆角、阴影和状态样式提取为主题 token，再拆分组件。
 - 页面显示的状态、计数、权限、rank、evaluation metric 和 release eligibility 必须来自 Knowledge API 合同，不能把 Demo fixture 或前端推导升级为生产事实。
 - 用户已于 2026-07-29 单独授权 P1；P1-A 已用 `app.html` 提取主题 token 并完成 React 产品骨架，D0 `index.html` 继续作为对照设计权威。

@@ -1,5 +1,7 @@
 # 项目记忆索引
 
+项目记忆保存长期偏好、已验证基线和历史上下文，不是架构或执行计划。与 `PROJECT_GUIDE.md`、`PROJECT_SPEC.md`、`TEST_GUIDE.md`、`CODE_STYLE.md` 冲突时，以四份 canonical 主文档为准。
+
 - [审核内容默认使用中文](feedback-review-language.md) — 新 ReviewPacket 的人类可读字段默认中文，机器合同标识保持稳定英文。
 - [SDTMIG 3.4 首期知识基线](sdtmig34-knowledge-baseline.md) — P6 已发布 Core/Events/AE approved-only snapshot、query/citation bundle，并明确 P7 前不得推断的 gap。
 - [P7 AE 知识驱动执行基线](p7-ae-vertical-baseline.md) — P7 已证明 synthetic AE 从 Wiki 查询到 canonical promotion 的首条闭环及边界。
@@ -8,5 +10,6 @@
 - [Study 来源与最小信息边界](study-source-boundary.md) — 原始输入、derived/mapping/program/output 分层；SAS7BDAT 本地登记；目标产物 profile 取代全局 required source。
 - [P9.1 AE 规则治理边界](p9-rule-governance-boundary.md) — P5 已完成 Study-local Review Gate 与测试用 Wiki Release Gate；发布必须声明 `p9-poc-test-only`，不是生产正式知识。
 - [P9.1 Workbench 流程基线](p9-workbench-flow-baseline.md) — P9.1 已由用户关闭；保留 Runner/Review 边界及 prerelease schema 不污染 released bundle 的约束。
-- [P12 Knowledge Ledger 设计基线](p12-knowledge-ledger-design-baseline.md) — 已批准的颜色、排版、布局、状态语义与五段交互；P1 前端实现必须以该 HTML 为基线。
-- [P12 唯一计划权威](p12-plan-authority.md) — P12 是唯一可执行主线；P1、P2-A、P2-B1、P2-B2 已完成，P2-B3 离线授权/失败/资格门与 KUI-05/09/10 已完成且未出站；下一输入是用户配置并授权的单一 live vertical，P1-P11 旧计划仅作只读追溯。
+- [P12 Knowledge Ledger 设计基线](p12-knowledge-ledger-design-baseline.md) — 知识 GUI 的颜色、排版、布局和状态语义参考；不定义后续架构。
+- [P12 执行计划权威](p12-plan-authority.md) — P12 lifecycle 继续记录当前执行状态，但不覆盖 `docs/main` 架构；新 Harness 工作需另行重定计划。
+- [Harness 架构方向](project-harness-architecture-direction.md) — 两个产品控制面保持独立，复用容器化成熟 Harness 执行 Step；当前骨架尚未建立。

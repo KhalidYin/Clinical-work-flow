@@ -1,7 +1,9 @@
 # SPEC-12：实际业务落地操作模型
 
 > 版本：4.0
-> 状态：P12/P13 当前权威
+> 状态：P12/P13 历史业务参考；当前权威见 [`docs/main/PROJECT_GUIDE.md`](../main/PROJECT_GUIDE.md) 与 [`PROJECT_SPEC.md`](../main/PROJECT_SPEC.md)
+
+> 归档说明：本文保留当时的操作模型和状态边界；与当前主文档冲突时以 `docs/main/` 为准。
 
 ## 1. 两个产品
 

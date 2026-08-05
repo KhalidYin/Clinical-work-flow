@@ -1,7 +1,9 @@
 # SPEC-18：P0 架构对齐
 
 > 版本：2.0
-> 状态：当前最高项目架构权威
+> 状态：历史架构参考；已由 [`docs/main/PROJECT_GUIDE.md`](../main/PROJECT_GUIDE.md) 与 [`PROJECT_SPEC.md`](../main/PROJECT_SPEC.md) 取代
+
+> 归档说明：本文保留 P0 对齐时的边界和审计证据。文中的“权威”仅描述当时状态，不能覆盖当前 `docs/main/`，也不能证明容器化 Harness 已实现。
 
 ## 1. 产品边界
 
@@ -40,7 +42,7 @@
 
 模型只能生成 Candidate、advisory 或 proposal，不能确认、审核、发布或扩大数据出站权限。默认 fake/replay；真实外部 API 需要用户配置、显式 live Gate、精确 profile/version/data boundary 和调用预算。
 
-## 7. 当前实现权威
+## 7. 既往实现参考
 
 - [SPEC-12](12-Operational-Model.md)：业务操作和角色。
 - [SPEC-13](13-Environment-Files.md)：目录、环境和运行配置。

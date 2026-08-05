@@ -1,5 +1,7 @@
 # MCP 工具层设计规格
 
+> 文档地位：历史设计参考。后续标准 MCP 与 Harness 能力边界以 [`docs/main/PROJECT_GUIDE.md`](../main/PROJECT_GUIDE.md) 与 [`PROJECT_SPEC.md`](../main/PROJECT_SPEC.md) 为准。
+
 ## 文档编号: SPEC-09
 ## 主题: 核心 6 个 MCP 工具的详细 API 设计与实现约束
 ## 版本: 3.0

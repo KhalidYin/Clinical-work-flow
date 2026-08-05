@@ -1,5 +1,7 @@
 # 临床数统编程 AI 工作流 — 总体架构规格说明书
 
+> 文档地位：历史设计参考。后续架构以 [`docs/main/PROJECT_GUIDE.md`](../main/PROJECT_GUIDE.md) 与 [`PROJECT_SPEC.md`](../main/PROJECT_SPEC.md) 为准。
+
 ## 文档编号: SPEC-00
 ## 版本: 3.0
 ## 适用阶段: 全部 (Protocol → Submission)

@@ -1,5 +1,7 @@
 # 工作流实际走查：从 Study 初始化到 Submission 全流程
 
+> 文档地位：历史走查参考，不代表当前 Runtime 已形成统一 Harness 执行链。后续架构以 [`docs/main/PROJECT_GUIDE.md`](../main/PROJECT_GUIDE.md) 与 [`PROJECT_SPEC.md`](../main/PROJECT_SPEC.md) 为准。
+
 ## 文档编号: SPEC-14
 ## 版本: 3.0
 ## 主题: Agent Loop 实际走查 — 文件演变、人工交互点、Git 审计

@@ -1,8 +1,10 @@
 # SPEC-21：知识产品与临床 Workflow 集成
 
 > 版本：2.0
-> 状态：P12/P13 当前权威
-> 上位权威：[SPEC-18](18-P0-Alignment.md)
+> 状态：P12/P13 历史集成参考；当前权威见 [`docs/main/PROJECT_GUIDE.md`](../main/PROJECT_GUIDE.md) 与 [`PROJECT_SPEC.md`](../main/PROJECT_SPEC.md)
+> 历史上位文档：[SPEC-18](18-P0-Alignment.md)
+
+> 归档说明：本文描述既有 immutable Release REST 边界及当时的集成约束。后续标准 MCP、Harness 执行合同和完整 Release 能力以 `docs/main/` 为准。
 
 ## 1. 边界
 

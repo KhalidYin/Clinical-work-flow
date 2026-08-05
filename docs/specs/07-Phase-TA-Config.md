@@ -1,5 +1,7 @@
 # Phase/TA 知识库 — 动态配置与差异化
 
+> 文档地位：历史设计参考。后续架构以 [`docs/main/PROJECT_GUIDE.md`](../main/PROJECT_GUIDE.md) 与 [`PROJECT_SPEC.md`](../main/PROJECT_SPEC.md) 为准。
+
 ## 文档编号: SPEC-07
 ## 版本: 3.0
 ## 主题: 知识库替代硬编码模板 — Agent 动态加载 TA/Phase 知识

@@ -1,5 +1,7 @@
 # QC 与 Submission — 质量验证与递交打包
 
+> 文档地位：历史设计参考。后续架构以 [`docs/main/PROJECT_GUIDE.md`](../main/PROJECT_GUIDE.md) 与 [`PROJECT_SPEC.md`](../main/PROJECT_SPEC.md) 为准。
+
 ## 文档编号: SPEC-05
 ## 版本: 3.0
 ## 能力域: TFLQCSubmission Domain (QC 验证 + 递交打包)

@@ -1,5 +1,7 @@
 # Agent 设计规格 v3.0 — 能力域模型
 
+> 文档地位：历史设计参考。本文的角色式自建 Agent 方案已停止作为后续方向；当前架构以 [`docs/main/PROJECT_GUIDE.md`](../main/PROJECT_GUIDE.md) 与 [`PROJECT_SPEC.md`](../main/PROJECT_SPEC.md) 为准。
+
 ## 文档编号: SPEC-08
 ## 版本: 3.0
 ## 主题: Capability Domains + Agent Runtime (固定管线 + 动态审核策略)

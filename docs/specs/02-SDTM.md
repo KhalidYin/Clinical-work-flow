@@ -1,5 +1,7 @@
 # SDTM — 规范生成与编程
 
+> 文档地位：历史设计参考。后续架构以 [`docs/main/PROJECT_GUIDE.md`](../main/PROJECT_GUIDE.md) 与 [`PROJECT_SPEC.md`](../main/PROJECT_SPEC.md) 为准。
+
 ## 文档编号: SPEC-02
 ## 版本: 3.0
 ## 能力域: DataStandards Domain (SDTM 规范 + 编程)

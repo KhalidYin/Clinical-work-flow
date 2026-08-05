@@ -2,17 +2,20 @@
 
 ## 1. 产品边界
 
-`clinical-llm-wiki` 是完整前后端知识产品。知识流转为：
+本文只描述当前可运行基线；后续架构以 [项目架构指南](docs/main/PROJECT_GUIDE.md) 与 [项目规格说明](docs/main/PROJECT_SPEC.md) 为准。
+
+`clinical-llm-wiki` 已具备可运行的前后端、知识台账和治理骨架。当前已跑通的主链路为：
 
 ```text
-来源登记 → 异步解析 DAG → Evidence → 异步富化 DAG → Candidate
-         → 作者确认 → 独立审核 → Knowledge Revision → Release
-         → 检索/评估/Workflow 消费
+来源登记 → 异步解析 DAG → Evidence → 异步 Enrichment step → Candidate
+         → 作者确认 → 独立审核 → Knowledge Revision
 ```
 
-Document、Enrichment、Release 是独立 Worker pool，通过 PostgreSQL 中的 durable step、dependency 和 fan-in 协作，不是流式 pipeline。临床 Workflow 的 Protocol → SAP → SDTM → ADaM → TFL → QC → Submission 固定顺序不变。
+其中“异步富化”当前是同一 durable DAG 中的单个 Enrichment step，并非已经形成可编排的富化子图。
 
-## 2. 启动完整产品
+P13 已提供一次性 legacy immutable Release 和 Workflow REST 消费适配；通用 Release Builder、检索评估闭环、标准知识 MCP 与容器化 Harness 仍是目标能力。Document、Enrichment、Release 被定义为独立 Worker pool，通过 PostgreSQL durable step、dependency 和 fan-in 协作，不是流式 pipeline；当前通用 Release handler 尚未完成。空卷 Compose 启动默认没有 current Release，`runtime-knowledge` 在导入或构建 Release 前不可用。临床 Workflow 的 Protocol → SAP → SDTM → ADaM → TFL → QC → Submission 固定顺序不变。
+
+## 2. 启动当前知识产品
 
 要求 Docker Desktop 可用：
 
@@ -48,7 +51,7 @@ docker compose --project-name clinical-knowledge-demo up -d --build --wait
 
 ## 4. 模型 API 配置
 
-管理员在“系统管理 → 模型 API 配置”登记 Provider、模型、版本、Prompt Profile、数据边界和密钥引用。密钥值必须放在后端环境或受控 Secret Store，界面只保存 `env://NAME` 或 `secret://name`。
+管理员在“系统管理 → 模型 API 配置”登记 ModelProfile、Provider、模型版本、数据边界和密钥引用。PromptProfile 当前由 bootstrap/数据库配置提供，尚无管理 UI/API。密钥值必须放在后端环境或受控 Secret Store，界面只保存 `env://NAME` 或 `secret://name`。
 
 保存配置不会测试连接、不会调用真实 API、不会自动开启 live。默认测试使用 fake/replay adapter，并通过零出站门禁。真实链路由用户后续配置并显式设置 live 授权、调用上限和允许的数据边界。
 
@@ -67,15 +70,24 @@ Invoke-RestMethod http://127.0.0.1:8788/api/prerelease/v1/health
 
 ## 6. Workflow 使用
 
+当前签入的 `SAMPLE-AE-001` 与 `SYNTH-E2E-001` 只有 `runtime-manifest.draft.yaml`，没有可直接供通用 Runtime 使用的批准 manifest。现有 `agent_loop` 会在目录不存在时创建目录，默认还可能提交 Git；它是原型和迁移输入，不是目标 Harness Runtime，也不应直接指向仓库内 draft Study 试跑。
+
+仅当另行准备了包含有效 `runtime-manifest.yaml`、锁定知识上下文和 Git 边界的临时 Study 后，才可用下列形式进行受控诊断。intent 是位置参数，必须显式提供；`--no-git-commit` 用于避免诊断过程自动提交：
+
 ```powershell
 Set-Location .\clinical-workflow
 $env:KNOWLEDGE_RUNTIME_CONSUMER_SECRET = '<后端机器凭据>'
 python -m src.runtime.agent_loop `
-  --project-dir ..\clinical-studies\STUDY-001 `
-  --knowledge-service-url http://127.0.0.1:8788
+  --project-dir '<prepared-temporary-study>' `
+  --study-id '<study-id>' `
+  --no-git-commit `
+  --knowledge-service-url http://127.0.0.1:8788 `
+  '<explicit diagnostic intent>'
 ```
 
-Workflow 不直连知识数据库，也不能修改知识。发现缺口时生成结构化候选/审核输入；只有知识产品的人类治理流程可以发布新 Revision/Release。
+Workflow 不直连知识数据库，也不能修改知识。通用 Agent Loop 遇到知识缺口通常 fail closed；只有限定 POC 路径会生成特定的结构化治理输入，不能概括为通用回流能力。当前知识产品的人类治理流程可以批准新 Revision，通用新 Release 的构建与发布仍是目标能力。
+
+当前真正具备 start/resume ledger 的 Workflow Workbench 只覆盖限定合成 AE POC，并依赖临时 Study、直接启动 Application API 和测试夹具；它不是 Compose 服务，也不是通用 Workflow Runtime。
 
 ## 7. 开发与验收
 
@@ -104,4 +116,4 @@ python -m pytest -q
 python -m ruff check src tests
 ```
 
-最终 Gate 包括空卷 migration/bootstrap/start、用户名密码与会话 E2E、中文/窄屏 UI、三个 Worker 身份隔离、ADAE online/offline 固定回归，以及无真实模型调用。
+当前已签入 Vitest/Testing Library 组件行为测试；真实浏览器和 390px 窄屏属于既往手工验收证据，尚无可重复执行的浏览器 E2E/视觉脚本。后续完整 Gate 包括空卷 migration/bootstrap/start、用户名密码与会话 E2E、中文/窄屏 UI、Document/Enrichment 身份隔离及显式 release profile 下的 Release 身份隔离、ADAE online/offline 固定回归，以及无未授权真实模型调用。

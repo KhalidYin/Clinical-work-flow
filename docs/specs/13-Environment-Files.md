@@ -1,7 +1,9 @@
 # SPEC-13：环境、目录与运行配置
 
 > 版本：4.0
-> 状态：P12/P13 当前权威
+> 状态：P12/P13 历史环境参考；当前权威见 [`docs/main/PROJECT_GUIDE.md`](../main/PROJECT_GUIDE.md) 与 [`PROJECT_SPEC.md`](../main/PROJECT_SPEC.md)
+
+> 归档说明：本文保留当时的目录和运行配置；目标 Harness 目录尚未建立，当前事实以仓库与 `USAGE.md` 为准，后续边界以 `docs/main/` 为准。
 
 ## 1. 仓库结构
 

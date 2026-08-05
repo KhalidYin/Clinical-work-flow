@@ -1,5 +1,7 @@
 # Review Panel 前端规格 — 本地 Web Panel 与 VSCode 兼容源码
 
+> 文档地位：历史前端设计参考。后续架构以 [`docs/main/PROJECT_GUIDE.md`](../main/PROJECT_GUIDE.md) 与 [`PROJECT_SPEC.md`](../main/PROJECT_SPEC.md) 为准。
+
 ## 文档编号: SPEC-16
 ## 版本: 1.0
 ## 依赖: SPEC-00 (v3.0), SPEC-15 (Review Protocol)

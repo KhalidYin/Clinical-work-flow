@@ -1,5 +1,7 @@
 # Protocol → SAP — 方案解析与统计分析计划
 
+> 文档地位：历史设计参考。后续架构以 [`docs/main/PROJECT_GUIDE.md`](../main/PROJECT_GUIDE.md) 与 [`PROJECT_SPEC.md`](../main/PROJECT_SPEC.md) 为准。
+
 ## 文档编号: SPEC-01
 ## 版本: 3.0
 ## 能力域: ProtocolSAP Domain (方案解析 + SAP 生成 + CRF 预映射)

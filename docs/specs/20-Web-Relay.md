@@ -1,5 +1,7 @@
 # SPEC-20: Web Relay — 共享审核工作站
 
+> 文档地位：历史增量设计参考。后续架构以 [`docs/main/PROJECT_GUIDE.md`](../main/PROJECT_GUIDE.md) 与 [`PROJECT_SPEC.md`](../main/PROJECT_SPEC.md) 为准。
+
 > **版本**: v1.0
 > **状态**: 待确认
 > **依赖**: SPEC-15 (Review Protocol), SPEC-16 (Review Panel), SPEC-18 (P0), SPEC-19 (P1)

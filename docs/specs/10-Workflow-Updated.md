@@ -1,5 +1,7 @@
 # 工作流编排 v3.0 — 固定管线 + 动态审核 + 文件系统状态
 
+> 文档地位：历史设计参考。后续架构以 [`docs/main/PROJECT_GUIDE.md`](../main/PROJECT_GUIDE.md) 与 [`PROJECT_SPEC.md`](../main/PROJECT_SPEC.md) 为准。
+
 ## 文档编号: SPEC-10
 ## 版本: 3.0
 

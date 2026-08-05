@@ -1,13 +1,15 @@
 ---
-name: P12 唯一计划权威
-description: P12 是唯一可执行主线；P12 之前的计划全部废弃，仅保留历史追溯。
+name: P12 执行计划权威
+description: P12 lifecycle 继续记录当前执行状态，但不覆盖 docs/main 后续架构；本轮未切换计划。
 type: project
 ---
 
-# P12 唯一计划权威
+# P12 执行计划权威
+
+> 状态说明（2026-08-05）：`docs/main/PROJECT_GUIDE.md` 与 `PROJECT_SPEC.md` 已成为后续架构权威，但本轮没有切换 P12 lifecycle 或修改其 Gate 状态。P12 继续记录当前执行顺序；它不能覆盖主架构，也不能自动授权尚未纳入计划的 Harness 工作。两者冲突的实现必须先由用户另行授权并显式重定计划。
 
 - 用户于 2026-07-29 明确要求废弃此前的子计划和主线计划，并继续 P12 下一步任务。
-- `docs/dep/plans/ongoing/P12-knowledge-application-platform.md` 是当前唯一可执行计划权威。
+- `docs/dep/plans/ongoing/P12-knowledge-application-platform.md` 仍是当前执行计划权威；长期架构边界以 `docs/main/` 为准。
 - `docs/dep/plans/deferred/` 中的 P1-P11 旧计划只保留设计和审计证据，不得直接恢复、排队或作为 P12 依赖。
 - `docs/dep/plans/complete/` 中的旧计划只表示历史实现曾完成，不代表当前产品方向或后续授权。
 - `clinical-workflow/` 与 `clinical-llm-wiki/` 仍是两个独立产品；P12 只在 `clinical-llm-wiki/` 原地产品化，不修改旧 Workflow 产品以“顺便适配”新主线。
@@ -39,10 +41,10 @@ type: project
 - prerelease API 已提供 Candidate collection、Author confirmation 与 Review decision 路由；KUI-03/04 已区分 `evidence_ready`、待作者确认和待独立审核。`approved` 仍不是生产 release。本 Gate 没有调用 fake/replay 或真实模型，没有实现 Relation Explorer、索引、评估或发布。
 - P2-B2 已于 2026-07-31 完成：独立 Enrichment Worker 使用无网络 replay `ModelProviderPort` 从 canonical Evidence 生成 Candidate 与 typed relation proposal；相同模型输入 hash 精确回放，失败/retry 仍保留新的 StepAttempt 与 ModelInvocation，且不重跑已完成 Document 分支。
 - KUI-04 已接通真实 Candidate detail/revision/confirmation/review API。request-change 建立 Candidate N+1 并保留旧 Candidate/KnowledgeRevision/ReviewDecision；`changes_requested` 会把 revision 返回原 Author 编辑 Gate。真实后端继续负责权限、职责分离、stale/idempotency 与 append-only Audit。
-- 直接 Docker Compose 已提供完整产品：Alembic → 环境驱动且幂等的管理员/bootstrap → Document Worker → replay Enrichment Worker → FastAPI → production React/Nginx。初始化值写入 gitignored `.env`；人员密码入库后仅保存 Argon2id 哈希，多身份 assertion 不携带角色，角色仍从 PostgreSQL RBAC 解析。
-- 真实 E2E 已完成 Author confirm → independent request-change → revision 2 → reconfirm → approve；401/403/409 负向门禁、390px 窄屏和批准未发布边界均通过。最终 Release/ReleaseItem 为零，released REST 为 `not_released`；P3/P4 前 Query/MCP surface 不暴露临时旁路。
+- P12 当时把直接 Docker Compose 基线称为“完整产品”：Alembic → 环境驱动且幂等的管理员/bootstrap → Document Worker → replay Enrichment Worker → FastAPI → production React/Nginx。按当前主文档应理解为可运行知识产品骨架，不包含通用 Evaluation、Release Builder、标准 MCP 或 Harness。初始化值写入 gitignored `.env`；人员密码入库后仅保存 Argon2id 哈希，多身份 assertion 不携带角色，角色仍从 PostgreSQL RBAC 解析。
+- 既往真实浏览器手工验收曾跑通 Author confirm → independent request-change → revision 2 → reconfirm → approve，并核对 401/403/409、390px 窄屏和批准未发布边界；当前尚无签入的可重复浏览器 E2E/视觉脚本。最终 Release/ReleaseItem 为零，released REST 为 `not_released`；P3/P4 前 Query/MCP surface 不暴露临时旁路。
 
-**如何应用：** P1、P2-A、P2-B1 与 P2-B2 Gate 已关闭，下一任务是 P2-B3 单一真实外部模型与 P2 Gate。启动前必须由用户提供一个允许发送测试数据的 ModelProfile 与 Secret reference；只接一个 live provider/profile，不做多供应商矩阵、自动 fallback 或本地 LLM。B2 的 replay 成功不能作为真实模型质量结论，也不能授权索引、评估或发布；P3、P4 仍需逐 Gate 推进。不得把 Evidence、Candidate 或 approved revision 当作 released knowledge，也不得反向修改 P1/P2-A/B1/B2 已冻结的 Source、ObjectStore、权限、ledger、provenance、replay identity 或四眼原则。如果未来需要重启 Workflow、Agent、Project Memory 或多 Study 协作，必须基于 P12 当时已发布的外部合同新建计划，不能恢复旧 P1-P11 文件继续执行。
+**如何应用：** P1、P2-A、P2-B1 与 P2-B2 Gate 已关闭，P12 账本中的下一 Gate 仍是 P2-B3。由于后续架构已改为容器化成熟 Harness 且本轮不切换计划，不得从本文直接开始与新架构冲突的 direct-model 或 Harness 实现；下一次编码前必须先由用户明确重定 P12。真实出站仍需要获授权的 ModelProfile、Secret reference、测试数据和预算；B2 replay 不能作为真实模型质量、索引、评估或发布授权；Evidence、Candidate 或 approved revision 不等于 released knowledge。
 
 - P2-B3 的离线 live 运行门已于 2026-07-31 完成：`provider_mode=live` 不足以启用出站，
   还必须显式设置 enabled、精确匹配一个 DB ModelProfile/version，并把授权限制在可出站
