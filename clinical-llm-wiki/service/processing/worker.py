@@ -238,6 +238,8 @@ def enrichment_provider_from_environment(
             model_profile=model_profile,
             environ=values,
         )
+    if provider_mode == "harness":
+        return _harness_enrichment_provider_from_environment(values)
     fixture_path = values.get("KNOWLEDGE_ENRICHMENT_RECORDS_PATH")
     if not fixture_path:
         raise RuntimeError(
@@ -246,6 +248,35 @@ def enrichment_provider_from_environment(
     return offline_provider_from_config(
         mode=provider_mode,
         records_path=Path(fixture_path),
+    )
+
+
+def harness_enrichment_provider_from_environment(
+    environ: Mapping[str, str] | None = None,
+):
+    """Build the optional harness provider only when mode=harness is requested."""
+    values = os.environ if environ is None else environ
+    if values.get("KNOWLEDGE_ENRICHMENT_PROVIDER_MODE") != "harness":
+        return None
+    return _harness_enrichment_provider_from_environment(values)
+
+
+def _harness_enrichment_provider_from_environment(values: Mapping[str, str]):
+    from .harness_enrichment_provider import HarnessEnrichmentProvider
+
+    fixture_path = values.get("KNOWLEDGE_ENRICHMENT_RECORDS_PATH")
+    if not fixture_path:
+        raise RuntimeError(
+            "KNOWLEDGE_ENRICHMENT_RECORDS_PATH is required for harness mode"
+        )
+    try:
+        from adapters.replay import ReplayHarnessAdapter
+    except ImportError as exc:
+        raise RuntimeError(
+            "harness-runtime is not importable; add harness-runtime/ to PYTHONPATH"
+        ) from exc
+    return HarnessEnrichmentProvider(
+        adapter=ReplayHarnessAdapter(Path(fixture_path)),
     )
 
 
@@ -335,6 +366,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             ),
         )
         model_provider = enrichment_provider_from_environment(model_profile)
+        harness_provider = harness_enrichment_provider_from_environment()
         enrichment_service = EnrichmentWorkerService(
             repository=SqlAlchemyEnrichmentRepository(sessions),
             governance=KnowledgeGovernanceService(
@@ -344,6 +376,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             model_profile=model_profile,
             prompt_profile=prompt_profile,
             actor=actor,
+            harness_provider=harness_provider,
         )
         handlers = enrichment_step_handlers(enrichment_service)
     runtime = WorkerRuntime(

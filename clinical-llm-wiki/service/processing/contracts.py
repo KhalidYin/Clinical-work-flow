@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, Sequence
+from typing import Any, Literal, Sequence
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
 
@@ -13,6 +13,15 @@ from service.object_store import ObjectDescriptor
 
 class StrictContractModel(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
+
+
+class ExecutorKind(str, Enum):
+    DETERMINISTIC_HANDLER = "deterministic_handler"
+    DIRECT_MODEL = "direct_model"
+    HARNESS = "harness"
+
+
+ExecutorKindValue = Literal["deterministic_handler", "direct_model", "harness"]
 
 
 class RunStatus(str, Enum):
@@ -50,6 +59,7 @@ class StepDefinition(StrictContractModel):
     pool: WorkerPool
     input_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     depends_on: tuple[str, ...] = ()
+    executor_kind: ExecutorKindValue = ExecutorKind.DETERMINISTIC_HANDLER.value
 
     @field_validator("depends_on")
     @classmethod
@@ -73,6 +83,7 @@ class ClaimedStepAttempt(StrictContractModel):
     previous_attempt_id: str | None = Field(default=None, max_length=160)
     input_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     checkpoint: dict[str, Any] | None = None
+    executor_kind: ExecutorKindValue = ExecutorKind.DETERMINISTIC_HANDLER.value
 
 
 class StepOutcome(StrictContractModel):

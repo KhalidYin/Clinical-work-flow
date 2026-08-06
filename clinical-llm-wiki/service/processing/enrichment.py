@@ -28,7 +28,13 @@ from service.knowledge import (
     RelationProposal,
 )
 
-from .contracts import ArtifactManifest, ClaimedStepAttempt, StepDefinition, StepOutcome
+from .contracts import (
+    ArtifactManifest,
+    ClaimedStepAttempt,
+    ExecutorKind,
+    StepDefinition,
+    StepOutcome,
+)
 from .model_provider import (
     DataBoundary,
     FakeModelProvider,
@@ -298,6 +304,7 @@ class EnrichmentWorkerService:
         model_profile: ModelProfile,
         prompt_profile: PromptProfile,
         actor: ActorContext,
+        harness_provider: ModelProviderPort | None = None,
     ) -> None:
         require_permission(actor, Permission.MODEL_INVOKE)
         require_permission(actor, Permission.CANDIDATE_WRITE)
@@ -306,11 +313,22 @@ class EnrichmentWorkerService:
         self._repository = repository
         self._governance = governance
         self._provider = provider
+        self._harness_provider = harness_provider
         self._model_profile = model_profile
         self._prompt_profile = prompt_profile
         self._actor = actor
 
+    def _provider_for(self, claim: ClaimedStepAttempt) -> ModelProviderPort:
+        if claim.executor_kind == ExecutorKind.HARNESS.value:
+            if self._harness_provider is None:
+                raise ValueError(
+                    "harness provider is not configured for executor_kind=harness"
+                )
+            return self._harness_provider
+        return self._provider
+
     def extract_candidate(self, claim: ClaimedStepAttempt) -> StepOutcome:
+        provider = self._provider_for(claim)
         source = self._repository.load_context(run_id=claim.run_id)
         request = build_enrichment_model_request(
             source=source,
@@ -325,7 +343,7 @@ class EnrichmentWorkerService:
             prompt_profile=self._prompt_profile,
         )
         try:
-            invocation = self._provider.invoke(request)
+            invocation = provider.invoke(request)
         except ModelProviderError as exc:
             self._repository.record_invocation(
                 actor_id=self._actor.actor_id,
@@ -423,6 +441,7 @@ def build_enrichment_step_definition(*, input_sha256: str) -> StepDefinition:
         pool=WorkerPool.ENRICHMENT,
         input_sha256=input_sha256,
         depends_on=("document.persist_evidence",),
+        executor_kind=ExecutorKind.DIRECT_MODEL.value,
     )
 
 

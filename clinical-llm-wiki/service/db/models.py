@@ -321,6 +321,10 @@ class JobStep(Base):
             name="pool",
         ),
         CheckConstraint(
+            "executor_kind IN ('deterministic_handler', 'direct_model', 'harness')",
+            name="executor_kind",
+        ),
+        CheckConstraint(
             "status IN ('queued', 'processing', 'succeeded', 'failed', 'cancelled')",
             name="status",
         ),
@@ -336,6 +340,9 @@ class JobStep(Base):
     )
     step_key: Mapped[str] = mapped_column(String(160), nullable=False)
     pool: Mapped[str] = mapped_column(String(40), nullable=False)
+    executor_kind: Mapped[str] = mapped_column(
+        String(40), nullable=False, server_default="deterministic_handler"
+    )
     status: Mapped[str] = mapped_column(String(40), nullable=False, server_default="queued")
     depends_on: Mapped[list[str]] = mapped_column(JSONB, nullable=False, server_default="[]")
     input_sha256: Mapped[str | None] = mapped_column(String(64))

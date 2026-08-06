@@ -148,6 +148,7 @@ class PostgresProcessingLedger:
                         definition.pool.value,
                         definition.input_sha256,
                         tuple(definition.depends_on),
+                        definition.executor_kind,
                     )
                     for definition in definitions
                 }
@@ -156,6 +157,7 @@ class PostgresProcessingLedger:
                         step.pool,
                         step.input_sha256,
                         tuple(step.depends_on or ()),
+                        step.executor_kind,
                     )
                     for step in existing_steps
                 }
@@ -181,6 +183,7 @@ class PostgresProcessingLedger:
                         run_id=resolved_run_id,
                         step_key=definition.step_key,
                         pool=definition.pool.value,
+                        executor_kind=definition.executor_kind,
                         status=StepStatus.QUEUED.value,
                         depends_on=list(definition.depends_on),
                         input_sha256=definition.input_sha256,
@@ -581,6 +584,7 @@ def _claimed(attempt: StepAttempt, step: JobStep) -> ClaimedStepAttempt:
         previous_attempt_id=attempt.previous_attempt_id,
         input_sha256=attempt.input_sha256,
         checkpoint=attempt.checkpoint,
+        executor_kind=step.executor_kind,
     )
 
 
