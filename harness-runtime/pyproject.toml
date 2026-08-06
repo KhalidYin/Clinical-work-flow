@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "harness-runtime"
+version = "0.1.0"
+description = "Shared containerized Harness execution infrastructure (not a third product)"
+requires-python = ">=3.11"
+dependencies = ["pydantic>=2.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0,<10", "ruff>=0.8,<0.16"]
+docker = ["docker>=7.0,<8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-p no:asyncio"
+markers = [
+    "integration: requires docker-py and a reachable Docker daemon (default: skipped)",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
