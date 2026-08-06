@@ -693,6 +693,17 @@ P2-B 不再作为一次性“大模型 + 关系图 + 全部审核 UI”交付。
 - 本轮不接收明文 API Key，不提供“测试连接”或 live 执行入口；真实出站仍由后续人工 Gate
   单独授权和验收。
 
+#### 与 H0 的衔接（2026-08-05 重定计划）
+
+- 用户于 2026-08-05 授权重定执行计划：转向 [H0 最小 Harness 骨架](../../complete/H0-harness-minimal-skeleton.md)。
+  P2-B3 已关闭的离线切片全部保留有效；仅 live vertical 的执行器从 embedded LiteLLM
+  `direct_model` 调整为 `executor_kind=harness`（H0-F 接线），`direct_model` 只保留给
+  fake/replay、简单原子调用与回归基线。
+- live vertical 的完成标准不变：Source → Evidence → live Candidate → 作者确认 → 独立审核
+  的可回放闭环，`approved` 仍不等于 `released`；关闭 P2 Gate 仍需用户提供获授权的
+  ModelProfile/Secret reference 与允许出站 Evidence（时机可延后到 H0 骨架就绪后）。
+- 不因重定计划修改本切片已冻结的 Candidate/Relation/Review/Release 语义。
+
 ### P2-B 涉及文件
 
 | 文件 | 操作 | 预计行数 |

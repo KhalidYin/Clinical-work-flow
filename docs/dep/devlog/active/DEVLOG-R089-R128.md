@@ -619,3 +619,350 @@ Done — no next steps。
 - `clinical-llm-wiki/compose.yaml`、`.env.example`、`service/auth/`、前端元数据与部署合同测试
 - `README.md`、`USAGE.md`、`AGENTS.md`、`CLAUDE.md`、Wiki README、部署/SPEC/P12 计划与 memory
 - `clinical-llm-wiki/scripts/start-demo.ps1`（删除）
+
+---
+
+## 2026-08-05
+
+### R101 [10:17] [H0-harness-minimal-skeleton] 用户授权重定计划：转向最小 Harness 骨架
+
+#### Done
+
+- 用户确认后续主线：现在就重定计划，转向最小 Harness 骨架；起草要求明确为 adapter 层封装
+  可行性验证优先（先验证通用 HarnessAdapter 抽象能否封装成熟 Harness），且候选与骨架解耦、
+  先建通用骨架（contracts/supervisor/fake-replay 不绑定任何具体产品）。
+- 新建 `docs/dep/plans/ongoing/H0-harness-minimal-skeleton.md`：六个切片 H0-A（adapter 层
+  封装可行性 spike，优先）→ H0-B（通用合同契约：StepExecutionSpec/HarnessExecutionRequest/
+  HarnessEvent/HarnessResult/ExecutionReceipt/ValidationReceipt/ArtifactManifest）→ H0-C
+  （supervisor 骨架）→ H0-D（fake/replay adapter 与零出站测试）→ H0-E（Step-scoped MCP
+  最小接入）→ H0-F（知识 Enrichment 接线与 P2 Gate 衔接）；明确不做多 Harness 路由、多
+  Agent 协作、多租户、调度集群与 GraphRAG/Neo4j。
+- 更新 `docs/dep/PLAN.md`：进行中表新增 H0 行，P12 行同步为"live vertical 待用户配置；
+  执行器改由 H0 Harness 承担"。
+- 更新 P12 计划 P2-B3 增加"与 H0 的衔接"段：已关闭离线切片全部保留有效，仅 live vertical
+  执行器从 embedded LiteLLM `direct_model` 调整为 `executor_kind=harness`；live Gate 关闭
+  仍需用户提供获授权 ModelProfile/Secret reference。
+- 更新 `docs/main/memory/project-harness-architecture-direction.md`：记录 2026-08-05 授权
+  与 H0 计划指针；候选选定与适配仍需单独过准入 Gate。
+
+#### Issues / Blockers
+
+- 本轮纯文档重定计划，无产品代码改动；H0 尚未开工，`harness-runtime/` 目录仍不存在。
+- P12 P2-B3 live vertical 仍未授权、未调用；具体成熟 Harness 候选尚未评估，是 H0-A 结论
+  之后、H0-F 之前的用户侧输入。
+- `docs/specs/` 旧设计仍保留为历史参考，未因本次重定计划改动。
+
+#### Validation
+
+- 手工核对：H0 计划文件 frontmatter 与 lifecycle 目录规则一致；PLAN.md 进行中表与正文、
+  P12 衔接段、memory 三处状态口径一致；P12 → H0 相对链接修正为 `../H0-harness-minimal-skeleton.md`。
+- 无测试运行（纯文档变更，不触碰代码/合同/数据库）。
+
+#### Next
+
+1. 用户审阅 H0 计划后批准 H0-A：产出 HarnessAdapter 接口方案、九条准入条件的封装可行性
+   矩阵，以及 fake CLI 的 spawn→事件→退出码→Result 接口闭环与回归基线（零出站）。
+2. H0-A 结论通过后再进入 H0-B/C/D/E/F；具体候选评估与适配单独准入。
+3. live vertical 的用户侧输入（ModelProfile/Secret reference/可出站 Evidence/预算）可延后
+   到 H0 骨架就绪后再配置。
+
+### R102 [10:56] [H0-harness-minimal-skeleton] H0-A：adapter 层封装可行性验证完成
+
+#### Done
+
+- 用户指示"开始按计划执行"，H0-A 作为第一切片开工：新建独立 pytest 项目
+  `harness-runtime/`（contracts/adapters/supervisor/images/tests + pyproject.toml），
+  与两个产品互不依赖。
+- `adapters/base.py`：runtime_checkable `HarnessAdapter` Protocol（adapter_id + run/
+  terminate）+ `HarnessEventSink` + `HarnessAdapterError`；产品侧只依赖该接口。
+- `contracts/`：H0-A 最小模型 `HarnessExecutionRequest`（attempt/adapter 身份、三路径、
+  timeout、payload 输入闭包）与 `HarnessEvent`/`HarnessResult`/`HarnessStatus`
+  （明确不可信、supervisor 须重算 hash；H0-B 扩展完整合同）。
+- `adapters/fake_cli.py`：模拟成熟 Harness CLI 形态（读 input.json → 结构化事件行到
+  stdout → 写 output.json → 退出码 0/1/hang）；`adapters/fake.py`：`FakeHarnessAdapter`
+  子进程封装（timeout kill、terminate no-op、输入缺失 fail-closed）。
+- TDD：先写 8 项测试（首跑 ModuleNotFoundError 失败），实现后全绿；覆盖 Protocol
+  满足性、成功/失败/超时事件序列、确定性重放、输入缺失、socket.connect 拒绝零出站。
+- `harness-runtime/README.md`：九条准入条件封装可行性矩阵 + 结论（adapter 抽象可封装
+  成熟 Harness，候选替换只影响 adapter 与镜像，超范围能力升格为合同变更）。
+- 更新 H0 计划（H0-A done、完成标准勾选、同步记录）、PLAN.md（下一 Gate 为 H0-B）。
+
+#### Issues / Blockers
+
+- socket monkeypatch 只拦截 adapter 父进程；子进程 fake_cli 是纯本地脚本（不 import
+  网络模块），零出站由代码形态 + 父进程拦截共同保证，真实容器网络由 H0-C 的
+  `--network none` 兜底。
+- 未触碰 clinical-llm-wiki / clinical-workflow 任何现有代码；本轮门禁只覆盖
+  harness-runtime 项目自身。
+
+#### Validation
+
+- `python -m pytest tests -q`：8 passed（3.15s / 2.55s 两次全绿）。
+- `python -m ruff check contracts adapters tests`：All checks passed。
+- 无真实模型调用、无 Docker、无出站。
+
+#### Next
+
+1. H0-B 通用合同契约：`StepExecutionSpec`/`HarnessExecutionRequest`/`HarnessEvent`/
+   `HarnessResult`/`ExecutionReceipt`/`ValidationReceipt`/`ArtifactManifest` 完整
+   JSON Schema + 版本/hash 锁定 + 禁止字段校验。
+2. H0-C supervisor 骨架：`ContainerRuntimePort`（docker-py）+ 容器生命周期 + staging
+   安全扫描（先 FakeContainerRuntime 驱动测试）。
+3. 候选评估（准入 Gate）仍待 H0 骨架完成后再启动。
+
+### R103 [11:03] [H0-harness-minimal-skeleton] H0-B：通用合同契约完成
+
+#### Done
+
+- 新增 `harness-runtime/contracts/spec.py`：`StepExecutionSpec`（contract_version、
+  product/workflow/run/step/attempt 身份、generation/fencing token、`InstructionRef`、
+  hash-locked `InputReference`、`ExecutorKind`（deterministic_handler/direct_model/
+  harness）、模型 profile/version、timeout、`BudgetPolicy`、`NetworkPolicy`（默认 none，
+  allowlist 互斥校验）、capabilities、`OutputSpec`、`GatePolicy`）。
+- 扩展 `contracts/request.py`（完整 `HarnessExecutionRequest`：spec_sha256、`McpConfig`、
+  secret_refs、network_allowlist、events/receipt 目标，全部带默认值兼容 H0-A）与
+  `contracts/result.py`（`HarnessEvent` 增加 attempt_id/emitted_at/sanitized）。
+- 新增 `contracts/receipt.py`（supervisor-owned `ExecutionReceipt` 含必填
+  `ArtifactManifest`/timestamps/budget/exit_classification/retryable；
+  `ValidationReceipt` 含 validator 身份+hash+input_sha256+findings）与
+  `contracts/manifest.py`（key/media_type/size/sha256）。
+- 新增 `contracts/schema.py`：与知识产品同风格的 JSON Schema 同源导出（$id 锁定
+  harness-runtime.v1.schema.json）+ `harness_contract_schema_sha256()` 锁定 hash。
+- TDD 10 项合同测试（身份必填、next_stage/skip_stage/publish 禁止字段 fail-closed、
+  spec_sha256 校验、receipt 缺 supervisor 字段 ValidationError、manifest 必填、Schema
+  导出稳定）：先失败后全绿；H0-A 8 项回归不受影响。
+
+#### Issues / Blockers
+
+- 无。合同 `extra="forbid"` 天然拒绝 workflow 控制字段，职责分离由 receipt 必填
+  supervisor-owned 字段保证，均已有测试锁定。
+
+#### Validation
+
+- `python -m pytest tests -q`：18 passed（4.27s），含 H0-A 回归。
+- `python -m ruff check contracts adapters tests`：All checks passed。
+- 零出站、无 Docker、无真实模型。
+
+#### Next
+
+1. H0-C supervisor 骨架：`ContainerRuntimePort`（docker-py）+ 容器生命周期
+   （start/wait/logs/copy/terminate）+ staging 安全扫描（六类攻击 fail-closed）+
+   `ExecutionReceipt` 生成；先用 `FakeContainerRuntime` 驱动测试。
+2. H0-D fake/replay adapter 与零出站矩阵；H0-E Step-scoped MCP 最小 broker。
+
+### R104 [11:17] [H0-harness-minimal-skeleton] H0-C：supervisor 骨架完成
+
+#### Done
+
+- `supervisor/container_runtime.py`：`ContainerRuntimePort` Protocol +
+  `ContainerConfig` 安全基线——image@sha256 digest 锁定 pattern、network_mode 固定
+  none、非 root user（65534:65534）、read-only 输入挂载、memory/pids 限额、
+  stop_timeout、环境变量拒绝 credential-like 键（API_SECRET/TOKEN/PASSWORD/KEY）。
+- `supervisor/fake_container_runtime.py`：确定性 Fake 运行时（exit_code/hangs/
+  staged_outputs/last_config/terminate 标记），生命周期测试零 Docker 依赖。
+- `supervisor/staging.py`：宿主侧扫描器，六类攻击 fail-closed（symlink、hardlink/
+  reparse、.tmp/.part 部分写入、归档炸弹、总量/文件数配额、未声明可执行位）+
+  media type sniff + SHA-256 重算，返回 `ArtifactManifest`。
+- `supervisor/supervisor.py`：`HarnessSupervisor.execute` 编排——校验 spec_sha256/
+  image_ref 必填 → 物化 workspace → 构建 ContainerConfig → create/start → 事件收集 →
+  wait（超时 terminate → TIMED_OUT；信号码 130/137/143 或 cancel() → CANCELLED）→
+  copy_from → scan_staging（失败 fail-closed 为 FAILED）→ supervisor-owned
+  `ExecutionReceipt`（request_sha256/budget/event_summary/message/retryable）。
+- `supervisor/docker_runtime.py`：docker-py 延迟导入（`import docker` 在方法内），
+  create 强制 network none/read_only/non-root/volumes 映射，wait 超时返回 None，
+  events 解析 logs JSON 行，copy_from 解 tar 拒绝路径穿越，terminate/remove 不抛。
+- `HarnessExecutionRequest` 增加 `image_ref`（digest 锁定必填）；`ExecutionReceipt`
+  增加 `message`；pyproject 注册 integration marker + docker>=7,<8 optional dep。
+- TDD：staging 六类攻击 + supervisor 生命周期（成功/超时/取消/迟到/缺失拒绝）测试
+  先失败后全绿；docker round-trip 标记 integration，importorskip 自动跳过。
+
+#### Issues / Blockers
+
+- Windows 宿主限制：symlink 创建权限、NTFS st_nlink 语义、可执行位不可靠——对应
+  三项测试在 Windows 跳过（目标运行时为 Linux OCI 容器，扫描逻辑在 Linux 验证）。
+- docker-py 未安装：集成测试默认跳过；安装 `pip install -e .[docker]` 后即可跑
+  docker round-trip。
+
+#### Validation
+
+- `python -m pytest tests -q`：31 passed、4 skipped（2.91s），含 H0-A/H0-B 回归。
+- `python -m ruff check contracts adapters supervisor tests`：All checks passed。
+- `git diff --check`：通过（仅 LF/CRLF 提示）；零出站、无真实模型。
+
+#### Next
+
+1. H0-D fake/replay Harness adapter：把 FakeHarnessAdapter 接入 supervisor 合同
+   （adapter 产物 → HarnessResult → 可回放 fixture），零出站矩阵。
+2. H0-E Step-scoped MCP 最小 broker（自研 stdio JSON-RPC，attempt 认证/幂等/审计）。
+3. H0-F 知识 Enrichment 接线：executor_kind=harness 的 StepAttempt 落地 + migration。
+
+### R105 [11:28] [H0-harness-minimal-skeleton] H0-D：fake/replay adapter 与零出站矩阵完成
+
+#### Done
+
+- `adapters/replay.py`：`ReplayHarnessAdapter`（adapter_id=replay.cli@0.1.0）+
+  `ReplayRecord`/`ReplayFixture` pydantic 合同 + `load_replay_fixture` +
+  `ReplayMissError`；按 input payload sha256 精确回放事件与 HarnessResult，
+  缺记录 fail-closed 绝不 fallback；terminate no-op。
+- `adapters/fake.py`：`FakeHarnessAdapter` 增加静态 `input_sha256(payload)` 稳定键，
+  支持把 fake run 结果录制为 fixture 再回放（回归基线可重放）。
+- TDD 10 项 replay 测试（回放成功/缺记录/不启动子进程/零出站/FAILED+TIMED_OUT+
+  CANCELLED 状态回放/fake 与 replay 身份可区分/确定性/fake→replay 录制闭环）
+  先失败后全绿。
+- 候选后置确认：用户选择继续骨架、候选准入评估留到阶段 3；H0-D 不依赖任何具体
+  Harness 产品。
+
+#### Issues / Blockers
+
+- 首次可区分性测试用不存在的 fixture 实例化 adapter 导致 FileNotFoundError；
+  已改为先写 fixture 再实例化（adapter 构造即加载，fail-fast 语义正确）。
+
+#### Validation
+
+- `python -m pytest tests -q`：40 passed、4 skipped（4.80s），含 H0-A/B/C 回归。
+- `python -m ruff check contracts adapters supervisor tests`：All checks passed。
+- 零出站：replay 不启动子进程（Popen 拒绝）+ socket.connect 拒绝均通过。
+
+#### Next
+
+1. H0-E Step-scoped MCP 最小 broker：自研 stdio JSON-RPC 子集（initialize 握手 +
+   tools/list + tools/call），服务端强制 Attempt 认证/generation/StepSpec hash/
+   幂等键，调用写审计事件；越权/注入 fail-closed 测试。
+2. H0-F 知识 Enrichment 接线：executor_kind=harness StepAttempt + Alembic migration。
+3. 候选准入评估保持后置（阶段 3）。
+
+### R106 [13:16] [H0-harness-minimal-skeleton] H0-E：Step-scoped MCP 最小接入完成
+
+#### Done
+
+- `supervisor/mcp_broker.py`：自研 stdio JSON-RPC 最小子集（零新依赖）——
+  `initialize`（attempt_token + generation_token + spec_sha256 全匹配才建会话）、
+  `tools/list`（只列 capability 允许且已注册的工具）、`tools/call`
+  （name/arguments/idempotency_key 必填；未知工具 -32601、已注册未授权 -32000、
+  参数 schema 校验 -32602、路径穿越在 handler 内 resolve 校验拒绝）。
+- `McpAttemptAuth`/`McpSession`：服务端注册每 attempt 身份 + 幂等缓存
+  （cache_key = idempotency_key+name+参数 hash，同键同参 handler 只执行一次）。
+- 审计：每次调用（含缓存命中）记录 attempt_id/tool/arguments/idempotency_key/
+  result/error，成功与失败均入审计，从不记录 attempt_token 等凭据。
+- 演示工具 `read_input`：只读输入闭包内读取，路径穿越拒绝（../../etc/passwd）。
+- TDD 13 项测试先失败后全绿；修正 ToolHandler.schema 字段与 pydantic 父类冲突
+  （改名 parameter_schema），未注册工具优先返回 -32601。
+
+#### Issues / Blockers
+
+- 无。Attempt 凭据经 stdio 握手传递（不注入容器环境），审计序列化测试锁定
+  "tok-1"/"attempt_token" 不出现。
+
+#### Validation
+
+- `python -m pytest tests -q`：53 passed、4 skipped（4.29s），含 H0-A/B/C/D 回归。
+- `python -m ruff check contracts adapters supervisor tests`：All checks passed。
+- 零出站、无 Docker、无真实模型。
+
+#### Next
+
+1. H0-F 知识 Enrichment 接线：`executor_kind=harness` 的 StepAttempt 落地 +
+   Alembic migration（0009_harness_executor）+ 用 fake/replay Harness 在真实
+   PostgreSQL ledger 上完成 Evidence → Candidate 接线回归。
+2. 候选准入评估保持后置（阶段 3），不阻塞 H0-F。
+
+### R107 [13:46] [H0-harness-minimal-skeleton] H0-F：知识 Enrichment 接线完成，H0 骨架整体收尾
+
+#### Done
+
+- `service/processing/contracts.py`：新增 `ExecutorKind` 枚举与 `ExecutorKindValue`；
+  `StepDefinition`/`ClaimedStepAttempt` 增加 `executor_kind`（默认
+  deterministic_handler，兼容既有调用）；`service/db/models.py` `JobStep` 加
+  `executor_kind` 列与 CHECK 约束。
+- 新增 migration `20260805_0009_harness_executor`：add_column + backfill
+  （`enrichment.%` step 置 direct_model）+ CHECK；downgrade 回滚。
+- `service/processing/ledger.py`：create_run 写入 executor_kind（run_id replay
+  校验增加该维度）、`_claimed()` 从 JobStep 读入 ClaimedStepAttempt。
+- `service/processing/enrichment.py`：EnrichmentWorkerService 增加
+  `harness_provider` 注入与 `_provider_for` 分派（claim.executor_kind=harness →
+  harness provider，未配置报错）；build_enrichment_step_definition 标记
+  direct_model（既有语义不变）。
+- 新增 `service/processing/harness_enrichment_provider.py`：
+  `HarnessEnrichmentProvider` 实现既有 `ModelProviderPort`（设计好的扩展点）：
+  构造 HarnessExecutionRequest → adapter.run → 成功读 staging 产物包装
+  ModelInvocation（provider=harness、model=adapter_id、replay→REPLAYED）；
+  失败/超时映射 PROVIDER_ERROR/TIMEOUT；Candidate 治理链不改。
+- `harness-runtime/adapters/replay.py`：`ReplayRecord.output` + 回放时物化 staging
+  产物（supervisor 可重算 hash）。
+- `service/processing/worker.py`：`KNOWLEDGE_ENRICHMENT_PROVIDER_MODE=harness`
+  构建 ReplayHarnessAdapter，缺失时清晰报错（PYTHONPATH 提示）；enrichment
+  service 注入 harness_provider。
+- 测试：`tests/test_harness_enrichment_provider.py` 4 项（成功回放/失败/超时/
+  harness claim 分派全链路）；checked-in processing-runtime schema 重新导出；
+  `test_database_contract.py` 更新（head/线性 revision 纳入 0009、recorder 接受
+  backfill）；harness-runtime 回归无影响。
+
+#### Issues / Blockers
+
+- 本机系统 Python 缺 `argon2-cffi`（既有环境缺口，与本次改动无关）：认证相关
+  测试文件未跑；本次验证覆盖 processing/ledger/contracts/database/harness 接线。
+- 真实 PostgreSQL 集成（migration apply、Evidence→Candidate 实库回归）需
+  Compose/DB 环境，按项目惯例标记条件运行，本机未执行。
+- harness-runtime 顶层包名（contracts/adapters/supervisor）与知识产品无冲突；
+  worker 运行需把 harness-runtime/ 加入 PYTHONPATH（compose 接线为后续部署步骤）。
+
+#### Validation
+
+- knowledge 相关（排除认证/PG 集成）：`python -m pytest tests -q` 127 passed。
+- harness-runtime：`python -m pytest tests -q` 53 passed、4 skipped。
+- Ruff：knowledge `service/processing service/db` + harness-runtime 全绿。
+- `git diff --check` 通过（仅 LF/CRLF 提示）；零出站、无真实模型。
+
+#### Next
+
+1. H0 骨架整体 done（六切片）：H0 计划移入 `plans/complete/`，PLAN.md 最近完成
+   表登记；下一 Gate 回到 P12 P2-B3 live vertical。
+2. 阶段 3 候选准入评估（候选后置）：九条准入条件对比报告 → 用户拍板 → 首个具体
+   adapter + 镜像（digest 锁定）→ live vertical 经 Harness 关闭 P2 Gate。
+3. P3 评估/Release/Query Lab、P4 产品闭环在 P12 主线继续。
+
+### R108 [14:05] [harness-candidate-assessment] 候选准入评估完成并选定 OpenCode，首个具体 adapter 落地
+
+#### Done
+
+- 候选准入评估（阶段 3）：四个只读研究子代理查证 Claude Code（2.1.223）、Codex CLI
+  （0.146.1）、Gemini CLI（0.54.0）、OpenCode（1.18.14）的九条准入条件，结论落盘
+  `docs/dep/HARNESS-CANDIDATE-ASSESSMENT.md`：headless/MCP client+stdio/API key
+  机器身份四候选全满足；差异在许可证（Claude Code 闭源商业条款 D.4 合规风险、Gemini
+  弃用风险）、官方镜像（仅 OpenCode GHCR 可 digest 锁定）、遥测与离线开关。
+- **用户拍板：选定 OpenCode**（MIT、GHCR 官方镜像、默认零遥测、MCP stdio client、
+  离线开关全集）；Codex CLI 保留备选。
+- `harness-runtime/adapters/opencode.py`：`OpenCodeAdapter`（adapter_id=
+  opencode@1.18.14）——`opencode run <prompt> --format json` 非交互、JSONL 事件映射
+  （step_start/finish→checkpoint、tool_use→tool_call、error→failed、text 聚合
+  message）、退出码归一化、timeout kill + terminate no-op、零出站默认
+  （OPENCODE_DISABLE_MODELS_FETCH/AUTOUPDATE/LSP_DOWNLOAD）、MCP config 写入
+  `.opencode/opencode.json`、binary 支持命令元组（Windows 兼容）。
+- `adapters/fake_opencode_cli.py`：确定性 test double（ok/tool/fail/hang 模式）。
+- `harness-runtime/images/README.md`：OpenCode 镜像 digest 锁定方式与必测项清单。
+- 全量回归：harness-runtime 63 passed / 4 平台跳过（原 53 + OpenCode 9 项 + 集成
+  skip），Ruff 全绿；知识产品不受影响。
+
+#### Issues / Blockers
+
+- **GHCR 网络不稳定**：`ghcr.io/anomalyco/opencode:1.18.14` 两次 docker pull 均因
+  blob 传输中断失败（httpReadSeeker EOF / short read EOF）。镜像 digest、容器内必测项
+  （断网启动/`--network none`/SIGTERM 进程清理/MCP stdio 握手/事件流/零出站/短期凭据
+  注入）待网络恢复后执行并回填评估报告。
+- 本机 npm 超时，无法本地安装 `opencode-ai` 做非容器实测；真实二进制集成测试
+  （shutil.which）条件跳过。
+
+#### Validation
+
+- `python -m pytest tests -q`（harness-runtime）：63 passed、4 skipped（4.83s）。
+- `python -m ruff check adapters tests`：All checks passed。
+- `git diff --check`：通过；零出站、无真实模型调用。
+
+#### Next
+
+1. 网络恢复后：拉取 OpenCode 镜像 → 取 digest 回填 images/README 与评估报告 →
+   执行容器内必测项 → 回填结论。
+2. P12 P2-B3 live vertical：用户提供获授权 ModelProfile/Secret reference/允许出站
+   Evidence/预算后，经 OpenCode Harness（HarnessEnrichmentProvider + supervisor
+   容器路径）完成并关闭 P2 Gate。
+3. P3 评估/Release/Query Lab、P4 产品闭环继续。
