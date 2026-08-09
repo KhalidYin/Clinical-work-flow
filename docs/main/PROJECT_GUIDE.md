@@ -16,7 +16,7 @@
 主文档允许定义尚未实现的目标，但必须显式区分“当前基线”和“目标状态”。
 `docs/main/memory/` 只保存长期上下文，不属于 canonical 主文档，也不得覆盖它们。
 
-架构定调本身不切换执行计划。本次保留 P12 的当前 lifecycle 和 Gate 状态；在实施与新主架构冲突的 Harness/Workflow 工作前，必须由用户另行授权并显式重定执行计划，不能把本文直接当作开工指令。
+架构定调本身不切换执行计划。2026-08-05 用户随后另行授权 H0 重定计划，已在保持 P12 lifecycle 的前提下完成最小 Harness 骨架；2026-08-09 又完成 OpenCode 生产容器准入。这些技术 Gate 不自动扩展到 Worker 部署接线、P2-B3 live vertical 或临床 Workflow Harness 化。
 
 ## 概述
 
@@ -25,7 +25,7 @@
 - `clinical-workflow/`：临床 Workflow 控制面，拥有固定阶段、Study 状态、审核 Gate、产物晋升和审计。
 - `clinical-llm-wiki/`：临床知识产品，拥有来源、Evidence、Candidate、Revision、Relation、Evaluation、Release 和知识治理 GUI。
 - `clinical-studies/`：Study 实例容器，不是第三个产品。
-- 容器化 Harness Runtime：目标共享执行层，不拥有产品 Workflow、业务状态、审核或发布权威，也不是第三个产品。
+- 容器化 Harness Runtime：共享执行基础设施，不拥有产品 Workflow、业务状态、审核或发布权威，也不是第三个产品；H0、OpenCode 容器准入及知识侧单 Attempt 应用接线已完成，独立 supervisor 的 Compose/生产部署尚未完成。
 
 未来不再建设自定义 Agent 框架。产品负责选择并声明步骤、编译并冻结权威上下文、授权工具、启动和观察成熟 Harness、独立验证结果并推进治理状态；Harness 只负责已授权步骤内部的规划、上下文窗口组织、工具循环和自检，不得扩展权威上下文或持久化跨 Attempt 记忆。
 
@@ -35,8 +35,8 @@
 |------|----------|----------|
 | 知识控制面 | PostgreSQL durable DAG、Document/Enrichment Worker、ObjectStore、Candidate/Review、React GUI 已有骨架 | 完成 Harness enrichment、评估、通用 Release 和只读知识 MCP 闭环 |
 | 临床控制面 | 固定十阶段合同、Review Protocol、ActionPolicy、Study 文件状态已有原型；仍存在自建 Agent Loop、多套状态表达和执行入口 | 收敛为唯一 Workflow Orchestrator，由容器化 Harness 执行 Engine 已选定的 Step |
-| Harness | 尚未建立正式共享 Runtime 或容器合同 | 每个 `executor_kind=harness` 的 StepAttempt 在受控 OCI 容器中执行，支持标准事件、heartbeat、cancel 和 supervisor Receipt |
-| MCP | 临床工具存在 Python handler 和自定义 JSONL 入口；知识消费主要是 REST | 使用标准 MCP 协议，按 Step 暴露最小工具集；知识只从 immutable Release 读取 |
+| Harness | 已有版本化合同、supervisor、staging/MCP、OpenCode digest 准入及知识 `opencode-supervised` 单 Attempt 路径；Compose 仍默认 replay | 以独立最小权限 supervisor 部署每个生产 Harness Attempt，不向业务 Worker 暴露宿主 Docker 控制权 |
+| MCP | Attempt 级 broker 合同与 OpenCode 标准 stdio shim 已实测 `initialize/tools-list/tools/call`、路径拒绝和脱敏审计；知识消费仍主要是 REST | 将 shim 纳入独立 supervisor 部署并扩展确定性工具；知识消费 MCP 只从 immutable Release 读取 |
 | GUI | 九个一级导航和核心治理页面已有框架，检索、评估和发布仍有占位页面 | 细化为 Workflow 观察、人工治理、评估和发布控制台；聊天不是治理入口 |
 
 ## 架构收敛顺序
@@ -45,8 +45,8 @@
 
 1. 先由四份 canonical 主文档固定产品边界、执行合同和现状/目标口径。
 2. 第一条验证线放在知识产品：保留现有 PostgreSQL ledger、canonical entities、ObjectStore 和 GUI，不另建 Knowledge Agent。
-3. 在知识 Enrichment 接入前建立最小容器化 Harness 骨架：一个成熟 Harness、一个 image/adapter、一个 supervisor 和 fake/replay 路径。
-4. 用同一控制面跑通 Source → Evidence → Harness Candidate → 人工治理 → Evaluation → immutable Release → read-only MCP，并在现有 GUI 上细化观察与治理页面。
+3. 建立最小容器化 Harness 骨架、OpenCode 准入及知识单 Attempt 应用接线（均已完成）；独立 supervisor 的最小权限部署与离线 Compose Attempt 是下一 Gate。
+4. 经部署接线和用户 live 授权后，用同一控制面跑通 Source → Evidence → Harness Candidate → 人工治理 → Evaluation → immutable Release → read-only MCP，并在现有 GUI 上细化观察与治理页面。
 5. 知识闭环证明合同后，临床 Workflow 再复用同一 Harness execution contract，收敛现有多套 Runner；不得复制第二套 Harness Runtime。
 
 ## 架构原则
@@ -163,7 +163,7 @@ fixed stages · Study FS/Git                  durable DAG · PostgreSQL/ObjectSt
 - 不可信 `HarnessResult` 收集、Artifact 独立扫描，以及 supervisor-owned `ExecutionReceipt` 生成；
 - fake/replay adapter，用于默认零出站测试。
 
-首期只接一个成熟 Harness，但具体产品尚未选定，必须先通过 `PROJECT_SPEC.md` 的准入 Gate。多 Harness 路由、多 Agent 协作和跨租户调度不属于骨架阶段。
+首期候选已选定 OpenCode `1.18.14`。除容器准入外，知识侧已实现 `opencode-supervised` 单 Attempt：输入/Secret/MCP bundle 分离挂载、JSONL staging、独立 schema validator、Execution/Validation Receipt 落账；真实 Docker 回归保持 `network none` 和合成 secret。应用接线仍不等于生产部署：Compose 继续 replay，`secret://` 后端、受控出站网络和不暴露 Docker socket 的独立 supervisor 服务仍待完成。多 Harness 路由、多 Agent 协作和跨租户调度不属于当前阶段。
 
 ### MCP 边界
 
@@ -226,8 +226,8 @@ Harness 输出首先进入 staging。Supervisor 必须拒绝路径穿越、符�
 | 对象存储 | 当前 local non-overwriting、hash-verified adapter | 原件、派生物、Evidence、trace、报告和 Release manifest；released/published 对象不可变 |
 | 前端 | React 19、TypeScript 5.8、Vite 7、TanStack | 知识治理和执行观察 GUI |
 | Workflow 状态 | Study 文件系统、JSON/YAML、Git | 临床产物、审核和审计链 |
-| 工具协议 | 当前 Python handler/REST | 目标为标准 MCP、按 Step 最小授权 |
-| 执行隔离 | 当前无 Harness 隔离；Compose 只部署知识产品 | 目标为 OCI Harness image 与 Harness Attempt 容器 supervisor |
+| 工具协议 | Python handler/REST + H0 Step-scoped MCP broker 骨架 | 完成真实 Harness MCP 接线；知识消费使用只读标准 MCP |
+| 执行隔离 | H0 Docker/Fake runtime 与 OpenCode digest 容器准入已通过；知识 Compose 尚未部署 Harness | Harness Attempt 的 Worker/supervisor/Secret/Receipt 进入受控生产路径 |
 
 ## 数据流
 
@@ -264,7 +264,7 @@ Engine selects fixed Stage from canonical state
 clinical-workflow/           # 临床 Workflow 产品控制面
 clinical-llm-wiki/           # 知识产品控制面与 GUI
 clinical-studies/            # Study 实例容器
-harness-runtime/             # 目标共享执行基础设施，不是第三个产品
+harness-runtime/             # 已签入的共享执行基础设施骨架，不是第三个产品
   contracts/                 # Request/Receipt/Event/Artifact JSON Schema
   adapters/                  # 单一成熟 Harness adapter，后续才允许扩展
   supervisor/                # 容器生命周期、heartbeat、cancel、trace
@@ -275,7 +275,7 @@ docs/specs/                  # 历史设计参考
 docs/dep/                    # 计划与开发审计
 ```
 
-此目录是目标骨架，不表示 `harness-runtime/` 已经存在。
+该目录已由 H0 建立，OpenCode `1.18.14` 镜像清单与容器准入也已落盘；这仍不表示 Compose/Worker 生产接线或 P2-B3 live Gate 已完成。
 
 ## 关键约定
 

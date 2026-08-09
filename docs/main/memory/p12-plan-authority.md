@@ -1,12 +1,12 @@
 ---
 name: P12 执行计划权威
-description: P12 lifecycle 继续记录当前执行状态，但不覆盖 docs/main 后续架构；本轮未切换计划。
+description: P12 lifecycle 记录当前执行状态；H0 与 OpenCode 容器准入已完成，P2-B3 转入部署接线。
 type: project
 ---
 
 # P12 执行计划权威
 
-> 状态说明（2026-08-05）：`docs/main/PROJECT_GUIDE.md` 与 `PROJECT_SPEC.md` 已成为后续架构权威，但本轮没有切换 P12 lifecycle 或修改其 Gate 状态。P12 继续记录当前执行顺序；它不能覆盖主架构，也不能自动授权尚未纳入计划的 Harness 工作。两者冲突的实现必须先由用户另行授权并显式重定计划。
+> 状态说明（更新至 2026-08-09）：`docs/main/PROJECT_GUIDE.md` 与 `PROJECT_SPEC.md` 是后续架构权威。用户已于 2026-08-05 另行授权并完成 H0 最小 Harness 骨架，P12 lifecycle 保持唯一知识产品主线；该授权不自动覆盖 OpenCode 生产容器准入、真实模型出站或临床 Workflow Harness 化。
 
 - 用户于 2026-07-29 明确要求废弃此前的子计划和主线计划，并继续 P12 下一步任务。
 - `docs/dep/plans/ongoing/P12-knowledge-application-platform.md` 仍是当前执行计划权威；长期架构边界以 `docs/main/` 为准。
@@ -44,7 +44,7 @@ type: project
 - P12 当时把直接 Docker Compose 基线称为“完整产品”：Alembic → 环境驱动且幂等的管理员/bootstrap → Document Worker → replay Enrichment Worker → FastAPI → production React/Nginx。按当前主文档应理解为可运行知识产品骨架，不包含通用 Evaluation、Release Builder、标准 MCP 或 Harness。初始化值写入 gitignored `.env`；人员密码入库后仅保存 Argon2id 哈希，多身份 assertion 不携带角色，角色仍从 PostgreSQL RBAC 解析。
 - 既往真实浏览器手工验收曾跑通 Author confirm → independent request-change → revision 2 → reconfirm → approve，并核对 401/403/409、390px 窄屏和批准未发布边界；当前尚无签入的可重复浏览器 E2E/视觉脚本。最终 Release/ReleaseItem 为零，released REST 为 `not_released`；P3/P4 前 Query/MCP surface 不暴露临时旁路。
 
-**如何应用：** P1、P2-A、P2-B1 与 P2-B2 Gate 已关闭，P12 账本中的下一 Gate 仍是 P2-B3。由于后续架构已改为容器化成熟 Harness 且本轮不切换计划，不得从本文直接开始与新架构冲突的 direct-model 或 Harness 实现；下一次编码前必须先由用户明确重定 P12。真实出站仍需要获授权的 ModelProfile、Secret reference、测试数据和预算；B2 replay 不能作为真实模型质量、索引、评估或发布授权；Evidence、Candidate 或 approved revision 不等于 released knowledge。
+**如何应用：** P1、P2-A、P2-B1 与 P2-B2 Gate 已关闭，P12 的当前 Gate 是 P2-B3。H0、OpenCode digest 容器准入和知识 `opencode-supervised` 单 Attempt 应用接线已经完成；`env://` Secret/MCP/Receipt migration 也有真实零网络证据。当前仍缺独立 supervisor 的最小权限部署、`secret://` 后端和受控网络策略。完成这些技术输入后，真实出站仍需要获授权的 ModelProfile、Secret reference、测试数据和预算；离线证据不能作为真实模型质量、索引、评估或发布授权；Evidence、Candidate 或 approved revision 不等于 released knowledge。
 
 - P2-B3 的离线 live 运行门已于 2026-07-31 完成：`provider_mode=live` 不足以启用出站，
   还必须显式设置 enabled、精确匹配一个 DB ModelProfile/version，并把授权限制在可出站
@@ -83,7 +83,8 @@ type: project
 - `0007` 为 Candidate 增加 advisory JSON 与 `origin_model_invocation_id`；成功/replayed
   invocation 必须属于同一 run，API/UI/Audit 可连接 invocation → attempt/run → Evidence →
   Candidate。Prompt profile 升为 `atomic-candidate@1.1.0`，旧本地 Demo 需受控 reset。
-- 因此当前没有未完成的 P2-B3 离线切片。下一输入仅是用户授权的单一 live
-  profile/secret reference、允许出站的 synthetic Evidence 与一次调用预算；随后运行一次
+- 因此当前没有未完成的 P2-B3 业务离线门禁；H0 fake/replay 接线也已完成。下一技术输入是
+  独立 supervisor 的 Compose/生产部署，之后才是用户授权的单一 live profile/
+  secret reference、允许出站的 synthetic Evidence 与一次调用预算；随后运行一次
   preflight → live Candidate → Author confirmation → independent review。live Audit 与端到端
   P2 Gate 关闭前，P3/P4 仍保持 pending。

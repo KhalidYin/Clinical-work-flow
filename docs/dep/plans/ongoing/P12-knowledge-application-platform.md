@@ -2,7 +2,7 @@
 phase_index: 12
 status: in-progress
 created: 2026-07-29
-updated: 2026-07-31
+updated: 2026-08-09
 priority: 1
 estimated_rounds: 37-52
 depends_on: []
@@ -22,11 +22,10 @@ tags:
   - external-model-api
   - litellm
 syncs_to:
-  - 12-Operational-Model.md
-  - 13-Environment-Files.md
-  - 18-P0-Alignment.md
-  - 21-Knowledge-Workflow-Integration.md
-  - 22-Knowledge-Application-Platform.md
+  - PROJECT_GUIDE.md
+  - PROJECT_SPEC.md
+  - TEST_GUIDE.md
+  - CODE_STYLE.md
 ---
 
 # 独立知识库应用平台
@@ -116,11 +115,10 @@ syncs_to:
 
 完成后需要更新：
 
-- `12-Operational-Model.md`：增加知识平台单组织多用户角色、四眼原则、Service Account、审计、备份恢复和运行责任。
-- `13-Environment-Files.md`：增加 Knowledge Platform 的前后端/worker 配置、PostgreSQL/pgvector、ObjectStore、OIDC、embedding 和部署变量。
-- `18-P0-Alignment.md`：把知识产品从 Workflow Runtime 中独立出来，明确后续主线不再是 Workflow POC。
-- `21-Knowledge-Workflow-Integration.md`：重写为外部消费边界，明确 Workflow 和 Project Memory 只能通过版本化接口消费或提交 candidate。
-- `22-Knowledge-Application-Platform.md`：新建产品权威规格，记录数据模型、API、治理、检索、评估、UI、部署和非功能要求。
+- `PROJECT_GUIDE.md`：同步知识控制面模块职责、数据流、目录、Worker/Harness/Release 边界和部署拓扑。
+- `PROJECT_SPEC.md`：同步已实现功能、接口合同、治理状态、检索评估、immutable Release 与非功能要求。
+- `TEST_GUIDE.md`：同步后端/前端/数据库/浏览器/Harness/迁移/恢复的测试结构、命令和 Gate。
+- `CODE_STYLE.md`：同步新增的领域命名、错误处理、migration、worker、前端状态与合同约定。
 
 `syncs_to` 与本节保持一一对应。仓库根 `USAGE.md`、部署指南和 memory 在相应 Phase 完成时同步，但不作为本计划 frontmatter 的上位规范。
 
@@ -663,10 +661,18 @@ P2-B 不再作为一次性“大模型 + 关系图 + 全部审核 UI”交付。
   继续完成不出站的 Admin Model API Configuration。该配置面只登记版本化 ModelProfile
   元数据和 `env://`/`secret://` 引用，不接收明文密钥，不提供连接测试、preflight 或运行按钮，
   保存配置也不能启用 live、创建 ModelInvocation 或消耗调用预算。
+- H0 已完成 `executor_kind=harness` 与 replay 接线，OpenCode `1.18.14` 也已完成 digest 容器准入。
+  2026-08-09 R111 进一步增加 `opencode-supervised` 单 Attempt 路径：Worker 编译只读输入，
+  `env://` Secret 即时写入 Attempt 级只读 `auth.json`，supervisor 启动 `network none` 容器，
+  标准 stdio shim 提供 `read_input` 并拒绝路径/符号链接逃逸，产品 validator 校验 JSONL 输出；
+  `ExecutionReceipt`/`ValidationReceipt` 由 migration `20260809_0010` 写入 ModelInvocation。
+  fake runtime 和真实 OpenCode 容器（合成 secret、无效 provider、零网络）均已回归；没有真实出站。
+  Compose 仍默认 replay，且不能为省事把宿主 Docker socket 暴露给 Enrichment Worker；下一技术
+  Gate 是独立、最小权限 supervisor 的部署边界与离线 Compose Attempt，而不是直接进入 live。
 
 #### 产出
 
-- Enrichment Worker 通过自有 `ModelProviderPort` 后的 embedded LiteLLM adapter 调用一个真实外部模型，固定 `stream=false` 和版本化 JSON Schema。
+- Enrichment Worker 通过自有 `ModelProviderPort` 分派 `executor_kind=harness`，在 OpenCode 生产容器准入后调用一个真实外部模型；`direct_model` 仅保留 fake/replay、简单原子调用与回归基线。
 - 从 Evidence 产生原子 claim、类型、适用范围、条件、例外、typed relation proposal、重复/冲突/gap 提示；确定性校验决定 eligibility，模型 confidence 只用于队列排序。
 - 记录 provider/model/prompt/schema version、input/output hash、provider request ID、token/cost/latency/data boundary；secret、隐藏推理和完整受限正文不进入日志。
 - `[KUI-05]` Relation Explorer 与 `[KUI-10]` Audit 完成 candidate/approved/released 视觉隔离、edge evidence、有限深度展开和调用审计。
@@ -695,13 +701,16 @@ P2-B 不再作为一次性“大模型 + 关系图 + 全部审核 UI”交付。
 
 #### 与 H0 的衔接（2026-08-05 重定计划）
 
-- 用户于 2026-08-05 授权重定执行计划：转向 [H0 最小 Harness 骨架](../../complete/H0-harness-minimal-skeleton.md)。
+- 用户于 2026-08-05 授权重定执行计划：转向 [H0 最小 Harness 骨架](../complete/H0-harness-minimal-skeleton.md)。
   P2-B3 已关闭的离线切片全部保留有效；仅 live vertical 的执行器从 embedded LiteLLM
   `direct_model` 调整为 `executor_kind=harness`（H0-F 接线），`direct_model` 只保留给
   fake/replay、简单原子调用与回归基线。
 - live vertical 的完成标准不变：Source → Evidence → live Candidate → 作者确认 → 独立审核
   的可回放闭环，`approved` 仍不等于 `released`；关闭 P2 Gate 仍需用户提供获授权的
   ModelProfile/Secret reference 与允许出站 Evidence（时机可延后到 H0 骨架就绪后）。
+- OpenCode 候选评估、容器准入、单 Attempt 应用接线、`env://` Secret/MCP transport 与 Receipt
+  产品落账已完成；在独立 supervisor 部署、`secret://` 后端、受控网络策略和对应回归通过前，
+  仍不得进入 live vertical。
 - 不因重定计划修改本切片已冻结的 Candidate/Relation/Review/Release 语义。
 
 ### P2-B 涉及文件
@@ -884,7 +893,7 @@ P3 只消费 P2 已批准的 KnowledgeRevision。内部先构建可解释检索�
 | `clinical-llm-wiki/tests/migration/` | 新建 | ~700-1100 |
 | `clinical-llm-wiki/tests/browser/` | 新建完整浏览器 UAT | ~700-1000 |
 | `clinical-llm-wiki/README.md` | 标记 file/SQLite legacy 写路径退役 | +60-100 |
-| `docs/specs/22-Knowledge-Application-Platform.md` | 新建最终权威规格 | ~700-1100 |
+| `docs/main/PROJECT_GUIDE.md`、`PROJECT_SPEC.md`、`TEST_GUIDE.md`、`CODE_STYLE.md` | 同步最终产品事实与规范 | ~300-700 |
 | `USAGE.md`、`docs/deploy/DEPLOY_GUIDE.md` | 更新 | +180-300 |
 
 ### 关键决策

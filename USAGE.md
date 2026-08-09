@@ -13,7 +13,7 @@
 
 其中“异步富化”当前是同一 durable DAG 中的单个 Enrichment step，并非已经形成可编排的富化子图。
 
-P13 已提供一次性 legacy immutable Release 和 Workflow REST 消费适配；通用 Release Builder、检索评估闭环、标准知识 MCP 与容器化 Harness 仍是目标能力。Document、Enrichment、Release 被定义为独立 Worker pool，通过 PostgreSQL durable step、dependency 和 fan-in 协作，不是流式 pipeline；当前通用 Release handler 尚未完成。空卷 Compose 启动默认没有 current Release，`runtime-knowledge` 在导入或构建 Release 前不可用。临床 Workflow 的 Protocol → SAP → SDTM → ADaM → TFL → QC → Submission 固定顺序不变。
+P13 已提供一次性 legacy immutable Release 和 Workflow REST 消费适配。H0 已建立 `harness-runtime/`；OpenCode `1.18.14` 的 digest 容器准入及知识 `opencode-supervised` 单 Attempt 应用路径已通过真实零网络回归，Receipt migration 为 `20260809_0010`。Compose 仍默认 replay，独立 supervisor 部署和 live vertical 未完成。通用 Release Builder、检索评估闭环与只读知识 MCP 仍是目标能力。Document、Enrichment、Release 是独立 Worker pool，通过 PostgreSQL durable DAG 协作，不是流式 pipeline；当前通用 Release handler 尚未完成。空卷 Compose 默认没有 current Release。临床 Workflow 的固定阶段顺序不变。
 
 ## 2. 启动当前知识产品
 
@@ -54,6 +54,14 @@ docker compose --project-name clinical-knowledge-demo up -d --build --wait
 管理员在“系统管理 → 模型 API 配置”登记 ModelProfile、Provider、模型版本、数据边界和密钥引用。PromptProfile 当前由 bootstrap/数据库配置提供，尚无管理 UI/API。密钥值必须放在后端环境或受控 Secret Store，界面只保存 `env://NAME` 或 `secret://name`。
 
 保存配置不会测试连接、不会调用真实 API、不会自动开启 live。默认测试使用 fake/replay adapter，并通过零出站门禁。真实链路由用户后续配置并显式设置 live 授权、调用上限和允许的数据边界。
+
+当前 Harness 状态分三层：
+
+- 已实现：版本化 Request/Result/Receipt 合同、fake/replay/OpenCode adapter、supervisor 与 Step-scoped MCP 骨架、Enrichment replay 接线。
+- 已准入：OpenCode `1.18.14` GHCR image 的版本+digest 双锁、真实容器断网启动/JSON 事件、SIGTERM、MCP stdio、零非必要出站与合成短期凭据只读文件装载。
+- 已接线（应用级）：`opencode-supervised` 单 Attempt、`env://` Secret 即时物化/清理、标准 stdio `read_input`、JSONL 产品校验，以及 ExecutionReceipt/ValidationReceipt 落账；真实 Docker 回归使用合成 secret 和 `network none`。
+- 未部署：Compose 仍运行 replay；独立最小权限 supervisor、`secret://` Secret Store 和受控出站网络尚未完成。禁止为图省事把宿主 Docker socket 直接挂给业务 Worker。
+- 未授权：任何真实模型出站和 P2-B3 live vertical。完成前两层不会自动开启第三层。
 
 ## 5. API 与健康检查
 
@@ -115,5 +123,15 @@ Set-Location .\clinical-workflow
 python -m pytest -q
 python -m ruff check src tests
 ```
+
+Harness Runtime：
+
+```powershell
+Set-Location .\harness-runtime
+python -m pytest tests -q
+python -m ruff check contracts adapters supervisor tests
+```
+
+OpenCode 容器测试需要 `.[docker]` extra、可用 Docker daemon 和本地已拉取的 digest-locked 镜像；PATH 上真实 OpenCode binary 与部分 Linux 文件语义用例仍可能在 Windows 条件跳过。单 Attempt 回归通过不代表独立 supervisor/Compose 部署或 live 模型授权已完成。
 
 当前已签入 Vitest/Testing Library 组件行为测试；真实浏览器和 390px 窄屏属于既往手工验收证据，尚无可重复执行的浏览器 E2E/视觉脚本。后续完整 Gate 包括空卷 migration/bootstrap/start、用户名密码与会话 E2E、中文/窄屏 UI、Document/Enrichment 身份隔离及显式 release profile 下的 Release 身份隔离、ADAE online/offline 固定回归，以及无未授权真实模型调用。

@@ -23,7 +23,8 @@
 
 - 知识产品已有 Source/Evidence/Candidate/Revision/Relation/Audit canonical entities、PostgreSQL durable ledger，以及拒绝覆盖写并校验 hash 的本地 ObjectStore adapter；未发布对象仍允许补偿或 reconcile 删除。
 - Document Worker 已支持受控文档解析、分支/fan-in、Evidence locator/hash 和可恢复 Attempt。
-- Enrichment Worker 已有 fake/replay 和单次 direct-model adapter/授权合同及 Candidate 治理闭环，但仍是单次模型编排，不是成熟 Harness；获授权的真实 provider vertical 尚未完成。
+- Enrichment Worker 已有 fake/replay、direct-model 授权合同及 Candidate 治理闭环；migration `20260805_0009` 增加 `executor_kind`。`harness` 模式除 replay 外已支持 `opencode-supervised` 单 Attempt，真实容器零网络回归通过；Compose 仍默认 replay，独立 supervisor 部署尚未完成。
+- `harness-runtime/` 已实现版本化合同、fake/replay adapter、OpenCode `1.18.14` headless adapter、Fake/Docker runtime、staging 扫描、Execution/Validation Receipt 模型和 Step-scoped MCP broker 骨架；OpenCode tag+digest 真实容器准入已完成。
 - 人员密码会话、HttpOnly Cookie、RBAC、Worker 机器身份和中文 React GUI 骨架已存在。
 - 临床产品已有固定十阶段合同、ActionPolicy、Review Protocol、知识 Release resolve 和若干 POC artifact 流程；十个内部 Stage 对应 Protocol → SAP → SDTM → ADaM → TFL → QC → Submission 七个业务依赖组。
 
@@ -31,13 +32,13 @@
 
 #### 共享 Harness Runtime
 
-- [目标] 定义并版本化 `StepExecutionSpec`、`HarnessExecutionRequest`、`HarnessEvent`、不可信 `HarnessResult`、supervisor-owned `ExecutionReceipt`、`ValidationReceipt` 和 `ArtifactManifest`。
-- [目标] 以锁定 OCI image 启动单个成熟 Harness；一个 `executor_kind=harness` 的 Attempt 对应一个受控容器执行边界。
-- [目标] 支持 heartbeat、timeout、cancel/kill、事件流、日志脱敏、staging output 和失败分类。
-- [目标] 支持 fake/replay Harness adapter，默认测试零真实出站。
-- [目标] 使用标准 MCP 协议和 Step-scoped capability，不向 Harness 暴露数据库或发布凭据。
+- [已实现（骨架）] 定义并版本化 `StepExecutionSpec`、`HarnessExecutionRequest`、`HarnessEvent`、不可信 `HarnessResult`、supervisor-owned `ExecutionReceipt`、`ValidationReceipt` 和 `ArtifactManifest`。
+- [已实现（应用接线）] 以锁定 OCI image 启动单个成熟 Harness；一个 `executor_kind=harness` 的 Attempt 对应一个受控容器执行边界。独立部署边界仍是目标。
+- [已实现] Fake/Docker runtime 与 supervisor 支持 timeout、SIGTERM/kill fallback、事件、staging 扫描和失败分类；真实 OpenCode 容器安全基线与生命周期已准入实测。
+- [已实现] fake/replay Harness adapter，默认测试零真实出站。
+- [已实现（单 Attempt）] Step-scoped broker 合同校验 Attempt/fencing/spec/capability/路径/幂等；版本锁定 stdio shim 已在真实 OpenCode 容器实测 `initialize/tools-list/tools/call`、路径逃逸拒绝和脱敏审计。独立 supervisor 内的部署仍待完成。
 
-首个 Harness 在进入实现前必须通过准入 Gate：headless/noninteractive、稳定结构化事件和退出码、可取消并能清理子进程、兼容选定 MCP 版本、支持机器身份而非个人登录、可锁定版本/镜像、许可证允许目标使用与再分发、telemetry/数据保留可关闭或受控、离线行为可验证，并兼容目标 Linux 容器及必要临床工具链。未通过者不得因 CLI 体验成熟而接入。
+首个 Harness 候选 OpenCode `1.18.14` 已完成容器准入和知识单 Attempt 应用接线；`env://` Secret 即时物化/清理、MCP stdio 与 Receipt 落账已验证。仍不得进入 live：还必须完成独立 supervisor 部署、`secret://` 后端、受控网络策略，并取得用户出站授权。
 
 #### 知识生产闭环
 
@@ -69,10 +70,9 @@
 
 ### 尚未实现
 
-- 正式的 `harness-runtime/` 目录、容器镜像、supervisor 和成熟 Harness adapter。
-- 通过准入 Gate 的具体 Harness 产品选择与锁定版本。
-- 标准 MCP server 与 per-Step capability 配置。
-- 通用 Knowledge Workflow Spec、supervisor-owned ExecutionReceipt、ValidationReceipt 和多事件审计。
+- 独立 supervisor 的 Compose/生产部署；当前 `opencode-supervised` 为应用内调用路径，Compose 仍默认 replay，不能把宿主 Docker socket 直接暴露给业务 Worker。
+- `secret://` Secret Store adapter 与受控出站网络策略；当前本地 resolver 只支持 `env://`，真实回归仅使用合成 key 和 `network none`。
+- 通用 Knowledge Workflow Spec、完整多事件审计和更丰富的确定性 MCP 工具面。
 - 通用 Evaluation、Release Worker、Query Lab 及其完整 GUI。
 - 临床 Workflow 对 Harness 的生产接线和统一 run ledger。
 
@@ -98,6 +98,8 @@
 | 2026-08-05 | 知识首条落地线 | 临床先行 / 知识先行 | 知识生产闭环先行 | 现有知识 durable DAG、治理和 GUI 骨架更接近目标，可最小验证共享执行合同 |
 | 2026-08-05 | 图能力 | 独立 Graph DB / PostgreSQL relation | 先沿用 PostgreSQL | 先用评估证明检索缺口，再决定独立图依赖 |
 | 2026-08-05 | 执行计划状态 | 随架构文档自动切换 / 保持现状 | 保持 P12 lifecycle 不变 | 本轮只定调主架构；实施新方向前另行显式重定计划 |
+| 2026-08-05 | H0 执行授权 | 继续 direct-model live / 先建 Harness 骨架 | 完成 H0-A…H0-F | 保持 P12 主线，先用 fake/replay 验证共享合同和 Enrichment 接线 |
+| 2026-08-05 | 首个 Harness 候选 | Claude Code / Codex CLI / Gemini CLI / OpenCode | OpenCode `1.18.14` | MIT、官方 GHCR 镜像、默认零遥测、headless JSON 与 MCP stdio 契合；生产容器准入于 2026-08-09 通过 |
 
 ## 接口契约
 

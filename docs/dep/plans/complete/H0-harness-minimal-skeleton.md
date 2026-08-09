@@ -2,7 +2,7 @@
 phase_index: 14
 status: done
 created: 2026-08-05
-updated: 2026-08-05
+updated: 2026-08-09
 priority: 1
 estimated_rounds: 10-16
 depends_on: []
@@ -14,9 +14,9 @@ tags:
   - adapter
   - knowledge-product
 syncs_to:
-  - docs/main/PROJECT_GUIDE.md
-  - docs/main/PROJECT_SPEC.md
-  - docs/dep/PLAN.md
+  - PROJECT_GUIDE.md
+  - PROJECT_SPEC.md
+  - TEST_GUIDE.md
 ---
 
 # H0 最小容器化 Harness 骨架（共享执行基础设施）
@@ -59,6 +59,12 @@ syncs_to:
   - 临床 Workflow 对 Harness 的生产接线与统一 run ledger（属后续收敛阶段，不在 H0）。
   - 把知识 DAG 改成 token/chunk 流式 pipeline；不用聊天替代结构化治理证据。
   - 明文 API Key、"测试连接"或任何真实外部模型出站。
+
+## 主文档影响
+
+- `PROJECT_GUIDE.md`：更新“当前基线与目标状态”“架构收敛顺序”“容器化 Harness Runtime”“技术栈”和目录事实，区分 H0 骨架与生产容器准入。
+- `PROJECT_SPEC.md`：将 contracts、fake/replay、supervisor/MCP 骨架和 Enrichment replay 接线标为已实现；保留 OpenCode 镜像/容器/部署与 live vertical 为未实现。
+- `TEST_GUIDE.md`：登记 `harness-runtime/tests/`、运行命令、当前已覆盖范围和生产准入跳过项。
 
 ## 切片
 
@@ -210,13 +216,13 @@ syncs_to:
 
 #### 产出
 
-- `executor_kind=harness` 的 StepAttempt 在知识 `ProcessingRun/JobStep/StepAttempt` ledger 中落地；Enrichment Worker 可按 Attempt 类型分派到 supervisor，或退回 `deterministic_handler`/`direct_model`（仅 fake/replay 与回归基线）。
+- `executor_kind=harness` 的 StepAttempt 在知识 `ProcessingRun/JobStep/StepAttempt` ledger 中落地；Enrichment Worker 可按 Attempt 类型分派到 harness provider。H0-F 只用 ReplayHarnessAdapter 验证该扩展点，生产 supervisor 容器分派属于后续 OpenCode 准入/部署 Gate。
 - Harness 从获批 Evidence 产出 schema-valid Candidate/advisory/relation proposal 的合同路径；确定性资格校验仍在产品侧执行。
-- P12 P2-B3 的 live vertical 完成标准保持不变（Source → Evidence → live Candidate → 作者确认 → 独立审核，`approved` 仍 ≠ `released`），执行器从 embedded LiteLLM 调整为 Harness——该 Gate 的关闭依赖后续"候选选定 + 真实模型配置"，仍属用户侧输入。
+- P12 P2-B3 的 live vertical 完成标准保持不变（Source → Evidence → live Candidate → 作者确认 → 独立审核，`approved` 仍 ≠ `released`），执行器从 embedded LiteLLM 调整为 Harness——该 Gate 的关闭依赖后续 OpenCode 生产准入、Worker→supervisor 接线与用户真实模型配置。
 
 #### 完成标准
 
-- [x] fake/replay Harness 在真实 PostgreSQL ledger 上完成 Evidence → Candidate 接线回归，且与既有治理合同一致（provider 4 项测试 + 既有 worker/ledger 合同无回归；真实 PG 集成标记条件运行）。
+- [x] fake/replay Harness 完成 Evidence → Candidate provider/worker/ledger 合同回归，且与既有治理合同一致；真实 PostgreSQL 集成仍按条件运行，不单独作为 H0 默认测试已执行的声明。
 - [x] `direct_model` 不再作为知识主链目标执行器；只保留 fake/replay、简单原子调用与回归基线（enrichment step 显式标记 direct_model；harness 由 executor_kind=harness 分派）。
 - [x] 接线不改变已冻结的 Candidate/Relation/Review/Release 语义（provider 替换是既有 ModelProviderPort 扩展点，治理服务与 draft 构造未改）。
 
@@ -243,6 +249,10 @@ syncs_to:
 | 2026-08-05 | 容器运行时 | docker CLI 子进程 / docker-py SDK / HTTP API 直连 | docker-py SDK | 用户拍板；封装 `ContainerRuntimePort`，生命周期/事件/日志/copy 接口完整，抽象层保持可替换（Podman 后续） |
 | 2026-08-05 | MCP 实现 | 官方 mcp SDK / 自研最小 stdio | 自研最小 stdio JSON-RPC | 用户拍板；骨架阶段零新依赖，只暴露一个确定性工具；标准 MCP 完整接入留到候选选定后 |
 | 2026-08-05 | 配置层位置 | 配置下沉 Harness / 产品侧 ModelProfile 扩展 executor 维度 | 产品侧 ModelProfile 扩展 | 模型配置是产品事实与出站授权 Gate 的一部分，Harness 只消费不拥有；`harness_adapter_id` 即替换点，adapter + image 是唯一代码改动面 |
+
+## 完成同步
+
+- 2026-08-09：补齐 `PROJECT_GUIDE.md`、`PROJECT_SPEC.md`、`TEST_GUIDE.md` 的当前能力与未完成准入口径；同步 PLAN/ROADMAP、README/USAGE/AGENTS、memory 和 DEVLOG INDEX。H0 保持 `done`，不把 OpenCode 生产准入或 P2-B3 live vertical 计入 H0 完成范围。
 
 ## 同步记录
 

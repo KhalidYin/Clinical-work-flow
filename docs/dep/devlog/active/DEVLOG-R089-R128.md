@@ -966,3 +966,169 @@ Done — no next steps。
    Evidence/预算后，经 OpenCode Harness（HarnessEnrichmentProvider + supervisor
    容器路径）完成并关闭 P2 Gate。
 3. P3 评估/Release/Query Lab、P4 产品闭环继续。
+
+---
+
+## 2026-08-09
+
+### R109 [17:24] [P12-knowledge-application-platform] P2-B3: 同步 H0/OpenCode 当前事实与审计链
+
+#### Done
+
+- 将 canonical 主文档、README、USAGE 与 AGENTS 从“Harness 尚未建立”修正为三层事实：
+  H0 contracts/adapters/supervisor/MCP 与 Enrichment replay 接线已实现；OpenCode 生产容器准入
+  和 Worker→supervisor 部署路径未完成；P2-B3 live vertical 未授权、未调用。
+- 修正 PLAN/ROADMAP 的当前 Gate：OpenCode 已选定且 adapter 完成，下一技术 Gate 是 digest
+  锁定镜像、真实容器生命周期/MCP/零出站/短期凭据实测与部署接线，之后才进入用户 live 授权。
+- 补齐 H0 的 `syncs_to`、主文档影响和完成同步记录；纠正 H0-F 只验证 replay provider
+  扩展点、不等于生产 supervisor 分派的边界。P12 `syncs_to` 改为四份 canonical 主文档。
+- 回填 DEVLOG INDEX 缺失的 R101-R108，并登记本轮 R109；历史活动日志正文保持 append-only。
+- PLAN “最近完成”恢复为最多 3 条；三个旧 `plans/complete/` 文件的 legacy `status: complete`
+  统一为当前 lifecycle 合同要求的 `status: done`，不改其历史内容。
+- 修正 P12 → completed H0 的错误相对链接（`../../complete/` → `../complete/`），并通过
+  modified Markdown 本地链接校验。
+
+#### Issues / Blockers
+
+- 当前 Windows 环境的 Harness 全套测试有 5 项条件跳过：docker-py/daemon、真实 OpenCode
+  binary，以及 Windows 不具备或不可靠的 symlink/hardlink/executable-bit 语义。这些跳过项
+  被明确保留为生产容器准入缺口，没有写成通过。
+- OpenCode GHCR image digest、断网启动、SIGTERM/子进程清理、真实 MCP stdio 握手、
+  Attempt 级短期凭据和知识 Worker→supervisor 容器路径仍未实现或实测。
+
+#### Validation
+
+- Harness Runtime：`62 passed, 5 skipped`；Ruff `contracts adapters supervisor tests` 通过。
+- 知识接线定向测试：`test_harness_enrichment_provider.py` + `test_database_contract.py`，
+  `15 passed`。
+- `git diff --check` 通过；关键词扫描确认 canonical 主文档不再声明 Harness 目录/候选不存在。
+- 18 个本轮修改 Markdown 文件的本地链接通过；plans lifecycle 目录/frontmatter 全部一致，
+  PLAN 最近完成为 3 条，DEVLOG INDEX R009-R109 连续且无重复。
+- 本轮只修改文档与审计索引，没有安装依赖、拉取镜像、修改数据库或发起真实模型调用。
+
+#### Next
+
+1. 网络与 Docker 条件具备后，完成 OpenCode digest-locked image 和容器准入矩阵；失败则保持
+   P2-B3 fail closed，不进入 live。
+2. 准入通过后实现知识 Worker→supervisor→OpenCode 容器路径，并补齐 ExecutionReceipt/
+   ValidationReceipt 产品落账与部署回归。
+3. 上述技术 Gate 通过后，再由用户提供并授权 ModelProfile、Secret reference、允许出站
+   Evidence 与单次预算，执行 P2-B3 live vertical。
+
+#### Files Changed / Commits
+
+- `AGENTS.md`、`README.md`、`USAGE.md`（modified，uncommitted）
+- `docs/main/PROJECT_GUIDE.md`、`PROJECT_SPEC.md`、`TEST_GUIDE.md`、`memory/`（modified，uncommitted）
+- `docs/dep/PLAN.md`、`ROADMAP.md`、lifecycle plans、DEVLOG active/index（modified，uncommitted）
+
+---
+
+### R110 [18:05] [P12-knowledge-application-platform] P2-B3: OpenCode 生产容器准入通过
+
+#### Done
+
+- 从官方 GHCR 拉取 OpenCode `1.18.14`，记录 RepoDigest
+  `sha256:16a66f622a0bb0b4bb2a05242749907704a4149ef25805932c067d5afb340f6a`，新增
+  tag+digest 双锁清单 `images/opencode-1.18.14.json`。
+- 真实 Docker Gate 通过：`network none`、非 root、只读根文件系统、512 MiB/128 PID、
+  cap-drop ALL、no-new-privileges、init/tmpfs、离线启动与版本、SIGTERM 后 PID=0。
+- `run --format json` 在无 provider/零网络下以退出码 1 和 JSON error 事件 fail closed；OpenCode
+  对本地 stdio fixture 完成 `initialize`/`tools/list`，产品 broker 的 Attempt token、tools/call、
+  跨 Attempt 拒绝和审计不泄密继续由独立测试覆盖。
+- 合成 provider key 通过 Attempt scratch 下的单文件只读 `auth.json` 装载；容器环境、日志与
+  可写 scratch 均不含 key。本轮没有真实密钥或模型供应商调用。
+- 修复 docker-py 真实执行发现：移除不支持的 create-time `stop_timeout`，terminate 改为
+  SIGTERM stop(timeout)+kill fallback，并强制安全参数；补齐 setuptools 包发现，使
+  `pip install -e ".[docker]"` 可重复安装。
+- 同步 PLAN/ROADMAP、P12、候选报告、canonical 主文档、README/USAGE/AGENTS 与 memory；
+  下一 Gate 收敛为 Worker→supervisor→OpenCode、Secret resolver/MCP transport 与 Receipt 落账。
+
+#### Issues / Blockers
+
+- 固定版本 OpenCode `1.18.14` 的 MCP 配置实测为 `mcp.<server>`；当前官网后续版本的
+  `mcp.servers.<server>` 不能反向套用，已由版本锁定容器测试防漂移。
+- 容器准入不等于生产部署：知识 Worker 仍直接调用 replay adapter，真实 Secret resolver、
+  product broker transport、Receipt 落账和 live vertical 尚未实现或授权。
+- 4 条 Harness 条件跳过仅为 PATH OpenCode binary 及 Windows symlink/hardlink/executable-bit；
+  本轮全部 Docker/OpenCode 容器准入用例均实际执行。
+
+#### Validation
+
+- `python -m pytest -q -rs`（Harness）：72 passed、4 skipped；Ruff 全绿。
+- `python -m pip install -e ".[docker]"`：成功安装 `harness-runtime==0.1.0` 与已声明 Docker extra。
+- `python -m pytest -q`（clinical-workflow）：366 passed、1 skipped。
+- 知识 Harness 接线定向回归：15 passed；未运行 live provider 或前端/live E2E。
+- `git diff --check`、Markdown 本地链接、计划/DEVLOG 一致性在本轮收尾 Gate 复核。
+
+#### Next
+
+1. 先实现知识 Worker→supervisor→OpenCode 的单 Attempt 生产路径，包括 Secret reference
+   物化/清理、标准 MCP transport 与 ExecutionReceipt/ValidationReceipt 产品落账。
+2. 用 fake/replay 和合成 secret 完成部署回归；在此 Gate 通过前保持 live fail closed。
+3. 再由用户单独提供并授权 ModelProfile、Secret reference、允许出站 Evidence 与单次预算，
+   执行 P2-B3 live vertical；主要风险是 MCP 版本漂移、凭据清理和 orphan container 恢复。
+
+#### Files Changed / Commits
+
+- `harness-runtime/pyproject.toml`、`images/`、`supervisor/`、`adapters/opencode.py`、`tests/`（modified/new，uncommitted）
+- `AGENTS.md`、`README.md`、`USAGE.md`、`docs/main/`、`docs/dep/`（modified，uncommitted）
+
+---
+
+### R111 [21:18] [P12-knowledge-application-platform] P2-B3: OpenCode 单 Attempt 应用接线与 Receipt 落账
+
+#### Done
+
+- 按 TDD 新增 `SupervisedOpenCodeEnrichmentProvider`：Knowledge Worker 可显式选择
+  `KNOWLEDGE_HARNESS_EXECUTION_MODE=opencode-supervised`，把 prompt/schema/messages 写入只读
+  input artifact，经 `HarnessSupervisor` 启动 digest-locked OpenCode 容器；默认 replay 行为不变。
+- `env://` Secret 在 Attempt 临时目录中即时物化为 OpenCode `auth.json` 单文件只读挂载；MCP
+  bundle 与 Evidence 输入分离，secret/generation token 不进入 command、environment、Receipt、
+  stdout/stderr 或可写 scratch，成功/失败均由 `TemporaryDirectory` 清理。
+- OpenCode JSONL stdout 在容器内重定向到 staging；产品侧独立解析 `text` 事件并按 PromptProfile
+  JSON Schema 校验，失败生成 `structured_output_invalid`，不接受 Harness 自报验证结果。
+- supervisor/runtime 增加受控 entrypoint、额外只读 mount 和非凭据 environment；所有容器异常
+  路径 finally remove。修复 docker-py `get_archive()` chunk iterator 读取和 Windows 8.3 staging
+  resolve 差异。
+- 新增版本锁定 `/bin/sh` MCP stdio shim（镜像不含 Node）：真实 OpenCode 容器通过
+  `initialize/tools/list`，并实际执行 `tools/call(read_input)`、拒绝 `../`/symlink 逃逸、写脱敏审计。
+- `ModelInvocation` 新增 nullable `execution_receipt`/`validation_receipt`，Alembic
+  `20260809_0010` 落账并同步 prerelease schema；Compose PostgreSQL 实测升级到该 head，两列存在。
+- 真实 Docker 以 `network none`、合成 secret、无效 provider 运行完整 provider→supervisor→
+  OpenCode Attempt，按预期 fail closed、生成 ExecutionReceipt 并清理容器/workspace；未访问供应商。
+
+#### Issues / Blockers
+
+- Compose 完整 `up --wait` 构建和 migration 成功，但宿主 `8788` 已被既有
+  `clinical-llm-wiki-api-1` 占用；未停止该容器。改用不发布宿主端口的临时 API probe，健康端点
+  返回 API/database/objectStore available（semanticIndex disabled，故总体 degraded）。
+- 当前 `opencode-supervised` 是应用内代码路径；Compose Enrichment Worker 仍显式 replay。
+  直接挂载宿主 Docker socket 会给业务 Worker 过大权限，因此不作为“部署完成”。
+- 本地 resolver 只支持 `env://`，`secret://` Secret Store、独立最小权限 supervisor 服务、受控
+  出站网络、heartbeat/orphan recovery 和 live vertical 仍未完成。
+
+#### Validation
+
+- Harness：`76 passed, 4 skipped`；Ruff 全绿。真实 Docker 覆盖 OpenCode 生命周期、MCP shim
+  握手/tools-call、合成 auth、offline provider Attempt；4 skip 仍为 PATH/Windows 文件语义条件项。
+- Knowledge：`210 passed, 8 skipped`；Ruff 全绿；前端 Vitest `30 passed`，Docker frontend build 成功。
+- Workflow：`366 passed, 1 skipped`；Ruff 全绿。
+- PostgreSQL：migration container exited 0，`alembic_version=20260809_0010`，Receipt 两列实测存在；
+  无端口 API probe 成功。
+- `git diff --check` 与 model-provider checked-in schema 一致性通过。
+- 验收后执行 `docker compose --project-name clinical-knowledge-demo stop`；保留容器和数据卷，未触碰
+  占用 8788 的既有 `clinical-llm-wiki-api-1`。
+
+#### Next
+
+1. 设计并实现独立、最小权限 supervisor 部署边界，让 Worker 只提交 hash-locked Attempt request，
+   不接触宿主 Docker socket；先在 Compose 中完成 `network none` 离线 Attempt。
+2. 为该边界补机器身份、heartbeat/cancel/orphan recovery、Receipt 回传幂等和故障恢复测试。
+3. 再接 `secret://` Secret Store 与明确 allowlist 网络策略；只有用户另行授权 profile/Evidence/预算后，
+   才执行一次 P2-B3 live vertical。
+
+#### Files Changed / Commits
+
+- `harness-runtime/supervisor/`、`harness-runtime/tests/`（modified/new，uncommitted）
+- `clinical-llm-wiki/service/processing/`、`service/db/`、`schemas/application/`、`tests/`（modified/new，uncommitted）
+- `AGENTS.md`、`README.md`、`USAGE.md`、`docs/main/`、`docs/dep/`（modified，uncommitted）

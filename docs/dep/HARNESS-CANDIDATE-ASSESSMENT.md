@@ -1,7 +1,7 @@
 ---
 title: Harness 候选准入评估
 updated: 2026-08-05
-status: decided-opencode
+status: admitted-opencode-container
 ---
 
 # Harness 候选准入评估报告
@@ -12,17 +12,20 @@ status: decided-opencode
 ## 决策（2026-08-05）
 
 - **用户拍板：选定 OpenCode（`opencode-ai`）** 为首个成熟 Harness。
-- 下一步：OpenCode adapter + GHCR 镜像 digest 锁定 + 容器内必测项实测（见文末清单）。
+- 容器准入与知识侧单 Attempt 应用接线已于 2026-08-09 通过；下一步是独立 supervisor 的最小权限部署，仍不自动授权 live 出站。
 
 ## 实施状态（2026-08-05）
 
 - ✅ `harness-runtime/adapters/opencode.py`：OpenCodeAdapter 已实现
   （`opencode run --format json` 非交互 + JSONL 事件映射 + 退出码归一化 + 零出站默认 +
   MCP config 写入），9 项测试全绿（fake CLI 驱动），真实二进制集成测试条件跳过。
-- ⏳ 镜像实测：`ghcr.io/anomalyco/opencode:1.18.14` 拉取因本机 GHCR 网络不稳定两次
-  中断，digest 待网络恢复后回填（方式见 `harness-runtime/images/README.md`）。
-- ⏳ 容器内必测项（断网启动/`--network none`/SIGTERM 进程清理/MCP stdio 握手/事件流/
-  零出站/短期凭据注入）：待镜像可用后执行并回填本报告。
+- ✅ 镜像实测：RepoDigest 为 `sha256:16a66f622a0bb0b4bb2a05242749907704a4149ef25805932c067d5afb340f6a`；生产清单使用 tag+digest 双锁。
+- ✅ 容器内必测项：断网/`network none` 启动、非 root/read-only/资源与 capability 限制、
+  SIGTERM 后 PID=0、JSON error 事件、MCP stdio `initialize`/`tools/list`、零非必要出站、
+  合成短期 provider auth 单文件只读挂载均通过；未使用真实模型密钥。
+- ✅ Docker runtime 修复真实准入发现：移除 docker-py 不支持的 create-time `stop_timeout`，
+  terminate 改为 SIGTERM `stop(timeout)` + kill fallback，并强制 init/cap-drop/no-new-privileges/tmpfs。
+- ✅ R111 已完成 `opencode-supervised` 应用路径、`env://` Secret 清理、标准 MCP shim 和 Receipt 落账；⚠️ Compose/独立 supervisor、`secret://` 与 live invocation 仍需后续 Gate。
 
 ## 候选概览
 
@@ -69,15 +72,19 @@ status: decided-opencode
 2. **备选 Codex CLI**：若用户偏好 OpenAI 生态或 OpenCode 容器实测不达标。
 3. **Claude Code / Gemini CLI**：前者合规待法务、后者弃用风险，不建议进入下一步实测。
 
-## 选定后 adapter 阶段必测项（不预判通过）
+## 生产容器准入结果（2026-08-09）
 
-- 容器内实测：断网启动行为、`--network none` 下运行、SIGTERM→子进程/进程组清理、MCP
-  stdio 握手（产品 broker `initialize` → `tools/list` → `tools/call`）、`--format json`
-  事件流解析、版本 digest 锁定构建。
-- 遥测关闭验证：容器内零非必要出站（结合 supervisor 零网络基线）。
-- 机器凭据：Attempt 级短期 API key 注入方式（不进镜像、不进 env 持久层）。
+- 已通过：断网启动、`network none`、安全基线、SIGTERM 后容器 PID=0、`--format json`
+  fail-closed 事件和版本+digest 双锁。
+- 已通过：OpenCode 对版本锁定 stdio shim 的 `initialize`/`tools/list`，以及 shim 在真实容器中的
+  `tools/call(read_input)`、路径逃逸拒绝和脱敏审计；Python broker 继续覆盖跨 Attempt/fencing/幂等。
+- 已通过：本地 `env://` resolver 将合成 provider key 即时物化为 Attempt 单文件只读 `auth.json`，
+  成功/失败后清理且不进 environment、command、Receipt 或可写 scratch；`secret://` 后端待实现。
+- 已通过：容器 `network none` 强制零出站；本轮没有配置或调用真实模型。
 
-## 待决策
+## 后续 Gate
 
 - **已决策（2026-08-05）**：用户选定 **OpenCode**。Codex CLI 保留为备选；Claude Code /
-  Gemini CLI 不进入实测。adapter 阶段必测项清单见上，实测结果将回填本报告。
+  Gemini CLI 不进入实测。
+- **下一步**：部署独立、最小权限 supervisor 并完成 Compose 零网络 Attempt；不得把宿主 Docker
+  socket 直接交给业务 Worker。随后仍需用户单独授权 ModelProfile、Secret、Evidence 和单次预算。

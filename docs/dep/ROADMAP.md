@@ -1,6 +1,6 @@
 ---
 title: 产品重构路线图与目标架构
-updated: 2026-08-05
+updated: 2026-08-09
 status: planning
 ---
 
@@ -25,12 +25,13 @@ status: planning
         │ P2-B3 离线切片 done                                   │
         │   · live 运行门 / 供应商失败矩阵 / Candidate/Relation  │
         │     资格门 / KUI-05/09/10 / Audit                     │
-        │ 待办：live vertical（用户配置 ModelProfile+Secret）    │
-        │       └─ 执行器改由 H0 Harness 承担（P2 Gate 关闭）    │
+        │ OpenCode 生产容器准入 done                             │
+        │ 单 Attempt 应用接线 / Secret-MCP-Receipt done          │
+        │ 待办：独立 supervisor 部署 → live vertical → 关闭 P2   │
         │ 后续：P3 评估/通用 Release/Query Lab → P4 产品闭环     │
         └──────────────────────────┬───────────────────────────┘
                                    ▼
-阶段 2  最小 Harness 骨架 H0 [已授权 · 未开工]
+阶段 2  最小 Harness 骨架 H0 [done 2026-08-05]
         H0-A adapter 层封装可行性验证（spike，优先）
         H0-B 通用合同契约（StepExecutionSpec / Request / Event /
              Result / ExecutionReceipt / ValidationReceipt / Manifest）
@@ -41,9 +42,11 @@ status: planning
         H0-F 知识 Enrichment 接线（executor_kind=harness）
         └──────────────────────────┬───────────────────────────┘
                                    ▼
-阶段 3  候选准入 + 知识闭环 Harness 化 [待授权]
-        Harness 准入 Gate（九条准入条件评估 → 用户拍板选一个）
-        首个具体 adapter → live vertical 走 Harness → 关闭 P2 Gate
+阶段 3  OpenCode 准入 + 知识闭环 Harness 化 [进行中]
+        九条候选评估 + adapter + digest 容器准入 [done]
+        单 Attempt Worker-supervisor/Secret/MCP/Receipt [done]
+        待办：独立 supervisor 最小权限部署
+        → live vertical → 关闭 P2 Gate
         → Evaluation / 通用 Release / 只读 Knowledge MCP
         └──────────────────────────┬───────────────────────────┘
                                    ▼
@@ -65,9 +68,9 @@ status: planning
 | 阶段 | 状态 | 关键 Gate / 产出 | 依赖 |
 |------|------|------------------|------|
 | 0 架构定调 | done 2026-08-05 | 四份主文档；TDR 决策（不自建 Agent / Harness / 知识先行 / 保持 P12 lifecycle） | — |
-| 1 知识可信闭环（P12） | 进行中 | P2-B3 离线切片 done；live vertical 待用户配置；P3/P4 目标 | 用户提供 ModelProfile/Secret；H0 骨架 |
-| 2 最小 Harness 骨架（H0） | done 2026-08-05 | H0-A…H0-F 六切片；`harness-runtime/` 53 测试零出站；Enrichment `executor_kind=harness` 接线 + migration 0009 | 主文档定调；用户授权 |
-| 3 候选准入 + 知识闭环 Harness 化 | 待授权 | 准入 Gate 选定一个成熟 Harness；live vertical 关闭 P2 Gate；Evaluation/Release/只读 MCP | H0 骨架；用户拍板候选 |
+| 1 知识可信闭环（P12） | 进行中 | P2-B3 离线切片、OpenCode 准入与单 Attempt 接线 done；待独立 supervisor 部署与用户 live 配置；P3/P4 目标 | H0/容器准入；用户 live 授权 |
+| 2 最小 Harness 骨架（H0） | done 2026-08-05 | H0-A…H0-F 六切片；当前 Harness 80 collected（76 passed、4 条平台条件跳过）；Enrichment replay 接线 + migration 0009 | 主文档定调；用户授权 |
+| 3 OpenCode 准入 + 知识闭环 Harness 化 | 进行中 | OpenCode 准入与单 Attempt应用接线 done；待独立 supervisor 部署和 live vertical | H0/容器准入；用户 live 授权 |
 | 4 临床 Workflow 收敛 | 后续 | 唯一 ledger；StepExecutionSpec 编译；Harness 执行；Runner 退役 | 知识闭环证明合同（阶段 3） |
 | 5 目标态 | 目标 | 两控制面 + 共享 Harness Runtime + MCP 三面 | 阶段 1–4 |
 

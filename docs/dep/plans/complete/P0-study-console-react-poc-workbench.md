@@ -1,6 +1,6 @@
 ---
 phase_index: 0
-status: complete
+status: done
 created: 2026-07-17
 updated: 2026-07-17
 priority: 1

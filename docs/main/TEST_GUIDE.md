@@ -11,7 +11,7 @@
 | API | FastAPI TestClient/httpx、OpenAPI 合同 | `clinical-llm-wiki/tests/` |
 | 数据库 | PostgreSQL 17 + pgvector、Alembic | integration/migration tests 与 Compose |
 | 浏览器 | 知识产品当前为既往手工验收；目标引入可重复 E2E/视觉工具 | 知识 Compose 实例；Workflow Workbench 仅有限定临时 Study 测试，不是通用 Runtime E2E |
-| 容器 | Docker Compose；目标增加 Harness image/supervisor contract tests | `clinical-llm-wiki/compose.yaml`、未来 `harness-runtime/tests/` |
+| 容器 | Docker Compose；Harness Fake/Docker runtime 与 supervisor contract tests | `clinical-llm-wiki/compose.yaml`、`harness-runtime/tests/` |
 
 ## 测试结构
 
@@ -21,7 +21,7 @@ clinical-llm-wiki/frontend/src/test/ # React 行为测试与 MSW fixture
 clinical-workflow/tests/             # Pipeline、Review、工具、知识消费与 Study fixture
 clinical-workflow/tests/fixtures/    # 锁定知识和合成 Study
 clinical-studies/                    # Study 实例，不作为默认单元测试 fixture
-harness-runtime/tests/               # 目标：Request/Receipt、容器、安全和 fake/replay Harness
+harness-runtime/tests/               # Request/Receipt、adapter、supervisor、MCP、staging 与 fake/replay Harness
 ```
 
 测试文件使用 `test_*.py` 或现有 `*.test.tsx` 命名。fixture 应最小、合成、可 hash，避免提交真实临床数据或 secret。
@@ -56,6 +56,16 @@ python -m pytest -q
 python -m ruff check src tests
 ```
 
+### Harness Runtime
+
+```powershell
+Set-Location .\harness-runtime
+python -m pytest tests -q
+python -m ruff check contracts adapters supervisor tests
+```
+
+默认环境允许跳过 PATH 上真实 OpenCode binary 或 Windows 不支持的 symlink/hardlink/executable-bit 用例。OpenCode 容器准入 Gate 必须安装 `.[docker]` extra、连接 Docker daemon 并预拉 digest-locked 镜像；相关容器测试不得跳过。
+
 ### 当前 Compose 骨架
 
 ```powershell
@@ -76,6 +86,7 @@ docker compose --project-name clinical-knowledge-demo ps
 - Processing ledger：DAG、claim、lease、checkpoint、过期恢复、retry/cancel 和 Attempt lineage。
 - Document Worker：TXT/MD/PDF/DOCX/XLSX 的受控解析、分支/fan-in、Evidence locator。
 - ModelProvider：fake/replay、injected callable 下的单次 direct-model adapter/授权合同、数据边界和失败分类；没有真实 provider 质量结论。
+- Harness：版本化合同、fake/replay/OpenCode adapter、Fake/Docker runtime、supervisor、staging 安全扫描、Step-scoped MCP 授权、OpenCode 真实容器准入，以及知识 Enrichment replay/`opencode-supervised` 单 Attempt 接线。
 - Governance：Candidate revision、作者确认、独立审核、relation eligibility 和 released immutability。
 - 认证：用户名、Argon2id、HttpOnly/SameSite Cookie、CSRF、会话撤销和 RBAC。
 - 前端：Vitest/Testing Library 已覆盖核心组件行为；真实浏览器与 390px 窄屏是既往手工验收，不是已签入自动化 E2E。
@@ -83,8 +94,8 @@ docker compose --project-name clinical-knowledge-demo ps
 
 ### 尚未覆盖
 
-- 成熟 Harness adapter 和 OCI 容器生命周期。
-- StepExecutionSpec → HarnessExecutionRequest → HarnessResult → ExecutionReceipt → ValidationReceipt 的完整信任链合同。
+- 独立 supervisor 服务下的 StepExecutionSpec → HarnessExecutionRequest → ExecutionReceipt → ValidationReceipt 部署信任链；应用内单 Attempt 和产品落账已覆盖。
+- `secret://` 后端及获授权网络策略；`env://` auth 文件物化/清理、产品 shim→OpenCode 的 `tools/call`、路径拒绝和合成凭据不泄露已覆盖。
 - 长 Harness 任务的后台续租、cancel/kill、timeout 和 orphan recovery。
 - 通用 Evaluation、Release Worker、Knowledge MCP 和对应 GUI。
 - 临床统一 Runner 与 Harness artifact promotion。

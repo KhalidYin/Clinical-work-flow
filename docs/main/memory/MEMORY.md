@@ -12,4 +12,4 @@
 - [P9.1 Workbench 流程基线](p9-workbench-flow-baseline.md) — P9.1 已由用户关闭；保留 Runner/Review 边界及 prerelease schema 不污染 released bundle 的约束。
 - [P12 Knowledge Ledger 设计基线](p12-knowledge-ledger-design-baseline.md) — 知识 GUI 的颜色、排版、布局和状态语义参考；不定义后续架构。
 - [P12 执行计划权威](p12-plan-authority.md) — P12 lifecycle 继续记录当前执行状态，但不覆盖 `docs/main` 架构；新 Harness 工作需另行重定计划。
-- [Harness 架构方向](project-harness-architecture-direction.md) — 两个产品控制面保持独立，复用容器化成熟 Harness 执行 Step；当前骨架尚未建立。
+- [Harness 架构方向](project-harness-architecture-direction.md) — H0、OpenCode 准入与知识单 Attempt 应用接线已完成；独立 supervisor 部署和 live vertical 仍待完成。
