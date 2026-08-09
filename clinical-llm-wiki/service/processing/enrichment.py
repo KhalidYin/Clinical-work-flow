@@ -271,6 +271,8 @@ class SqlAlchemyEnrichmentRepository:
                         invocation.error_type.value if invocation.error_type is not None else None
                     ),
                     error_message=invocation.error_message,
+                    execution_receipt=invocation.execution_receipt,
+                    validation_receipt=invocation.validation_receipt,
                     created_at=invocation.created_at,
                 )
             )

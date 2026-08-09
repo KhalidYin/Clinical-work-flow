@@ -211,6 +211,8 @@ class ModelInvocation(StrictContractModel):
     output: dict[str, Any] | None = None
     error_type: InvocationErrorType | None = None
     error_message: str | None = None
+    execution_receipt: dict[str, Any] | None = None
+    validation_receipt: dict[str, Any] | None = None
 
     @model_validator(mode="after")
     def validate_status_shape(self) -> "ModelInvocation":

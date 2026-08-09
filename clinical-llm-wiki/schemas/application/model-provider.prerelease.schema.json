@@ -182,6 +182,32 @@
           ],
           "default": null,
           "title": "Error Message"
+        },
+        "execution_receipt": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Execution Receipt"
+        },
+        "validation_receipt": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Validation Receipt"
         }
       },
       "required": [

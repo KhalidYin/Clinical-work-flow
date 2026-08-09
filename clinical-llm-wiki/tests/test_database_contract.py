@@ -110,6 +110,8 @@ def test_ledger_and_model_tables_preserve_the_frozen_p1_b0_contract() -> None:
         "output",
         "error_type",
         "error_message",
+        "execution_receipt",
+        "validation_receipt",
     } <= invocation_columns
 
 
@@ -297,8 +299,8 @@ def test_alembic_has_linear_reviewable_revisions(monkeypatch: pytest.MonkeyPatch
     assert script.get_heads() == [script.get_current_head()]
     head = script.get_revision(script.get_current_head())
     assert head is not None
-    assert head.revision == "20260805_0009"
-    assert head.down_revision == "20260801_0008"
+    assert head.revision == "20260809_0010"
+    assert head.down_revision == "20260805_0009"
     initial = script.get_revision("20260730_0001")
     assert initial is not None
     assert initial.down_revision is None
@@ -333,6 +335,7 @@ def test_linear_revision_columns_match_canonical_metadata(
         "20260731_0007",
         "20260801_0008",
         "20260805_0009",
+        "20260809_0010",
     ]
 
     class MigrationRecorder:

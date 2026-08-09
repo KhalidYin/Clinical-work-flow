@@ -534,6 +534,12 @@ class ModelInvocation(Base):
     output: Mapped[dict[str, Any] | None] = mapped_column(JSONB(none_as_null=True))
     error_type: Mapped[str | None] = mapped_column(String(80))
     error_message: Mapped[str | None] = mapped_column(Text)
+    execution_receipt: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONB(none_as_null=True)
+    )
+    validation_receipt: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONB(none_as_null=True)
+    )
     created_at: Mapped[datetime] = _created_at()
 
 
