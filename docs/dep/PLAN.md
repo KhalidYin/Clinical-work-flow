@@ -14,7 +14,7 @@ updated: 2026-08-09
 
 | # | 子计划 | 文件 | 预估轮次 | 依赖 |
 |---|--------|------|----------|------|
-| - | 当前无其他已批准子计划 | - | - | - |
+| P14 | 独立最小权限 Harness Supervisor 与 Compose 离线 Attempt | [P14-harness-supervisor-deployment.md](plans/backlog/P14-harness-supervisor-deployment.md) | 4-6 | P12/P2-B3 R111 |
 
 P13 已关闭；H0 最小 Harness 骨架已于 2026-08-05 完成六切片并同步 canonical 主文档。当前唯一执行主线是 P12：OpenCode `1.18.14` 已完成容器准入；R111 又完成 Enrichment Worker 的 `opencode-supervised` 单 Attempt 代码路径、`env://` Secret 即时物化/清理、版本锁定标准 MCP stdio `read_input`、supervisor Receipt 和 migration `20260809_0010` 产品落账，并以 `network none`、合成 secret 的真实容器回归验证。Compose 仍保持 replay，下一 Gate 是建立不向 Worker 暴露宿主 Docker socket 的独立 supervisor 部署边界与离线 Compose Attempt；之后才由用户单独配置和授权 live vertical。P2-B3 的业务离线门均已完成；live 仍未授权、未调用。
 
