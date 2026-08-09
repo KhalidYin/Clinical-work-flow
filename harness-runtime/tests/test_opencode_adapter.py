@@ -113,6 +113,31 @@ def test_fake_opencode_cli_exists() -> None:
     assert Path(fake_opencode_cli_path()).is_file()
 
 
+def test_mcp_config_uses_pinned_version_server_map(tmp_path: Path) -> None:
+    adapter = OpenCodeAdapter(
+        binary=(sys.executable, fake_opencode_cli_path()),
+        mcp={
+            "clinical-broker": {
+                "type": "local",
+                "command": ["/bin/sh", "/inputs/fake_mcp_stdio.sh"],
+            }
+        },
+    )
+
+    result = adapter.run(_request(tmp_path))
+
+    assert result.status is HarnessStatus.SUCCEEDED
+    config = json.loads(
+        (tmp_path / "scratch" / ".opencode" / "opencode.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert config == {
+        "$schema": "https://opencode.ai/config.json",
+        "mcp": adapter._mcp,
+    }
+
+
 @pytest.mark.integration
 def test_real_opencode_binary_round_trip(tmp_path: Path) -> None:
     """Requires the OpenCode binary/镜像 on PATH or in harness-runtime/images."""

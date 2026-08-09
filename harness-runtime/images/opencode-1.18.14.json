@@ -1,0 +1,14 @@
+{
+  "adapter_id": "opencode@1.18.14",
+  "source_tag": "ghcr.io/anomalyco/opencode:1.18.14",
+  "image_ref": "ghcr.io/anomalyco/opencode:1.18.14@sha256:16a66f622a0bb0b4bb2a05242749907704a4149ef25805932c067d5afb340f6a",
+  "platform": "linux/amd64",
+  "environment": {
+    "HOME": "/tmp/home",
+    "XDG_CONFIG_HOME": "/tmp/home/.config",
+    "XDG_CACHE_HOME": "/tmp/home/.cache",
+    "OPENCODE_DISABLE_MODELS_FETCH": "1",
+    "OPENCODE_DISABLE_AUTOUPDATE": "true",
+    "OPENCODE_DISABLE_LSP_DOWNLOAD": "1"
+  }
+}

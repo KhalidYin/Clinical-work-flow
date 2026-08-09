@@ -7,12 +7,47 @@ unless docker-py AND a reachable Docker daemon are present.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from pydantic import ValidationError
 
 from supervisor.container_runtime import ContainerConfig, ReadOnlyMount
+
+
+class _FakeContainer:
+    id = "container-1"
+
+    def __init__(self) -> None:
+        self.stop_calls: list[int] = []
+        self.kill_calls = 0
+        self.remove_calls = 0
+
+    def stop(self, *, timeout: int) -> None:
+        self.stop_calls.append(timeout)
+
+    def kill(self) -> None:
+        self.kill_calls += 1
+
+    def remove(self, *, force: bool) -> None:
+        assert force is True
+        self.remove_calls += 1
+
+
+class _FakeContainers:
+    def __init__(self, container: _FakeContainer) -> None:
+        self.container = container
+        self.create_kwargs: dict[str, object] = {}
+
+    def create(self, **kwargs: object) -> _FakeContainer:
+        self.create_kwargs = kwargs
+        return self.container
+
+    def get(self, container_id: str) -> _FakeContainer:
+        assert container_id == self.container.id
+        return self.container
 
 
 def test_config_requires_digest_locked_image() -> None:
@@ -42,6 +77,59 @@ def test_config_rejects_credential_like_environment() -> None:
         )
 
 
+def test_create_uses_supported_engine_arguments_and_hardening(tmp_path: Path) -> None:
+    from supervisor.docker_runtime import DockerEngineContainerRuntime
+
+    container = _FakeContainer()
+    containers = _FakeContainers(container)
+    runtime = DockerEngineContainerRuntime(client=SimpleNamespace(containers=containers))
+    container_id = runtime.create(
+        ContainerConfig(
+            image_ref=f"clinical-harness:fake@sha256:{'f' * 64}",
+            entrypoint=("/bin/sh", "-c"),
+            command=("--version",),
+            scratch_dir="/scratch",
+            staging_dir="/staging",
+            host_scratch_dir=str(tmp_path / "scratch"),
+            host_staging_dir=str(tmp_path / "staging"),
+        )
+    )
+
+    assert container_id == container.id
+    assert containers.create_kwargs["entrypoint"] == ["/bin/sh", "-c"]
+    assert "stop_timeout" not in containers.create_kwargs
+    assert containers.create_kwargs["cap_drop"] == ["ALL"]
+    assert containers.create_kwargs["security_opt"] == ["no-new-privileges"]
+    assert containers.create_kwargs["init"] is True
+    assert containers.create_kwargs["tmpfs"] == {
+        "/tmp": "rw,noexec,nosuid,size=64m"
+    }
+
+
+def test_terminate_sends_sigterm_with_attempt_timeout(tmp_path: Path) -> None:
+    from supervisor.docker_runtime import DockerEngineContainerRuntime
+
+    container = _FakeContainer()
+    containers = _FakeContainers(container)
+    runtime = DockerEngineContainerRuntime(client=SimpleNamespace(containers=containers))
+    runtime.create(
+        ContainerConfig(
+            image_ref=f"clinical-harness:fake@sha256:{'f' * 64}",
+            command=("--version",),
+            scratch_dir="/scratch",
+            staging_dir="/staging",
+            host_scratch_dir=str(tmp_path / "scratch"),
+            host_staging_dir=str(tmp_path / "staging"),
+            stop_timeout_seconds=7,
+        )
+    )
+
+    runtime.terminate(container.id)
+
+    assert container.stop_calls == [7]
+    assert container.kill_calls == 0
+
+
 @pytest.mark.integration
 def test_docker_round_trip(tmp_path: Path) -> None:
     docker = pytest.importorskip("docker")
@@ -57,16 +145,30 @@ def test_docker_round_trip(tmp_path: Path) -> None:
     staging = tmp_path / "staging"
     staging.mkdir()
 
+    manifest = json.loads(
+        (Path(__file__).resolve().parents[1] / "images" / "opencode-1.18.14.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    try:
+        docker.from_env().images.get(manifest["image_ref"])
+    except Exception:  # pragma: no cover - environment dependent
+        pytest.skip("pinned OpenCode image is not local")
+
     runtime = DockerEngineContainerRuntime()
     container_id = runtime.create(
         ContainerConfig(
-            image_ref="alpine:3.20@sha256:beefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef0000",
-            command=("true",),
+            image_ref=manifest["image_ref"],
+            command=("--version",),
             read_only_inputs=(ReadOnlyMount(host_path=str(input_dir), container_path="/inputs"),),
             scratch_dir="/scratch",
             staging_dir="/staging",
             host_scratch_dir=str(tmp_path / "scratch"),
             host_staging_dir=str(staging),
+            environment=tuple(
+                (str(key), str(value))
+                for key, value in manifest["environment"].items()
+            ),
             timeout_seconds=30,
         )
     )

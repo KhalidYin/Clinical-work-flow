@@ -87,7 +87,10 @@ class OpenCodeAdapter:
         config_dir.mkdir(parents=True, exist_ok=True)
         config = config_dir / "opencode.json"
         config.write_text(
-            json.dumps({"mcp": self._mcp}, indent=2),
+            json.dumps(
+                {"$schema": "https://opencode.ai/config.json", "mcp": self._mcp},
+                indent=2,
+            ),
             encoding="utf-8",
         )
         return config_dir

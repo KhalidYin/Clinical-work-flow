@@ -79,7 +79,10 @@ def scan_staging(staging_dir: Path, limits: StagingLimits) -> ArtifactManifest:
         stat = path.stat()
         if os.name != "nt" and stat.st_nlink > 1:
             raise StagingScanError(f"hardlink rejected: {path.name}")
-        rel = path.relative_to(root).as_posix()
+        # Windows may resolve a temporary directory to its 8.3 alias while
+        # rglob retains the long spelling. Resolve both sides before the
+        # containment-relative calculation.
+        rel = path.resolve().relative_to(root).as_posix()
         lowered = rel.lower()
         if any(lowered.endswith(suffix) for suffix in _PARTIAL_SUFFIXES):
             raise StagingScanError(f"partial write marker rejected: {rel}")

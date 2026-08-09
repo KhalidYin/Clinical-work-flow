@@ -14,6 +14,7 @@ import pytest
 from contracts.request import HarnessExecutionRequest
 from contracts.result import HarnessStatus
 from supervisor.fake_container_runtime import FakeContainerRuntime
+from supervisor.container_runtime import ReadOnlyMount
 from supervisor.staging import StagingLimits
 from supervisor.supervisor import HarnessSupervisor
 
@@ -58,6 +59,54 @@ def test_success_returns_receipt_with_manifest(tmp_path) -> None:
     config = runtime.last_config
     assert config.network_mode == "none"
     assert config.read_only_inputs
+
+
+def test_launch_options_preserve_entrypoint_environment_and_secret_mount(tmp_path) -> None:
+    runtime = FakeContainerRuntime(
+        exit_code=0,
+        staged_outputs={tmp_path / "events.jsonl": b'{"type":"text"}\n'},
+    )
+    supervisor = _supervisor(runtime)
+    request = _request(tmp_path)
+    request.input_path.write_text("{}", encoding="utf-8")
+    auth_file = tmp_path / "opencode-auth.json"
+    auth_file.write_text("{}", encoding="utf-8")
+
+    supervisor.execute(
+        request,
+        entrypoint=("/bin/sh", "-c"),
+        command=("opencode run --file /inputs/input.json",),
+        extra_read_only_mounts=(
+            ReadOnlyMount(
+                host_path=str(auth_file),
+                container_path="/scratch/data/opencode/auth.json",
+            ),
+        ),
+        environment=(("XDG_DATA_HOME", "/scratch/data"),),
+    )
+
+    config = runtime.last_config
+    assert config is not None
+    assert config.entrypoint == ("/bin/sh", "-c")
+    assert config.environment == (("XDG_DATA_HOME", "/scratch/data"),)
+    assert config.read_only_inputs[-1].host_path == str(auth_file)
+    assert "opencode-auth.json" not in " ".join(config.command)
+
+
+def test_container_is_removed_when_copying_staging_raises(tmp_path) -> None:
+    class BrokenCopyRuntime(FakeContainerRuntime):
+        def copy_from(self, container_id: str, container_path: str, host_path: str) -> None:
+            raise RuntimeError("copy failed")
+
+    runtime = BrokenCopyRuntime(exit_code=0)
+    supervisor = _supervisor(runtime)
+    request = _request(tmp_path)
+    request.input_path.write_text("{}", encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="copy failed"):
+        supervisor.execute(request)
+
+    assert runtime.remove_called is True
 
 
 def test_timeout_terminates_and_marks_timed_out(tmp_path) -> None:

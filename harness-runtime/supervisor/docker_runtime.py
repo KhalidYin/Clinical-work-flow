@@ -3,7 +3,7 @@
 docker-py is NOT installed in the default dev environment: import happens on
 first use, and the integration tests are skipped via importorskip. The
 security baseline (digest-locked image, network none, read-only root,
-non-root user, resource limits, stop timeout) is enforced here and in
+non-root user, dropped capabilities, resource limits, stop timeout) is enforced here and in
 ``ContainerConfig`` validation.
 """
 
@@ -25,6 +25,7 @@ class DockerEngineContainerRuntime:
 
     def __init__(self, client: Any | None = None) -> None:
         self._client = client
+        self._stop_timeouts: dict[str, int] = {}
 
     def _docker(self) -> Any:
         if self._client is not None:
@@ -45,7 +46,7 @@ class DockerEngineContainerRuntime:
             volumes[config.host_scratch_dir] = {"bind": config.scratch_dir, "mode": "rw"}
         if config.host_staging_dir:
             volumes[config.host_staging_dir] = {"bind": config.staging_dir, "mode": "rw"}
-        container = client.containers.create(
+        create_kwargs: dict[str, Any] = dict(
             image=config.image_ref,
             command=list(config.command),
             network_mode=config.network_mode,
@@ -53,11 +54,18 @@ class DockerEngineContainerRuntime:
             read_only=True,
             mem_limit=config.memory_bytes,
             pids_limit=config.pids_limit,
-            stop_timeout=config.stop_timeout_seconds,
+            cap_drop=["ALL"],
+            security_opt=["no-new-privileges"],
+            init=True,
+            tmpfs=dict(config.tmpfs),
             volumes=volumes,
             environment=dict(config.environment),
             labels={"clinical.harness.attempt": "managed"},
         )
+        if config.entrypoint:
+            create_kwargs["entrypoint"] = list(config.entrypoint)
+        container = client.containers.create(**create_kwargs)
+        self._stop_timeouts[container.id] = config.stop_timeout_seconds
         return container.id
 
     def start(self, container_id: str) -> None:
@@ -104,7 +112,7 @@ class DockerEngineContainerRuntime:
         container = self._docker().containers.get(container_id)
         stream, _ = container.get_archive(container_path)
         destination_root = Path(host_path).resolve()
-        with tarfile.open(fileobj=stream, mode="r|") as archive:
+        with tarfile.open(fileobj=_ChunkIteratorReader(stream), mode="r|") as archive:
             for member in archive:
                 target = (destination_root / member.name).resolve()
                 if destination_root not in target.parents and target != destination_root:
@@ -115,12 +123,44 @@ class DockerEngineContainerRuntime:
 
     def terminate(self, container_id: str) -> None:
         try:
-            self._docker().containers.get(container_id).kill()
+            container = self._docker().containers.get(container_id)
+            container.stop(timeout=self._stop_timeouts.get(container_id, 10))
         except Exception:
-            pass
+            try:
+                self._docker().containers.get(container_id).kill()
+            except Exception:
+                pass
 
     def remove(self, container_id: str) -> None:
         try:
             self._docker().containers.get(container_id).remove(force=True)
         except Exception:
             pass
+        finally:
+            self._stop_timeouts.pop(container_id, None)
+
+
+class _ChunkIteratorReader:
+    """Expose docker-py's archive chunk iterator as tarfile's read surface."""
+
+    def __init__(self, chunks: Any) -> None:
+        self._chunks = iter(chunks)
+        self._buffer = bytearray()
+        self._exhausted = False
+
+    def read(self, size: int = -1) -> bytes:
+        if size < 0:
+            for chunk in self._chunks:
+                self._buffer.extend(chunk)
+            result = bytes(self._buffer)
+            self._buffer.clear()
+            self._exhausted = True
+            return result
+        while len(self._buffer) < size and not self._exhausted:
+            try:
+                self._buffer.extend(next(self._chunks))
+            except StopIteration:
+                self._exhausted = True
+        result = bytes(self._buffer[:size])
+        del self._buffer[:size]
+        return result

@@ -55,7 +55,10 @@ class HarnessSupervisor:
         self,
         request: HarnessExecutionRequest,
         *,
+        entrypoint: tuple[str, ...] = (),
         command: tuple[str, ...] = (),
+        extra_read_only_mounts: tuple[ReadOnlyMount, ...] = (),
+        environment: tuple[tuple[str, str], ...] = (),
     ) -> ExecutionReceipt:
         if request.spec_sha256 is None:
             raise ValueError("spec_sha256 is required for harness execution")
@@ -70,64 +73,69 @@ class HarnessSupervisor:
 
         config = ContainerConfig(
             image_ref=request.image_ref,
+            entrypoint=entrypoint,
             command=command,
             read_only_inputs=(
                 ReadOnlyMount(
                     host_path=str(Path(request.input_path).parent),
                     container_path="/inputs",
                 ),
+                *extra_read_only_mounts,
             ),
             scratch_dir="/scratch",
             staging_dir="/staging",
             host_scratch_dir=str(host_scratch),
             host_staging_dir=str(host_staging),
             timeout_seconds=request.timeout_seconds,
+            environment=environment,
         )
         container_id = self._runtime.create(config)
-        self._runtime.start(container_id)
-        events = list(self._runtime.events(container_id))
+        try:
+            self._runtime.start(container_id)
+            events = list(self._runtime.events(container_id))
 
-        exit_code = self._runtime.wait(container_id, request.timeout_seconds)
-        classification: ExitClassification
-        status: HarnessStatus
-        message = ""
-        if exit_code is None:
-            self._runtime.terminate(container_id)
-            status = (
-                HarnessStatus.CANCELLED
-                if self._cancel_requested
-                else HarnessStatus.TIMED_OUT
-            )
-            classification = (
-                ExitClassification.CANCELLED
-                if self._cancel_requested
-                else ExitClassification.TIMED_OUT
-            )
-            message = "harness timed out and was terminated"
-        elif exit_code == 0:
-            status = HarnessStatus.SUCCEEDED
-            classification = ExitClassification.SUCCEEDED
-        elif exit_code in _SIGNAL_EXIT_CODES or self._cancel_requested:
-            status = HarnessStatus.CANCELLED
-            classification = ExitClassification.CANCELLED
-            message = f"harness cancelled (exit {exit_code})"
-        else:
-            status = HarnessStatus.FAILED
-            classification = ExitClassification.FAILED
-            message = f"harness failed (exit {exit_code})"
-
-        manifest = ArtifactManifest()
-        if exit_code is not None:
-            try:
-                self._runtime.copy_from(container_id, "/staging", str(host_staging))
-                manifest = scan_staging(host_staging, self._staging_limits)
-            except StagingScanError as exc:
+            exit_code = self._runtime.wait(container_id, request.timeout_seconds)
+            classification: ExitClassification
+            status: HarnessStatus
+            message = ""
+            if exit_code is None:
+                self._runtime.terminate(container_id)
+                status = (
+                    HarnessStatus.CANCELLED
+                    if self._cancel_requested
+                    else HarnessStatus.TIMED_OUT
+                )
+                classification = (
+                    ExitClassification.CANCELLED
+                    if self._cancel_requested
+                    else ExitClassification.TIMED_OUT
+                )
+                message = "harness timed out and was terminated"
+            elif exit_code == 0:
+                status = HarnessStatus.SUCCEEDED
+                classification = ExitClassification.SUCCEEDED
+            elif exit_code in _SIGNAL_EXIT_CODES or self._cancel_requested:
+                status = HarnessStatus.CANCELLED
+                classification = ExitClassification.CANCELLED
+                message = f"harness cancelled (exit {exit_code})"
+            else:
                 status = HarnessStatus.FAILED
                 classification = ExitClassification.FAILED
-                message = f"staging scan rejected output: {exc}"
+                message = f"harness failed (exit {exit_code})"
 
-        ended_at = datetime.now(timezone.utc)
-        self._runtime.remove(container_id)
+            manifest = ArtifactManifest()
+            if exit_code is not None:
+                try:
+                    self._runtime.copy_from(container_id, "/staging", str(host_staging))
+                    manifest = scan_staging(host_staging, self._staging_limits)
+                except StagingScanError as exc:
+                    status = HarnessStatus.FAILED
+                    classification = ExitClassification.FAILED
+                    message = f"staging scan rejected output: {exc}"
+
+            ended_at = datetime.now(timezone.utc)
+        finally:
+            self._runtime.remove(container_id)
 
         return ExecutionReceipt(
             execution_id=f"exec-{request.attempt_id}",

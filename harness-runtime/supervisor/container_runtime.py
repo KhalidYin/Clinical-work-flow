@@ -31,6 +31,7 @@ class ContainerConfig(StrictContractModel):
     """Locked execution config derived from a HarnessExecutionRequest."""
 
     image_ref: str = Field(pattern=_IMAGE_WITH_DIGEST)
+    entrypoint: tuple[str, ...] = ()
     command: tuple[str, ...] = ()
     read_only_inputs: tuple[ReadOnlyMount, ...] = ()
     scratch_dir: str = Field(min_length=1)
@@ -43,7 +44,9 @@ class ContainerConfig(StrictContractModel):
     pids_limit: int = Field(default=128, ge=1)
     stop_timeout_seconds: int = Field(default=10, ge=1)
     timeout_seconds: int = Field(default=300, ge=1, le=86400)
-    tmpfs: tuple[str, ...] = ()
+    tmpfs: tuple[tuple[str, str], ...] = (
+        ("/tmp", "rw,noexec,nosuid,size=64m"),
+    )
     environment: tuple[tuple[str, str], ...] = ()
 
     @field_validator("environment")

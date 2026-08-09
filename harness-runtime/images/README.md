@@ -6,26 +6,25 @@ fake/replay 是默认执行路径，零真实出站。
 ## 已选定候选：OpenCode（2026-08-05 拍板）
 
 - 官方镜像：`ghcr.io/anomalyco/opencode:1.18.14`（`opencode-ai` npm 包，MIT）。
-- **digest 锁定方式**：`docker pull ghcr.io/anomalyco/opencode:1.18.14` 后
-  `docker inspect --format='{{index .RepoDigests 0}}'` 取 `repo@sha256:...`，
-  将 `image@sha256:...` 写入 `HarnessExecutionRequest.image_ref`（supervisor
-  的 `ContainerConfig` 强制 digest 锁定 pattern）。
-- **当前状态（2026-08-05）**：本机到 GHCR 网络不稳定，镜像拉取四次中断
-  （同一 63MB blob 每次约 7MB 处 short read EOF）；GitHub release 二进制下载
-  （curl，8 次重试）亦 0 字节失败；快照测试显示 GitHub CDN 域名（objects/
-  pkg-containers.githubusercontent.com）间歇性全部连接失败，Docker Hub 小镜像
-  偶可成功。结论：**外网大文件连接被环境重置，属网络问题非镜像问题**。
-- **恢复路径**：网络恢复后 `docker pull` 或 curl 下载；或由用户提供镜像/二进制
-  （内网 registry、手动下载后导入）。实际 digest 取得后回填本文件与评估报告。
-- **容器内必测项（回填评估报告）**：断网启动、`--network none` 运行、SIGTERM→
-  子进程/进程组清理、MCP stdio 握手、`run --format json` 事件流、零出站验证、
-  Attempt 级短期 API key 注入。
+- **RepoDigest（2026-08-09）**：`ghcr.io/anomalyco/opencode@sha256:16a66f622a0bb0b4bb2a05242749907704a4149ef25805932c067d5afb340f6a`。
+- **生产引用**：[`opencode-1.18.14.json`](opencode-1.18.14.json) 使用
+  `ghcr.io/anomalyco/opencode:1.18.14@sha256:16a66f...f6a`，同时锁定版本和 digest；
+  `ContainerConfig` 会拒绝仅 tag 或仅仓库 digest 的非合同形式。
+- **准入结论（2026-08-09）**：在 Docker Desktop 4.83 / Engine 29.6.2、Linux amd64 上，
+  断网启动、`network none`、非 root、只读根文件系统、512 MiB/128 PID 限额、全部
+  capability drop、`no-new-privileges`、init、SIGTERM 后 PID=0、headless JSON error 事件、
+  OpenCode MCP stdio `initialize`/`tools/list` 均通过。
+- **凭据边界**：合成 provider key 仅通过 Attempt scratch 内的只读 `auth.json` 单文件挂载，
+  不进入镜像、容器环境、stdout/stderr 或可写 scratch；产品 Secret resolver 与 Worker 部署
+  接线仍属下一 Gate，本轮未使用真实密钥、未访问模型供应商。
+- **固定版本注意**：OpenCode `1.18.14` 实测 MCP 配置为 `mcp.<server>`；不得直接套用
+  后续版本的 `mcp.servers.<server>` 文档形状。
 
-H0-C supervisor 就绪后，本目录放置：
+本目录当前保存：
 
-- `Dockerfile.harness`：最小 Harness 执行基镜像（非 root 用户、无网络依赖、
-  仅运行时依赖），以 `image@sha256:...` digest 锁定引用；
-- 每个成熟 Harness 一个锁定镜像与 digest 清单。
+- `opencode-1.18.14.json`：首个成熟 Harness 的锁定镜像、环境和离线开关清单。
+- 后续候选继续采用“一 Harness 一清单”；只有官方镜像无法满足受控运行时依赖时才新增
+  `Dockerfile.harness`，且仍必须锁定基础镜像与构建产物 digest。
 
 安全约束（`PROJECT_GUIDE.md` / `PROJECT_SPEC.md`）：
 
