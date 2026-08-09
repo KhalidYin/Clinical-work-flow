@@ -1,0 +1,51 @@
+services:
+  harness-supervisor:
+    profiles: ["harness"]
+    build: ../harness-runtime
+    image: clinical-harness-supervisor:local
+    restart: unless-stopped
+    environment:
+      HARNESS_SUPERVISOR_MACHINE_TOKEN: ${HARNESS_SUPERVISOR_MACHINE_TOKEN:?set a dedicated supervisor machine credential}
+      HARNESS_SUPERVISOR_ALLOWED_SPEC_SHA256: ${HARNESS_SUPERVISOR_SPEC_SHA256:?set the approved harness spec SHA-256}
+      HARNESS_SUPERVISOR_IMAGE_MANIFEST_PATH: /app/images/opencode-1.18.14.json
+      HARNESS_SUPERVISOR_STATE_ROOT: /var/lib/harness-supervisor
+      HARNESS_SUPERVISOR_MCP_BRIDGE_PATH: /app/supervisor/mcp_stdio_bridge.sh
+      HARNESS_SUPERVISOR_DISCOVER_DAEMON_STATE_ROOT: "true"
+      HARNESS_SUPERVISOR_LEASE_SECONDS: "30"
+      SYNTHETIC_PROVIDER_KEY: ${HARNESS_SYNTHETIC_PROVIDER_KEY:?set a synthetic non-provider value}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8790/health', timeout=2)",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - harness-supervisor-state:/var/lib/harness-supervisor
+    networks: ["harness-control"]
+
+  worker-enrichment:
+    profiles: ["harness"]
+    depends_on:
+      harness-supervisor:
+        condition: service_healthy
+    environment:
+      KNOWLEDGE_ENRICHMENT_PROVIDER_MODE: harness
+      KNOWLEDGE_HARNESS_EXECUTION_MODE: opencode-supervised
+      KNOWLEDGE_HARNESS_SUPERVISOR_URL: http://harness-supervisor:8790
+      KNOWLEDGE_HARNESS_SUPERVISOR_TOKEN_REF: env://SUPERVISOR_MACHINE_TOKEN
+      SUPERVISOR_MACHINE_TOKEN: ${HARNESS_SUPERVISOR_MACHINE_TOKEN:?set a dedicated supervisor machine credential}
+      KNOWLEDGE_HARNESS_SPEC_SHA256: ${HARNESS_SUPERVISOR_SPEC_SHA256:?set the approved harness spec SHA-256}
+    networks: ["default", "harness-control"]
+
+networks:
+  harness-control:
+    internal: true
+
+volumes:
+  harness-supervisor-state:

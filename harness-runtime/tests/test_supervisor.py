@@ -14,7 +14,7 @@ import pytest
 from contracts.request import HarnessExecutionRequest
 from contracts.result import HarnessStatus
 from supervisor.fake_container_runtime import FakeContainerRuntime
-from supervisor.container_runtime import ReadOnlyMount
+from supervisor.container_runtime import DaemonRootPathMapper, ReadOnlyMount
 from supervisor.staging import StagingLimits
 from supervisor.supervisor import HarnessSupervisor
 
@@ -55,6 +55,15 @@ def test_success_returns_receipt_with_manifest(tmp_path) -> None:
     assert receipt.exit_classification.value == "succeeded"
     assert receipt.artifact_manifest.items[0].key == "output.json"
     assert len(receipt.artifact_manifest.items[0].sha256) == 64
+    assert receipt.validator_input == {
+        "network_mode": "none",
+        "read_only_root": True,
+        "user": "65534:65534",
+        "cap_drop": ["ALL"],
+        "no_new_privileges": True,
+        "memory_bytes": 512 * 1024 * 1024,
+        "pids_limit": 128,
+    }
     # config lock: zero network + read-only inputs enforced at the boundary
     config = runtime.last_config
     assert config.network_mode == "none"
@@ -109,6 +118,51 @@ def test_supervisor_labels_container_with_attempt_and_control_request_hash(tmp_p
         "clinical.harness.request_sha256": "c" * 64,
         "clinical.harness.spec_sha256": "a" * 64,
     }
+
+
+def test_supervisor_maps_all_bind_sources_to_daemon_visible_state_root(tmp_path) -> None:
+    state_root = tmp_path / "state"
+    runtime = FakeContainerRuntime(exit_code=1)
+    supervisor = HarnessSupervisor(
+        runtime=runtime,
+        host_path_mapper=DaemonRootPathMapper(
+            local_root=state_root,
+            daemon_root="/var/lib/docker/volumes/demo-supervisor/_data",
+        ),
+    )
+    request = _request(state_root / "attempt")
+    request.input_path.parent.mkdir(parents=True)
+    request.input_path.write_text("{}", encoding="utf-8")
+    auth_path = state_root / "attempt" / "secrets" / "auth.json"
+    auth_path.parent.mkdir(parents=True)
+    auth_path.write_text("{}", encoding="utf-8")
+
+    supervisor.execute(
+        request,
+        extra_read_only_mounts=(
+            ReadOnlyMount(host_path=str(auth_path), container_path="/harness/auth.json"),
+        ),
+    )
+
+    config = runtime.last_config
+    assert config is not None
+    daemon_root = "/var/lib/docker/volumes/demo-supervisor/_data"
+    assert config.host_scratch_dir.startswith(daemon_root)
+    assert config.host_staging_dir.startswith(daemon_root)
+    assert all(
+        mount.host_path.startswith(daemon_root) for mount in config.read_only_inputs
+    )
+    assert str(state_root) not in config.model_dump_json()
+
+
+def test_daemon_root_mapper_rejects_bind_source_outside_local_state_root(tmp_path) -> None:
+    mapper = DaemonRootPathMapper(
+        local_root=tmp_path / "state",
+        daemon_root="/var/lib/docker/volumes/demo-supervisor/_data",
+    )
+
+    with pytest.raises(ValueError, match="outside Supervisor state root"):
+        mapper(tmp_path / "outside" / "secret.json")
 
 
 def test_container_is_removed_when_copying_staging_raises(tmp_path) -> None:

@@ -1229,3 +1229,54 @@ Done — no next steps。
 - `harness-runtime/supervisor/`、`harness-runtime/tests/`（new/modified，uncommitted）
 - `clinical-llm-wiki/service/processing/`、`clinical-llm-wiki/tests/test_harness_enrichment_provider.py`（modified，uncommitted）
 - `docs/dep/PLAN.md`、P14、DevLog/INDEX（modified，uncommitted）
+
+---
+
+### R114 [00:05] [P14-harness-supervisor-deployment] P3: Compose 零网络部署与发布 Gate
+
+#### Done
+
+- 新增 daemon-visible state path 映射：Supervisor 精确自检自身 state volume 的 Docker daemon
+  `Source`，只映射 state root 内的 input/scratch/staging/MCP/secret 路径并拒绝逃逸；MCP bridge
+  先复制到 Attempt workspace，避免把容器内路径直接交给宿主 daemon。
+- 新增独立 Supervisor 镜像和 profile-gated `compose.harness.yaml`。`harness-control` 为 internal
+  network；只有 Supervisor 挂载 Docker socket 和合成 provider secret，Knowledge Worker 仅持有
+  独立 Supervisor 机器凭据并通过内部 HTTP 提交产品级 Attempt。
+- ExecutionReceipt 增加 Supervisor-owned 安全快照，记录固定 `network none`、非 root、只读 rootfs、
+  cap-drop ALL、no-new-privileges、512 MiB memory 与 128 pids 上限，客户端不能覆盖。
+- 在隔离项目 `clinical-harness-p14` 运行真实 Worker → Supervisor → OpenCode：无效 provider 在
+  零网络下按预期 fail closed；同一终态 Receipt 两次查询一致，无遗留受管容器/workspace，journal、
+  result 和日志均不含合成 secret。
+- 同步 PROJECT_SPEC/PROJECT_GUIDE/TEST_GUIDE、README/USAGE、P12/PLAN，并将 P14 归档。
+
+#### Issues / Blockers
+
+- Docker socket 即使标记只读也不会降低 Docker API 权限；当前 Supervisor 仍是高权限本地部署
+  边界。socket proxy/rootless runtime、TLS、`secret://` 和受控出站必须另行设计和验证。
+- 首次镜像构建遇到官方 PyPI TLS/timeout；改用仓库既有、受信的清华 PyPI mirror 后成功。
+- live ModelProfile/Secret/Evidence/预算仍未配置或授权，本轮没有真实供应商调用。
+
+#### Validation
+
+- Harness：`113 passed, 4 skipped`；Ruff 全绿。4 skip 仍仅为 PATH OpenCode 与 Windows 文件语义条件项。
+- Knowledge：`217 passed, 8 skipped`；Ruff 全绿。
+- Frontend：Vitest `30 passed`；Vite production build 通过。
+- Workflow：`366 passed, 1 skipped`；Ruff 全绿。
+- Compose：Supervisor healthy；Worker 无 `/var/run/docker.sock` 和 provider secret；OpenCode Receipt
+  固定安全快照；重复查询 SHA-256 一致；受管容器、workspace 与 secret 扫描通过。
+- Migration/bootstrap：PostgreSQL healthy，migration/admin-bootstrap exit 0，bootstrap healthy，
+  `alembic_version=20260809_0010`。
+
+#### Next
+
+1. 返回 P12；在任何 live 尝试前，先建立 `secret://` resolver 和明确的出站 allowlist/审计策略。
+2. 由用户单独提供并批准 ModelProfile、允许出站 Evidence、Secret reference 与 `max_calls=1` 预算，
+   再执行唯一 live vertical；当前不得自动触发。
+3. 生产化时优先评估 socket proxy 或 rootless runtime，主要风险是 Supervisor 的宿主 Docker
+   authority、凭据轮换和出站范围误配。
+
+#### Files Changed / Commits
+
+- `harness-runtime/Dockerfile`、`supervisor/`、`tests/`（new/modified，pending commit）
+- `clinical-llm-wiki/compose.harness.yaml`、`.env.example`、smoke/tests（new/modified，pending commit）
+- `README.md`、`USAGE.md`、canonical docs、P12/P14/PLAN/DevLog（modified，pending commit）

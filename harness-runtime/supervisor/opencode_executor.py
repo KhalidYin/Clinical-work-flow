@@ -39,6 +39,7 @@ class OpenCodeAttemptExecutor:
         secret_resolver: SecretResolver,
         workspace_root: Path,
         environment: tuple[tuple[str, str], ...] = (),
+        host_path_mapper: Callable[[str | Path], str] | None = None,
         workspace_observer: WorkspaceObserver | None = None,
         clock: Callable[[], datetime] | None = None,
     ) -> None:
@@ -48,6 +49,7 @@ class OpenCodeAttemptExecutor:
         self._secret_resolver = secret_resolver
         self._workspace_root = workspace_root
         self._environment = environment
+        self._host_path_mapper = host_path_mapper
         self._workspace_observer = workspace_observer
         self._clock = clock or (lambda: datetime.now(timezone.utc))
 
@@ -97,6 +99,9 @@ class OpenCodeAttemptExecutor:
                 encoding="utf-8",
             )
             mcp_bundle_path.chmod(0o444)
+            mcp_bridge_runtime_path = secret_dir / "mcp_stdio_bridge.sh"
+            mcp_bridge_runtime_path.write_bytes(self._mcp_bridge_path.read_bytes())
+            mcp_bridge_runtime_path.chmod(0o444)
 
             config_path = scratch_path / "config" / "opencode" / "opencode.json"
             config_path.parent.mkdir(parents=True)
@@ -156,7 +161,10 @@ class OpenCodeAttemptExecutor:
             )
             if self._workspace_observer is not None:
                 self._workspace_observer(workdir)
-            receipt = HarnessSupervisor(runtime=self._runtime).execute(
+            receipt = HarnessSupervisor(
+                runtime=self._runtime,
+                host_path_mapper=self._host_path_mapper,
+            ).execute(
                 harness_request,
                 entrypoint=("/bin/sh", "-c"),
                 command=command,
@@ -166,7 +174,7 @@ class OpenCodeAttemptExecutor:
                         container_path="/scratch/data/opencode/auth.json",
                     ),
                     ReadOnlyMount(
-                        host_path=str(self._mcp_bridge_path),
+                        host_path=str(mcp_bridge_runtime_path),
                         container_path="/harness/mcp_stdio_bridge.sh",
                     ),
                     ReadOnlyMount(

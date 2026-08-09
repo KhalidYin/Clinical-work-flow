@@ -13,6 +13,7 @@ import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Callable
 
 from contracts.manifest import ArtifactManifest
 from contracts.receipt import ExecutionReceipt, ExitClassification
@@ -42,9 +43,11 @@ class HarnessSupervisor:
         *,
         runtime: ContainerRuntimePort,
         staging_limits: StagingLimits | None = None,
+        host_path_mapper: Callable[[str | Path], str] | None = None,
     ) -> None:
         self._runtime = runtime
         self._staging_limits = staging_limits or StagingLimits()
+        self._host_path_mapper = host_path_mapper or (lambda path: str(path))
         self._cancel_requested = False
 
     def cancel(self) -> None:
@@ -83,15 +86,20 @@ class HarnessSupervisor:
             command=command,
             read_only_inputs=(
                 ReadOnlyMount(
-                    host_path=str(Path(request.input_path).parent),
+                    host_path=self._host_path_mapper(Path(request.input_path).parent),
                     container_path="/inputs",
                 ),
-                *extra_read_only_mounts,
+                *(
+                    mount.model_copy(
+                        update={"host_path": self._host_path_mapper(mount.host_path)}
+                    )
+                    for mount in extra_read_only_mounts
+                ),
             ),
             scratch_dir="/scratch",
             staging_dir="/staging",
-            host_scratch_dir=str(host_scratch),
-            host_staging_dir=str(host_staging),
+            host_scratch_dir=self._host_path_mapper(host_scratch),
+            host_staging_dir=self._host_path_mapper(host_staging),
             timeout_seconds=request.timeout_seconds,
             environment=environment,
             labels=(
@@ -170,5 +178,13 @@ class HarnessSupervisor:
                 ExitClassification.FAILED,
                 ExitClassification.TIMED_OUT,
             },
-            validator_input={},
+            validator_input={
+                "network_mode": config.network_mode,
+                "read_only_root": True,
+                "user": config.user,
+                "cap_drop": ["ALL"],
+                "no_new_privileges": True,
+                "memory_bytes": config.memory_bytes,
+                "pids_limit": config.pids_limit,
+            },
         )

@@ -4,7 +4,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from supervisor.container_runtime import ManagedContainer
+from supervisor.container_runtime import DaemonRootPathMapper, ManagedContainer
 from contracts.receipt import ExitClassification
 from contracts.result import HarnessStatus
 from supervisor.fake_container_runtime import FakeContainerRuntime
@@ -89,6 +89,10 @@ def test_executor_compiles_fixed_offline_opencode_attempt_and_cleans_workspace(
             else (_ for _ in ()).throw(KeyError(reference))
         ),
         workspace_root=tmp_path,
+        host_path_mapper=DaemonRootPathMapper(
+            local_root=tmp_path,
+            daemon_root="/var/lib/docker/volumes/demo-supervisor/_data",
+        ),
         workspace_observer=observed_workspaces.append,
     )
 
@@ -103,6 +107,13 @@ def test_executor_compiles_fixed_offline_opencode_attempt_and_cleans_workspace(
     assert runtime.last_config.user == "65534:65534"
     assert runtime.last_config.entrypoint == ("/bin/sh", "-c")
     assert len(runtime.last_config.read_only_inputs) == 4
+    assert all(
+        mount.host_path.startswith("/var/lib/docker/volumes/demo-supervisor/_data")
+        for mount in runtime.last_config.read_only_inputs
+    )
+    assert runtime.last_config.host_scratch_dir.startswith(
+        "/var/lib/docker/volumes/demo-supervisor/_data"
+    )
     serialized_config = runtime.last_config.model_dump_json()
     assert SYNTHETIC_SECRET not in serialized_config
     assert "generation-001" not in serialized_config

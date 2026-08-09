@@ -20,7 +20,7 @@ type: project
 - 知识产品已有 PostgreSQL durable DAG、Document/Enrichment Worker、治理实体与 GUI 骨架，可作为知识 Workflow 控制面继续细化。
 - 临床产品已有固定 Stage、Review Protocol、ActionPolicy 和若干 Runner 原型，但执行链与状态表达尚未统一。
 - 2026-08-05 用户授权重定执行计划，转向最小 Harness 骨架：`docs/dep/plans/complete/H0-harness-minimal-skeleton.md` 已完成 H0-A…H0-F。`harness-runtime/` 已建立 contracts/adapters/supervisor/tests；知识 Enrichment 已通过 `executor_kind=harness` + ReplayHarnessAdapter 接线（`service/processing/harness_enrichment_provider.py` + migration `20260805_0009`）。
-- 2026-08-09 已完成 OpenCode `1.18.14` digest 容器准入，以及知识侧 `opencode-supervised` 单 Attempt 应用接线：`env://` Secret 即时文件物化/清理、标准 MCP `read_input`、JSONL validator 和 migration `20260809_0010` Receipt 落账均通过真实零网络容器回归。Compose 仍默认 replay；独立 supervisor、`secret://`、受控网络与 live vertical 未完成。
+- 2026-08-09 至 2026-08-10 已完成 OpenCode `1.18.14` digest 容器准入、知识侧 `opencode-supervised` remote Attempt，以及显式 Compose 独立 Supervisor 离线 Gate：`env://` 合成 Secret 即时物化/清理、标准 MCP `read_input`、JSONL validator、migration `20260809_0010` Receipt 落账、Worker 零 socket/模型 secret 和子容器 `network none` 安全基线均通过真实回归。普通 Compose 仍默认 replay；`secret://`、受控出站与 live vertical 未完成。
 - P12 保持知识产品主线；P2-B3 live vertical 目标执行器调整为 Harness，`direct_model` 只保留 fake/replay、简单原子调用与回归基线。live Gate 继续未授权、未调用。
 
 ## 应用

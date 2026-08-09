@@ -16,7 +16,7 @@
 主文档允许定义尚未实现的目标，但必须显式区分“当前基线”和“目标状态”。
 `docs/main/memory/` 只保存长期上下文，不属于 canonical 主文档，也不得覆盖它们。
 
-架构定调本身不切换执行计划。2026-08-05 用户随后另行授权 H0 重定计划，已在保持 P12 lifecycle 的前提下完成最小 Harness 骨架；2026-08-09 又完成 OpenCode 生产容器准入。这些技术 Gate 不自动扩展到 Worker 部署接线、P2-B3 live vertical 或临床 Workflow Harness 化。
+架构定调本身不切换执行计划。2026-08-05 用户随后另行授权 H0 重定计划，已在保持 P12 lifecycle 的前提下完成最小 Harness 骨架；2026-08-09 至 2026-08-10 又完成 OpenCode 容器准入、Knowledge remote provider 和显式 Compose 独立 Supervisor 离线 Gate。这些技术 Gate 不自动扩展到 P2-B3 live vertical 或临床 Workflow Harness 化。
 
 ## 概述
 
@@ -25,7 +25,7 @@
 - `clinical-workflow/`：临床 Workflow 控制面，拥有固定阶段、Study 状态、审核 Gate、产物晋升和审计。
 - `clinical-llm-wiki/`：临床知识产品，拥有来源、Evidence、Candidate、Revision、Relation、Evaluation、Release 和知识治理 GUI。
 - `clinical-studies/`：Study 实例容器，不是第三个产品。
-- 容器化 Harness Runtime：共享执行基础设施，不拥有产品 Workflow、业务状态、审核或发布权威，也不是第三个产品；H0、OpenCode 容器准入、知识侧单 Attempt 应用接线及独立 supervisor 的窄 HTTP 合同/机器身份/进程内幂等层已完成，生命周期和 Compose/生产部署尚未完成。
+- 容器化 Harness Runtime：共享执行基础设施，不拥有产品 Workflow、业务状态、审核或发布权威，也不是第三个产品；H0、OpenCode 容器准入、知识 remote Attempt、Supervisor 生命周期与显式 Compose 离线部署 Gate 已完成，live/生产出站边界尚未完成。
 
 未来不再建设自定义 Agent 框架。产品负责选择并声明步骤、编译并冻结权威上下文、授权工具、启动和观察成熟 Harness、独立验证结果并推进治理状态；Harness 只负责已授权步骤内部的规划、上下文窗口组织、工具循环和自检，不得扩展权威上下文或持久化跨 Attempt 记忆。
 
@@ -35,8 +35,8 @@
 |------|----------|----------|
 | 知识控制面 | PostgreSQL durable DAG、Document/Enrichment Worker、ObjectStore、Candidate/Review、React GUI 已有骨架 | 完成 Harness enrichment、评估、通用 Release 和只读知识 MCP 闭环 |
 | 临床控制面 | 固定十阶段合同、Review Protocol、ActionPolicy、Study 文件状态已有原型；仍存在自建 Agent Loop、多套状态表达和执行入口 | 收敛为唯一 Workflow Orchestrator，由容器化 Harness 执行 Engine 已选定的 Step |
-| Harness | 已有版本化合同、supervisor、staging/MCP、OpenCode digest 准入及知识 `opencode-supervised` 单 Attempt 路径；Compose 仍默认 replay | 以独立最小权限 supervisor 部署每个生产 Harness Attempt，不向业务 Worker 暴露宿主 Docker 控制权 |
-| MCP | Attempt 级 broker 合同与 OpenCode 标准 stdio shim 已实测 `initialize/tools-list/tools/call`、路径拒绝和脱敏审计；知识消费仍主要是 REST | 将 shim 纳入独立 supervisor 部署并扩展确定性工具；知识消费 MCP 只从 immutable Release 读取 |
+| Harness | 已有版本化合同、独立 Supervisor 生命周期、staging/MCP、OpenCode digest 准入及显式 Compose `harness` profile；普通 Compose 仍默认 replay | 以更收敛的生产 runtime authority 和受控出站部署 Harness Attempt，不向业务 Worker 暴露 Docker 控制权 |
+| MCP | Attempt 级 broker 与 OpenCode 标准 stdio shim 已纳入独立 Supervisor 离线部署并实测 `initialize/tools-list/tools/call`、路径拒绝和脱敏审计；知识消费仍主要是 REST | 扩展确定性工具；知识消费 MCP 只从 immutable Release 读取 |
 | GUI | 九个一级导航和核心治理页面已有框架，检索、评估和发布仍有占位页面 | 细化为 Workflow 观察、人工治理、评估和发布控制台；聊天不是治理入口 |
 
 ## 架构收敛顺序
@@ -45,8 +45,8 @@
 
 1. 先由四份 canonical 主文档固定产品边界、执行合同和现状/目标口径。
 2. 第一条验证线放在知识产品：保留现有 PostgreSQL ledger、canonical entities、ObjectStore 和 GUI，不另建 Knowledge Agent。
-3. 建立最小容器化 Harness 骨架、OpenCode 准入及知识单 Attempt 应用接线（均已完成）；独立 supervisor 的最小权限部署与离线 Compose Attempt 是下一 Gate。
-4. 经部署接线和用户 live 授权后，用同一控制面跑通 Source → Evidence → Harness Candidate → 人工治理 → Evaluation → immutable Release → read-only MCP，并在现有 GUI 上细化观察与治理页面。
+3. 建立最小容器化 Harness 骨架、OpenCode 准入、知识 remote Attempt 及独立 Supervisor 的显式 Compose 离线部署（均已完成）。
+4. 经 `secret://`、受控网络策略和用户 live 授权后，用同一控制面跑通 Source → Evidence → Harness Candidate → 人工治理 → Evaluation → immutable Release → read-only MCP，并在现有 GUI 上细化观察与治理页面。
 5. 知识闭环证明合同后，临床 Workflow 再复用同一 Harness execution contract，收敛现有多套 Runner；不得复制第二套 Harness Runtime。
 
 ## 架构原则
@@ -163,7 +163,7 @@ fixed stages · Study FS/Git                  durable DAG · PostgreSQL/ObjectSt
 - 不可信 `HarnessResult` 收集、Artifact 独立扫描，以及 supervisor-owned `ExecutionReceipt` 生成；
 - fake/replay adapter，用于默认零出站测试。
 
-首期候选已选定 OpenCode `1.18.14`。除容器准入外，知识侧已实现 `opencode-supervised` 单 Attempt：输入/Secret/MCP bundle 分离挂载、JSONL staging、独立 schema validator、Execution/Validation Receipt 落账；真实 Docker 回归保持 `network none` 和合成 secret。独立 supervisor 已新增固定 `opencode@1.18.14`/`network none` 的版本化 HTTP 请求合同、Bearer 机器身份、spec/input hash 校验、同 Attempt 幂等和容器字段注入拒绝；当前仍只是服务控制面层，不包含 durable journal、heartbeat/cancel/orphan recovery 或 Compose 接线。应用接线仍不等于生产部署：Compose 继续 replay，`secret://` 后端和受控出站网络仍待完成。多 Harness 路由、多 Agent 协作和跨租户调度不属于当前阶段。
+首期候选已选定 OpenCode `1.18.14`。知识侧 `opencode-supervised` 已成为 remote provider：Worker 只提交产品级、hash-locked Attempt；独立 Supervisor 拥有 Bearer 机器身份、durable journal、heartbeat/cancel/orphan recovery、固定编译器和终态幂等。显式 Compose `harness` profile 使用内部 control network，仅 Supervisor 持有宿主 Docker socket，并把容器内 state volume 路径映射为 daemon-visible bind source。真实合成凭据 Attempt 证明子容器固定 digest、`network none`、非 root、只读 rootfs、cap-drop ALL、no-new-privileges 和资源上限，失败后容器、workspace 与临时 secret 清理，Receipt 可重复查询。该 Gate 仍是本地离线部署，不是 live/生产出站：普通 Compose 继续 replay，`secret://` 后端、受控网络和更收敛的 runtime authority 仍待完成。多 Harness 路由、多 Agent 协作和跨租户调度不属于当前阶段。
 
 ### MCP 边界
 
@@ -227,7 +227,7 @@ Harness 输出首先进入 staging。Supervisor 必须拒绝路径穿越、符�
 | 前端 | React 19、TypeScript 5.8、Vite 7、TanStack | 知识治理和执行观察 GUI |
 | Workflow 状态 | Study 文件系统、JSON/YAML、Git | 临床产物、审核和审计链 |
 | 工具协议 | Python handler/REST + H0 Step-scoped MCP broker 骨架 | 完成真实 Harness MCP 接线；知识消费使用只读标准 MCP |
-| 执行隔离 | H0 Docker/Fake runtime 与 OpenCode digest 容器准入已通过；知识 Compose 尚未部署 Harness | Harness Attempt 的 Worker/supervisor/Secret/Receipt 进入受控生产路径 |
+| 执行隔离 | H0 Docker/Fake runtime、OpenCode digest 准入及显式 Compose 离线 Supervisor Gate 已通过；Worker 无 socket | 以 `secret://`、受控出站和更收敛的 runtime authority 进入生产路径 |
 
 ## 数据流
 
@@ -275,7 +275,7 @@ docs/specs/                  # 历史设计参考
 docs/dep/                    # 计划与开发审计
 ```
 
-该目录已由 H0 建立，OpenCode `1.18.14` 镜像清单与容器准入也已落盘；这仍不表示 Compose/Worker 生产接线或 P2-B3 live Gate 已完成。
+该目录已由 H0 建立，OpenCode `1.18.14` 镜像清单、容器准入及显式 Compose 离线部署均已落盘；这仍不表示 P2-B3 live Gate 或生产出站边界已完成。
 
 ## 关键约定
 

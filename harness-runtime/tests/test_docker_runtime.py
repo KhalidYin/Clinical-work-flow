@@ -173,6 +173,52 @@ def test_list_managed_returns_only_supervisor_identity_labels(tmp_path: Path) ->
     assert managed[0].spec_sha256 == "a" * 64
 
 
+def test_runtime_discovers_daemon_source_for_its_exact_state_mount() -> None:
+    from supervisor.docker_runtime import DockerEngineContainerRuntime
+
+    container = _FakeContainer()
+    container.attrs = {
+        "Mounts": [
+            {
+                "Type": "volume",
+                "Source": "/var/lib/docker/volumes/demo_state/_data",
+                "Destination": "/var/lib/harness-supervisor",
+            },
+            {
+                "Type": "bind",
+                "Source": "/var/run/docker.sock",
+                "Destination": "/var/run/docker.sock",
+            },
+        ]
+    }
+    runtime = DockerEngineContainerRuntime(
+        client=SimpleNamespace(containers=_FakeContainers(container))
+    )
+
+    source = runtime.current_container_mount_source(
+        "/var/lib/harness-supervisor",
+        container_id="container-1",
+    )
+
+    assert source == "/var/lib/docker/volumes/demo_state/_data"
+
+
+def test_runtime_fails_closed_when_state_mount_is_not_exactly_identified() -> None:
+    from supervisor.docker_runtime import DockerEngineContainerRuntime
+
+    container = _FakeContainer()
+    container.attrs = {"Mounts": []}
+    runtime = DockerEngineContainerRuntime(
+        client=SimpleNamespace(containers=_FakeContainers(container))
+    )
+
+    with pytest.raises(RuntimeError, match="state mount is not available"):
+        runtime.current_container_mount_source(
+            "/var/lib/harness-supervisor",
+            container_id="container-1",
+        )
+
+
 @pytest.mark.integration
 def test_docker_round_trip(tmp_path: Path) -> None:
     docker = pytest.importorskip("docker")

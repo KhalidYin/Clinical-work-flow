@@ -10,6 +10,7 @@ non-root user, dropped capabilities, resource limits, stop timeout) is enforced 
 from __future__ import annotations
 
 import json
+import os
 import tarfile
 from collections.abc import Iterator
 from pathlib import Path
@@ -162,6 +163,34 @@ class DockerEngineContainerRuntime:
             except (KeyError, TypeError, ValueError):
                 continue
         return tuple(sorted(managed, key=lambda item: item.attempt_id))
+
+    def current_container_mount_source(
+        self,
+        destination: str,
+        *,
+        container_id: str | None = None,
+    ) -> str:
+        """Return the daemon-visible source for this container's exact mount."""
+
+        identity = container_id or os.environ.get("HOSTNAME")
+        if not identity:
+            raise RuntimeError("Supervisor container identity is not available")
+        container = self._docker().containers.get(identity)
+        mounts = container.attrs.get("Mounts", [])
+        matches = [
+            mount
+            for mount in mounts
+            if isinstance(mount, dict)
+            and mount.get("Destination") == destination
+            and mount.get("Type") in {"bind", "volume"}
+            and isinstance(mount.get("Source"), str)
+        ]
+        if len(matches) != 1:
+            raise RuntimeError("Supervisor state mount is not available")
+        source = str(matches[0]["Source"]).rstrip("/")
+        if not source.startswith("/"):
+            raise RuntimeError("Supervisor state mount source is not absolute")
+        return source
 
 
 class _ChunkIteratorReader:

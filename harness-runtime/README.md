@@ -1,10 +1,12 @@
 # Harness Runtime（共享执行基础设施）
 
-> 不是第三个产品。本目录承载 H0 最小 Harness 骨架：contracts、adapters、
+> 不是第三个产品。本目录承载共享 Harness Runtime：contracts、adapters、独立
 > supervisor、images 与 tests。产品边界与目标合同以 `docs/main/PROJECT_GUIDE.md`、
-> `docs/main/PROJECT_SPEC.md` 为权威；当前执行状态见 `docs/dep/plans/ongoing/H0-harness-minimal-skeleton.md`。
+> `docs/main/PROJECT_SPEC.md` 为权威；H0 与独立部署记录分别见
+> `docs/dep/plans/complete/H0-harness-minimal-skeleton.md` 和
+> `docs/dep/plans/complete/P14-harness-supervisor-deployment.md`。
 
-## 当前进度（H0-A）
+## 当前进度
 
 - [x] `adapters/base.py`：`HarnessAdapter` 接口与 `HarnessAdapterError`
 - [x] `adapters/fake_cli.py`：fake CLI（模拟成熟 Harness 的 CLI 形态：读 input.json →
@@ -12,6 +14,12 @@
 - [x] `adapters/fake.py`：`FakeHarnessAdapter`（子进程封装 + 事件收集 + 超时取消）
 - [x] `contracts/`：H0-A 最小请求/事件/结果模型（H0-B 将扩展为完整合同）
 - [x] `tests/test_adapter_contract.py`：spawn → 事件 → 退出码 → Result 接口闭环回归（零出站）
+- [x] 独立 FastAPI Supervisor：机器身份、hash 幂等、durable journal、heartbeat/cancel/orphan recovery
+- [x] 固定 OpenCode executor：digest image、`network none`、非 root、只读 rootfs、cap-drop 与资源上限
+- [x] Compose `harness` profile：仅 Supervisor 持有 Docker socket；Worker 通过内部 control network 提交 Attempt
+
+默认知识 Compose 仍使用 replay。显式离线 Gate 的命令与安全边界见仓库根 `USAGE.md`；
+`secret://`、受控出站和 live 模型仍未实现或授权。
 
 ## 封装可行性矩阵（H0-A 产出）
 

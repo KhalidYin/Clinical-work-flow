@@ -662,13 +662,12 @@ P2-B 不再作为一次性“大模型 + 关系图 + 全部审核 UI”交付。
   元数据和 `env://`/`secret://` 引用，不接收明文密钥，不提供连接测试、preflight 或运行按钮，
   保存配置也不能启用 live、创建 ModelInvocation 或消耗调用预算。
 - H0 已完成 `executor_kind=harness` 与 replay 接线，OpenCode `1.18.14` 也已完成 digest 容器准入。
-  2026-08-09 R111 进一步增加 `opencode-supervised` 单 Attempt 路径：Worker 编译只读输入，
-  `env://` Secret 即时写入 Attempt 级只读 `auth.json`，supervisor 启动 `network none` 容器，
-  标准 stdio shim 提供 `read_input` 并拒绝路径/符号链接逃逸，产品 validator 校验 JSONL 输出；
-  `ExecutionReceipt`/`ValidationReceipt` 由 migration `20260809_0010` 写入 ModelInvocation。
-  fake runtime 和真实 OpenCode 容器（合成 secret、无效 provider、零网络）均已回归；没有真实出站。
-  Compose 仍默认 replay，且不能为省事把宿主 Docker socket 暴露给 Enrichment Worker；下一技术
-  Gate 是独立、最小权限 supervisor 的部署边界与离线 Compose Attempt，而不是直接进入 live。
+  R111-R114 继续完成 `opencode-supervised` remote Attempt、`env://` 合成 Secret/MCP/Receipt、独立
+  Supervisor 的机器身份、durable lifecycle 和显式 Compose 离线 Gate。Worker 只通过内部 control
+  network 提交产品级 Attempt，不持有 Docker socket 或模型 secret；Supervisor 固定启动 digest、
+  `network none` 的受限 OpenCode 子容器，并把 `ExecutionReceipt`/`ValidationReceipt` 交回 migration
+  `20260809_0010` 的 ModelInvocation 字段。真实无效 provider Attempt 按预期 fail closed，Receipt
+  可重复查询，临时容器/workspace/secret 均清理；没有真实出站。普通 Compose 仍默认 replay。
 
 #### 产出
 
@@ -708,9 +707,9 @@ P2-B 不再作为一次性“大模型 + 关系图 + 全部审核 UI”交付。
 - live vertical 的完成标准不变：Source → Evidence → live Candidate → 作者确认 → 独立审核
   的可回放闭环，`approved` 仍不等于 `released`；关闭 P2 Gate 仍需用户提供获授权的
   ModelProfile/Secret reference 与允许出站 Evidence（时机可延后到 H0 骨架就绪后）。
-- OpenCode 候选评估、容器准入、单 Attempt 应用接线、`env://` Secret/MCP transport 与 Receipt
-  产品落账已完成；在独立 supervisor 部署、`secret://` 后端、受控网络策略和对应回归通过前，
-  仍不得进入 live vertical。
+- OpenCode 候选评估、容器准入、remote Attempt、`env://` 合成 Secret/MCP transport、Receipt
+  产品落账和独立 Supervisor 的 Compose 离线 Gate 已完成；在 `secret://` 后端、受控网络策略、
+  对应回归及用户对 ModelProfile/Evidence/预算的明确授权通过前，仍不得进入 live vertical。
 - 不因重定计划修改本切片已冻结的 Candidate/Relation/Review/Release 语义。
 
 ### P2-B 涉及文件
@@ -993,3 +992,4 @@ P3 只消费 P2 已批准的 KnowledgeRevision。内部先构建可解释检索�
 | 2026-07-31 | `service/processing/live_preflight.py`、target-run ledger/Worker、失败分类/预算 tests、README/USAGE/SPEC-12/13、P12 memory | P2-B3 离线失败门完成：四类 provider failure 脱敏进入 ModelInvocation/StepAttempt，人工 retry 新建 lineage；单次 live vertical 已具备只读预检和定向执行入口，但未发起外部调用 |
 | 2026-07-31 | Candidate advisory/lineage、Relation eligibility、`0007` migration、KUI-04、PostgreSQL tests、README/USAGE/SPEC-12/13、P12 memory | P2-B3 离线资格门完成：模型只提交有描述且引用 Evidence 的 duplicate/conflict/gap 建议；确定性写事务拒绝悬空、自环、互斥、cycle、closure 和非法 supersedes；下一输入仅剩获授权 live vertical |
 | 2026-08-01 | KUI-09 ModelProfile registry/API/Admin UI、demo Admin migration、PostgreSQL/浏览器 tests | P2-B3 零出站配置切片完成：不可变 ModelProfile 只保存非敏感元数据与 secret reference；桌面/390px、权限/冲突/脱敏审计通过，真实登记前后 ModelInvocation 计数不变；live Gate 继续 open |
+| 2026-08-10 | `harness-runtime/`、`compose.harness.yaml`、canonical 文档、P14 R114 | 独立 Supervisor 显式 Compose 离线 Gate 完成：Worker 零 socket/模型 secret、子容器 `network none` 固定安全基线、Receipt 幂等与清理证据通过；普通 Compose 仍 replay，live 未授权 |

@@ -1,8 +1,8 @@
 ---
 phase_index: 14
-status: in-progress
+status: done
 created: 2026-08-09
-updated: 2026-08-09
+updated: 2026-08-10
 priority: 1
 estimated_rounds: 4-6
 depends_on:
@@ -64,7 +64,7 @@ Worker 只提交受限、hash-locked Attempt request，不接触 Docker socket�
 |-------|------|----------|------|------|
 | P1 | 冻结窄请求合同、机器身份与幂等语义 | R112 | P12/R111 | done |
 | P2 | 实现独立服务、生命周期与 Worker remote provider | R113 | P1 | done |
-| P3 | 完成 Compose 零网络 Attempt、文档同步与发布 Gate | R114-R115 | P2 | in-progress |
+| P3 | 完成 Compose 零网络 Attempt、文档同步与发布 Gate | R114 | P2 | done |
 
 ---
 
@@ -164,13 +164,13 @@ Worker 只提交受限、hash-locked Attempt request，不接触 Docker socket�
 
 ### 完成标准
 
-- [ ] `worker-enrichment` 容器内不存在 Docker socket，且只能通过私有 control network 调用 Supervisor。
-- [ ] OpenCode 子容器固定 `network none`、digest image、非 root、只读 rootfs、cap-drop ALL、
+- [x] `worker-enrichment` 容器内不存在 Docker socket，且只能通过私有 control network 调用 Supervisor。
+- [x] OpenCode 子容器固定 `network none`、digest image、非 root、只读 rootfs、cap-drop ALL、
   no-new-privileges 和资源上限；不能由请求覆盖。
-- [ ] 合成 secret 的真实 Compose Attempt 按预期成功或 fail closed，Receipt 可重复查询，容器和临时
+- [x] 合成 secret 的真实 Compose Attempt 按预期成功或 fail closed，Receipt 可重复查询，容器和临时
   secret 均被清理；测试证明没有真实供应商出站。
-- [ ] Harness、Knowledge、Frontend、Workflow 和 Compose/migration 门禁通过，文档一致性无冲突。
-- [ ] 阶段提交推送远端，Goal 完成审计逐项有当前证据。
+- [x] Harness、Knowledge、Frontend、Workflow 和 Compose/migration 门禁通过，文档一致性无冲突。
+- [x] 阶段提交推送远端，Goal 完成审计逐项有当前证据。
 
 ### 边界（本 Phase 明确不做）
 
@@ -199,6 +199,7 @@ Worker 只提交受限、hash-locked Attempt request，不接触 Docker socket�
 |----|------|--------|------|------|
 | P14-D01 | cancel 与后台成功线程可能竞争写 terminal output | P2 | correctness | `FileAttemptResultStore` 改为首个终态写入获胜，迟到线程不能覆盖取消结果 |
 | P14-D02 | Worker 远程请求最初将 provider/model 形状编译错误 | P2 | contract | 跨产品测试固定顶层字符串字段，和 Supervisor 固定编译器保持一致 |
+| P14-D03 | Supervisor 容器内 bind source 对宿主 Docker daemon 不可见 | P3 | deployment | 自检 state volume 的 daemon `Source`，仅允许 state root 内路径映射并拒绝逃逸；MCP bridge 先复制进 Attempt workspace |
 
 ## 关键决策记录
 
@@ -211,3 +212,4 @@ Worker 只提交受限、hash-locked Attempt request，不接触 Docker socket�
 | 日期 | 已同步到 | 说明 |
 |------|----------|------|
 | 2026-08-09 | `PLAN.md`、DevLog R113 | P2 生命周期与 remote provider Gate 完成；canonical 主文档待 P3 部署证据后统一同步 |
+| 2026-08-10 | `PROJECT_SPEC.md`、`PROJECT_GUIDE.md`、`TEST_GUIDE.md`、README/USAGE、P12、PLAN、DevLog R114 | P3 私网、socket/secret 隔离、真实离线 Attempt、migration 与全仓 Gate 完成；P14 归档，live 保持关闭 |

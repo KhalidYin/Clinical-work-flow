@@ -12,7 +12,10 @@ from typing import Any
 
 from fastapi import FastAPI
 
-from supervisor.container_runtime import ContainerRuntimePort
+from supervisor.container_runtime import (
+    ContainerRuntimePort,
+    DaemonRootPathMapper,
+)
 from supervisor.docker_runtime import DockerEngineContainerRuntime
 from supervisor.journal import FileAttemptJournal
 from supervisor.lifecycle import AttemptCoordinator, FileAttemptResultStore
@@ -56,13 +59,36 @@ def build_supervisor_app(
     if not isinstance(image_ref, str) or not isinstance(environment, dict):
         raise RuntimeError("OpenCode image manifest is missing image_ref/environment")
 
-    state_root = Path(_required(values, "HARNESS_SUPERVISOR_STATE_ROOT"))
+    state_root = Path(_required(values, "HARNESS_SUPERVISOR_STATE_ROOT")).resolve()
     mcp_bridge_path = Path(_required(values, "HARNESS_SUPERVISOR_MCP_BRIDGE_PATH"))
     lease_seconds = int(values.get("HARNESS_SUPERVISOR_LEASE_SECONDS", "30"))
     if lease_seconds < 1:
         raise RuntimeError("HARNESS_SUPERVISOR_LEASE_SECONDS must be positive")
 
     container_runtime = runtime or DockerEngineContainerRuntime()
+    discover_daemon_root = values.get(
+        "HARNESS_SUPERVISOR_DISCOVER_DAEMON_STATE_ROOT",
+        "false",
+    ).lower()
+    if discover_daemon_root not in {"true", "false"}:
+        raise RuntimeError(
+            "HARNESS_SUPERVISOR_DISCOVER_DAEMON_STATE_ROOT must be true or false"
+        )
+    daemon_state_root: str | None = None
+    host_path_mapper = None
+    if discover_daemon_root == "true":
+        discover_mount = getattr(
+            container_runtime,
+            "current_container_mount_source",
+            None,
+        )
+        if not callable(discover_mount):
+            raise RuntimeError("container runtime cannot discover its state mount")
+        daemon_state_root = discover_mount(str(state_root))
+        host_path_mapper = DaemonRootPathMapper(
+            local_root=state_root,
+            daemon_root=daemon_state_root,
+        )
 
     def resolve_secret(reference: str) -> str:
         scheme, separator, name = reference.partition("://")
@@ -80,6 +106,7 @@ def build_supervisor_app(
         secret_resolver=resolve_secret,
         workspace_root=state_root / "workspaces",
         environment=tuple((str(key), str(value)) for key, value in environment.items()),
+        host_path_mapper=host_path_mapper,
     )
     journal = FileAttemptJournal(state_root / "journal")
     result_store = FileAttemptResultStore(state_root / "results")
@@ -112,6 +139,7 @@ def build_supervisor_app(
         }
 
     app.state.attempt_pool = pool
+    app.state.daemon_state_root = daemon_state_root
     app.router.add_event_handler(
         "shutdown",
         lambda: pool.shutdown(wait=True, cancel_futures=False),

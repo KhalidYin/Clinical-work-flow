@@ -8,6 +8,7 @@ and fixed ``network_mode``/``user`` defaults).
 
 from __future__ import annotations
 
+from pathlib import Path, PurePosixPath
 from typing import Iterator, Literal, Protocol
 
 from pydantic import Field, field_validator
@@ -18,6 +19,25 @@ from contracts.result import HarnessEvent
 _IMAGE_WITH_DIGEST = (
     r"^[a-z0-9][a-z0-9._/:-]*:[A-Za-z0-9._-]+@sha256:[0-9a-f]{64}$"
 )
+
+
+class DaemonRootPathMapper:
+    """Map Supervisor-local state paths to the Docker daemon's mount source."""
+
+    def __init__(self, *, local_root: Path, daemon_root: str) -> None:
+        self._local_root = local_root.resolve()
+        normalized_daemon_root = daemon_root.replace("\\", "/").rstrip("/")
+        if not normalized_daemon_root.startswith("/"):
+            raise ValueError("daemon_root must be an absolute daemon path")
+        self._daemon_root = PurePosixPath(normalized_daemon_root)
+
+    def __call__(self, local_path: str | Path) -> str:
+        resolved = Path(local_path).resolve()
+        try:
+            relative = resolved.relative_to(self._local_root)
+        except ValueError as exc:
+            raise ValueError("bind source is outside Supervisor state root") from exc
+        return str(self._daemon_root.joinpath(*relative.parts))
 
 
 class ReadOnlyMount(StrictContractModel):

@@ -11,7 +11,7 @@
 | API | FastAPI TestClient/httpx、OpenAPI 合同 | `clinical-llm-wiki/tests/` |
 | 数据库 | PostgreSQL 17 + pgvector、Alembic | integration/migration tests 与 Compose |
 | 浏览器 | 知识产品当前为既往手工验收；目标引入可重复 E2E/视觉工具 | 知识 Compose 实例；Workflow Workbench 仅有限定临时 Study 测试，不是通用 Runtime E2E |
-| 容器 | Docker Compose；Harness Fake/Docker runtime 与 supervisor contract tests | `clinical-llm-wiki/compose.yaml`、`harness-runtime/tests/` |
+| 容器 | Docker Compose；Harness Fake/Docker runtime、Supervisor contract 与显式离线部署 Gate | `clinical-llm-wiki/compose.yaml`、`compose.harness.yaml`、`harness-runtime/tests/` |
 
 ## 测试结构
 
@@ -76,6 +76,11 @@ docker compose --project-name clinical-knowledge-demo ps
 
 默认 Compose 不启动 `release` profile；当前也没有通用 Release handler。只有在该能力实现后，Release Worker 身份与健康 Gate 才能通过显式 `--profile release` 纳入验收。
 
+独立 Harness 部署必须显式叠加 `compose.harness.yaml` 并启用 `harness` profile。Gate 使用合成、无效
+provider secret；预期 OpenCode 在 `network none` 下失败关闭并返回脱敏 Receipt。必须同时检查 Worker
+无 Docker socket/模型 secret、Supervisor 独占 socket、终态重复查询一致、受管容器和临时 workspace 清理，
+以及 `alembic_version=20260809_0010`。不得以该离线 Gate 代替 live 出站授权。
+
 删除卷属于显式破坏性测试，只能对已核对的 `clinical-knowledge-demo` 项目执行，并且不得作为日常测试前置。
 
 ## 当前覆盖范围
@@ -86,7 +91,7 @@ docker compose --project-name clinical-knowledge-demo ps
 - Processing ledger：DAG、claim、lease、checkpoint、过期恢复、retry/cancel 和 Attempt lineage。
 - Document Worker：TXT/MD/PDF/DOCX/XLSX 的受控解析、分支/fan-in、Evidence locator。
 - ModelProvider：fake/replay、injected callable 下的单次 direct-model adapter/授权合同、数据边界和失败分类；没有真实 provider 质量结论。
-- Harness：版本化合同、fake/replay/OpenCode adapter、Fake/Docker runtime、supervisor、staging 安全扫描、Step-scoped MCP 授权、OpenCode 真实容器准入、独立 supervisor HTTP 机器身份/幂等/注入拒绝，以及知识 Enrichment replay/`opencode-supervised` 单 Attempt 接线。
+- Harness：版本化合同、fake/replay/OpenCode adapter、Fake/Docker runtime、staging 安全扫描、Step-scoped MCP、OpenCode 真实容器准入、独立 Supervisor 机器身份/幂等/注入拒绝/durable lifecycle、Knowledge remote provider，以及 Compose 私网/Worker 零 socket/真实离线 Attempt。
 - Governance：Candidate revision、作者确认、独立审核、relation eligibility 和 released immutability。
 - 认证：用户名、Argon2id、HttpOnly/SameSite Cookie、CSRF、会话撤销和 RBAC。
 - 前端：Vitest/Testing Library 已覆盖核心组件行为；真实浏览器与 390px 窄屏是既往手工验收，不是已签入自动化 E2E。
@@ -94,9 +99,8 @@ docker compose --project-name clinical-knowledge-demo ps
 
 ### 尚未覆盖
 
-- 独立 supervisor 服务下的 StepExecutionSpec → HarnessExecutionRequest → ExecutionReceipt → ValidationReceipt 部署信任链；应用内单 Attempt 和产品落账已覆盖。
+- 面向生产的 socket proxy/rootless runtime authority、TLS/服务身份轮换与获授权出站网络；当前只覆盖显式本地 Compose 离线信任链。
 - `secret://` 后端及获授权网络策略；`env://` auth 文件物化/清理、产品 shim→OpenCode 的 `tools/call`、路径拒绝和合成凭据不泄露已覆盖。
-- 长 Harness 任务的后台续租、cancel/kill、timeout 和 orphan recovery。
 - 通用 Evaluation、Release Worker、Knowledge MCP 和对应 GUI。
 - 临床统一 Runner 与 Harness artifact promotion。
 - 可重复执行的浏览器 E2E 与视觉回归门禁。
