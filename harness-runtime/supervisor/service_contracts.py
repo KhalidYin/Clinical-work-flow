@@ -63,3 +63,14 @@ class SupervisorAttemptStatus(StrictContractModel):
         "orphaned",
     ]
     receipt: ExecutionReceipt | None = None
+
+
+class SupervisorAttemptResult(StrictContractModel):
+    """Terminal Receipt plus the separately stored untrusted output bundle."""
+
+    contract_version: Literal["1.0.0"] = "1.0.0"
+    attempt_id: str = Field(min_length=1, max_length=160)
+    request_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    receipt: ExecutionReceipt
+    output_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    output_bundle: dict[str, object] | None = None

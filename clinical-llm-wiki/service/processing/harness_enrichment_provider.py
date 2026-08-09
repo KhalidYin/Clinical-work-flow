@@ -15,10 +15,13 @@ from __future__ import annotations
 
 import json
 import hashlib
+import math
 import tempfile
 from pathlib import Path
-from time import perf_counter
-from typing import Any, Callable
+from time import perf_counter, sleep as system_sleep
+from typing import Any, Callable, Mapping
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError as JsonSchemaValidationError
@@ -415,6 +418,381 @@ class SupervisedOpenCodeEnrichmentProvider(ModelProviderPort):
         if not isinstance(output, dict):
             raise ValueError("OpenCode structured output must be a JSON object")
         return output
+
+
+SupervisorTransport = Callable[
+    [str, str, dict[str, object] | None, dict[str, str]],
+    tuple[int, dict[str, object]],
+]
+
+
+class _UrllibSupervisorTransport:
+    """One-shot JSON transport; it intentionally has no retry policy."""
+
+    def __init__(self, base_url: str, timeout_seconds: float) -> None:
+        self._base_url = base_url.rstrip("/")
+        self._timeout_seconds = timeout_seconds
+
+    def __call__(
+        self,
+        method: str,
+        path: str,
+        payload: dict[str, object] | None,
+        headers: dict[str, str],
+    ) -> tuple[int, dict[str, object]]:
+        body = None
+        request_headers = {"Accept": "application/json", **headers}
+        if payload is not None:
+            body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+            request_headers["Content-Type"] = "application/json"
+        request = Request(
+            self._base_url + path,
+            data=body,
+            headers=request_headers,
+            method=method,
+        )
+        try:
+            with urlopen(request, timeout=self._timeout_seconds) as response:
+                status_code = response.status
+                raw = response.read()
+        except HTTPError as error:
+            status_code = error.code
+            raw = error.read()
+        except (OSError, URLError) as error:
+            raise RuntimeError("supervisor transport unavailable") from error
+        try:
+            decoded = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise RuntimeError("supervisor returned invalid JSON") from error
+        if not isinstance(decoded, dict):
+            raise RuntimeError("supervisor returned a non-object response")
+        return status_code, decoded
+
+
+class RemoteSupervisorEnrichmentProvider(ModelProviderPort):
+    """Submit product-level Attempts to the isolated Harness Supervisor."""
+
+    adapter_id = "opencode@1.18.14"
+    validator_id = "knowledge.enrichment.output-schema"
+    validator_version = "1.0.0"
+    _terminal_states = frozenset(
+        {"succeeded", "failed", "cancelled", "timed_out", "orphaned"}
+    )
+
+    def __init__(
+        self,
+        *,
+        supervisor_url: str,
+        machine_token: str,
+        spec_sha256: str,
+        transport: SupervisorTransport | None = None,
+        poll_interval_seconds: float = 1.0,
+        sleep: Callable[[float], None] = system_sleep,
+    ) -> None:
+        if not supervisor_url.startswith(("http://", "https://")):
+            raise ValueError("supervisor_url must use HTTP or HTTPS")
+        if not machine_token:
+            raise ValueError("machine_token must not be empty")
+        if len(spec_sha256) != 64 or any(
+            character not in "0123456789abcdef" for character in spec_sha256
+        ):
+            raise ValueError("spec_sha256 must be a lowercase SHA-256")
+        if poll_interval_seconds <= 0:
+            raise ValueError("poll_interval_seconds must be positive")
+        self._headers = {"Authorization": f"Bearer {machine_token}"}
+        self._spec_sha256 = spec_sha256
+        self._poll_interval_seconds = poll_interval_seconds
+        self._sleep = sleep
+        self._transport = transport or _UrllibSupervisorTransport(
+            supervisor_url,
+            timeout_seconds=max(5.0, poll_interval_seconds * 2),
+        )
+
+    def invoke(self, request: ModelRequest) -> ModelInvocation:
+        enforce_data_boundary(request.model_profile, request.data_boundary)
+        Draft202012Validator.check_schema(request.prompt_profile.output_schema)
+        started = perf_counter()
+        input_bundle: dict[str, object] = {
+            "system_instruction": request.prompt_profile.system_template,
+            "output_schema": request.prompt_profile.output_schema,
+            "messages": [message.model_dump(mode="json") for message in request.messages],
+            "data_boundary": request.data_boundary.value,
+            "provider": request.model_profile.provider,
+            "model": request.model_profile.model,
+        }
+        attempt_payload: dict[str, object] = {
+            "contract_version": "1.0.0",
+            "attempt_id": request.attempt.attempt_id,
+            "run_id": request.attempt.run_id,
+            "step_id": request.attempt.step_id,
+            "generation_token": f"attempt-{request.attempt.attempt_number}",
+            "fencing_token": (
+                f"{request.attempt.attempt_id}:{request.attempt.attempt_number}"
+            ),
+            "adapter_id": self.adapter_id,
+            "spec_sha256": self._spec_sha256,
+            "input_sha256": _canonical_sha256(input_bundle),
+            "input_bundle": input_bundle,
+            "secret_refs": [request.model_profile.secret_ref],
+            "timeout_seconds": request.model_profile.timeout_seconds,
+            "network_mode": "none",
+        }
+        request_sha256 = _canonical_sha256(attempt_payload)
+        poll_budget_expired = False
+        try:
+            accepted = self._call("POST", "/v1/attempts", attempt_payload, {200, 202})
+            self._validate_projection(accepted, request, request_sha256)
+            state = accepted.get("state")
+            max_polls = max(
+                1,
+                math.ceil(
+                    request.model_profile.timeout_seconds / self._poll_interval_seconds
+                )
+                + 1,
+            )
+            for poll_number in range(max_polls):
+                if state in self._terminal_states:
+                    break
+                heartbeat = self._call(
+                    "POST",
+                    f"/v1/attempts/{request.attempt.attempt_id}/heartbeat",
+                    None,
+                    {200},
+                )
+                self._validate_projection(heartbeat, request, request_sha256)
+                status = self._call(
+                    "GET",
+                    f"/v1/attempts/{request.attempt.attempt_id}",
+                    None,
+                    {200},
+                )
+                self._validate_projection(status, request, request_sha256)
+                state = status.get("state")
+                if state in self._terminal_states:
+                    break
+                if poll_number + 1 < max_polls:
+                    self._sleep(self._poll_interval_seconds)
+            else:
+                state = None
+            if state not in self._terminal_states:
+                poll_budget_expired = True
+                cancelled = self._call(
+                    "POST",
+                    f"/v1/attempts/{request.attempt.attempt_id}/cancel",
+                    None,
+                    {200},
+                )
+                self._validate_projection(cancelled, request, request_sha256)
+                state = cancelled.get("state")
+            result = self._call(
+                "GET",
+                f"/v1/attempts/{request.attempt.attempt_id}/result",
+                None,
+                {200},
+            )
+            receipt = self._validate_result(result, request, request_sha256, state)
+        except (RuntimeError, ValueError, KeyError, TypeError):
+            invocation = self._failure_invocation(
+                request=request,
+                started=started,
+                error_type=InvocationErrorType.PROVIDER_ERROR,
+                error_message="supervisor request failed contract validation",
+            )
+            raise ModelProviderError(invocation) from None
+
+        common = self._invocation_common(request, started, receipt)
+        receipt_status = receipt["status"]
+        if state != "succeeded" or receipt_status != "succeeded":
+            error_type = (
+                InvocationErrorType.TIMEOUT
+                if (
+                    poll_budget_expired
+                    or state == "timed_out"
+                    or receipt_status == "timed_out"
+                )
+                else InvocationErrorType.PROVIDER_ERROR
+            )
+            invocation = ModelInvocation(
+                **common,
+                status=InvocationStatus.FAILED,
+                error_type=error_type,
+                error_message=str(receipt.get("message") or state),
+            )
+            raise ModelProviderError(invocation)
+
+        output = result.get("output_bundle")
+        output_sha256 = result.get("output_sha256")
+        try:
+            if not isinstance(output, dict):
+                raise ValueError("terminal success has no object output")
+            if output_sha256 != _canonical_sha256(output):
+                raise ValueError("terminal output hash mismatch")
+            Draft202012Validator(request.prompt_profile.output_schema).validate(output)
+        except (ValueError, JsonSchemaValidationError):
+            validation = self._validation_receipt(
+                request=request,
+                output=output if isinstance(output, dict) else None,
+                result="failed",
+                findings=("structured_output_invalid",),
+            )
+            invocation = ModelInvocation(
+                **common,
+                status=InvocationStatus.FAILED,
+                error_type=InvocationErrorType.STRUCTURED_OUTPUT_INVALID,
+                error_message="structured_output_invalid: product schema validation failed",
+                validation_receipt=validation,
+            )
+            raise ModelProviderError(invocation) from None
+
+        validation = self._validation_receipt(
+            request=request,
+            output=output,
+            result="passed",
+            findings=(),
+        )
+        return ModelInvocation(
+            **common,
+            status=InvocationStatus.SUCCEEDED,
+            output_sha256=output_sha256,
+            output=output,
+            validation_receipt=validation,
+        )
+
+    def _call(
+        self,
+        method: str,
+        path: str,
+        payload: dict[str, object] | None,
+        expected_statuses: set[int],
+    ) -> dict[str, object]:
+        status_code, response = self._transport(method, path, payload, dict(self._headers))
+        if status_code not in expected_statuses:
+            raise RuntimeError("supervisor rejected request")
+        return response
+
+    @staticmethod
+    def _validate_projection(
+        projection: Mapping[str, object],
+        request: ModelRequest,
+        request_sha256: str,
+    ) -> None:
+        if projection.get("contract_version") != "1.0.0":
+            raise ValueError("unsupported supervisor contract version")
+        if projection.get("attempt_id") != request.attempt.attempt_id:
+            raise ValueError("supervisor attempt identity mismatch")
+        if projection.get("request_sha256") != request_sha256:
+            raise ValueError("supervisor request hash mismatch")
+        if projection.get("state") not in {
+            "accepted",
+            "running",
+            "succeeded",
+            "failed",
+            "cancelled",
+            "timed_out",
+            "orphaned",
+        }:
+            raise ValueError("supervisor returned invalid state")
+
+    def _validate_result(
+        self,
+        result: Mapping[str, object],
+        request: ModelRequest,
+        request_sha256: str,
+        state: object,
+    ) -> dict[str, object]:
+        if result.get("contract_version") != "1.0.0":
+            raise ValueError("unsupported supervisor result version")
+        if result.get("attempt_id") != request.attempt.attempt_id:
+            raise ValueError("supervisor result attempt mismatch")
+        if result.get("request_sha256") != request_sha256:
+            raise ValueError("supervisor result request hash mismatch")
+        receipt = result.get("receipt")
+        if not isinstance(receipt, dict):
+            raise ValueError("supervisor result receipt is missing")
+        if receipt.get("request_sha256") != request_sha256:
+            raise ValueError("execution receipt request hash mismatch")
+        if receipt.get("spec_sha256") != self._spec_sha256:
+            raise ValueError("execution receipt spec hash mismatch")
+        if receipt.get("adapter_id") != self.adapter_id:
+            raise ValueError("execution receipt adapter mismatch")
+        expected_exit = "failed" if state == "failed" else state
+        if receipt.get("exit_classification") != expected_exit:
+            raise ValueError("execution receipt classification mismatch")
+        return receipt
+
+    def _invocation_common(
+        self,
+        request: ModelRequest,
+        started: float,
+        receipt: dict[str, object],
+    ) -> dict[str, Any]:
+        return {
+            "attempt": request.attempt,
+            "model_profile_id": request.model_profile.profile_id,
+            "model_profile_version": request.model_profile.version,
+            "provider": "harness",
+            "model": self.adapter_id,
+            "prompt_profile_id": request.prompt_profile.profile_id,
+            "prompt_profile_version": request.prompt_profile.version,
+            "output_schema_sha256": request.prompt_profile.output_schema_sha256,
+            "data_boundary": request.data_boundary,
+            "input_sha256": request.input_sha256,
+            "provider_request_id": str(receipt["execution_id"]),
+            "latency_ms": max(0, round((perf_counter() - started) * 1000)),
+            "execution_receipt": receipt,
+        }
+
+    def _validation_receipt(
+        self,
+        *,
+        request: ModelRequest,
+        output: dict[str, Any] | None,
+        result: str,
+        findings: tuple[str, ...],
+    ) -> dict[str, Any]:
+        return {
+            "validator_id": self.validator_id,
+            "validator_version": self.validator_version,
+            "validator_sha256": hashlib.sha256(
+                (
+                    self.validator_id
+                    + ":"
+                    + self.validator_version
+                    + ":"
+                    + request.prompt_profile.output_schema_sha256
+                ).encode("utf-8")
+            ).hexdigest(),
+            "input_sha256": (
+                _canonical_sha256(output) if output is not None else request.input_sha256
+            ),
+            "result": result,
+            "findings": list(findings),
+        }
+
+    def _failure_invocation(
+        self,
+        *,
+        request: ModelRequest,
+        started: float,
+        error_type: InvocationErrorType,
+        error_message: str,
+    ) -> ModelInvocation:
+        return ModelInvocation(
+            attempt=request.attempt,
+            model_profile_id=request.model_profile.profile_id,
+            model_profile_version=request.model_profile.version,
+            provider="harness",
+            model=self.adapter_id,
+            prompt_profile_id=request.prompt_profile.profile_id,
+            prompt_profile_version=request.prompt_profile.version,
+            output_schema_sha256=request.prompt_profile.output_schema_sha256,
+            data_boundary=request.data_boundary,
+            input_sha256=request.input_sha256,
+            latency_ms=max(0, round((perf_counter() - started) * 1000)),
+            status=InvocationStatus.FAILED,
+            error_type=error_type,
+            error_message=error_message,
+        )
 
 
 def _canonical_sha256(payload: Any) -> str:

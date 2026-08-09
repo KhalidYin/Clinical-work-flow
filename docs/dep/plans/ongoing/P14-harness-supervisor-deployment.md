@@ -63,8 +63,8 @@ Worker 只提交受限、hash-locked Attempt request，不接触 Docker socket�
 | Phase | 目标 | 预估轮次 | 依赖 | 状态 |
 |-------|------|----------|------|------|
 | P1 | 冻结窄请求合同、机器身份与幂等语义 | R112 | P12/R111 | done |
-| P2 | 实现独立服务、生命周期与 Worker remote provider | R114-R115 | P1 | pending |
-| P3 | 完成 Compose 零网络 Attempt、文档同步与发布 Gate | R116-R117 | P2 | pending |
+| P2 | 实现独立服务、生命周期与 Worker remote provider | R113 | P1 | done |
+| P3 | 完成 Compose 零网络 Attempt、文档同步与发布 Gate | R114-R115 | P2 | in-progress |
 
 ---
 
@@ -122,10 +122,10 @@ Worker 只提交受限、hash-locked Attempt request，不接触 Docker socket�
 
 ### 完成标准
 
-- [ ] heartbeat 更新租约，过期或服务重启后能依据受管 label 识别并终止 orphan。
-- [ ] cancel 至多执行一次终止动作，并稳定返回同一终态 Receipt。
-- [ ] Worker 请求只含产品级输入、版本/hash、secret reference 和 Attempt identity；无 Docker socket。
-- [ ] 单元/集成测试覆盖成功、失败、timeout、cancel、重复提交、重启恢复和 Receipt 回传。
+- [x] heartbeat 更新租约；服务重启后依据受管 label 识别并终止遗留 orphan。
+- [x] cancel 至多执行一次终止动作，并稳定返回同一终态 Receipt。
+- [x] Worker 请求只含产品级输入、版本/hash、secret reference 和 Attempt identity；无 Docker socket。
+- [x] 单元/集成测试覆盖成功、失败、timeout、cancel、重复提交、重启恢复和 Receipt 回传。
 
 ### 边界（本 Phase 明确不做）
 
@@ -197,7 +197,8 @@ Worker 只提交受限、hash-locked Attempt request，不接触 Docker socket�
 
 | ID | 描述 | 发现于 | 类型 | 处理 |
 |----|------|--------|------|------|
-| - | 当前无 | - | - | - |
+| P14-D01 | cancel 与后台成功线程可能竞争写 terminal output | P2 | correctness | `FileAttemptResultStore` 改为首个终态写入获胜，迟到线程不能覆盖取消结果 |
+| P14-D02 | Worker 远程请求最初将 provider/model 形状编译错误 | P2 | contract | 跨产品测试固定顶层字符串字段，和 Supervisor 固定编译器保持一致 |
 
 ## 关键决策记录
 
@@ -209,4 +210,4 @@ Worker 只提交受限、hash-locked Attempt request，不接触 Docker socket�
 
 | 日期 | 已同步到 | 说明 |
 |------|----------|------|
-| - | - | 待全部 Phase 完成后同步 |
+| 2026-08-09 | `PLAN.md`、DevLog R113 | P2 生命周期与 remote provider Gate 完成；canonical 主文档待 P3 部署证据后统一同步 |

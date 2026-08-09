@@ -59,6 +59,7 @@ class HarnessSupervisor:
         command: tuple[str, ...] = (),
         extra_read_only_mounts: tuple[ReadOnlyMount, ...] = (),
         environment: tuple[tuple[str, str], ...] = (),
+        control_request_sha256: str | None = None,
     ) -> ExecutionReceipt:
         if request.spec_sha256 is None:
             raise ValueError("spec_sha256 is required for harness execution")
@@ -66,6 +67,11 @@ class HarnessSupervisor:
             raise ValueError("image_ref (with digest lock) is required for harness execution")
 
         started_at = datetime.now(timezone.utc)
+        request_sha256 = control_request_sha256 or _request_sha256(request)
+        if len(request_sha256) != 64 or any(
+            character not in "0123456789abcdef" for character in request_sha256
+        ):
+            raise ValueError("control_request_sha256 must be a lowercase SHA-256")
         host_scratch = Path(request.scratch_path)
         host_staging = host_scratch / "staging"
         host_scratch.mkdir(parents=True, exist_ok=True)
@@ -88,6 +94,12 @@ class HarnessSupervisor:
             host_staging_dir=str(host_staging),
             timeout_seconds=request.timeout_seconds,
             environment=environment,
+            labels=(
+                ("clinical.harness.attempt", "managed"),
+                ("clinical.harness.attempt_id", request.attempt_id),
+                ("clinical.harness.request_sha256", request_sha256),
+                ("clinical.harness.spec_sha256", request.spec_sha256),
+            ),
         )
         container_id = self._runtime.create(config)
         try:
@@ -140,7 +152,7 @@ class HarnessSupervisor:
         return ExecutionReceipt(
             execution_id=f"exec-{request.attempt_id}",
             spec_sha256=request.spec_sha256,
-            request_sha256=_request_sha256(request),
+            request_sha256=request_sha256,
             harness_id=request.adapter_id,
             image_ref=request.image_ref,
             adapter_id=request.adapter_id,

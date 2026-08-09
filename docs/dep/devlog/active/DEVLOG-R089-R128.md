@@ -1177,3 +1177,55 @@ Done — no next steps。
 - `harness-runtime/tests/test_supervisor_service.py`（new，uncommitted）
 - `docs/main/PROJECT_GUIDE.md`、`PROJECT_SPEC.md`、`TEST_GUIDE.md`、`docs/dep/PLAN.md`、P14、DevLog（modified，uncommitted）
 - P14 设计合同提交：`cddef47`
+
+---
+
+### R113 [23:07] [P14-harness-supervisor-deployment] P2: 独立 Supervisor 生命周期与 Worker 远程接线
+
+#### Done
+
+- 新增独立 Supervisor 进程入口、durable operational journal 和分离的 terminal result store；
+  journal 只持久化 Attempt identity/request hash/lease/Receipt，不保存 input、token 或 secret。
+- 补齐 heartbeat lease、同 ID/hash 跨重启幂等、终态 write-once、cancel 至多一次，以及启动时
+  按 `clinical.harness.*` managed label 回收遗留容器并生成 orphan Receipt。
+- Supervisor 固定编译 OpenCode `1.18.14`：镜像、entrypoint、command、mount、environment、
+  `network none` 与容器安全基线均不接受 Worker 覆盖；secret 仅由 Supervisor 的 `env://` resolver
+  即时物化，Attempt workspace 在所有退出路径清理。
+- 新增 Knowledge `RemoteSupervisorEnrichmentProvider`：内部 Bearer HTTP、canonical request hash、
+  submit/heartbeat/status/result/cancel，无自动模型重试；产品侧重新校验 output hash 和 JSON Schema，
+  并保留 ExecutionReceipt/ValidationReceipt。
+- `KNOWLEDGE_HARNESS_EXECUTION_MODE=opencode-supervised` 已迁移到 remote provider；Worker 不再
+  读取镜像 manifest、解析模型 secret 或构造 Docker runtime。`opencode-remote` 仅作兼容别名。
+- 修复 cancel 与迟到执行线程竞争覆盖结果的问题：terminal result store 采用首个写入获胜；同时用
+  跨边界测试纠正并锁定顶层 `provider`/`model` 请求字段。
+
+#### Issues / Blockers
+
+- P2 完成的是独立服务代码和单元/集成合同，不等于 Compose 已部署；`worker-enrichment` 当前仍为
+  replay，Supervisor 镜像、私有 control network、socket 独占和 daemon 可见 bind path 属于 P3。
+- Compose Supervisor 后续持有 Docker socket，是高权限信任边界；`ro` bind 不会把 Docker API
+  变成只读。P3 必须用窄接口、固定编译器、私网和 Worker 零 socket 证据限定风险。
+- 本轮仅支持测试/本地 `env://`；未配置真实 API key、未启用网络 allowlist、未运行 live 模型，
+  也未改变 Knowledge PostgreSQL 的 canonical 业务状态权威。
+
+#### Validation
+
+- Harness：`108 passed, 4 skipped`；Ruff 全绿。新增覆盖 journal 重启、heartbeat、cancel、orphan、
+  固定 executor、Docker labels、terminal Receipt/output、结果写竞争与服务环境入口。
+- Knowledge：`214 passed, 8 skipped`；Ruff 全绿。remote provider 覆盖成功、结构化输出拒绝、
+  poll budget 触发 cancel/timeout，以及 Worker 无 image/model-secret 的远程构造。
+- `git diff --check` 通过；新行为按 RED→GREEN 完成。未修改数据库结构，未发起真实模型出站。
+
+#### Next
+
+1. P14/P3 构建 Supervisor 镜像并接入 Compose 私有 control network；解决 Supervisor 容器内临时
+   路径到宿主 Docker daemon bind source 的显式映射问题。
+2. 证明 `worker-enrichment` 无 Docker socket，子容器仍为 digest image、`network none`、非 root、
+   只读 rootfs、cap-drop ALL/no-new-privileges，并以合成 secret 完成或 fail closed。
+3. 运行 Frontend、Workflow、Compose/migration 与文档一致性全 Gate，分阶段提交并推送；live 继续关闭。
+
+#### Files Changed / Commits
+
+- `harness-runtime/supervisor/`、`harness-runtime/tests/`（new/modified，uncommitted）
+- `clinical-llm-wiki/service/processing/`、`clinical-llm-wiki/tests/test_harness_enrichment_provider.py`（modified，uncommitted）
+- `docs/dep/PLAN.md`、P14、DevLog/INDEX（modified，uncommitted）

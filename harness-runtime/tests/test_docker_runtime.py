@@ -21,6 +21,7 @@ class _FakeContainer:
     id = "container-1"
 
     def __init__(self) -> None:
+        self.attrs: dict[str, object] = {"Config": {"Labels": {}}}
         self.stop_calls: list[int] = []
         self.kill_calls = 0
         self.remove_calls = 0
@@ -43,11 +44,17 @@ class _FakeContainers:
 
     def create(self, **kwargs: object) -> _FakeContainer:
         self.create_kwargs = kwargs
+        self.container.attrs = {"Config": {"Labels": kwargs.get("labels", {})}}
         return self.container
 
     def get(self, container_id: str) -> _FakeContainer:
         assert container_id == self.container.id
         return self.container
+
+    def list(self, *, all: bool, filters: dict[str, str]) -> list[_FakeContainer]:
+        assert all is True
+        assert filters == {"label": "clinical.harness.attempt=managed"}
+        return [self.container]
 
 
 def test_config_requires_digest_locked_image() -> None:
@@ -92,6 +99,7 @@ def test_create_uses_supported_engine_arguments_and_hardening(tmp_path: Path) ->
             staging_dir="/staging",
             host_scratch_dir=str(tmp_path / "scratch"),
             host_staging_dir=str(tmp_path / "staging"),
+            labels=(("clinical.harness.attempt_id", "attempt-1"),),
         )
     )
 
@@ -103,6 +111,10 @@ def test_create_uses_supported_engine_arguments_and_hardening(tmp_path: Path) ->
     assert containers.create_kwargs["init"] is True
     assert containers.create_kwargs["tmpfs"] == {
         "/tmp": "rw,noexec,nosuid,size=64m"
+    }
+    assert containers.create_kwargs["labels"] == {
+        "clinical.harness.attempt": "managed",
+        "clinical.harness.attempt_id": "attempt-1",
     }
 
 
@@ -128,6 +140,37 @@ def test_terminate_sends_sigterm_with_attempt_timeout(tmp_path: Path) -> None:
 
     assert container.stop_calls == [7]
     assert container.kill_calls == 0
+
+
+def test_list_managed_returns_only_supervisor_identity_labels(tmp_path: Path) -> None:
+    from supervisor.docker_runtime import DockerEngineContainerRuntime
+
+    container = _FakeContainer()
+    containers = _FakeContainers(container)
+    runtime = DockerEngineContainerRuntime(client=SimpleNamespace(containers=containers))
+    runtime.create(
+        ContainerConfig(
+            image_ref=f"clinical-harness:fake@sha256:{'f' * 64}",
+            command=("--version",),
+            scratch_dir="/scratch",
+            staging_dir="/staging",
+            host_scratch_dir=str(tmp_path / "scratch"),
+            host_staging_dir=str(tmp_path / "staging"),
+            labels=(
+                ("clinical.harness.attempt_id", "attempt-1"),
+                ("clinical.harness.request_sha256", "c" * 64),
+                ("clinical.harness.spec_sha256", "a" * 64),
+            ),
+        )
+    )
+
+    managed = runtime.list_managed()
+
+    assert len(managed) == 1
+    assert managed[0].container_id == container.id
+    assert managed[0].attempt_id == "attempt-1"
+    assert managed[0].request_sha256 == "c" * 64
+    assert managed[0].spec_sha256 == "a" * 64
 
 
 @pytest.mark.integration

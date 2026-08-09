@@ -23,6 +23,8 @@ _HARNESS_RUNTIME_ROOT = Path(__file__).resolve().parents[2] / "harness-runtime"
 sys.path.insert(0, str(_HARNESS_RUNTIME_ROOT))
 
 from adapters.replay import ReplayFixture, ReplayHarnessAdapter, ReplayRecord
+from contracts.manifest import ArtifactManifest
+from contracts.receipt import ExecutionReceipt, ExitClassification
 from contracts.result import HarnessResult, HarnessStatus
 from supervisor.fake_container_runtime import FakeContainerRuntime
 from supervisor.supervisor import HarnessSupervisor
@@ -43,6 +45,7 @@ from service.processing import enrichment as enrichment_mod
 from service.processing.contracts import ClaimedStepAttempt, ExecutorKind
 from service.processing.harness_enrichment_provider import (
     HarnessEnrichmentProvider,
+    RemoteSupervisorEnrichmentProvider,
     SupervisedOpenCodeEnrichmentProvider,
 )
 from service.processing.worker import harness_enrichment_provider_from_environment
@@ -332,38 +335,255 @@ def test_supervised_opencode_invalid_output_fails_with_validation_receipt(tmp_pa
     assert workspaces and not workspaces[0].exists()
 
 
-def test_worker_builds_supervised_opencode_provider_from_locked_manifest(tmp_path: Path) -> None:
-    manifest_path = tmp_path / "opencode.json"
-    manifest_path.write_text(
-        json.dumps(
-            {
-                "adapter_id": "opencode@1.18.14",
-                "image_ref": (
-                    "ghcr.io/anomalyco/opencode:1.18.14@sha256:" + "f" * 64
-                ),
-                "environment": {
-                    "OPENCODE_DISABLE_MODELS_FETCH": "1",
-                    "OPENCODE_DISABLE_AUTOUPDATE": "true",
-                },
+class SuccessfulSupervisorTransport:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str, dict[str, object] | None, dict[str, str]]] = []
+        self.request_sha256 = ""
+
+    def __call__(
+        self,
+        method: str,
+        path: str,
+        payload: dict[str, object] | None,
+        headers: dict[str, str],
+    ) -> tuple[int, dict[str, object]]:
+        self.calls.append((method, path, payload, headers))
+        if path == "/v1/attempts":
+            assert payload is not None
+            self.request_sha256 = hashlib.sha256(
+                json.dumps(
+                    payload,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            ).hexdigest()
+            return 202, {
+                "contract_version": "1.0.0",
+                "attempt_id": "attempt-enrichment-1",
+                "request_sha256": self.request_sha256,
+                "state": "accepted",
+                "receipt": None,
             }
-        ),
-        encoding="utf-8",
+        if path.endswith("/heartbeat"):
+            return 200, {
+                "contract_version": "1.0.0",
+                "attempt_id": "attempt-enrichment-1",
+                "request_sha256": self.request_sha256,
+                "state": "running",
+                "receipt": None,
+            }
+        if path.endswith("/result"):
+            receipt = ExecutionReceipt(
+                execution_id="exec-attempt-enrichment-1",
+                spec_sha256="a" * 64,
+                request_sha256=self.request_sha256,
+                harness_id="opencode@1.18.14",
+                adapter_id="opencode@1.18.14",
+                status=HarnessStatus.SUCCEEDED,
+                exit_classification=ExitClassification.SUCCEEDED,
+                exit_code=0,
+                started_at="2026-08-09T12:00:00Z",
+                ended_at="2026-08-09T12:00:01Z",
+                artifact_manifest=ArtifactManifest(),
+            ).model_dump(mode="json")
+            return 200, {
+                "contract_version": "1.0.0",
+                "attempt_id": "attempt-enrichment-1",
+                "request_sha256": self.request_sha256,
+                "receipt": receipt,
+                "output_sha256": hashlib.sha256(
+                    json.dumps(
+                        _CANDIDATE_OUTPUT,
+                        ensure_ascii=False,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    ).encode("utf-8")
+                ).hexdigest(),
+                "output_bundle": _CANDIDATE_OUTPUT,
+            }
+        return 200, {
+            "contract_version": "1.0.0",
+            "attempt_id": "attempt-enrichment-1",
+            "request_sha256": self.request_sha256,
+            "state": "succeeded",
+            "receipt": None,
+        }
+
+
+def test_remote_supervisor_provider_sends_only_product_attempt_and_validates_output() -> None:
+    transport = SuccessfulSupervisorTransport()
+    provider = RemoteSupervisorEnrichmentProvider(
+        supervisor_url="http://harness-supervisor:8790",
+        machine_token="internal-supervisor-token",
+        spec_sha256="a" * 64,
+        transport=transport,
+        sleep=lambda _seconds: None,
     )
+
+    invocation = provider.invoke(_supervised_request())
+
+    assert invocation.status is InvocationStatus.SUCCEEDED
+    assert invocation.output == _CANDIDATE_OUTPUT
+    assert invocation.execution_receipt is not None
+    assert invocation.validation_receipt is not None
+    submitted = transport.calls[0][2]
+    assert submitted is not None
+    assert submitted["contract_version"] == "1.0.0"
+    assert submitted["adapter_id"] == "opencode@1.18.14"
+    assert submitted["network_mode"] == "none"
+    assert submitted["secret_refs"] == ["env://KNOWLEDGE_DEMO_SECRET"]
+    assert submitted["input_bundle"]["provider"] == "openai"
+    assert submitted["input_bundle"]["model"] == "gpt-test"
+    assert not ({"image_ref", "command", "mounts", "environment"} & submitted.keys())
+    assert "internal-supervisor-token" not in json.dumps(submitted)
+    assert transport.calls[0][3]["Authorization"] == "Bearer internal-supervisor-token"
+    assert [call[1] for call in transport.calls] == [
+        "/v1/attempts",
+        "/v1/attempts/attempt-enrichment-1/heartbeat",
+        "/v1/attempts/attempt-enrichment-1",
+        "/v1/attempts/attempt-enrichment-1/result",
+    ]
+
+
+class InvalidOutputSupervisorTransport(SuccessfulSupervisorTransport):
+    def __call__(
+        self,
+        method: str,
+        path: str,
+        payload: dict[str, object] | None,
+        headers: dict[str, str],
+    ) -> tuple[int, dict[str, object]]:
+        status_code, response = super().__call__(method, path, payload, headers)
+        if path.endswith("/result"):
+            invalid_output = {"claim": "missing required fields"}
+            response["output_bundle"] = invalid_output
+            response["output_sha256"] = hashlib.sha256(
+                json.dumps(
+                    invalid_output,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            ).hexdigest()
+        return status_code, response
+
+
+def test_remote_supervisor_provider_revalidates_untrusted_output() -> None:
+    provider = RemoteSupervisorEnrichmentProvider(
+        supervisor_url="http://harness-supervisor:8790",
+        machine_token="internal-supervisor-token",
+        spec_sha256="a" * 64,
+        transport=InvalidOutputSupervisorTransport(),
+        sleep=lambda _seconds: None,
+    )
+
+    with pytest.raises(ModelProviderError) as caught:
+        provider.invoke(_supervised_request())
+
+    invocation = caught.value.invocation
+    assert invocation.error_type is InvocationErrorType.STRUCTURED_OUTPUT_INVALID
+    assert invocation.execution_receipt is not None
+    assert invocation.validation_receipt is not None
+    assert invocation.validation_receipt["result"] == "failed"
+
+
+def test_worker_builds_remote_supervisor_provider_without_image_or_model_secret() -> None:
+    provider = harness_enrichment_provider_from_environment(
+        {
+            "KNOWLEDGE_ENRICHMENT_PROVIDER_MODE": "harness",
+            "KNOWLEDGE_HARNESS_EXECUTION_MODE": "opencode-remote",
+            "KNOWLEDGE_HARNESS_SUPERVISOR_URL": "http://harness-supervisor:8790",
+            "KNOWLEDGE_HARNESS_SUPERVISOR_TOKEN_REF": "env://SUPERVISOR_MACHINE_TOKEN",
+            "SUPERVISOR_MACHINE_TOKEN": "internal-supervisor-token",
+            "KNOWLEDGE_HARNESS_SPEC_SHA256": "a" * 64,
+        }
+    )
+
+    assert isinstance(provider, RemoteSupervisorEnrichmentProvider)
+
+
+class NeverCompletesSupervisorTransport(SuccessfulSupervisorTransport):
+    def __call__(
+        self,
+        method: str,
+        path: str,
+        payload: dict[str, object] | None,
+        headers: dict[str, str],
+    ) -> tuple[int, dict[str, object]]:
+        if path == "/v1/attempts":
+            return super().__call__(method, path, payload, headers)
+        self.calls.append((method, path, payload, headers))
+        projection: dict[str, object] = {
+            "contract_version": "1.0.0",
+            "attempt_id": "attempt-enrichment-1",
+            "request_sha256": self.request_sha256,
+            "state": "running",
+            "receipt": None,
+        }
+        if path.endswith("/cancel"):
+            projection["state"] = "cancelled"
+        if path.endswith("/result"):
+            receipt = ExecutionReceipt(
+                execution_id="exec-attempt-enrichment-1",
+                spec_sha256="a" * 64,
+                request_sha256=self.request_sha256,
+                harness_id="opencode@1.18.14",
+                adapter_id="opencode@1.18.14",
+                status=HarnessStatus.CANCELLED,
+                exit_classification=ExitClassification.CANCELLED,
+                started_at="2026-08-09T12:00:00Z",
+                ended_at="2026-08-09T12:00:01Z",
+                artifact_manifest=ArtifactManifest(),
+            ).model_dump(mode="json")
+            return 200, {
+                "contract_version": "1.0.0",
+                "attempt_id": "attempt-enrichment-1",
+                "request_sha256": self.request_sha256,
+                "receipt": receipt,
+                "output_sha256": None,
+                "output_bundle": None,
+            }
+        return 200, projection
+
+
+def test_remote_supervisor_provider_cancels_when_poll_budget_expires() -> None:
+    transport = NeverCompletesSupervisorTransport()
+    provider = RemoteSupervisorEnrichmentProvider(
+        supervisor_url="http://harness-supervisor:8790",
+        machine_token="internal-supervisor-token",
+        spec_sha256="a" * 64,
+        transport=transport,
+        poll_interval_seconds=1,
+        sleep=lambda _seconds: None,
+    )
+    request = _supervised_request()
+    profile = request.model_profile.model_copy(update={"timeout_seconds": 1})
+
+    with pytest.raises(ModelProviderError) as caught:
+        provider.invoke(request.model_copy(update={"model_profile": profile}))
+
+    assert caught.value.invocation.error_type is InvocationErrorType.TIMEOUT
+    assert any(path.endswith("/cancel") for _, path, _, _ in transport.calls)
+
+
+def test_worker_supervised_mode_uses_remote_supervisor_without_docker_inputs() -> None:
     provider = harness_enrichment_provider_from_environment(
         {
             "KNOWLEDGE_ENRICHMENT_PROVIDER_MODE": "harness",
             "KNOWLEDGE_HARNESS_EXECUTION_MODE": "opencode-supervised",
-            "KNOWLEDGE_HARNESS_IMAGE_MANIFEST_PATH": str(manifest_path),
+            "KNOWLEDGE_HARNESS_SUPERVISOR_URL": "http://harness-supervisor:8790",
+            "KNOWLEDGE_HARNESS_SUPERVISOR_TOKEN_REF": "env://SUPERVISOR_MACHINE_TOKEN",
+            "SUPERVISOR_MACHINE_TOKEN": "internal-supervisor-token",
             "KNOWLEDGE_HARNESS_SPEC_SHA256": "a" * 64,
-            "KNOWLEDGE_DEMO_SECRET": "synthetic-test-secret",
         }
     )
 
-    assert isinstance(provider, SupervisedOpenCodeEnrichmentProvider)
+    assert isinstance(provider, RemoteSupervisorEnrichmentProvider)
 
 
-def test_worker_supervised_mode_requires_manifest_and_spec_hash() -> None:
-    with pytest.raises(RuntimeError, match="KNOWLEDGE_HARNESS_IMAGE_MANIFEST_PATH"):
+def test_worker_supervised_mode_requires_supervisor_endpoint_and_spec_hash() -> None:
+    with pytest.raises(RuntimeError, match="KNOWLEDGE_HARNESS_SUPERVISOR_URL"):
         harness_enrichment_provider_from_environment(
             {
                 "KNOWLEDGE_ENRICHMENT_PROVIDER_MODE": "harness",

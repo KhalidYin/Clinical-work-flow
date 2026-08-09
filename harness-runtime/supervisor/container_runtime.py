@@ -48,6 +48,7 @@ class ContainerConfig(StrictContractModel):
         ("/tmp", "rw,noexec,nosuid,size=64m"),
     )
     environment: tuple[tuple[str, str], ...] = ()
+    labels: tuple[tuple[str, str], ...] = ()
 
     @field_validator("environment")
     @classmethod
@@ -57,6 +58,15 @@ class ContainerConfig(StrictContractModel):
             if "secret" in lowered or "token" in lowered or "password" in lowered or "key" in lowered:
                 raise ValueError(f"credential-like environment variable is forbidden: {key}")
         return value
+
+
+class ManagedContainer(StrictContractModel):
+    """Identity projection read only from Supervisor-owned Docker labels."""
+
+    container_id: str = Field(min_length=1)
+    attempt_id: str = Field(min_length=1, max_length=160)
+    request_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    spec_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
 
 
 class ContainerRuntimePort(Protocol):
@@ -92,4 +102,8 @@ class ContainerRuntimePort(Protocol):
 
     def remove(self, container_id: str) -> None:
         """Remove the container; never raises."""
+        ...
+
+    def list_managed(self) -> tuple[ManagedContainer, ...]:
+        """List containers carrying the complete Supervisor identity labels."""
         ...

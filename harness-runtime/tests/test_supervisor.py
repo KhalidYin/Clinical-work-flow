@@ -93,6 +93,24 @@ def test_launch_options_preserve_entrypoint_environment_and_secret_mount(tmp_pat
     assert "opencode-auth.json" not in " ".join(config.command)
 
 
+def test_supervisor_labels_container_with_attempt_and_control_request_hash(tmp_path) -> None:
+    runtime = FakeContainerRuntime(exit_code=1)
+    supervisor = _supervisor(runtime)
+    request = _request(tmp_path)
+    request.input_path.write_text("{}", encoding="utf-8")
+
+    supervisor.execute(request, control_request_sha256="c" * 64)
+
+    config = runtime.last_config
+    assert config is not None
+    assert dict(config.labels) == {
+        "clinical.harness.attempt": "managed",
+        "clinical.harness.attempt_id": request.attempt_id,
+        "clinical.harness.request_sha256": "c" * 64,
+        "clinical.harness.spec_sha256": "a" * 64,
+    }
+
+
 def test_container_is_removed_when_copying_staging_raises(tmp_path) -> None:
     class BrokenCopyRuntime(FakeContainerRuntime):
         def copy_from(self, container_id: str, container_path: str, host_path: str) -> None:

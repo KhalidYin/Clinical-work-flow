@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from contracts.result import HarnessEvent
-from supervisor.container_runtime import ContainerConfig
+from supervisor.container_runtime import ContainerConfig, ManagedContainer
 from supervisor.staging import StagingScanError
 
 
@@ -60,7 +60,10 @@ class DockerEngineContainerRuntime:
             tmpfs=dict(config.tmpfs),
             volumes=volumes,
             environment=dict(config.environment),
-            labels={"clinical.harness.attempt": "managed"},
+            labels={
+                **dict(config.labels),
+                "clinical.harness.attempt": "managed",
+            },
         )
         if config.entrypoint:
             create_kwargs["entrypoint"] = list(config.entrypoint)
@@ -138,6 +141,27 @@ class DockerEngineContainerRuntime:
             pass
         finally:
             self._stop_timeouts.pop(container_id, None)
+
+    def list_managed(self) -> tuple[ManagedContainer, ...]:
+        containers = self._docker().containers.list(
+            all=True,
+            filters={"label": "clinical.harness.attempt=managed"},
+        )
+        managed: list[ManagedContainer] = []
+        for container in containers:
+            labels = container.attrs.get("Config", {}).get("Labels", {}) or {}
+            try:
+                managed.append(
+                    ManagedContainer(
+                        container_id=container.id,
+                        attempt_id=labels["clinical.harness.attempt_id"],
+                        request_sha256=labels["clinical.harness.request_sha256"],
+                        spec_sha256=labels["clinical.harness.spec_sha256"],
+                    )
+                )
+            except (KeyError, TypeError, ValueError):
+                continue
+        return tuple(sorted(managed, key=lambda item: item.attempt_id))
 
 
 class _ChunkIteratorReader:

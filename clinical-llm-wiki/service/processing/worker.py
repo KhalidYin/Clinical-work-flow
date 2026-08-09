@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-import json
 import os
 from pathlib import Path
 import time
@@ -265,17 +264,35 @@ def harness_enrichment_provider_from_environment(
 def _harness_enrichment_provider_from_environment(values: Mapping[str, str]):
     from .harness_enrichment_provider import (
         HarnessEnrichmentProvider,
-        SupervisedOpenCodeEnrichmentProvider,
+        RemoteSupervisorEnrichmentProvider,
     )
 
     execution_mode = values.get("KNOWLEDGE_HARNESS_EXECUTION_MODE", "replay")
-    if execution_mode == "opencode-supervised":
-        manifest_value = values.get("KNOWLEDGE_HARNESS_IMAGE_MANIFEST_PATH")
-        if not manifest_value:
+    if execution_mode in {"opencode-supervised", "opencode-remote"}:
+        supervisor_url = values.get("KNOWLEDGE_HARNESS_SUPERVISOR_URL")
+        if not supervisor_url:
             raise RuntimeError(
-                "KNOWLEDGE_HARNESS_IMAGE_MANIFEST_PATH is required for "
-                "opencode-supervised mode"
+                "KNOWLEDGE_HARNESS_SUPERVISOR_URL is required for supervised mode"
             )
+        token_reference = values.get("KNOWLEDGE_HARNESS_SUPERVISOR_TOKEN_REF")
+        if not token_reference:
+            raise RuntimeError(
+                "KNOWLEDGE_HARNESS_SUPERVISOR_TOKEN_REF is required for "
+                "supervised mode"
+            )
+        try:
+            scheme, token_name = token_reference.split("://", 1)
+        except ValueError as exc:
+            raise RuntimeError(
+                "KNOWLEDGE_HARNESS_SUPERVISOR_TOKEN_REF must be an env:// reference"
+            ) from exc
+        if scheme != "env" or not token_name:
+            raise RuntimeError(
+                "KNOWLEDGE_HARNESS_SUPERVISOR_TOKEN_REF must be an env:// reference"
+            )
+        machine_token = values.get(token_name)
+        if not machine_token:
+            raise RuntimeError("Supervisor machine credential is not configured")
         spec_sha256 = values.get("KNOWLEDGE_HARNESS_SPEC_SHA256")
         if (
             spec_sha256 is None
@@ -285,50 +302,15 @@ def _harness_enrichment_provider_from_environment(values: Mapping[str, str]):
             raise RuntimeError(
                 "KNOWLEDGE_HARNESS_SPEC_SHA256 must be a lowercase SHA-256"
             )
-        manifest_path = Path(manifest_value)
-        try:
-            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
-            raise RuntimeError("OpenCode image manifest is unreadable") from exc
-        if not isinstance(manifest, dict) or manifest.get("adapter_id") != "opencode@1.18.14":
-            raise RuntimeError("OpenCode image manifest has an unsupported adapter_id")
-        image_ref = manifest.get("image_ref")
-        environment = manifest.get("environment")
-        if not isinstance(image_ref, str) or not isinstance(environment, dict):
-            raise RuntimeError("OpenCode image manifest is missing image_ref/environment")
-        try:
-            from supervisor.docker_runtime import DockerEngineContainerRuntime
-            from supervisor.supervisor import HarnessSupervisor
-        except ImportError as exc:
-            raise RuntimeError(
-                "harness-runtime is not importable; add harness-runtime/ to PYTHONPATH"
-            ) from exc
-
-        def resolve_secret(reference: str) -> str:
-            scheme, name = reference.split("://", 1)
-            if scheme != "env":
-                raise ValueError(
-                    f"local worker supports env:// model secret references only: {scheme}"
-                )
-            value = values.get(name)
-            if not value:
-                raise ValueError(
-                    f"required model secret reference is not configured: {name}"
-                )
-            return value
-
-        return SupervisedOpenCodeEnrichmentProvider(
-            supervisor=HarnessSupervisor(runtime=DockerEngineContainerRuntime()),
-            image_ref=image_ref,
+        return RemoteSupervisorEnrichmentProvider(
+            supervisor_url=supervisor_url,
+            machine_token=machine_token,
             spec_sha256=spec_sha256,
-            secret_resolver=resolve_secret,
-            environment=tuple(
-                (str(key), str(value)) for key, value in environment.items()
-            ),
         )
     if execution_mode != "replay":
         raise RuntimeError(
-            "KNOWLEDGE_HARNESS_EXECUTION_MODE must be replay or opencode-supervised"
+            "KNOWLEDGE_HARNESS_EXECUTION_MODE must be replay, opencode-supervised, "
+            "or opencode-remote"
         )
 
     fixture_path = values.get("KNOWLEDGE_ENRICHMENT_RECORDS_PATH")
