@@ -1132,3 +1132,48 @@ Done — no next steps。
 - `harness-runtime/supervisor/`、`harness-runtime/tests/`（modified/new，uncommitted）
 - `clinical-llm-wiki/service/processing/`、`service/db/`、`schemas/application/`、`tests/`（modified/new，uncommitted）
 - `AGENTS.md`、`README.md`、`USAGE.md`、`docs/main/`、`docs/dep/`（modified，uncommitted）
+
+---
+
+### R112 [21:59] [P14-harness-supervisor-deployment] P1: 冻结 Supervisor 控制面合同
+
+#### Done
+
+- 用户批准方案 A 后，将 P14 从 backlog 移至 ongoing，并建立 P1 Phase checkpoint。
+- 按逐项 RED→GREEN 新增 Supervisor 内部 HTTP 合同：Bearer 机器身份、固定
+  `opencode@1.18.14`/`network none`、spec/input SHA-256 检查、canonical request hash 与
+  `attempt_id` 进程内幂等。
+- 同 Attempt 同 hash 重放返回同一 accepted 投影且只 dispatch 一次；异 hash 返回 409，未知
+  Attempt 返回 404，未认证/错误凭据返回 401。
+- Pydantic 合同拒绝任意 image、command、mount、environment、network allowlist、替换 adapter
+  或联网模式；统一 422 投影不回显注入值、input bundle 或机器凭据。
+- 新增 `service` optional dependencies，为后续独立 FastAPI/uvicorn 进程入口做显式依赖声明。
+
+#### Issues / Blockers
+
+- 当前状态表仅为进程内 P1 幂等层，dispatch 仍是注入端口；durable journal、heartbeat、cancel、
+  orphan recovery、终态 Receipt 和 Worker remote provider 属于 P2，尚未声称部署完成。
+- 方案 A 的 Supervisor 后续将持有宿主 Docker socket；只读 bind 不限制 Docker API，仍必须把
+  Supervisor 视为高权限信任边界，业务 Worker 不得加入该权限面。
+
+#### Validation
+
+- `python -m pytest -q tests/test_supervisor_service.py`：13 passed；每项新行为均先观察到预期失败。
+- Harness 全量：89 passed、4 skipped；skip 仍仅为 PATH OpenCode 与 Windows 文件语义条件项。
+- `python -m ruff check .`：通过。
+- P14/P1 四项完成标准全部通过；未启动真实 OpenCode、未修改 Compose、未发生模型出站。
+
+#### Next
+
+1. P14/P2 先以 RED 定义 durable operational journal、heartbeat lease、幂等 cancel 和启动 orphan recovery。
+2. 将 dispatch 端口接到固定 OpenCode executor，并新增 Knowledge remote provider/client；Worker 只发送
+   产品级 Attempt，不接触 image/command/mount/environment 或 Docker socket。
+3. P2 通过后再进入 P3 Compose `network none` 合成凭据 Attempt；主要风险是服务重启竞态、终态
+   Receipt 原子写入和 Docker label orphan 识别。
+
+#### Files Changed / Commits
+
+- `harness-runtime/supervisor/service.py`、`service_contracts.py`、`pyproject.toml`（new/modified，uncommitted）
+- `harness-runtime/tests/test_supervisor_service.py`（new，uncommitted）
+- `docs/main/PROJECT_GUIDE.md`、`PROJECT_SPEC.md`、`TEST_GUIDE.md`、`docs/dep/PLAN.md`、P14、DevLog（modified，uncommitted）
+- P14 设计合同提交：`cddef47`

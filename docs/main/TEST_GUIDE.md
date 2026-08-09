@@ -86,7 +86,7 @@ docker compose --project-name clinical-knowledge-demo ps
 - Processing ledger：DAG、claim、lease、checkpoint、过期恢复、retry/cancel 和 Attempt lineage。
 - Document Worker：TXT/MD/PDF/DOCX/XLSX 的受控解析、分支/fan-in、Evidence locator。
 - ModelProvider：fake/replay、injected callable 下的单次 direct-model adapter/授权合同、数据边界和失败分类；没有真实 provider 质量结论。
-- Harness：版本化合同、fake/replay/OpenCode adapter、Fake/Docker runtime、supervisor、staging 安全扫描、Step-scoped MCP 授权、OpenCode 真实容器准入，以及知识 Enrichment replay/`opencode-supervised` 单 Attempt 接线。
+- Harness：版本化合同、fake/replay/OpenCode adapter、Fake/Docker runtime、supervisor、staging 安全扫描、Step-scoped MCP 授权、OpenCode 真实容器准入、独立 supervisor HTTP 机器身份/幂等/注入拒绝，以及知识 Enrichment replay/`opencode-supervised` 单 Attempt 接线。
 - Governance：Candidate revision、作者确认、独立审核、relation eligibility 和 released immutability。
 - 认证：用户名、Argon2id、HttpOnly/SameSite Cookie、CSRF、会话撤销和 RBAC。
 - 前端：Vitest/Testing Library 已覆盖核心组件行为；真实浏览器与 390px 窄屏是既往手工验收，不是已签入自动化 E2E。

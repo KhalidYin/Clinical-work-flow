@@ -1,6 +1,6 @@
 ---
 phase_index: 14
-status: planning
+status: in-progress
 created: 2026-08-09
 updated: 2026-08-09
 priority: 1
@@ -62,7 +62,7 @@ Worker 只提交受限、hash-locked Attempt request，不接触 Docker socket�
 
 | Phase | 目标 | 预估轮次 | 依赖 | 状态 |
 |-------|------|----------|------|------|
-| P1 | 冻结窄请求合同、机器身份与幂等语义 | R112-R113 | P12/R111 | pending |
+| P1 | 冻结窄请求合同、机器身份与幂等语义 | R112 | P12/R111 | done |
 | P2 | 实现独立服务、生命周期与 Worker remote provider | R114-R115 | P1 | pending |
 | P3 | 完成 Compose 零网络 Attempt、文档同步与发布 Gate | R116-R117 | P2 | pending |
 
@@ -83,10 +83,10 @@ Worker 只提交受限、hash-locked Attempt request，不接触 Docker socket�
 
 ### 完成标准
 
-- [ ] 未认证、错误凭据、未知 Attempt 和异 hash 重放均 fail closed，响应不泄漏 secret。
-- [ ] 同 `attempt_id + request_sha256` 重放不创建第二个容器或第二份 Receipt。
-- [ ] 合同测试证明客户端无法注入 image、command、mount、environment 或联网策略。
-- [ ] 新行为严格按 RED → GREEN 验证，Harness 与 Knowledge 相关测试保持通过。
+- [x] 未认证、错误凭据、未知 Attempt 和异 hash 重放均 fail closed，响应不泄漏 secret。
+- [x] 同 `attempt_id + request_sha256` 重放不创建第二个容器或第二份 Receipt。
+- [x] 合同测试证明客户端无法注入 image、command、mount、environment 或联网策略。
+- [x] 新行为严格按 RED → GREEN 验证，Harness 与 Knowledge 相关测试保持通过。
 
 ### 边界（本 Phase 明确不做）
 

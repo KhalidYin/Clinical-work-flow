@@ -105,5 +105,6 @@
 | R109 | 2026-08-09 | 17:24 | P12-knowledge-application-platform | P2-B3 governance | 同步 H0/OpenCode 当前事实、P12 Gate 与 R101-R108 审计索引 | `AGENTS.md`, `README.md`, `USAGE.md`, `docs/main/`, `docs/dep/` | active/DEVLOG-R089-R128.md |
 | R110 | 2026-08-09 | 18:05 | P12-knowledge-application-platform | P2-B3 container admission | OpenCode tag+digest、安全容器/JSON/MCP/SIGTERM/合成凭据准入通过 | `harness-runtime/`, `docs/dep/HARNESS-CANDIDATE-ASSESSMENT.md`, `docs/main/`, `docs/dep/PLAN.md` | active/DEVLOG-R089-R128.md |
 | R111 | 2026-08-09 | 21:18 | P12-knowledge-application-platform | P2-B3 single-attempt wiring | 完成 OpenCode supervised Attempt、env Secret/MCP shim、Receipt migration 与真实零网络回归 | `harness-runtime/`, `clinical-llm-wiki/service/`, `clinical-llm-wiki/tests/`, `docs/main/`, `docs/dep/PLAN.md` | active/DEVLOG-R089-R128.md |
+| R112 | 2026-08-09 | 21:59 | P14-harness-supervisor-deployment | P1 control contract | 完成 Supervisor HTTP 机器身份、hash 幂等、allowlist 与容器字段注入拒绝合同 | `harness-runtime/supervisor/`, `harness-runtime/tests/test_supervisor_service.py`, `docs/main/`, `docs/dep/PLAN.md` | active/DEVLOG-R089-R128.md |
 
 > Legacy rounds R001-R008 remain immutable in [DEVLOG-legacy.md](archive/DEVLOG-legacy.md). They predate the searchable index and were intentionally not rewritten during adoption.

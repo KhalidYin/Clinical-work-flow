@@ -23,7 +23,7 @@
 
 - 知识产品已有 Source/Evidence/Candidate/Revision/Relation/Audit canonical entities、PostgreSQL durable ledger，以及拒绝覆盖写并校验 hash 的本地 ObjectStore adapter；未发布对象仍允许补偿或 reconcile 删除。
 - Document Worker 已支持受控文档解析、分支/fan-in、Evidence locator/hash 和可恢复 Attempt。
-- Enrichment Worker 已有 fake/replay、direct-model 授权合同及 Candidate 治理闭环；migration `20260805_0009` 增加 `executor_kind`。`harness` 模式除 replay 外已支持 `opencode-supervised` 单 Attempt，真实容器零网络回归通过；Compose 仍默认 replay，独立 supervisor 部署尚未完成。
+- Enrichment Worker 已有 fake/replay、direct-model 授权合同及 Candidate 治理闭环；migration `20260805_0009` 增加 `executor_kind`。`harness` 模式除 replay 外已支持 `opencode-supervised` 单 Attempt，真实容器零网络回归通过；独立 supervisor 的窄 HTTP/机器身份/幂等合同已实现，Compose 仍默认 replay，生命周期和部署尚未完成。
 - `harness-runtime/` 已实现版本化合同、fake/replay adapter、OpenCode `1.18.14` headless adapter、Fake/Docker runtime、staging 扫描、Execution/Validation Receipt 模型和 Step-scoped MCP broker 骨架；OpenCode tag+digest 真实容器准入已完成。
 - 人员密码会话、HttpOnly Cookie、RBAC、Worker 机器身份和中文 React GUI 骨架已存在。
 - 临床产品已有固定十阶段合同、ActionPolicy、Review Protocol、知识 Release resolve 和若干 POC artifact 流程；十个内部 Stage 对应 Protocol → SAP → SDTM → ADaM → TFL → QC → Submission 七个业务依赖组。
@@ -70,7 +70,7 @@
 
 ### 尚未实现
 
-- 独立 supervisor 的 Compose/生产部署；当前 `opencode-supervised` 为应用内调用路径，Compose 仍默认 replay，不能把宿主 Docker socket 直接暴露给业务 Worker。
+- 独立 supervisor 的 heartbeat/cancel/orphan recovery 与 Compose/生产部署；当前 `opencode-supervised` 为应用内调用路径，HTTP 合同层尚未接入 Worker，Compose 仍默认 replay，不能把宿主 Docker socket 直接暴露给业务 Worker。
 - `secret://` Secret Store adapter 与受控出站网络策略；当前本地 resolver 只支持 `env://`，真实回归仅使用合成 key 和 `network none`。
 - 通用 Knowledge Workflow Spec、完整多事件审计和更丰富的确定性 MCP 工具面。
 - 通用 Evaluation、Release Worker、Query Lab 及其完整 GUI。

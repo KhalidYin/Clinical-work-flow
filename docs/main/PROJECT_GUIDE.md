@@ -25,7 +25,7 @@
 - `clinical-workflow/`：临床 Workflow 控制面，拥有固定阶段、Study 状态、审核 Gate、产物晋升和审计。
 - `clinical-llm-wiki/`：临床知识产品，拥有来源、Evidence、Candidate、Revision、Relation、Evaluation、Release 和知识治理 GUI。
 - `clinical-studies/`：Study 实例容器，不是第三个产品。
-- 容器化 Harness Runtime：共享执行基础设施，不拥有产品 Workflow、业务状态、审核或发布权威，也不是第三个产品；H0、OpenCode 容器准入及知识侧单 Attempt 应用接线已完成，独立 supervisor 的 Compose/生产部署尚未完成。
+- 容器化 Harness Runtime：共享执行基础设施，不拥有产品 Workflow、业务状态、审核或发布权威，也不是第三个产品；H0、OpenCode 容器准入、知识侧单 Attempt 应用接线及独立 supervisor 的窄 HTTP 合同/机器身份/进程内幂等层已完成，生命周期和 Compose/生产部署尚未完成。
 
 未来不再建设自定义 Agent 框架。产品负责选择并声明步骤、编译并冻结权威上下文、授权工具、启动和观察成熟 Harness、独立验证结果并推进治理状态；Harness 只负责已授权步骤内部的规划、上下文窗口组织、工具循环和自检，不得扩展权威上下文或持久化跨 Attempt 记忆。
 
@@ -163,7 +163,7 @@ fixed stages · Study FS/Git                  durable DAG · PostgreSQL/ObjectSt
 - 不可信 `HarnessResult` 收集、Artifact 独立扫描，以及 supervisor-owned `ExecutionReceipt` 生成；
 - fake/replay adapter，用于默认零出站测试。
 
-首期候选已选定 OpenCode `1.18.14`。除容器准入外，知识侧已实现 `opencode-supervised` 单 Attempt：输入/Secret/MCP bundle 分离挂载、JSONL staging、独立 schema validator、Execution/Validation Receipt 落账；真实 Docker 回归保持 `network none` 和合成 secret。应用接线仍不等于生产部署：Compose 继续 replay，`secret://` 后端、受控出站网络和不暴露 Docker socket 的独立 supervisor 服务仍待完成。多 Harness 路由、多 Agent 协作和跨租户调度不属于当前阶段。
+首期候选已选定 OpenCode `1.18.14`。除容器准入外，知识侧已实现 `opencode-supervised` 单 Attempt：输入/Secret/MCP bundle 分离挂载、JSONL staging、独立 schema validator、Execution/Validation Receipt 落账；真实 Docker 回归保持 `network none` 和合成 secret。独立 supervisor 已新增固定 `opencode@1.18.14`/`network none` 的版本化 HTTP 请求合同、Bearer 机器身份、spec/input hash 校验、同 Attempt 幂等和容器字段注入拒绝；当前仍只是服务控制面层，不包含 durable journal、heartbeat/cancel/orphan recovery 或 Compose 接线。应用接线仍不等于生产部署：Compose 继续 replay，`secret://` 后端和受控出站网络仍待完成。多 Harness 路由、多 Agent 协作和跨租户调度不属于当前阶段。
 
 ### MCP 边界
 
