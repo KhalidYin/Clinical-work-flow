@@ -108,5 +108,6 @@
 | R112 | 2026-08-09 | 21:59 | P14-harness-supervisor-deployment | P1 control contract | 完成 Supervisor HTTP 机器身份、hash 幂等、allowlist 与容器字段注入拒绝合同 | `harness-runtime/supervisor/`, `harness-runtime/tests/test_supervisor_service.py`, `docs/main/`, `docs/dep/PLAN.md` | active/DEVLOG-R089-R128.md |
 | R113 | 2026-08-09 | 23:07 | P14-harness-supervisor-deployment | P2 lifecycle/remote provider | 完成 durable journal、heartbeat/cancel/orphan、固定 executor 与 Worker 远程 Supervisor 接线 | `harness-runtime/supervisor/`, `harness-runtime/tests/`, `clinical-llm-wiki/service/processing/`, `clinical-llm-wiki/tests/`, `docs/dep/` | active/DEVLOG-R089-R128.md |
 | R114 | 2026-08-10 | 00:05 | P14-harness-supervisor-deployment | P3 Compose offline gate | 完成 daemon 路径映射、独立镜像、私网/Worker 零 socket 与真实离线 Attempt，归档 P14 | `harness-runtime/`, `clinical-llm-wiki/compose.harness.yaml`, `clinical-llm-wiki/tests/`, `docs/` | active/DEVLOG-R089-R128.md |
+| R115 | 2026-08-10 | 00:29 | P12-knowledge-application-platform | P2-B3 consultation audit | 记录 OpenCode 调用/离线测试口径与 DeepSeek 支持存在但当前无可用凭据的只读核对结论 | `docs/dep/devlog/active/DEVLOG-R089-R128.md`, `docs/dep/devlog/INDEX.md` | active/DEVLOG-R089-R128.md |
 
 > Legacy rounds R001-R008 remain immutable in [DEVLOG-legacy.md](archive/DEVLOG-legacy.md). They predate the searchable index and were intentionally not rewritten during adoption.

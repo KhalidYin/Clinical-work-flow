@@ -1280,3 +1280,48 @@ Done — no next steps。
 - `harness-runtime/Dockerfile`、`supervisor/`、`tests/`（new/modified，pending commit）
 - `clinical-llm-wiki/compose.harness.yaml`、`.env.example`、smoke/tests（new/modified，pending commit）
 - `README.md`、`USAGE.md`、canonical docs、P12/P14/PLAN/DevLog（modified，pending commit）
+
+---
+
+## 2026-08-10
+
+### R115 [00:29] [P12-knowledge-application-platform] P2-B3: 记录 OpenCode 调用测试与 DeepSeek 凭据现状
+
+#### Done
+
+- 向用户确认当前产品调用链不是业务代码直接运行 OpenCode CLI，而是 Knowledge Worker 提交
+  hash-locked Attempt，经私有 HTTP 调用独立 Supervisor，由 Supervisor 启动一次性受限 OpenCode
+  容器，最后回传 ExecutionReceipt/ValidationReceipt；Supervisor API 不发布宿主端口。
+- 说明三层测试口径：合同/生命周期单元测试、真实 digest-locked OpenCode 容器准入测试，以及
+  Compose Worker → Supervisor → OpenCode 离线 smoke。离线 smoke 使用无效 provider 和
+  `network none`，正确结果是失败关闭、生成脱敏 Receipt 并清理容器/临时凭据，不是生成模型内容。
+- 以只读方式核对 DeepSeek 状态：仓库保留 `deepseek-v4-flash-extractor@1.0.0`、DeepSeek endpoint、
+  live preflight 与本地 DPAPI 交接脚本；但当前 `.env`、PowerShell 进程和 Compose 均无可用 DeepSeek
+  key，gitignored 的 `.demo-runtime/deepseek-api-key.dpapi` 也不存在，知识 Compose 当前未运行。
+- 明确此前若在聊天中提供过 key，不应把聊天记录视为可复用 Secret Store；当前项目无法恢复该
+  key，后续应在供应商侧轮换，并通过新的受控密钥路径交接，禁止再次粘贴到聊天、日志或仓库。
+
+#### Issues / Blockers
+
+- 当前 `compose.harness.yaml` 只向 Supervisor 注入合成测试值，OpenCode 子容器固定
+  `network none`；因此现有 Gate 不能也不应调用 DeepSeek。
+- `scripts/set-live-deepseek-env.ps1` 属于此前 direct-model 路径的本机 DPAPI 交接工具，不是当前
+  OpenCode Supervisor 的 `secret://` 正式接线，不能用它绕过 P12 的 Secret/网络/授权 Gate。
+- 本轮未读取、打印、保存或传输任何 API key 明文，也未执行供应商连接测试。
+
+#### Validation
+
+- 只读检查 `.env` 的变量名称/占位状态、当前进程环境变量名称、Compose 项目状态、DPAPI 文件
+  是否存在，以及 DeepSeek 配置代码和 Git 历史；所有检查均避免输出变量值。
+- 结论：DeepSeek 支持代码存在，但当前没有可用凭据、运行中服务或已授权 live 调用；没有模型出站。
+- 文档变更仅涉及 DevLog active batch 与 index，不改变代码、配置、API 或当前 P12 Gate。
+
+#### Next
+
+1. P12 先实现并验证 Supervisor `secret://` resolver、DeepSeek 精确出站 allowlist、审计与凭据清理。
+2. 用户在 DeepSeek 控制台撤销/轮换可能曾暴露的旧 key，通过非聊天渠道写入受控 Secret Store。
+3. 用户另行批准 ModelProfile、合成 Evidence 和 `max_calls=1` 后，才运行一次只读 preflight 和 live vertical。
+
+#### Files Changed / Commits
+
+- `docs/dep/devlog/active/DEVLOG-R089-R128.md`、`docs/dep/devlog/INDEX.md`（modified，uncommitted）
