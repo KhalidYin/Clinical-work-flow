@@ -1,5 +1,5 @@
 ---
-phase_index: 15
+phase_index: 16
 status: planning
 created: 2026-08-11
 updated: 2026-08-11
@@ -7,6 +7,7 @@ priority: 1
 estimated_rounds: 6-9
 depends_on:
   - P14-harness-supervisor-deployment.md
+  - P15-knowledge-opencode-harness-poc.md
 tags:
   - harness
   - security
@@ -222,7 +223,7 @@ Supervisor 增加 `secret://` 临时密钥解析和只允许 DeepSeek endpoint �
 - 固定 OpenCode `1.18.14` 对 OpenAI-compatible provider/auth/config 的本地 mock 兼容性证据。
 - P12 live handoff 清单：轮换旧 key、终端注入、只读 preflight、单一合成 Evidence、定向
   `--run-id`、`max_calls=1`、禁止自动 retry/fallback、结果/成本/lineage/Receipt 验证与人工治理。
-- canonical 文档、USAGE、DevLog、P12/P15/PLAN 的完成同步。
+- canonical 文档、USAGE、DevLog、P12/P16/PLAN 的完成同步。
 
 ### 完成标准
 
@@ -232,7 +233,7 @@ Supervisor 增加 `secret://` 临时密钥解析和只允许 DeepSeek endpoint �
   P12 live 并记录阻断，不在运行时猜测配置。
 - [ ] P12 handoff 明确真实调用必须取得新的单独用户授权；未经授权不得探测 `/models`、
   发送测试 prompt 或自动重试。
-- [ ] 主文档同步、阶段提交和远端推送完成，P15 移入 `plans/complete/` 后方可恢复 P12 live Gate。
+- [ ] 主文档同步、阶段提交和远端推送完成，P16 移入 `plans/complete/` 后方可恢复 P12 live Gate。
 
 ### 边界（本 Phase 明确不做）
 
@@ -249,7 +250,7 @@ Supervisor 增加 `secret://` 临时密钥解析和只允许 DeepSeek endpoint �
 
 ### 关键决策
 
-- P15 只关闭安全准备 Gate；真实单次 live vertical 仍属于 P12 P2-B3，并要求用户在执行前
+- P16 只关闭安全准备 Gate；真实单次 live vertical 仍属于 P12 P2-B3，并要求用户在执行前
   再次明确授权。
 - DeepSeek JSON/结构化输出空响应按供应商失败分类并失败关闭；`max_calls=1` 下不自动重试。
 
@@ -268,10 +269,10 @@ Supervisor 增加 `secret://` 临时密钥解析和只允许 DeepSeek endpoint �
 | 日期 | 决策 | 选项 | 选择 | 理由 |
 |------|------|------|------|------|
 | 2026-08-11 | 本地单次 live 前的 Secret/出站方案 | A tmpfs Secret + 双网络代理 / B Compose 文件 Secret + 代理 / C 外部 Vault + 生产网关 | A | 避免长期 key 进入环境变量或宿主明文文件，并用 internal-only 网络阻断子容器绕过代理；不为一次 Gate 提前引入外部 Secret 基础设施 |
-| 2026-08-11 | P15 与 P12 的边界 | P15 直接 live / P15 准备后回到 P12 | P15 准备后回到 P12 | P12 是知识产品和 live ModelProfile/data-boundary/预算权威；P15 只补 Harness 安全能力，防止形成第二条产品主线 |
+| 2026-08-11 | P16 与 P12 的边界 | P16 直接 live / P16 准备后回到 P12 | P16 准备后回到 P12 | P12 是知识产品和 live ModelProfile/data-boundary/预算权威；P16 只补 Harness 安全能力，防止形成第二条产品主线 |
 
 ## 同步记录
 
 | 日期 | 已同步到 | 说明 |
 |------|----------|------|
-| 2026-08-11 | `PLAN.md` | 方案 A 获批并登记 backlog；尚未进入 Development，未配置 key、未发生出站 |
+| 2026-08-11 | `PLAN.md` | 方案 A 获批；随后因 Knowledge–OpenCode POC 前置而由 P15 顺延为 P16，尚未进入 Development，未配置 key、未发生出站 |
