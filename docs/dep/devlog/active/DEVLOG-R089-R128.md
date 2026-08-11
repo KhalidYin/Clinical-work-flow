@@ -1504,3 +1504,52 @@ Done — no next steps。
 - `clinical-llm-wiki/service/processing/harness_enrichment_provider.py`、P15 setup/verifier、POC overlay/fixture/tests
 - `harness-runtime/supervisor/opencode_executor.py`、internal Mock、权限/动态 Evidence tests
 - canonical 文档、`USAGE.md`、P15/PLAN/TASK_STATE、DevLog/INDEX（pending phase commit）
+
+---
+
+### R119 [23:38] [P16-harness-secret-egress-gate] Planning: 能力不阉割，副作用有边界
+
+#### Done
+
+- 用户指出 DeepSeek-only 出站若被解释为 Harness 全局网络边界，会牺牲 OpenCode 原生浏览、调研和
+  工具循环；进一步确认来源可追溯与浏览器是否受控不存在必然因果，网络安全和证据治理必须分开。
+- 正式比较三条路径：OpenCode 直接自由联网、以 Research MCP 替代原生浏览、原生能力 +
+  Attempt-scoped policy + recording egress gateway。用户批准第三条，并固定核心原则为“能力不阉割，
+  副作用有边界”。
+- 修订 P16：引入通用 `NetworkCapabilityPolicy`/egress gateway 口径，DeepSeek 只是首个
+  `model-deepseek-v1` 策略实例；控制面约束 capability、可出站数据、secret、目标、预算和治理 Gate，
+  不替 OpenCode 决定规划、Skill/MCP、browser、多步工具循环或自检。
+- 明确未来 `research-public-web-v1` 保留 OpenCode 原生 Browser/Playwright/Skill，通过 recording
+  gateway 阻断危险地址并捕获 URL/重定向/时间/快照/hash/citation；P16 不实现该能力，也不以
+  Research MCP 替代或冒充原生浏览已完成。
+- canonical Guide/Spec/Test、AGENTS、Harness 架构记忆与 PLAN 同步：每条拒绝 Gate 必须有正向能力
+  保持测试；网页日志不自动构成 canonical Evidence，仍需 SourceCandidate → Source/Evidence 治理。
+
+#### Issues / Risks
+
+- “不限制 Agent 能力”不能解释为无限权限：Harness 仍不得自行新增 capability、扩张网络、泄漏数据、
+  访问私网/宿主/云元数据或推进治理状态；自主性只存在于获授权能力集合内。
+- P16 若同时实现公共研究 gateway 会显著扩张范围并阻塞单次 live 准备，因此本轮只冻结可扩展合同和
+  DeepSeek 首个实例；研究策略需在明确工作流、抓取许可和验收边界后另行规划。
+- recording 解决可追溯性，不自动解决 SSRF、恶意下载、prompt injection、许可或数据外泄；反之，
+  白名单解决网络目的地，也不自动生成可信来源证据。
+
+#### Validation
+
+- P16 backlog 文件与 PLAN 指针、名称、6-9 轮预估和依赖保持一致；`git diff --check` 通过。
+- canonical 文档一致性扫描不再把 DeepSeek 描述成 Harness 平台能力上限，也没有把公共研究写成已实现。
+- 本轮仅修改规划/架构文档；没有进入 P16 Development、修改代码、读取既往 key 或发生任何外部模型/网页出站。
+
+#### Next
+
+1. 若用户批准进入 Development，P16/P1 先用失败测试冻结通用 capability/network policy、
+   `none`/`model-deepseek-v1` 和正向能力保持合同。
+2. P16 不实现 `research-public-web-v1`；待研究 SourceCandidate、recording 和许可 Gate 的验收边界明确后，
+   再决定是否建立独立计划。
+3. 主要风险是把“能力保持”误写成开放代理，或反向只做 deny 测试把 OpenCode 退化为固定脚本。
+
+#### Files Changed / Commits
+
+- `docs/dep/plans/backlog/P16-harness-secret-egress-gate.md`、`docs/dep/PLAN.md`
+- `AGENTS.md`、`docs/main/PROJECT_GUIDE.md`、`PROJECT_SPEC.md`、`TEST_GUIDE.md`
+- `docs/main/memory/project-harness-architecture-direction.md`、DevLog/INDEX（pending planning commit）

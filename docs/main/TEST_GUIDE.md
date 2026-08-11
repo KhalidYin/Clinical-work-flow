@@ -165,6 +165,8 @@ Source → Document DAG → Evidence
 - 测试数据不得包含真实患者标识、生产 secret 或未获授权文档内容。
 - 真实模型/Harness 出站必须由用户单独提供 profile、Attempt 级短期凭据或受控代理、允许的数据边界、telemetry/retention 策略和调用预算；不得挂载个人 Harness 登录态。
 - live 测试不能替代 replay、schema、policy 和失败 Gate；失败调用也计入预算并保留 lineage。
+- 每个 capability/network policy 的拒绝测试必须有对应正向能力保持测试：证明 Agent 在获授权边界内仍可使用原生 Skill/MCP/browser/工具循环，而不是通过全局禁用能力获得表面安全。
+- 模型 endpoint 出站与公共网页研究必须分开验收。未来公共研究 Gate 需要覆盖私网/宿主/云元数据阻断、重定向/DNS/下载配额、URL/时间/快照/hash/citation 捕获，以及网页资料不经 Source/Evidence 治理不得成为 canonical 事实。
 
 ## 完整验收
 

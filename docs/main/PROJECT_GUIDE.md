@@ -56,7 +56,20 @@
 - 产品控制面决定“当前允许执行哪个 Step”，并拥有 Run、Attempt、Review 和 canonical state。
 - Harness 执行面只决定“如何完成已授权 Step”，不得选择临床下一阶段、改写知识 DAG 或推进 Release。
 - Harness session、聊天记录、内部任务数据库和跨 Attempt memory 不能成为第三套状态权威。
-- 产品编译并 hash-lock 权威输入与上下文；Harness 只能在该闭包内组织窗口和检索，不得自行扩展来源。
+- 产品编译并 hash-lock 权威输入与上下文；普通执行 Step 只能在该闭包内组织窗口和检索。只有显式获批
+  的研究 Step 才能发现外部资料，且只能形成不可信 SourceCandidate/抓取证据，不能自行扩展 canonical
+  Source/Evidence 或权威上下文。
+
+“受控”作用于可观察的外部副作用，而不是替 Harness 决定如何完成任务。产品按 Step/Attempt 授权
+Skill、MCP、browser、文件、网络、数据、secret、预算和时限；OpenCode 在授权集合内保留原生规划、
+工具选择、多步循环、浏览、交叉验证和自检。控制面不得用全局禁用网络或工具的方式把成熟 Harness
+降级为固定脚本，Harness 也不得自行扩大 capability、数据或网络边界。
+
+网络能力按用途组合：`none` 不影响获授权的本地工具；模型策略只增加相应 provider endpoint；未来
+公共研究策略应保留 OpenCode 原生 Browser/Playwright/Skill，通过 recording egress gateway 记录并
+限制外部副作用，而不是由 Research MCP 替代 Agent 的调研决策。公共网页访问与来源可追溯是两条
+独立 Gate：前者处理网络安全，后者要求 URL、重定向、时间、快照/hash 和 citation；任何网页资料仍需
+SourceCandidate → canonical Source/Evidence 治理，不能因有浏览日志就自动晋升为知识事实。
 
 ### 2. 不自建 Agent
 
@@ -77,7 +90,7 @@
 - 镜像必须以版本和 digest 锁定；
 - 输入与知识上下文只读挂载；
 - Harness 只写 scratch 和 staging output；
-- 默认禁止网络，显式 allowlist 后才可出站；
+- 默认禁止网络，按 Attempt 选择已实现、hash-locked 的 capability/network policy 后才可出站；
 - 不向容器注入 PostgreSQL、ObjectStore、Release 或人员会话凭据；
 - supervisor 负责周期 heartbeat、timeout、cancel/kill、事件收集和退出码归一化；
 - Harness 只返回不可信 `HarnessResult`；supervisor 独立采集生命周期、MCP 事件和 Artifact，并生成 `ExecutionReceipt`。

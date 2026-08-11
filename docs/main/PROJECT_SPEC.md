@@ -120,6 +120,11 @@
 
 合同不得包含用于改变外层 Workflow 的 `next_stage`、`skip_stage`、`publish` 或权限扩张字段。
 
+能力授权必须区分“Agent 如何完成任务”和“任务可以产生哪些外部副作用”。产品控制 capability、网络
+用途、可出站数据、secret、预算和治理 Gate；不得硬编码删除成熟 Harness 的原生规划、Skill/MCP、
+browser 或工具循环。Harness 可以在获授权集合内自主选择和重复调用工具，但不能创建新 capability、
+改变 network policy 或把浏览结果直接晋升为 Source/Evidence/Candidate/Release。
+
 ### HarnessExecutionRequest
 
 由产品 worker/supervisor 从 StepExecutionSpec 与当前 Attempt 编译，包含：
@@ -127,10 +132,14 @@
 - 精确的输入和 context bundle；
 - step-scoped MCP configuration；
 - 只读输入、scratch、staging output 三类目录；
-- secret reference 和网络 allowlist，不包含人员凭据或数据库凭据；
+- secret reference 和通用 network capability policy ID，不包含人员凭据、数据库凭据、Docker 网络名、
+  gateway 地址或请求级任意 endpoint；
 - 事件输出与 Receipt 目标位置。
 
-不得挂载个人 Harness 登录态、长期 API key 或宿主凭据。真实出站使用 Attempt 级短期凭据或受控代理，并继续受现有 live Gate、ModelPolicy、数据边界和预算约束。
+不得挂载个人 Harness 登录态、长期 API key 或宿主凭据。真实出站使用 Attempt 级短期凭据或受控
+egress gateway，并继续受现有 live Gate、ModelPolicy、数据边界和预算约束。DeepSeek 只能是通用
+策略引擎的首个模型实例，不能成为平台能力上限；未来公共研究策略必须保留原生浏览能力，同时阻断
+私网/宿主/云元数据和策略绕过，并独立生成 URL/重定向/快照/hash/citation 证据。
 
 ### HarnessResult、ExecutionReceipt 与 ValidationReceipt
 
@@ -183,6 +192,7 @@ Harness adapter 返回的 `HarnessResult` 属于不可信输入，不能直接�
 ### 安全
 
 - 默认零外部模型出站、零 Harness 网络；显式 Gate 同时约束 profile/version、数据边界、secret reference 和预算。
+- 安全 Gate 必须成对证明拒绝路径和正向能力保持；“受控”不等于“所有工具不可用”，不得只以全局断网或全局 deny 作为 Harness 安全完成证据。
 - 容器路径必须限制在 Attempt workspace，禁止宿主任意 shell 和任意目录写入。
 - staging 扫描必须拒绝路径穿越、symlink、hardlink/reparse point、部分写入、文件/字节配额超限、归档炸弹、未声明可执行位及 MIME/schema 不匹配；Artifact hash 由 supervisor 重算。
 - Source/Evidence 按不可信输入处理，防止 prompt injection 转化为工具或权限提升。
