@@ -77,6 +77,54 @@ def test_supervisor_image_has_dedicated_service_entrypoint() -> None:
     assert 'CMD ["python", "-m", "supervisor.main"]' in dockerfile
 
 
+def test_p15_poc_overlay_runs_setup_before_one_shot_enrichment() -> None:
+    poc = yaml.safe_load(
+        (ROOT / "compose.harness.poc.yaml").read_text(encoding="utf-8")
+    )
+    setup = poc["services"]["p15-setup"]
+    worker = poc["services"]["worker-enrichment"]
+
+    assert setup["command"] == [
+        "python",
+        "-m",
+        "service.processing.harness_poc_setup",
+    ]
+    assert worker["depends_on"]["p15-setup"]["condition"] == (
+        "service_completed_successfully"
+    )
+    assert worker["command"] == [
+        "python",
+        "-m",
+        "service.processing.worker",
+        "--pool",
+        "enrichment",
+        "--once",
+    ]
+    assert worker["restart"] == "no"
+    assert worker["environment"]["KNOWLEDGE_ENRICHMENT_MODEL_PROFILE_ID"] == (
+        "p15-internal-mock"
+    )
+    assert "ports" not in poc["services"]["p15-api"]
+    assert poc["services"]["p15-api"]["networks"] == ["default"]
+    assert poc["services"]["p15-api"]["environment"][
+        "KNOWLEDGE_BROWSER_ORIGINS"
+    ] == "http://p15-api:8788"
+    verifier = poc["services"]["p15-verify"]
+    assert verifier["depends_on"]["worker-enrichment"]["condition"] == (
+        "service_completed_successfully"
+    )
+    assert verifier["depends_on"]["p15-api"]["condition"] == "service_healthy"
+    assert "KNOWLEDGE_P15_VERIFIER_PASSWORD" in verifier["environment"]
+
+
+def test_p15_mock_key_fixture_is_single_line_and_obviously_synthetic() -> None:
+    fixture = ROOT / "poc" / "fixtures" / "p15-synthetic-provider-key.txt"
+    lines = fixture.read_text(encoding="utf-8").splitlines()
+
+    assert lines == ["synthetic-p15-mock-only-key"]
+    assert not lines[0].startswith(("sk-", "dsk-"))
+
+
 def test_compose_smoke_request_is_synthetic_and_cannot_select_live_network() -> None:
     from service.processing.harness_supervisor_smoke import build_smoke_request
 

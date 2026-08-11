@@ -5,7 +5,7 @@
 - `clinical-workflow/`：固定临床 Pipeline 的控制面、Study 状态、MCP 与 Review Protocol。
 - `clinical-llm-wiki/`：临床知识生产、治理、评估与 Release 控制面。
 - `clinical-studies/`：Study 实例，不是独立产品。
-- 容器化成熟 Harness：共享执行基础设施，不是第三个产品；H0、OpenCode `1.18.14` 容器准入和知识侧单 Attempt 应用接线已完成，独立 supervisor 部署和 live vertical 尚未完成。
+- 容器化成熟 Harness：共享执行基础设施，不是第三个产品；H0、OpenCode `1.18.14` 容器准入、独立 Supervisor 部署及 P15 Knowledge PostgreSQL/API 本地 POC 已完成；生产 `secret://`、受控出站和 DeepSeek live 尚未完成。
 
 后续架构权威为 `docs/main/PROJECT_GUIDE.md` 与 `docs/main/PROJECT_SPEC.md`；测试和编码规范分别见 `docs/main/TEST_GUIDE.md` 与 `docs/main/CODE_STYLE.md`。`docs/specs/` 仅作既往设计与审计参考。`docs/dep/PLAN.md` 和 lifecycle plan 记录当前执行状态，但不能覆盖主架构；用户已于 2026-08-05 显式授权并完成 H0 重定计划，当前执行 Gate 已回到 P12 P2-B3。
 
@@ -34,6 +34,6 @@ Set-Location clinical-workflow
 python -m pytest -q
 ```
 
-当前签入的 Study 只有 draft runtime manifest，不应直接用 `agent_loop` 当作可运行产品入口；它仍是迁移输入，且默认可自动创建目录和 Git commit。受控示意用法与前置条件见 `USAGE.md`。OpenCode 单 Attempt 应用接线不等于生产 Runtime；独立 supervisor、`secret://`/受控网络和临床 Workflow Harness 化尚未完成。
+当前签入的 Study 只有 draft runtime manifest，不应直接用 `agent_loop` 当作可运行产品入口；它仍是迁移输入，且默认可自动创建目录和 Git commit。受控示意用法与前置条件见 `USAGE.md`。P15 OpenCode 本地 POC 不等于生产 Runtime；`secret://`、受控网络、DeepSeek live 和临床 Workflow Harness 化尚未完成。
 
 修改数据库结构必须新增 Alembic migration；应用启动不得 `create_all`。修改功能先写失败测试，阶段完成后运行后端、前端、Workflow 与 E2E 门禁。

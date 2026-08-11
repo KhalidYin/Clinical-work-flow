@@ -8,6 +8,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
 from pathlib import Path
+import re
 from collections.abc import Mapping
 from typing import Any
 
@@ -44,7 +45,7 @@ def load_api_key(environ: Mapping[str, str]) -> str:
     return api_key
 
 
-def _candidate() -> dict[str, object]:
+def _candidate(evidence_id: str = "evidence-poc-001") -> dict[str, object]:
     return {
         "candidate_group_id": "candidate-poc-001",
         "knowledge_type": "poc_claim",
@@ -53,7 +54,7 @@ def _candidate() -> dict[str, object]:
         "applicability": {"data_boundary": "external_allowed"},
         "conditions": [],
         "exceptions": [],
-        "evidence_ids": ["evidence-poc-001"],
+        "evidence_ids": [evidence_id],
         "relation_proposals": [],
         "advisory_signals": [],
         "confidence": 1.0,
@@ -168,6 +169,7 @@ class ScriptedOpenAIMock:
         ):
             return self._error(400, "invalid_request")
         tool_names = self._tool_names(tools)
+        evidence_id = self._authorized_evidence_id(payload) or "evidence-poc-001"
         output_count = self._count_typed_items(input_items, "function_call_output")
         audit = {
             "path": "/v1/responses",
@@ -209,12 +211,16 @@ class ScriptedOpenAIMock:
                 model,
                 call_id="call-evidence-p15",
                 name=evidence_tools[0],
-                arguments={"evidence_id": "evidence-poc-001"},
+                arguments={"evidence_id": evidence_id},
             )
         else:
             body = self._responses_text_sse(
                 model,
-                json.dumps(_candidate(), ensure_ascii=False, separators=(",", ":")),
+                json.dumps(
+                    _candidate(evidence_id),
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                ),
             )
         return MockResponse(
             status=200,
@@ -244,6 +250,46 @@ class ScriptedOpenAIMock:
                 cls._count_typed_items(item, item_type) for item in value.values()
             )
         return 0
+
+    @classmethod
+    def _authorized_evidence_id(cls, value: object) -> str | None:
+        if isinstance(value, str):
+            match = re.search(r"Authorized Evidence IDs:\s*(\[[^\]]*\])", value)
+            if match is not None:
+                try:
+                    identifiers = json.loads(match.group(1))
+                except json.JSONDecodeError:
+                    identifiers = None
+                if (
+                    isinstance(identifiers, list)
+                    and identifiers
+                    and isinstance(identifiers[0], str)
+                    and re.fullmatch(r"[A-Za-z0-9._-]+", identifiers[0])
+                ):
+                    return identifiers[0]
+            transformed = re.finditer(
+                r"\bevidence-[A-Za-z0-9_-](?:[A-Za-z0-9._-]*[A-Za-z0-9_-])?\b",
+                value,
+            )
+            return next(
+                (
+                    match.group(0)
+                    for match in transformed
+                    if any(character.isdigit() for character in match.group(0))
+                ),
+                None,
+            )
+        if isinstance(value, list):
+            for item in value:
+                found = cls._authorized_evidence_id(item)
+                if found is not None:
+                    return found
+        if isinstance(value, dict):
+            for item in value.values():
+                found = cls._authorized_evidence_id(item)
+                if found is not None:
+                    return found
+        return None
 
     @staticmethod
     def _response_shell(

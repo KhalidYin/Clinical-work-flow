@@ -10,6 +10,7 @@ Review / Release semantics.
 from __future__ import annotations
 
 import hashlib
+import builtins
 import json
 import sys
 from pathlib import Path
@@ -287,7 +288,13 @@ def _supervised_request() -> ModelRequest:
             "deployment_class": DeploymentClass.ENTERPRISE_MANAGED,
         }
     )
-    return request.model_copy(update={"model_profile": profile})
+    canonical_content = _service_payload()["messages"][0]["content"]
+    return request.model_copy(
+        update={
+            "model_profile": profile,
+            "messages": (ModelMessage(role="user", content=canonical_content),),
+        }
+    )
 
 
 def test_supervised_opencode_invocation_validates_and_attaches_receipts(tmp_path: Path) -> None:
@@ -449,6 +456,14 @@ def test_remote_supervisor_provider_sends_only_product_attempt_and_validates_out
     assert submitted["secret_refs"] == ["env://KNOWLEDGE_DEMO_SECRET"]
     assert submitted["input_bundle"]["provider"] == "openai"
     assert submitted["input_bundle"]["model"] == "gpt-test"
+    assert submitted["input_bundle"]["evidence"] == [
+        {
+            "evidence_id": "evidence-aeseq",
+            "locator": {"section": "AE"},
+            "content_sha256": "a" * 64,
+            "content": "AESEQ is the sequence identifier.",
+        }
+    ]
     assert not ({"image_ref", "command", "mounts", "environment"} & submitted.keys())
     assert "internal-supervisor-token" not in json.dumps(submitted)
     assert transport.calls[0][3]["Authorization"] == "Bearer internal-supervisor-token"
@@ -488,6 +503,33 @@ def test_remote_supervisor_provider_sends_hash_locked_pack_ref_only() -> None:
     assert '"skills"' not in serialized
     assert '"opencode_config"' not in serialized
     assert '"mcp_command"' not in serialized
+
+
+def test_remote_provider_validates_pack_ref_without_harness_runtime_import(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_import = builtins.__import__
+
+    def isolated_import(name, *args, **kwargs):  # type: ignore[no-untyped-def]
+        if name == "contracts.spec":
+            raise ModuleNotFoundError(name)
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", isolated_import)
+    provider = RemoteSupervisorEnrichmentProvider(
+        supervisor_url="http://harness-supervisor:8790",
+        machine_token="internal-supervisor-token",
+        spec_sha256="a" * 64,
+        instruction_ref={
+            "pack_id": "knowledge-candidate-v1",
+            "version": "1.0.0",
+            "sha256": "c" * 64,
+        },
+        transport=SuccessfulSupervisorTransport(),
+        sleep=lambda _seconds: None,
+    )
+
+    assert provider._instruction_ref["pack_id"] == "knowledge-candidate-v1"
 
 
 class InvalidOutputSupervisorTransport(SuccessfulSupervisorTransport):

@@ -37,9 +37,9 @@
 - [已实现] Fake/Docker runtime 与 supervisor 支持 timeout、SIGTERM/kill fallback、事件、staging 扫描和失败分类；真实 OpenCode 容器安全基线与生命周期已准入实测。
 - [已实现] fake/replay Harness adapter，默认测试零真实出站。
 - [已实现（单 Attempt）] Step-scoped broker 合同校验 Attempt/fencing/spec/capability/路径/幂等；版本锁定 stdio shim 已在独立 Supervisor 启动的真实 OpenCode 容器实测 `initialize/tools-list/tools/call`、路径逃逸拒绝和脱敏审计。
-- [已实现（P15 P2 本地 POC）] 产品拥有的 `knowledge-candidate-v1` Pack 经相对 POSIX 路径 hash-lock，Supervisor 编译只读 workspace、项目 Skill、permission、MCP 与内部模型配置；真实固定 OpenCode 完成 `evidence-candidate` → `read_evidence` → schema-valid Candidate。Docker internal 网络只连本地 Mock，公网/宿主探针失败，未授权 bash 失败关闭且不自动创建外层 retry。
+- [已实现（P15 本地 POC）] 产品拥有的 `knowledge-candidate-v1` Pack 经相对 POSIX 路径 hash-lock，Supervisor 编译只读 workspace、项目 Skill、permission、MCP 与内部模型配置；真实固定 OpenCode 从 PostgreSQL canonical Evidence 完成 `evidence-candidate` → `read_evidence` → schema-valid Candidate，产品 Validator 落账唯一 ModelInvocation/Candidate，内部 API 可核对 Evidence/Attempt lineage。Docker internal 网络只连本地 Mock，公网/宿主探针失败，未授权 bash 失败关闭且不自动创建外层 retry。
 
-首个 Harness 候选 OpenCode `1.18.14` 已完成容器准入、知识 remote Attempt、显式 Compose 离线部署和 P15 P2 internal Mock POC；合成 Secret 文件、MCP stdio/审计、Pack/config identity、Receipt 落账及 daemon-visible bind 映射已验证。固定镜像仍自带 `customize-opencode` 并向模型广告内建工具，安全性依赖 Supervisor 编译的默认 deny permission，而不是“工具不可见”。仍不得进入 live：P15 P3 尚未接 PostgreSQL Candidate/API，且必须完成 `secret://` 后端、生产受控网络策略，并取得用户对 ModelProfile、Evidence 和单次预算的出站授权。
+首个 Harness 候选 OpenCode `1.18.14` 已完成容器准入、知识 remote Attempt、显式 Compose 离线部署和 P15 PostgreSQL/API 本地 POC；合成 Secret 文件、MCP stdio/审计、Pack/config identity、Receipt 落账、Candidate 治理及 daemon-visible bind 映射已验证。固定镜像仍自带 `customize-opencode` 并向模型广告内建工具，安全性依赖 Supervisor 编译的默认 deny permission，而不是“工具不可见”。仍不得进入 live：POC 使用 `env://` 合成 key、internal Mock 和 Docker socket authority，必须先由 P16 完成 `secret://` 后端、生产受控网络策略，并取得用户对 ModelProfile、Evidence 和单次预算的出站授权。
 
 #### 知识生产闭环
 

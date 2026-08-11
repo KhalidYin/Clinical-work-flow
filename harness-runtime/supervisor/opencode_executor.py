@@ -6,6 +6,7 @@ from collections import Counter
 import hashlib
 import json
 import re
+import shlex
 import tempfile
 from collections.abc import Callable
 from datetime import datetime, timezone
@@ -94,7 +95,7 @@ class OpenCodeAttemptExecutor:
             input_dir.mkdir()
             secret_dir.mkdir()
             compiled_pack = self._compile_pack(attempt, workdir)
-            (scratch_path / "data" / "opencode").mkdir(parents=True, exist_ok=True)
+            self._prepare_runtime_directories(scratch_path)
             (scratch_path / "data" / "opencode" / "auth.json").touch()
 
             input_path = input_dir / "input.json"
@@ -210,11 +211,15 @@ class OpenCodeAttemptExecutor:
                         "OPENCODE_DISABLE_CLAUDE_CODE_SKILLS": "1",
                     }
                 )
+                prompt = (
+                    "Load the evidence-candidate skill, call read_evidence for the "
+                    "authorized Evidence, and return exactly one JSON object matching "
+                    "/workspace/output.schema.json. Authorized Evidence IDs: "
+                    + json.dumps(list(evidence_ids), separators=(",", ":"))
+                )
                 command = (
                     "cd /workspace && exec opencode run "
-                    "'Load the evidence-candidate skill, call read_evidence for the "
-                    "authorized Evidence, and return exactly one JSON object matching "
-                    "/workspace/output.schema.json.' "
+                    f"{shlex.quote(prompt)} "
                     '--model "$1" --format json --pure > /staging/events.jsonl',
                     "opencode-harness",
                     compiled_pack.model_ref or f"{provider}/{model}",
@@ -337,6 +342,22 @@ class OpenCodeAttemptExecutor:
             image_ref=self._image_ref,
         )
         return self._pack_compiler.compile(resolved, workdir)
+
+    @staticmethod
+    def _prepare_runtime_directories(scratch_path: Path) -> None:
+        # The Supervisor service runs as root while the managed OpenCode image
+        # is fixed to uid/gid 65534. These directories are all nested under a
+        # mode-0700 per-Attempt TemporaryDirectory and are the only writable
+        # bind targets exposed to that container.
+        for path in (
+            scratch_path / "home",
+            scratch_path / "cache",
+            scratch_path / "state",
+            scratch_path / "data" / "opencode",
+            scratch_path / "staging",
+        ):
+            path.mkdir(parents=True, exist_ok=True)
+            path.chmod(0o777)
 
     @staticmethod
     def _materialize_evidence(

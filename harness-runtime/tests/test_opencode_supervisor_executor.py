@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from pathlib import Path
+import stat
 
 import pytest
 
@@ -51,6 +52,25 @@ class ManagedFakeRuntime(FakeContainerRuntime):
 
     def remove(self, container_id: str) -> None:
         self.removed_ids.append(container_id)
+
+
+class PermissionRecordingFakeRuntime(FakeContainerRuntime):
+    def __init__(self, **kwargs: object) -> None:
+        super().__init__(**kwargs)
+        self.writable_modes: dict[str, int] = {}
+
+    def create(self, config):  # type: ignore[no-untyped-def]
+        scratch = Path(config.host_scratch_dir)
+        staging = Path(config.host_staging_dir)
+        for name, path in {
+            "home": scratch / "home",
+            "cache": scratch / "cache",
+            "state": scratch / "state",
+            "data": scratch / "data" / "opencode",
+            "staging": staging,
+        }.items():
+            self.writable_modes[name] = stat.S_IMODE(path.stat().st_mode)
+        return super().create(config)
 
 
 def _attempt() -> SupervisorAttemptRequest:
@@ -230,7 +250,7 @@ def test_executor_compiles_pack_workspace_internal_mock_and_receipt_identity(
     )
     output = {"candidate_group_id": "candidate-poc-001"}
     event = json.dumps({"type": "text", "data": {"text": json.dumps(output)}})
-    runtime = FakeContainerRuntime(
+    runtime = PermissionRecordingFakeRuntime(
         exit_code=0,
         staged_outputs={
             Path("events.jsonl"): event.encode("utf-8"),
@@ -330,6 +350,16 @@ def test_executor_compiles_pack_workspace_internal_mock_and_receipt_identity(
         "/harness/mcp-bundle.json",
     }
     assert runtime.last_config.command[0].startswith("cd /workspace && exec opencode run")
+    assert 'Authorized Evidence IDs: ["evidence-poc-001"]' in (
+        runtime.last_config.command[0]
+    )
+    assert runtime.writable_modes == {
+        "home": 0o777,
+        "cache": 0o777,
+        "state": 0o777,
+        "data": 0o777,
+        "staging": 0o777,
+    }
     environment = dict(runtime.last_config.environment)
     assert environment["HOME"] == "/scratch/home"
     assert environment["XDG_CONFIG_HOME"] == "/scratch/config"

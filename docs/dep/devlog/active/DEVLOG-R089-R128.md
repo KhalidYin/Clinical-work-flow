@@ -1440,3 +1440,67 @@ Done — no next steps。
 - `harness-runtime/supervisor/`、`harness-runtime/poc/openai_mock/`、`harness-runtime/tests/`
 - `clinical-llm-wiki/compose.harness.yaml`、`clinical-llm-wiki/tests/test_harness_supervisor_deployment.py`
 - `docs/main/`、`docs/dep/PLAN.md`、P15、TASK_STATE、DevLog/INDEX
+
+---
+
+### R118 [19:14] [P15-knowledge-opencode-harness-poc] P3: PostgreSQL Candidate/API 纵向 Gate
+
+#### Done
+
+- 按 RED→GREEN 将 canonical Evidence 投影到 remote Supervisor 的 `input_bundle.evidence`；OpenCode prompt
+  只包含获授权 Evidence ID，正文只能经 Attempt-scoped `read_evidence` MCP 读取。Knowledge Worker
+  不再运行时导入 Harness Python package，跨服务边界保持版本化 HTTP/JSON 合同。
+- 新增 P15 专用 setup/overlay/verifier：只把 queued、unleased Enrichment step 切为 `executor_kind=harness`，
+  建立独立 internal-Mock ModelProfile，运行一次 Worker，并通过正式 HttpOnly Cookie/首次改密 API 查询
+  Candidate；没有绕过人员认证或把 verifier 变成治理写入口。
+- 在隔离 Compose project `clinical-harness-p15-db-poc` 从空卷 migration/bootstrap 跑通 PostgreSQL
+  canonical Evidence → Worker → Supervisor → digest-locked OpenCode → Pack Skill/MCP → internal Mock →
+  product Validator → ModelInvocation/Candidate → API。最终 Candidate
+  `cand-4d99828f50bf5a4683eeee8c7dc37c23` 引用 Evidence
+  `evidence-32693c075812589fa169ae0d99362ea9` 和 invocation
+  `777e4a32-9b62-4696-9046-a14c38f14eae`，状态固定为 `author_confirmation_required`。
+- 重复运行 Worker 后 Mock 请求数保持 4，ModelInvocation/Candidate 各保持 1；没有启动第二次模型
+  Attempt。Pack SHA 保持 `d44e151ad45a06aba7ca28eaaab9aae6ea91ac3663603c3d3efef7444cfd42b9`。
+- P15 只关闭本地 POC：没有作者确认、Reviewer、Evaluation、Release、DeepSeek key、真实供应商调用或
+  公网模型出站；普通 Compose 继续默认 replay。
+
+#### Issues / Risks
+
+- Worker 镜像缺少 Harness Python package，证明产品不能偷渡共享 runtime 的本地实现依赖；已改为产品侧
+  最小 Pack-ref 校验，Supervisor 继续承担完整 Pack 解析。
+- 一次性 Worker 曾继承 `restart: unless-stopped`，且 `--once` 即使业务 Step 失败仍可退出 0；overlay
+  现固定 `restart: "no"`，POC 成功必须由 DB、Receipt 和 API verifier 三方判定。
+- 当前 Supervisor 只支持 `env://`。POC 使用 Pack 外独立单行合成 key 文件；曾误把多行 Evidence JSON
+  当 key 导致非法 Authorization。该修复不是 `secret://`，正式 backend 仍属于 P16。
+- Linux root 创建的 volume 目录对 OpenCode uid 65534 不可写；本轮仅在父目录 0700 下为每 Attempt
+  home/cache/state/data/staging 开放宽写权限。生产必须改为明确 UID/GID ownership、rootless 或 volume
+  管理，不能把 0777 POC 折中当作安全基线。
+- Mock 曾硬编码 Evidence ID，随后 fallback 又误选 Pack Skill ID；现在从显式 marker 动态提取且要求
+  Evidence ID 含数字，产品 Validator 仍以 PostgreSQL canonical Evidence 作最终防线。
+- API verifier 曾被精确 Origin allowlist 和首次改密 Gate 拒绝；现按正式 Cookie/密码变更流程处理，
+  没有放宽浏览器安全策略。
+- Docker socket authority、internal network、合成 Mock、`env://` 和 Windows reparse 平台证据缺口仍保留。
+  P15 不证明生产 Secret/egress/runtime authority 或 DeepSeek 质量；P16/P12 live 必须另行验证和授权。
+
+#### Validation
+
+- Knowledge：`226 passed, 8 skipped`；Ruff 全通过；按项目既有 `docker>=7,<8` 范围补齐 docker-py 后，Docker 集成用例实际执行通过。
+- Harness：`154 passed, 5 skipped`；Ruff 全通过。
+- Clinical Workflow：`366 passed, 1 skipped`；Ruff 全通过。
+- Frontend：Vitest `30 passed`；Vite production build 通过。
+- 空卷 migrations/bootstrap、真实 Compose POC、API verifier、重复 Worker 幂等和配置解析通过；合成 key
+  未进入日志、Receipt、DB 或产物。P15 POC 服务保留在精确 project 中供复核。
+
+#### Next
+
+1. P15 关闭后不自动进入 live；等待用户确认是否启动 P16。
+2. P16 第一阶段先冻结 `secret://` provider 接口、tmpfs/零化、精确 DeepSeek 域名/IP/DNS egress policy、
+   proxy 审计和更收敛的 runtime authority，再写失败测试。
+3. 主要风险是 Docker socket 高权限、DNS/重定向绕过 allowlist、secret 泄漏和把既往 key 当作当前授权；
+   未取得 ModelProfile/Evidence/预算/单次调用授权前不得真实出站。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/service/processing/harness_enrichment_provider.py`、P15 setup/verifier、POC overlay/fixture/tests
+- `harness-runtime/supervisor/opencode_executor.py`、internal Mock、权限/动态 Evidence tests
+- canonical 文档、`USAGE.md`、P15/PLAN/TASK_STATE、DevLog/INDEX（pending phase commit）

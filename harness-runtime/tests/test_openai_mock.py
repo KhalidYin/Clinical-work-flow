@@ -28,9 +28,22 @@ def _request(*, messages: list[dict[str, object]], stream: bool = False):
     }
 
 
-def _responses_request(*, output_count: int = 0, include_tools: bool = True):
+def _responses_request(
+    *,
+    output_count: int = 0,
+    include_tools: bool = True,
+    evidence_id: str = "evidence-poc-001",
+):
     input_items: list[dict[str, object]] = [
-        {"role": "user", "content": [{"type": "input_text", "text": "candidate"}]}
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "input_text",
+                    "text": f"Authorized Evidence IDs: [\"{evidence_id}\"]",
+                }
+            ],
+        }
     ]
     for index in range(output_count):
         input_items.append(
@@ -226,6 +239,43 @@ def test_responses_api_sequences_skill_evidence_and_candidate() -> None:
         candidate,
         title,
     ))
+
+
+def test_responses_api_uses_attempt_authorized_evidence_identity() -> None:
+    from poc.openai_mock.server import ScriptedOpenAIMock
+
+    mock = ScriptedOpenAIMock(api_key="synthetic-p15-key")
+    evidence = mock.respond(
+        path="/v1/responses",
+        authorization="Bearer synthetic-p15-key",
+        payload=_responses_request(output_count=1, evidence_id="evidence-db-001"),
+    )
+    candidate = mock.respond(
+        path="/v1/responses",
+        authorization="Bearer synthetic-p15-key",
+        payload=_responses_request(output_count=2, evidence_id="evidence-db-001"),
+    )
+
+    assert "evidence-db-001" in evidence.body
+    assert "evidence-db-001" in candidate.body
+    assert "evidence-poc-001" not in evidence.body + candidate.body
+
+
+def test_responses_api_recovers_identity_from_opencode_transformed_text() -> None:
+    from poc.openai_mock.server import ScriptedOpenAIMock
+
+    payload = _responses_request(output_count=2)
+    payload["input"][0]["content"][0]["text"] = (
+        "Load evidence-candidate, then use evidence-db-transformed-001."
+    )
+    response = ScriptedOpenAIMock(api_key="synthetic-p15-key").respond(
+        path="/v1/responses",
+        authorization="Bearer synthetic-p15-key",
+        payload=payload,
+    )
+
+    assert "evidence-db-transformed-001" in response.body
+    assert "evidence-poc-001" not in response.body
 
 
 def test_responses_fault_scenario_requests_unauthorized_bash() -> None:

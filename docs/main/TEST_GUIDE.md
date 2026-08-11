@@ -85,6 +85,13 @@ Skill 隔离、默认 deny permission、main/small model 同锁、Candidate sche
 公网与宿主端口不可达、未授权 bash 不落文件、单容器无自动 retry，以及 key 不进入 Inspect 环境、
 日志、事件、Receipt 或 Artifact。Docker internal 网络仍不是生产出站认证，不得代替 P16/live 授权。
 
+P15 P3 叠加 `compose.harness.poc.yaml`，从空卷 migration/bootstrap 的 canonical 合成 Evidence 启动唯一
+Enrichment Attempt，经真实 Supervisor/OpenCode/internal Mock 落账唯一 ModelInvocation/Candidate，再由
+`p15-verify` 通过正式 HttpOnly Cookie 登录和 Candidate API 核对 Evidence/lineage。验收必须同时检查：
+业务状态为 `author_confirmation_required`、重复 Worker 不产生第二次模型请求或重复记录、失败 Attempt
+不落 Candidate、合成 key 不泄露。一次性 Worker 进程退出码不能代替业务 Gate，最终判定以 PostgreSQL、
+Receipt 和 API verifier 为准。
+
 删除卷属于显式破坏性测试，只能对已核对的 `clinical-knowledge-demo` 项目执行，并且不得作为日常测试前置。
 
 ## 当前覆盖范围
@@ -95,7 +102,7 @@ Skill 隔离、默认 deny permission、main/small model 同锁、Candidate sche
 - Processing ledger：DAG、claim、lease、checkpoint、过期恢复、retry/cancel 和 Attempt lineage。
 - Document Worker：TXT/MD/PDF/DOCX/XLSX 的受控解析、分支/fan-in、Evidence locator。
 - ModelProvider：fake/replay、injected callable 下的单次 direct-model adapter/授权合同、数据边界和失败分类；没有真实 provider 质量结论。
-- Harness：版本化合同、fake/replay/OpenCode adapter、Fake/Docker runtime、staging 安全扫描、Step-scoped MCP、OpenCode 真实容器准入、独立 Supervisor 机器身份/幂等/注入拒绝/durable lifecycle、Knowledge remote provider、产品 Pack 编译，以及 internal Mock 下真实 Skill/MCP/Candidate 成功与越权拒绝 Attempt。
+- Harness：版本化合同、fake/replay/OpenCode adapter、Fake/Docker runtime、staging 安全扫描、Step-scoped MCP、OpenCode 真实容器准入、独立 Supervisor 机器身份/幂等/注入拒绝/durable lifecycle、Knowledge remote provider、产品 Pack 编译，以及 internal Mock 下 PostgreSQL canonical Evidence → Skill/MCP → Candidate/API 成功、幂等与越权拒绝 Attempt。
 - Governance：Candidate revision、作者确认、独立审核、relation eligibility 和 released immutability。
 - 认证：用户名、Argon2id、HttpOnly/SameSite Cookie、CSRF、会话撤销和 RBAC。
 - 前端：Vitest/Testing Library 已覆盖核心组件行为；真实浏览器与 390px 窄屏是既往手工验收，不是已签入自动化 E2E。
@@ -105,6 +112,7 @@ Skill 隔离、默认 deny permission、main/small model 同锁、Candidate sche
 
 - 面向生产的 socket proxy/rootless runtime authority、TLS/服务身份轮换与获授权出站网络；当前只覆盖显式本地 Compose 离线信任链。
 - `secret://` 后端及获授权网络策略；`env://` auth 文件物化/清理、产品 shim→OpenCode 的 `tools/call`、路径拒绝和合成凭据不泄露已覆盖。
+- 非 root Supervisor、socket proxy/远程容器运行时、明确 UID/GID 的 volume ownership；P15 为隔离的每 Attempt 临时目录开放宽写权限只服务本地 POC，不能沿用为生产证明。
 - 通用 Evaluation、Release Worker、Knowledge MCP 和对应 GUI。
 - 临床统一 Runner 与 Harness artifact promotion。
 - 可重复执行的浏览器 E2E 与视觉回归门禁。

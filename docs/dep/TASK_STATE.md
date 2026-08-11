@@ -1,14 +1,14 @@
 ---
-status: in-progress
+status: complete
 created: 2026-08-11 17:19
-updated: 2026-08-11 18:42
+updated: 2026-08-11 19:14
 ---
 
 # Current Task
 
 ## Goal
 
-P3 — Knowledge PostgreSQL Candidate/API 纵向 Gate（子计划：`docs/dep/plans/ongoing/P15-knowledge-opencode-harness-poc.md`）。
+P15 — Knowledge–OpenCode 自定义 Harness Stack 最小 POC 已完成。
 
 ## Progress
 
@@ -20,24 +20,26 @@ P3 — Knowledge PostgreSQL Candidate/API 纵向 Gate（子计划：`docs/dep/pl
 - [x] 真实固定镜像完成 Pack Skill → Attempt MCP → internal Mock → Candidate 成功链。
 - [x] 运行真实固定镜像的 Skill/MCP/Mock 成功链及拒绝、timeout/cancel/清理/脱敏矩阵。
 - [x] 完成 P2 Phase Gate、风险说明、DevLog 和阶段提交/远端同步。
-- [ ] 先写 canonical Evidence → remote Supervisor → Candidate/API 的 PostgreSQL 纵向 RED。
+- [x] 先写 canonical Evidence → remote Supervisor → Candidate/API 的 PostgreSQL 纵向 RED。
+- [x] 接通 PostgreSQL canonical Evidence → Worker → Supervisor → OpenCode → internal Mock → Candidate。
+- [x] 通过正式 Cookie API 核对 Candidate、Evidence 与 invocation lineage，状态停在作者确认前。
+- [x] 验证同一 Step 重跑不增加 Mock 请求、ModelInvocation 或 Candidate。
+- [x] 完成风险记录、全仓 Gate、阶段提交和远端同步。
 
 ## Working Context
 
-- **Files being edited**: `harness-runtime/supervisor/`、`harness-runtime/poc/`、`harness-runtime/tests/`、`clinical-llm-wiki/compose.harness.yaml`、`docs/dep/`
-- **Last command run**: Harness 全量 `152 passed, 5 skipped`，Ruff 全通过；Linux Supervisor 镜像内 Pack symlink fail-closed 已纳入 Gate；Compose Mock/Supervisor healthy。
-- **Key decisions**: 只使用已准入 digest；业务 Pack 仍由产品拥有；内部 Mock 位于 Docker internal 网络；`small_model` 与主模型同锁；未授权工具默认 deny；每 Attempt staging bind 退出后只扫描一次。
+- **Files being edited**: None（P15 已收口）
+- **Last command run**: P15 verifier 返回唯一 Candidate/Evidence/invocation，状态 `author_confirmation_required`；重复 Worker 的 Mock 请求保持 4、Invocation/Candidate 各保持 1。
+- **Key decisions**: POC 使用 Pack 外合成 key、`env://` 和 internal Mock；真实 Secret/egress/runtime authority 明确留给 P16；业务成功以 PostgreSQL/Receipt/API 判定，不以 Worker 退出码判定。
 - **Blocker**: None
 
 ## Phase Context
 
-- **Sub-plan**: `docs/dep/plans/ongoing/P15-knowledge-opencode-harness-poc.md`
-- **Phase**: P3 - Knowledge PostgreSQL Candidate/API 纵向 Gate
-- **Input conditions**: P2 固定 OpenCode、Pack Skill/MCP、internal Mock 及失败矩阵 Gate 已通过；只使用合成 Evidence。
-- **Completion criteria**: canonical Evidence 经 remote Supervisor 创建唯一 Candidate/ModelInvocation，API 与 Receipt/hash 一致；重放幂等、失败不落 Candidate，状态停在作者确认前。
-- **Boundaries**: 不执行作者确认、Reviewer、Evaluation 或 Release；不使用 DeepSeek，不实现生产 `secret://` 或公网 egress。
-- **上一 Phase 状态**: P2 complete — 固定 OpenCode + Pack Skill/MCP + internal Mock，Harness `152 passed, 5 skipped`。
+- **Sub-plan**: `docs/dep/plans/complete/P15-knowledge-opencode-harness-poc.md`
+- **Phase**: P3 complete
+- **Completion evidence**: run/step/attempt succeeded；唯一 Candidate `author_confirmation_required`；Pack SHA `d44e151ad45a06aba7ca28eaaab9aae6ea91ac3663603c3d3efef7444cfd42b9`；API/DB/Receipt lineage 一致。
+- **Boundaries**: 未执行作者确认、Reviewer、Evaluation 或 Release；未使用 DeepSeek，未实现生产 `secret://` 或公网 egress。
 
 ## Resume From
 
-定位 Knowledge Worker、remote provider、ModelInvocation/Candidate persistence 与 API 现有边界；先写 PostgreSQL/Compose 纵向失败测试，再做最小接线。
+等待用户确认是否启动 P16 计划：先冻结 Secret backend、精确 egress allowlist/proxy、runtime authority 和 live 授权 Gate；不得直接使用既往 DeepSeek key 或自动出站。
