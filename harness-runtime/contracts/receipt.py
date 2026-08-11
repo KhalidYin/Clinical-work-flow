@@ -16,6 +16,7 @@ from typing import Literal
 from pydantic import Field
 
 from .manifest import ArtifactManifest
+from .pack import HarnessPackIdentity
 from .request import StrictContractModel
 from .result import HarnessStatus
 
@@ -53,6 +54,13 @@ class ExecutionReceipt(StrictContractModel):
     event_summary: tuple[str, ...] = ()
     tool_call_summary: tuple[ToolCallSummary, ...] = ()
     artifact_manifest: ArtifactManifest
+    pack_identity: HarnessPackIdentity | None = None
+    compiled_config_sha256: str | None = Field(
+        default=None,
+        pattern=r"^[0-9a-f]{64}$",
+    )
+    advertised_skills: tuple[str, ...] = ()
+    allowed_mcp_capabilities: tuple[str, ...] = ()
     retryable: bool = False
     validator_input: dict[str, object] = Field(default_factory=dict)
 

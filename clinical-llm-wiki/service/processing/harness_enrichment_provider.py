@@ -485,6 +485,7 @@ class RemoteSupervisorEnrichmentProvider(ModelProviderPort):
         supervisor_url: str,
         machine_token: str,
         spec_sha256: str,
+        instruction_ref: Mapping[str, str] | None = None,
         transport: SupervisorTransport | None = None,
         poll_interval_seconds: float = 1.0,
         sleep: Callable[[float], None] = system_sleep,
@@ -501,6 +502,9 @@ class RemoteSupervisorEnrichmentProvider(ModelProviderPort):
             raise ValueError("poll_interval_seconds must be positive")
         self._headers = {"Authorization": f"Bearer {machine_token}"}
         self._spec_sha256 = spec_sha256
+        self._instruction_ref = None
+        if instruction_ref is not None:
+            self._instruction_ref = _validate_instruction_ref(instruction_ref)
         self._poll_interval_seconds = poll_interval_seconds
         self._sleep = sleep
         self._transport = transport or _UrllibSupervisorTransport(
@@ -516,6 +520,7 @@ class RemoteSupervisorEnrichmentProvider(ModelProviderPort):
             "system_instruction": request.prompt_profile.system_template,
             "output_schema": request.prompt_profile.output_schema,
             "messages": [message.model_dump(mode="json") for message in request.messages],
+            "evidence": _extract_canonical_evidence(request),
             "data_boundary": request.data_boundary.value,
             "provider": request.model_profile.provider,
             "model": request.model_profile.model,
@@ -537,6 +542,8 @@ class RemoteSupervisorEnrichmentProvider(ModelProviderPort):
             "timeout_seconds": request.model_profile.timeout_seconds,
             "network_mode": "none",
         }
+        if self._instruction_ref is not None:
+            attempt_payload["instruction_ref"] = dict(self._instruction_ref)
         request_sha256 = _canonical_sha256(attempt_payload)
         poll_budget_expired = False
         try:
@@ -804,3 +811,74 @@ def _canonical_sha256(payload: Any) -> str:
             separators=(",", ":"),
         ).encode("utf-8")
     ).hexdigest()
+
+
+def _extract_canonical_evidence(request: ModelRequest) -> list[dict[str, object]]:
+    """Project the product-owned enrichment context into Attempt MCP inputs."""
+
+    if len(request.messages) != 1 or request.messages[0].role != "user":
+        raise ValueError("harness enrichment requires one canonical user message")
+    try:
+        payload = json.loads(request.messages[0].content)
+    except json.JSONDecodeError as exc:
+        raise ValueError("harness enrichment message must contain canonical JSON") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("harness enrichment message must contain a JSON object")
+    raw_evidence = payload.get("evidence")
+    if not isinstance(raw_evidence, list) or not raw_evidence:
+        raise ValueError("harness enrichment requires canonical evidence")
+    evidence: list[dict[str, object]] = []
+    seen_ids: set[str] = set()
+    for item in raw_evidence:
+        if not isinstance(item, dict):
+            raise ValueError("canonical evidence item must be an object")
+        evidence_id = item.get("evidence_id")
+        content = item.get("content")
+        locator = item.get("locator")
+        content_sha256 = item.get("content_sha256")
+        if (
+            not isinstance(evidence_id, str)
+            or not evidence_id
+            or evidence_id in seen_ids
+            or not isinstance(content, str)
+            or not content
+            or not isinstance(locator, dict)
+            or not isinstance(content_sha256, str)
+            or len(content_sha256) != 64
+            or any(character not in "0123456789abcdef" for character in content_sha256)
+        ):
+            raise ValueError("canonical evidence item is invalid")
+        seen_ids.add(evidence_id)
+        evidence.append(
+            {
+                "evidence_id": evidence_id,
+                "locator": locator,
+                "content_sha256": content_sha256,
+                "content": content,
+            }
+        )
+    return evidence
+
+
+def _validate_instruction_ref(reference: Mapping[str, str]) -> dict[str, str]:
+    required = {"pack_id", "version", "sha256"}
+    if set(reference) != required:
+        raise ValueError("instruction_ref must be a valid Harness Pack reference")
+    pack_id = reference.get("pack_id")
+    version = reference.get("version")
+    sha256 = reference.get("sha256")
+    identifiers = (pack_id, version)
+    if any(
+        not isinstance(value, str)
+        or not value
+        or any(character not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-" for character in value)
+        for value in identifiers
+    ):
+        raise ValueError("instruction_ref must be a valid Harness Pack reference")
+    if (
+        not isinstance(sha256, str)
+        or len(sha256) != 64
+        or any(character not in "0123456789abcdef" for character in sha256)
+    ):
+        raise ValueError("instruction_ref must be a valid Harness Pack reference")
+    return {"pack_id": pack_id, "version": version, "sha256": sha256}

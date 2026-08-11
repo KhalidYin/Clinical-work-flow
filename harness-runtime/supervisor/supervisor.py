@@ -63,6 +63,7 @@ class HarnessSupervisor:
         extra_read_only_mounts: tuple[ReadOnlyMount, ...] = (),
         environment: tuple[tuple[str, str], ...] = (),
         control_request_sha256: str | None = None,
+        trusted_internal_network_id: str | None = None,
     ) -> ExecutionReceipt:
         if request.spec_sha256 is None:
             raise ValueError("spec_sha256 is required for harness execution")
@@ -99,7 +100,9 @@ class HarnessSupervisor:
             scratch_dir="/scratch",
             staging_dir="/staging",
             host_scratch_dir=self._host_path_mapper(host_scratch),
+            # This directory is unique to one Attempt and scanned only after exit.
             host_staging_dir=self._host_path_mapper(host_staging),
+            internal_network_id=trusted_internal_network_id,
             timeout_seconds=request.timeout_seconds,
             environment=environment,
             labels=(
@@ -179,7 +182,11 @@ class HarnessSupervisor:
                 ExitClassification.TIMED_OUT,
             },
             validator_input={
-                "network_mode": config.network_mode,
+                "network_mode": (
+                    "internal-only"
+                    if config.internal_network_id is not None
+                    else config.network_mode
+                ),
                 "read_only_root": True,
                 "user": config.user,
                 "cap_drop": ["ALL"],

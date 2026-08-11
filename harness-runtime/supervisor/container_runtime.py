@@ -59,6 +59,11 @@ class ContainerConfig(StrictContractModel):
     host_scratch_dir: str | None = None
     host_staging_dir: str | None = None
     network_mode: Literal["none"] = "none"
+    internal_network_id: str | None = Field(
+        default=None,
+        pattern=r"^[0-9a-f]{64}$",
+        description="Supervisor-verified Docker internal network ID",
+    )
     user: str = Field(default="65534:65534", pattern=r"^\d+:\d+$")
     memory_bytes: int = Field(default=512 * 1024 * 1024, ge=1)
     pids_limit: int = Field(default=128, ge=1)

@@ -1325,3 +1325,231 @@ Done — no next steps。
 #### Files Changed / Commits
 
 - `docs/dep/devlog/active/DEVLOG-R089-R128.md`、`docs/dep/devlog/INDEX.md`（modified，uncommitted）
+
+---
+
+## 2026-08-11
+
+### R116 [17:09] [P15-knowledge-opencode-harness-poc] P1: Harness Pack 合同与 Attempt 编译
+
+#### Done
+
+- 新增严格、冻结的 Harness Pack manifest/MCP policy/identity 合同；产品 Pack 只能声明 instruction、
+  Skill、output schema、逻辑 MCP capability、模型协议和 Attempt 预算，不能携带 command、URL、
+  environment、secret、network/mount 或流程推进字段。
+- 新增 allowlisted resolver/compiler：按 pack ID/version/hash、adapter 和 digest-locked image fail closed，
+  校验路径逃逸、symlink/reparse、重复 Skill/MCP、缺失文件与 schema；把产品 Pack 编译到单 Attempt
+  workspace，只由 Supervisor 的可信 binding 提供 MCP command，并生成确定性 compiled-config hash。
+- 在 Knowledge 产品目录签入 `knowledge-candidate-v1`：system instruction、`evidence-candidate` Skill、
+  Evidence policy、Candidate schema、`knowledge.read-evidence` capability 和合成 fixture；固定到已准入的
+  OpenCode `1.18.14` image digest。
+- Supervisor request/ExecutionReceipt 增加非敏感 Pack 引用、identity/config hash 与 advertised
+  Skill/MCP 字段；Knowledge remote provider 只提交 hash-locked `instruction_ref`，环境配置要求
+  pack ID/version/hash 三项同时存在。
+- 修复回归发现的旧请求 hash 漂移：不带 `instruction_ref` 的 P14 请求继续按原 wire body 计算，
+  保持 submit 幂等和 replay/`network none` 兼容。
+
+#### Issues / Blockers
+
+- 当前 Windows 账户不能创建 symlink，相关测试条件跳过；实现同时拒绝 symlink 和 Windows reparse
+  point，但 P2 必须在 Linux 容器中提供实测证据，不能把本机 skip 当作跨平台安全证明。
+- P1 只证明 Pack 合同与确定性编译器，没有启动真实 OpenCode、内部 Mock 或 PostgreSQL，也没有
+  证明 `1.18.14` 对 Skill/MCP/provider 配置的实际兼容性；此风险保留为 P2 fail-closed Gate。
+- Pack hash 会覆盖 Pack 根目录全部文件；任何说明、fixture 或 schema 变化都会要求产品更新并提交
+  新 hash。这提高可重放性，但 P2/P3 必须避免把运行时临时文件写回源 Pack。
+- 没有读取或使用 DeepSeek key，没有公网出站；P1 不是生产 Secret、网络隔离或 live 模型证明。
+
+#### Validation
+
+- 新行为按 RED→GREEN：初始 Harness Pack 15 个失败、Knowledge Pack-ref 1 个失败；最终定向
+  Harness `18 passed, 1 skipped`，Knowledge provider `16 passed`，Ruff 全绿。
+- Harness 全量：`131 passed, 5 skipped`；Knowledge 全量：`220 passed, 8 skipped`；Clinical Workflow
+  全量：`366 passed, 1 skipped`；三个代码库 Ruff 全绿。
+- `git diff --check` 通过；未启动 OpenCode/Compose/PostgreSQL，未执行模型调用或外部网络访问。
+
+#### Next
+
+1. P15/P2 先以失败测试冻结真实 OpenCode `1.18.14` 的 Attempt 目录、隔离 HOME/XDG、provider、
+   Skill discovery/permission、MCP audit 和内部 Mock 请求合同。
+2. 用 digest-locked 镜像在 internal-only 网络实测 Pack Skill + `read_evidence` MCP + 本地
+   OpenAI-compatible Mock；若固定版本不兼容则记录阻断并停止，不自动升级。
+3. 主要风险是 OpenCode 配置语义与文档版本不一致、宿主全局配置被自动发现、内部网络意外具备
+   公网出口，以及合成 key/prompt 泄漏到日志、Receipt 或临时目录。
+
+#### Files Changed / Commits
+
+- `harness-runtime/contracts/`、`harness-runtime/supervisor/pack_compiler.py`、`harness-runtime/tests/test_harness_pack.py`
+- `clinical-llm-wiki/harness-packs/knowledge-candidate-v1/`、remote provider/worker/tests
+- `docs/dep/PLAN.md`、P15、DevLog/INDEX（pending phase commit）
+
+---
+
+### R117 [18:18] [P15-knowledge-opencode-harness-poc] P2: 固定 OpenCode、Pack Skill/MCP 与 internal Mock
+
+#### Done
+
+- 按 RED→GREEN 接通真实 OpenCode `1.18.14`：Supervisor 编译只读 Pack workspace、隔离 HOME/XDG、
+  `model`/`small_model`、默认 deny permission、项目 `evidence-candidate` Skill 和 Attempt-scoped
+  `read_evidence` MCP；固定镜像实际使用 `/v1/responses`，先加载 Skill、再读取 Evidence、最后输出
+  schema-valid Candidate。
+- 新增确定性 OpenAI-compatible Mock：仅接受合成 key 文件，支持 Responses/Chat Completions 测试合同，
+  审计只保存模型、工具名、请求 hash 与结构元数据；不保存 key 或 prompt。Compose 新增只连接
+  `harness-model` internal 网络的 Mock，Supervisor 只验证网络 ID并把受管 OpenCode 接入该网络。
+- 真实网络探针证明 internal Mock 可达，而 `1.1.1.1` 和一个已监听的 `host.docker.internal` 端口不可达；
+  成功 Attempt 的 MCP audit/Receipt 记录一次 `read_evidence`，容器与 workspace 清理，模型 key 不在
+  OpenCode/Mock Inspect 环境、事件、Receipt、Artifact 或审计中。
+- 权限负向链让 Mock 故意要求 `bash` 写 `/staging/unauthorized-marker`；OpenCode 返回 tool error、文件
+  未创建、坏 JSON 被 executor 转为结构化失败，Pack Receipt `retryable=false`，且只创建一个容器。
+- 修复固定版/跨平台缺陷：预置 `.opencode/.gitignore` 以保持 Pack 只读；支持 `part.text` JSON event；
+  避免 staging bind 后重复 `docker cp`；Pack hash 改为相对 POSIX 路径排序，Windows/Linux 统一 SHA
+  `d44e151ad45a06aba7ca28eaaab9aae6ea91ac3663603c3d3efef7444cfd42b9`。
+- 在实际 Supervisor Linux 镜像内复制 Pack、替换 instruction 为 symlink，resolver 在 OpenCode 启动前
+  fail-closed；Windows 宿主因账户权限仍跳过 symlink，NTFS reparse 分支尚缺具备相应平台的实测证据。
+
+#### Issues / Blockers
+
+- 固定镜像自带 `customize-opencode`，并向模型广告 bash/edit/read 等内建工具；项目/外部 Skill 已隔离，
+  但不能声称运行时只有 Pack Skill/Tool。安全控制是默认 deny permission 与真实越权拒绝，不是隐藏工具。
+- 每 Attempt staging 使用限定目录 bind；这是为了避免停止后 tmpfs 丢失和重复复制。它只允许写当前
+  Attempt 目录并在退出后扫描，但生产仍应评估 Docker volume/快照导出以进一步收敛 host-write 风险。
+- Docker internal 网络、合成 key 文件和本地 Mock 只构成 POC 证据，不是生产 Secret Manager、
+  egress proxy、socket proxy/rootless runtime 或 DeepSeek 质量证明；P16 仍负责这些 Gate。
+- P2 没有连接 Knowledge PostgreSQL，也没有创建 ModelInvocation/Candidate 或 API 记录；这属于 P3。
+
+#### Validation
+
+- 真实固定镜像成功+拒绝纵向测试通过：Pack Skill、Responses Mock、MCP、Candidate schema、internal
+  网络公网/宿主拒绝、bash 越权和单容器无自动 retry 均有实测证据。
+- Compose project `clinical-harness-p15-poc` 的 Mock 与 Supervisor 均 healthy；Supervisor health 返回
+  `network_policy=internal-only`、固定 adapter/model、Pack ID 和 Linux 侧 canonical Pack SHA；模型 key
+  只以 secret 文件路径出现在 Inspect 环境。
+- Harness 全量 `152 passed, 5 skipped`，Ruff 全通过；Knowledge `220 passed, 8 skipped`、Workflow
+  `366 passed, 1 skipped` 及各自 Ruff 全通过，Compose 配置解析通过。
+- 无 DeepSeek key、真实供应商调用、Knowledge DB 写入或公网模型出站。
+
+#### Next
+
+1. P15/P3 先写 PostgreSQL 纵向 RED：canonical Evidence claim → remote Supervisor → Candidate/API，并冻结
+   ModelInvocation、Receipt/Pack lineage、幂等与失败不落 Candidate。
+2. P3 只用合成 Evidence，Candidate 停在作者确认前；不得触发 Reviewer、Evaluation 或 Release。
+3. P15 完成后再进入 P16；主要风险是 Worker/ModelProfile 的 Pack SHA 配置漂移、跨服务幂等和
+   Supervisor Docker authority，仍不得自动进入 DeepSeek live。
+
+#### Files Changed / Commits
+
+- `harness-runtime/supervisor/`、`harness-runtime/poc/openai_mock/`、`harness-runtime/tests/`
+- `clinical-llm-wiki/compose.harness.yaml`、`clinical-llm-wiki/tests/test_harness_supervisor_deployment.py`
+- `docs/main/`、`docs/dep/PLAN.md`、P15、TASK_STATE、DevLog/INDEX
+
+---
+
+### R118 [19:14] [P15-knowledge-opencode-harness-poc] P3: PostgreSQL Candidate/API 纵向 Gate
+
+#### Done
+
+- 按 RED→GREEN 将 canonical Evidence 投影到 remote Supervisor 的 `input_bundle.evidence`；OpenCode prompt
+  只包含获授权 Evidence ID，正文只能经 Attempt-scoped `read_evidence` MCP 读取。Knowledge Worker
+  不再运行时导入 Harness Python package，跨服务边界保持版本化 HTTP/JSON 合同。
+- 新增 P15 专用 setup/overlay/verifier：只把 queued、unleased Enrichment step 切为 `executor_kind=harness`，
+  建立独立 internal-Mock ModelProfile，运行一次 Worker，并通过正式 HttpOnly Cookie/首次改密 API 查询
+  Candidate；没有绕过人员认证或把 verifier 变成治理写入口。
+- 在隔离 Compose project `clinical-harness-p15-db-poc` 从空卷 migration/bootstrap 跑通 PostgreSQL
+  canonical Evidence → Worker → Supervisor → digest-locked OpenCode → Pack Skill/MCP → internal Mock →
+  product Validator → ModelInvocation/Candidate → API。最终 Candidate
+  `cand-4d99828f50bf5a4683eeee8c7dc37c23` 引用 Evidence
+  `evidence-32693c075812589fa169ae0d99362ea9` 和 invocation
+  `777e4a32-9b62-4696-9046-a14c38f14eae`，状态固定为 `author_confirmation_required`。
+- 重复运行 Worker 后 Mock 请求数保持 4，ModelInvocation/Candidate 各保持 1；没有启动第二次模型
+  Attempt。Pack SHA 保持 `d44e151ad45a06aba7ca28eaaab9aae6ea91ac3663603c3d3efef7444cfd42b9`。
+- P15 只关闭本地 POC：没有作者确认、Reviewer、Evaluation、Release、DeepSeek key、真实供应商调用或
+  公网模型出站；普通 Compose 继续默认 replay。
+
+#### Issues / Risks
+
+- Worker 镜像缺少 Harness Python package，证明产品不能偷渡共享 runtime 的本地实现依赖；已改为产品侧
+  最小 Pack-ref 校验，Supervisor 继续承担完整 Pack 解析。
+- 一次性 Worker 曾继承 `restart: unless-stopped`，且 `--once` 即使业务 Step 失败仍可退出 0；overlay
+  现固定 `restart: "no"`，POC 成功必须由 DB、Receipt 和 API verifier 三方判定。
+- 当前 Supervisor 只支持 `env://`。POC 使用 Pack 外独立单行合成 key 文件；曾误把多行 Evidence JSON
+  当 key 导致非法 Authorization。该修复不是 `secret://`，正式 backend 仍属于 P16。
+- Linux root 创建的 volume 目录对 OpenCode uid 65534 不可写；本轮仅在父目录 0700 下为每 Attempt
+  home/cache/state/data/staging 开放宽写权限。生产必须改为明确 UID/GID ownership、rootless 或 volume
+  管理，不能把 0777 POC 折中当作安全基线。
+- Mock 曾硬编码 Evidence ID，随后 fallback 又误选 Pack Skill ID；现在从显式 marker 动态提取且要求
+  Evidence ID 含数字，产品 Validator 仍以 PostgreSQL canonical Evidence 作最终防线。
+- API verifier 曾被精确 Origin allowlist 和首次改密 Gate 拒绝；现按正式 Cookie/密码变更流程处理，
+  没有放宽浏览器安全策略。
+- Docker socket authority、internal network、合成 Mock、`env://` 和 Windows reparse 平台证据缺口仍保留。
+  P15 不证明生产 Secret/egress/runtime authority 或 DeepSeek 质量；P16/P12 live 必须另行验证和授权。
+
+#### Validation
+
+- Knowledge：`226 passed, 8 skipped`；Ruff 全通过；按项目既有 `docker>=7,<8` 范围补齐 docker-py 后，Docker 集成用例实际执行通过。
+- Harness：`154 passed, 5 skipped`；Ruff 全通过。
+- Clinical Workflow：`366 passed, 1 skipped`；Ruff 全通过。
+- Frontend：Vitest `30 passed`；Vite production build 通过。
+- 空卷 migrations/bootstrap、真实 Compose POC、API verifier、重复 Worker 幂等和配置解析通过；合成 key
+  未进入日志、Receipt、DB 或产物。P15 POC 服务保留在精确 project 中供复核。
+
+#### Next
+
+1. P15 关闭后不自动进入 live；等待用户确认是否启动 P16。
+2. P16 第一阶段先冻结 `secret://` provider 接口、tmpfs/零化、精确 DeepSeek 域名/IP/DNS egress policy、
+   proxy 审计和更收敛的 runtime authority，再写失败测试。
+3. 主要风险是 Docker socket 高权限、DNS/重定向绕过 allowlist、secret 泄漏和把既往 key 当作当前授权；
+   未取得 ModelProfile/Evidence/预算/单次调用授权前不得真实出站。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/service/processing/harness_enrichment_provider.py`、P15 setup/verifier、POC overlay/fixture/tests
+- `harness-runtime/supervisor/opencode_executor.py`、internal Mock、权限/动态 Evidence tests
+- canonical 文档、`USAGE.md`、P15/PLAN/TASK_STATE、DevLog/INDEX（pending phase commit）
+
+---
+
+### R119 [23:38] [P16-harness-secret-egress-gate] Planning: 能力不阉割，副作用有边界
+
+#### Done
+
+- 用户指出 DeepSeek-only 出站若被解释为 Harness 全局网络边界，会牺牲 OpenCode 原生浏览、调研和
+  工具循环；进一步确认来源可追溯与浏览器是否受控不存在必然因果，网络安全和证据治理必须分开。
+- 正式比较三条路径：OpenCode 直接自由联网、以 Research MCP 替代原生浏览、原生能力 +
+  Attempt-scoped policy + recording egress gateway。用户批准第三条，并固定核心原则为“能力不阉割，
+  副作用有边界”。
+- 修订 P16：引入通用 `NetworkCapabilityPolicy`/egress gateway 口径，DeepSeek 只是首个
+  `model-deepseek-v1` 策略实例；控制面约束 capability、可出站数据、secret、目标、预算和治理 Gate，
+  不替 OpenCode 决定规划、Skill/MCP、browser、多步工具循环或自检。
+- 明确未来 `research-public-web-v1` 保留 OpenCode 原生 Browser/Playwright/Skill，通过 recording
+  gateway 阻断危险地址并捕获 URL/重定向/时间/快照/hash/citation；P16 不实现该能力，也不以
+  Research MCP 替代或冒充原生浏览已完成。
+- canonical Guide/Spec/Test、AGENTS、Harness 架构记忆与 PLAN 同步：每条拒绝 Gate 必须有正向能力
+  保持测试；网页日志不自动构成 canonical Evidence，仍需 SourceCandidate → Source/Evidence 治理。
+
+#### Issues / Risks
+
+- “不限制 Agent 能力”不能解释为无限权限：Harness 仍不得自行新增 capability、扩张网络、泄漏数据、
+  访问私网/宿主/云元数据或推进治理状态；自主性只存在于获授权能力集合内。
+- P16 若同时实现公共研究 gateway 会显著扩张范围并阻塞单次 live 准备，因此本轮只冻结可扩展合同和
+  DeepSeek 首个实例；研究策略需在明确工作流、抓取许可和验收边界后另行规划。
+- recording 解决可追溯性，不自动解决 SSRF、恶意下载、prompt injection、许可或数据外泄；反之，
+  白名单解决网络目的地，也不自动生成可信来源证据。
+
+#### Validation
+
+- P16 backlog 文件与 PLAN 指针、名称、6-9 轮预估和依赖保持一致；`git diff --check` 通过。
+- canonical 文档一致性扫描不再把 DeepSeek 描述成 Harness 平台能力上限，也没有把公共研究写成已实现。
+- 本轮仅修改规划/架构文档；没有进入 P16 Development、修改代码、读取既往 key 或发生任何外部模型/网页出站。
+
+#### Next
+
+1. 若用户批准进入 Development，P16/P1 先用失败测试冻结通用 capability/network policy、
+   `none`/`model-deepseek-v1` 和正向能力保持合同。
+2. P16 不实现 `research-public-web-v1`；待研究 SourceCandidate、recording 和许可 Gate 的验收边界明确后，
+   再决定是否建立独立计划。
+3. 主要风险是把“能力保持”误写成开放代理，或反向只做 deny 测试把 OpenCode 退化为固定脚本。
+
+#### Files Changed / Commits
+
+- `docs/dep/plans/backlog/P16-harness-secret-egress-gate.md`、`docs/dep/PLAN.md`
+- `AGENTS.md`、`docs/main/PROJECT_GUIDE.md`、`PROJECT_SPEC.md`、`TEST_GUIDE.md`
+- `docs/main/memory/project-harness-architecture-direction.md`、DevLog/INDEX（pending planning commit）

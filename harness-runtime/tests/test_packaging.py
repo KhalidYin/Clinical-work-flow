@@ -14,5 +14,10 @@ def test_setuptools_discovers_only_runtime_packages() -> None:
     )
 
     package_find = pyproject["tool"]["setuptools"]["packages"]["find"]
-    assert package_find["include"] == ["adapters*", "contracts*", "supervisor*"]
+    assert package_find["include"] == [
+        "adapters*",
+        "contracts*",
+        "poc*",
+        "supervisor*",
+    ]
     assert package_find["exclude"] == ["tests*", "images*"]

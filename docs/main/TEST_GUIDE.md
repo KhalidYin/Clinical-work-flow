@@ -65,6 +65,8 @@ python -m ruff check contracts adapters supervisor tests
 ```
 
 默认环境允许跳过 PATH 上真实 OpenCode binary 或 Windows 不支持的 symlink/hardlink/executable-bit 用例。OpenCode 容器准入 Gate 必须安装 `.[docker]` extra、连接 Docker daemon 并预拉 digest-locked 镜像；相关容器测试不得跳过。
+P15 P2 另在实际 Supervisor Linux 镜像内创建 Pack symlink 并验证 resolver 启动前拒绝；这不等于已在
+具备 NTFS reparse 权限的 Windows CI 上取得 reparse point 实证，该平台风险必须继续显式保留。
 
 ### 当前 Compose 骨架
 
@@ -76,10 +78,19 @@ docker compose --project-name clinical-knowledge-demo ps
 
 默认 Compose 不启动 `release` profile；当前也没有通用 Release handler。只有在该能力实现后，Release Worker 身份与健康 Gate 才能通过显式 `--profile release` 纳入验收。
 
-独立 Harness 部署必须显式叠加 `compose.harness.yaml` 并启用 `harness` profile。Gate 使用合成、无效
-provider secret；预期 OpenCode 在 `network none` 下失败关闭并返回脱敏 Receipt。必须同时检查 Worker
-无 Docker socket/模型 secret、Supervisor 独占 socket、终态重复查询一致、受管容器和临时 workspace 清理，
-以及 `alembic_version=20260809_0010`。不得以该离线 Gate 代替 live 出站授权。
+独立 Harness 部署必须显式叠加 `compose.harness.yaml` 并启用 `harness` profile。P14 离线 Gate 使用
+合成无效 provider 和 `network none`；P15 P2 Gate 另用合成 key 文件与 `harness-model` internal network，
+真实验证固定 OpenCode → Pack Skill → `read_evidence` MCP → 本地 Responses Mock。必须检查项目/外部
+Skill 隔离、默认 deny permission、main/small model 同锁、Candidate schema、MCP/Pack/config identity、
+公网与宿主端口不可达、未授权 bash 不落文件、单容器无自动 retry，以及 key 不进入 Inspect 环境、
+日志、事件、Receipt 或 Artifact。Docker internal 网络仍不是生产出站认证，不得代替 P16/live 授权。
+
+P15 P3 叠加 `compose.harness.poc.yaml`，从空卷 migration/bootstrap 的 canonical 合成 Evidence 启动唯一
+Enrichment Attempt，经真实 Supervisor/OpenCode/internal Mock 落账唯一 ModelInvocation/Candidate，再由
+`p15-verify` 通过正式 HttpOnly Cookie 登录和 Candidate API 核对 Evidence/lineage。验收必须同时检查：
+业务状态为 `author_confirmation_required`、重复 Worker 不产生第二次模型请求或重复记录、失败 Attempt
+不落 Candidate、合成 key 不泄露。一次性 Worker 进程退出码不能代替业务 Gate，最终判定以 PostgreSQL、
+Receipt 和 API verifier 为准。
 
 删除卷属于显式破坏性测试，只能对已核对的 `clinical-knowledge-demo` 项目执行，并且不得作为日常测试前置。
 
@@ -91,7 +102,7 @@ provider secret；预期 OpenCode 在 `network none` 下失败关闭并返回脱
 - Processing ledger：DAG、claim、lease、checkpoint、过期恢复、retry/cancel 和 Attempt lineage。
 - Document Worker：TXT/MD/PDF/DOCX/XLSX 的受控解析、分支/fan-in、Evidence locator。
 - ModelProvider：fake/replay、injected callable 下的单次 direct-model adapter/授权合同、数据边界和失败分类；没有真实 provider 质量结论。
-- Harness：版本化合同、fake/replay/OpenCode adapter、Fake/Docker runtime、staging 安全扫描、Step-scoped MCP、OpenCode 真实容器准入、独立 Supervisor 机器身份/幂等/注入拒绝/durable lifecycle、Knowledge remote provider，以及 Compose 私网/Worker 零 socket/真实离线 Attempt。
+- Harness：版本化合同、fake/replay/OpenCode adapter、Fake/Docker runtime、staging 安全扫描、Step-scoped MCP、OpenCode 真实容器准入、独立 Supervisor 机器身份/幂等/注入拒绝/durable lifecycle、Knowledge remote provider、产品 Pack 编译，以及 internal Mock 下 PostgreSQL canonical Evidence → Skill/MCP → Candidate/API 成功、幂等与越权拒绝 Attempt。
 - Governance：Candidate revision、作者确认、独立审核、relation eligibility 和 released immutability。
 - 认证：用户名、Argon2id、HttpOnly/SameSite Cookie、CSRF、会话撤销和 RBAC。
 - 前端：Vitest/Testing Library 已覆盖核心组件行为；真实浏览器与 390px 窄屏是既往手工验收，不是已签入自动化 E2E。
@@ -101,6 +112,7 @@ provider secret；预期 OpenCode 在 `network none` 下失败关闭并返回脱
 
 - 面向生产的 socket proxy/rootless runtime authority、TLS/服务身份轮换与获授权出站网络；当前只覆盖显式本地 Compose 离线信任链。
 - `secret://` 后端及获授权网络策略；`env://` auth 文件物化/清理、产品 shim→OpenCode 的 `tools/call`、路径拒绝和合成凭据不泄露已覆盖。
+- 非 root Supervisor、socket proxy/远程容器运行时、明确 UID/GID 的 volume ownership；P15 为隔离的每 Attempt 临时目录开放宽写权限只服务本地 POC，不能沿用为生产证明。
 - 通用 Evaluation、Release Worker、Knowledge MCP 和对应 GUI。
 - 临床统一 Runner 与 Harness artifact promotion。
 - 可重复执行的浏览器 E2E 与视觉回归门禁。
@@ -153,6 +165,8 @@ Source → Document DAG → Evidence
 - 测试数据不得包含真实患者标识、生产 secret 或未获授权文档内容。
 - 真实模型/Harness 出站必须由用户单独提供 profile、Attempt 级短期凭据或受控代理、允许的数据边界、telemetry/retention 策略和调用预算；不得挂载个人 Harness 登录态。
 - live 测试不能替代 replay、schema、policy 和失败 Gate；失败调用也计入预算并保留 lineage。
+- 每个 capability/network policy 的拒绝测试必须有对应正向能力保持测试：证明 Agent 在获授权边界内仍可使用原生 Skill/MCP/browser/工具循环，而不是通过全局禁用能力获得表面安全。
+- 模型 endpoint 出站与公共网页研究必须分开验收。未来公共研究 Gate 需要覆盖私网/宿主/云元数据阻断、重定向/DNS/下载配额、URL/时间/快照/hash/citation 捕获，以及网页资料不经 Source/Evidence 治理不得成为 canonical 事实。
 
 ## 完整验收
 

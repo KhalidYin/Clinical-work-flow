@@ -1,0 +1,18 @@
+contract_version: 1.0.0
+pack_id: knowledge-candidate-v1
+version: 1.0.0
+adapter_id: opencode@1.18.14
+image_ref: ghcr.io/anomalyco/opencode:1.18.14@sha256:16a66f622a0bb0b4bb2a05242749907704a4149ef25805932c067d5afb340f6a
+instruction_file: instructions/system.md
+skills:
+  - skill_id: evidence-candidate
+    path: skills/evidence-candidate
+mcp_policy_file: mcp-policy.yaml
+output_schema_file: schemas/candidate.schema.json
+model:
+  protocol: openai-compatible
+  structured_output: true
+budget:
+  max_calls: 1
+  max_tokens: 4096
+  max_time_seconds: 60

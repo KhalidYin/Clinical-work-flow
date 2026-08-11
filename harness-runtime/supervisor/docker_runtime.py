@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import tarfile
 from collections.abc import Iterator
 from pathlib import Path
@@ -27,6 +28,7 @@ class DockerEngineContainerRuntime:
     def __init__(self, client: Any | None = None) -> None:
         self._client = client
         self._stop_timeouts: dict[str, int] = {}
+        self._bound_staging_ids: set[str] = set()
 
     def _docker(self) -> Any:
         if self._client is not None:
@@ -50,7 +52,7 @@ class DockerEngineContainerRuntime:
         create_kwargs: dict[str, Any] = dict(
             image=config.image_ref,
             command=list(config.command),
-            network_mode=config.network_mode,
+            network_mode=config.internal_network_id or config.network_mode,
             user=config.user,
             read_only=True,
             mem_limit=config.memory_bytes,
@@ -70,6 +72,8 @@ class DockerEngineContainerRuntime:
             create_kwargs["entrypoint"] = list(config.entrypoint)
         container = client.containers.create(**create_kwargs)
         self._stop_timeouts[container.id] = config.stop_timeout_seconds
+        if config.host_staging_dir:
+            self._bound_staging_ids.add(container.id)
         return container.id
 
     def start(self, container_id: str) -> None:
@@ -113,6 +117,8 @@ class DockerEngineContainerRuntime:
             return ""
 
     def copy_from(self, container_id: str, container_path: str, host_path: str) -> None:
+        if container_id in self._bound_staging_ids and container_path == "/staging":
+            return
         container = self._docker().containers.get(container_id)
         stream, _ = container.get_archive(container_path)
         destination_root = Path(host_path).resolve()
@@ -142,6 +148,7 @@ class DockerEngineContainerRuntime:
             pass
         finally:
             self._stop_timeouts.pop(container_id, None)
+            self._bound_staging_ids.discard(container_id)
 
     def list_managed(self) -> tuple[ManagedContainer, ...]:
         containers = self._docker().containers.list(
@@ -163,6 +170,23 @@ class DockerEngineContainerRuntime:
             except (KeyError, TypeError, ValueError):
                 continue
         return tuple(sorted(managed, key=lambda item: item.attempt_id))
+
+    def require_internal_network(self, name: str) -> str:
+        """Resolve a named network only after Docker proves it is internal."""
+
+        if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", name) is None:
+            raise RuntimeError("internal network name is invalid")
+        try:
+            network = self._docker().networks.get(name)
+            network_id = str(network.id)
+            is_internal = network.attrs.get("Internal") is True
+        except Exception as exc:
+            raise RuntimeError("internal network is unavailable") from exc
+        if not is_internal:
+            raise RuntimeError("configured model network is not Docker-internal")
+        if re.fullmatch(r"[0-9a-f]{64}", network_id) is None:
+            raise RuntimeError("internal network has an invalid Docker identity")
+        return network_id
 
     def current_container_mount_source(
         self,

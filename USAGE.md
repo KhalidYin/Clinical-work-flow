@@ -13,7 +13,7 @@
 
 其中“异步富化”当前是同一 durable DAG 中的单个 Enrichment step，并非已经形成可编排的富化子图。
 
-P13 已提供一次性 legacy immutable Release 和 Workflow REST 消费适配。H0 已建立 `harness-runtime/`；OpenCode `1.18.14` 的 digest 容器准入、知识 `opencode-supervised` remote Attempt 以及显式 Compose `harness` profile 的独立 Supervisor 均已通过真实零网络回归，Receipt migration 为 `20260809_0010`。默认 Compose 仍使用 replay，live vertical 未完成。通用 Release Builder、检索评估闭环与只读知识 MCP 仍是目标能力。Document、Enrichment、Release 是独立 Worker pool，通过 PostgreSQL durable DAG 协作，不是流式 pipeline；当前通用 Release handler 尚未完成。空卷 Compose 默认没有 current Release。临床 Workflow 的固定阶段顺序不变。
+P13 已提供一次性 legacy immutable Release 和 Workflow REST 消费适配。H0 已建立 `harness-runtime/`；OpenCode `1.18.14` 的 digest 容器准入、独立 Supervisor，以及 P15 合成 Evidence → PostgreSQL Candidate/API 本地 POC 均已通过。Receipt migration 为 `20260809_0010`。默认 Compose 仍使用 replay，DeepSeek live 未完成。通用 Release Builder、检索评估闭环与只读知识 MCP 仍是目标能力。Document、Enrichment、Release 是独立 Worker pool，通过 PostgreSQL durable DAG 协作，不是流式 pipeline；当前通用 Release handler 尚未完成。空卷 Compose 默认没有 current Release。临床 Workflow 的固定阶段顺序不变。
 
 ## 2. 启动当前知识产品
 
@@ -60,6 +60,7 @@ docker compose --project-name clinical-knowledge-demo up -d --build --wait
 - 已实现：版本化 Request/Result/Receipt 合同、fake/replay/OpenCode adapter、durable Supervisor 生命周期、Step-scoped MCP 骨架和 Enrichment remote provider。
 - 已准入：OpenCode `1.18.14` GHCR image 的版本+digest 双锁、真实容器断网启动/JSON 事件、SIGTERM、MCP stdio、零非必要出站与合成短期凭据只读文件装载。
 - 已部署（显式离线 Gate）：叠加 `compose.harness.yaml` 并启用 `harness` profile 后，`worker-enrichment` 只通过内部 control network 调用独立 Supervisor；Worker 无 Docker socket、无模型 secret，子容器固定 digest、`network none` 和安全资源基线。合成 secret 的真实 Attempt 按预期 fail closed，ExecutionReceipt/ValidationReceipt 可审计。
+- 已完成（P15 本地 POC）：再叠加 `compose.harness.poc.yaml`，真实 OpenCode 从 PostgreSQL canonical Evidence 通过 Pack Skill/MCP 和 internal Mock 创建唯一 Candidate，API 可核对 lineage，状态停在作者确认前。
 - 默认未启用：普通 Compose 仍运行 replay；`secret://` Secret Store 和受控出站网络尚未完成。Supervisor 持有宿主 Docker socket，是高权限信任边界；socket 不得挂给业务 Worker，也不得把 bind 标记为只读误述为 Docker API 降权。
 - 未授权：任何真实模型出站和 P2-B3 live vertical。完成前两层不会自动开启第三层。
 
@@ -89,6 +90,40 @@ Smoke 的正确结果是无效 provider 在 `network none` 下失败关闭并输
 docker compose --project-name clinical-harness-gate `
   -f compose.yaml -f compose.harness.yaml --profile harness `
   down --volumes --remove-orphans
+```
+
+### 4.2 显式运行 P15 PostgreSQL/API 本地 POC
+
+该 POC 只允许使用签入的明显合成 key 和内部 Mock；不要填写 DeepSeek 或其他供应商 key。先按第 2 节
+准备本机 `.env`，再在当前 PowerShell 会话设置一次性测试值：
+
+```powershell
+Set-Location .\clinical-llm-wiki
+$env:HARNESS_SUPERVISOR_MACHINE_TOKEN = '<独立随机测试令牌>'
+$env:HARNESS_SUPERVISOR_SPEC_SHA256 = ('a' * 64)
+$env:HARNESS_PACK_SHA256 = 'd44e151ad45a06aba7ca28eaaab9aae6ea91ac3663603c3d3efef7444cfd42b9'
+$env:HARNESS_SYNTHETIC_PROVIDER_KEY_FILE = (Resolve-Path .\poc\fixtures\p15-synthetic-provider-key.txt)
+$env:KNOWLEDGE_P15_VERIFIER_PASSWORD = '<一次性强测试密码>'
+
+docker compose --project-name clinical-harness-p15-db-poc `
+  -f compose.yaml -f compose.harness.yaml -f compose.harness.poc.yaml `
+  --profile harness up -d --build p15-api worker-enrichment
+
+docker compose --project-name clinical-harness-p15-db-poc `
+  -f compose.yaml -f compose.harness.yaml -f compose.harness.poc.yaml `
+  --profile harness run --rm p15-verify
+```
+
+Verifier 输出一个 Candidate ID、真实 canonical Evidence ID、origin invocation ID 和
+`author_confirmation_required`。Worker 再运行一次时 Mock 请求数、ModelInvocation 和 Candidate 均不得
+增加。这里的 `env://` 合成 key、Docker internal 网络、Supervisor socket authority 和每 Attempt 临时
+目录权限都是 POC 折中；P16 必须用正式 Secret backend、受控 egress 和更收敛的 runtime authority 替换。
+验收后如需删除，仅对上述精确 POC project 执行（会删除它的 PostgreSQL/对象卷）：
+
+```powershell
+docker compose --project-name clinical-harness-p15-db-poc `
+  -f compose.yaml -f compose.harness.yaml -f compose.harness.poc.yaml `
+  --profile harness down --volumes --remove-orphans
 ```
 
 ## 5. API 与健康检查

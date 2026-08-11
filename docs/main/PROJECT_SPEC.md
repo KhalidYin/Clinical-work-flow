@@ -24,7 +24,7 @@
 - 知识产品已有 Source/Evidence/Candidate/Revision/Relation/Audit canonical entities、PostgreSQL durable ledger，以及拒绝覆盖写并校验 hash 的本地 ObjectStore adapter；未发布对象仍允许补偿或 reconcile 删除。
 - Document Worker 已支持受控文档解析、分支/fan-in、Evidence locator/hash 和可恢复 Attempt。
 - Enrichment Worker 已有 fake/replay、direct-model 授权合同及 Candidate 治理闭环；migration `20260805_0009` 增加 `executor_kind`。`opencode-supervised` 已迁移为独立 Supervisor remote provider，普通 Compose 仍默认 replay；显式 `harness` profile 的真实零网络部署 Gate 已通过。
-- `harness-runtime/` 已实现版本化合同、fake/replay adapter、OpenCode `1.18.14` headless adapter、Fake/Docker runtime、staging 扫描、Execution/Validation Receipt、Step-scoped MCP，以及独立 Supervisor 的机器身份、durable journal、heartbeat/cancel/orphan recovery 和固定容器编译器。
+- `harness-runtime/` 已实现版本化合同、fake/replay adapter、OpenCode `1.18.14` headless adapter、Fake/Docker runtime、staging 扫描、Execution/Validation Receipt、Step-scoped MCP、产品 Pack 编译，以及独立 Supervisor 的机器身份、durable journal、heartbeat/cancel/orphan recovery 和固定容器编译器。
 - 人员密码会话、HttpOnly Cookie、RBAC、Worker 机器身份和中文 React GUI 骨架已存在。
 - 临床产品已有固定十阶段合同、ActionPolicy、Review Protocol、知识 Release resolve 和若干 POC artifact 流程；十个内部 Stage 对应 Protocol → SAP → SDTM → ADaM → TFL → QC → Submission 七个业务依赖组。
 
@@ -37,8 +37,9 @@
 - [已实现] Fake/Docker runtime 与 supervisor 支持 timeout、SIGTERM/kill fallback、事件、staging 扫描和失败分类；真实 OpenCode 容器安全基线与生命周期已准入实测。
 - [已实现] fake/replay Harness adapter，默认测试零真实出站。
 - [已实现（单 Attempt）] Step-scoped broker 合同校验 Attempt/fencing/spec/capability/路径/幂等；版本锁定 stdio shim 已在独立 Supervisor 启动的真实 OpenCode 容器实测 `initialize/tools-list/tools/call`、路径逃逸拒绝和脱敏审计。
+- [已实现（P15 本地 POC）] 产品拥有的 `knowledge-candidate-v1` Pack 经相对 POSIX 路径 hash-lock，Supervisor 编译只读 workspace、项目 Skill、permission、MCP 与内部模型配置；真实固定 OpenCode 从 PostgreSQL canonical Evidence 完成 `evidence-candidate` → `read_evidence` → schema-valid Candidate，产品 Validator 落账唯一 ModelInvocation/Candidate，内部 API 可核对 Evidence/Attempt lineage。Docker internal 网络只连本地 Mock，公网/宿主探针失败，未授权 bash 失败关闭且不自动创建外层 retry。
 
-首个 Harness 候选 OpenCode `1.18.14` 已完成容器准入、知识 remote Attempt 和显式 Compose 离线部署；`env://` 合成 Secret 即时物化/清理、MCP stdio、Receipt 落账及 daemon-visible bind 映射已验证。仍不得进入 live：还必须完成 `secret://` 后端、受控网络策略，并取得用户对 ModelProfile、Evidence 和单次预算的出站授权。
+首个 Harness 候选 OpenCode `1.18.14` 已完成容器准入、知识 remote Attempt、显式 Compose 离线部署和 P15 PostgreSQL/API 本地 POC；合成 Secret 文件、MCP stdio/审计、Pack/config identity、Receipt 落账、Candidate 治理及 daemon-visible bind 映射已验证。固定镜像仍自带 `customize-opencode` 并向模型广告内建工具，安全性依赖 Supervisor 编译的默认 deny permission，而不是“工具不可见”。仍不得进入 live：POC 使用 `env://` 合成 key、internal Mock 和 Docker socket authority，必须先由 P16 完成 `secret://` 后端、生产受控网络策略，并取得用户对 ModelProfile、Evidence 和单次预算的出站授权。
 
 #### 知识生产闭环
 
@@ -119,6 +120,11 @@
 
 合同不得包含用于改变外层 Workflow 的 `next_stage`、`skip_stage`、`publish` 或权限扩张字段。
 
+能力授权必须区分“Agent 如何完成任务”和“任务可以产生哪些外部副作用”。产品控制 capability、网络
+用途、可出站数据、secret、预算和治理 Gate；不得硬编码删除成熟 Harness 的原生规划、Skill/MCP、
+browser 或工具循环。Harness 可以在获授权集合内自主选择和重复调用工具，但不能创建新 capability、
+改变 network policy 或把浏览结果直接晋升为 Source/Evidence/Candidate/Release。
+
 ### HarnessExecutionRequest
 
 由产品 worker/supervisor 从 StepExecutionSpec 与当前 Attempt 编译，包含：
@@ -126,10 +132,14 @@
 - 精确的输入和 context bundle；
 - step-scoped MCP configuration；
 - 只读输入、scratch、staging output 三类目录；
-- secret reference 和网络 allowlist，不包含人员凭据或数据库凭据；
+- secret reference 和通用 network capability policy ID，不包含人员凭据、数据库凭据、Docker 网络名、
+  gateway 地址或请求级任意 endpoint；
 - 事件输出与 Receipt 目标位置。
 
-不得挂载个人 Harness 登录态、长期 API key 或宿主凭据。真实出站使用 Attempt 级短期凭据或受控代理，并继续受现有 live Gate、ModelPolicy、数据边界和预算约束。
+不得挂载个人 Harness 登录态、长期 API key 或宿主凭据。真实出站使用 Attempt 级短期凭据或受控
+egress gateway，并继续受现有 live Gate、ModelPolicy、数据边界和预算约束。DeepSeek 只能是通用
+策略引擎的首个模型实例，不能成为平台能力上限；未来公共研究策略必须保留原生浏览能力，同时阻断
+私网/宿主/云元数据和策略绕过，并独立生成 URL/重定向/快照/hash/citation 证据。
 
 ### HarnessResult、ExecutionReceipt 与 ValidationReceipt
 
@@ -182,6 +192,7 @@ Harness adapter 返回的 `HarnessResult` 属于不可信输入，不能直接�
 ### 安全
 
 - 默认零外部模型出站、零 Harness 网络；显式 Gate 同时约束 profile/version、数据边界、secret reference 和预算。
+- 安全 Gate 必须成对证明拒绝路径和正向能力保持；“受控”不等于“所有工具不可用”，不得只以全局断网或全局 deny 作为 Harness 安全完成证据。
 - 容器路径必须限制在 Attempt workspace，禁止宿主任意 shell 和任意目录写入。
 - staging 扫描必须拒绝路径穿越、symlink、hardlink/reparse point、部分写入、文件/字节配额超限、归档炸弹、未声明可执行位及 MIME/schema 不匹配；Artifact hash 由 supervisor 重算。
 - Source/Evidence 按不可信输入处理，防止 prompt injection 转化为工具或权限提升。

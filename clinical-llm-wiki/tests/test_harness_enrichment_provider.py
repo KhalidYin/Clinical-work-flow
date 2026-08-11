@@ -10,6 +10,7 @@ Review / Release semantics.
 from __future__ import annotations
 
 import hashlib
+import builtins
 import json
 import sys
 from pathlib import Path
@@ -264,6 +265,20 @@ def _opencode_provider(tmp_path: Path, *, output: dict | None = None):
     return provider, runtime, workspaces
 
 
+def test_checked_in_pack_schema_matches_enrichment_product_contract() -> None:
+    schema_path = (
+        Path(__file__).resolve().parents[1]
+        / "harness-packs"
+        / "knowledge-candidate-v1"
+        / "schemas"
+        / "candidate.schema.json"
+    )
+    pack_schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    pack_schema.pop("$schema")
+
+    assert pack_schema == enrichment_mod.ENRICHMENT_OUTPUT_SCHEMA
+
+
 def _supervised_request() -> ModelRequest:
     request = _request()
     profile = request.model_profile.model_copy(
@@ -273,7 +288,13 @@ def _supervised_request() -> ModelRequest:
             "deployment_class": DeploymentClass.ENTERPRISE_MANAGED,
         }
     )
-    return request.model_copy(update={"model_profile": profile})
+    canonical_content = _service_payload()["messages"][0]["content"]
+    return request.model_copy(
+        update={
+            "model_profile": profile,
+            "messages": (ModelMessage(role="user", content=canonical_content),),
+        }
+    )
 
 
 def test_supervised_opencode_invocation_validates_and_attaches_receipts(tmp_path: Path) -> None:
@@ -435,6 +456,14 @@ def test_remote_supervisor_provider_sends_only_product_attempt_and_validates_out
     assert submitted["secret_refs"] == ["env://KNOWLEDGE_DEMO_SECRET"]
     assert submitted["input_bundle"]["provider"] == "openai"
     assert submitted["input_bundle"]["model"] == "gpt-test"
+    assert submitted["input_bundle"]["evidence"] == [
+        {
+            "evidence_id": "evidence-aeseq",
+            "locator": {"section": "AE"},
+            "content_sha256": "a" * 64,
+            "content": "AESEQ is the sequence identifier.",
+        }
+    ]
     assert not ({"image_ref", "command", "mounts", "environment"} & submitted.keys())
     assert "internal-supervisor-token" not in json.dumps(submitted)
     assert transport.calls[0][3]["Authorization"] == "Bearer internal-supervisor-token"
@@ -444,6 +473,63 @@ def test_remote_supervisor_provider_sends_only_product_attempt_and_validates_out
         "/v1/attempts/attempt-enrichment-1",
         "/v1/attempts/attempt-enrichment-1/result",
     ]
+
+
+def test_remote_supervisor_provider_sends_hash_locked_pack_ref_only() -> None:
+    transport = SuccessfulSupervisorTransport()
+    provider = RemoteSupervisorEnrichmentProvider(
+        supervisor_url="http://harness-supervisor:8790",
+        machine_token="internal-supervisor-token",
+        spec_sha256="a" * 64,
+        instruction_ref={
+            "pack_id": "knowledge-candidate-v1",
+            "version": "1.0.0",
+            "sha256": "c" * 64,
+        },
+        transport=transport,
+        sleep=lambda _seconds: None,
+    )
+
+    provider.invoke(_supervised_request())
+
+    submitted = transport.calls[0][2]
+    assert submitted is not None
+    assert submitted["instruction_ref"] == {
+        "pack_id": "knowledge-candidate-v1",
+        "version": "1.0.0",
+        "sha256": "c" * 64,
+    }
+    serialized = json.dumps(submitted, sort_keys=True)
+    assert '"skills"' not in serialized
+    assert '"opencode_config"' not in serialized
+    assert '"mcp_command"' not in serialized
+
+
+def test_remote_provider_validates_pack_ref_without_harness_runtime_import(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_import = builtins.__import__
+
+    def isolated_import(name, *args, **kwargs):  # type: ignore[no-untyped-def]
+        if name == "contracts.spec":
+            raise ModuleNotFoundError(name)
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", isolated_import)
+    provider = RemoteSupervisorEnrichmentProvider(
+        supervisor_url="http://harness-supervisor:8790",
+        machine_token="internal-supervisor-token",
+        spec_sha256="a" * 64,
+        instruction_ref={
+            "pack_id": "knowledge-candidate-v1",
+            "version": "1.0.0",
+            "sha256": "c" * 64,
+        },
+        transport=SuccessfulSupervisorTransport(),
+        sleep=lambda _seconds: None,
+    )
+
+    assert provider._instruction_ref["pack_id"] == "knowledge-candidate-v1"
 
 
 class InvalidOutputSupervisorTransport(SuccessfulSupervisorTransport):
@@ -497,10 +583,35 @@ def test_worker_builds_remote_supervisor_provider_without_image_or_model_secret(
             "KNOWLEDGE_HARNESS_SUPERVISOR_TOKEN_REF": "env://SUPERVISOR_MACHINE_TOKEN",
             "SUPERVISOR_MACHINE_TOKEN": "internal-supervisor-token",
             "KNOWLEDGE_HARNESS_SPEC_SHA256": "a" * 64,
+            "KNOWLEDGE_HARNESS_PACK_ID": "knowledge-candidate-v1",
+            "KNOWLEDGE_HARNESS_PACK_VERSION": "1.0.0",
+            "KNOWLEDGE_HARNESS_PACK_SHA256": "c" * 64,
         }
     )
 
     assert isinstance(provider, RemoteSupervisorEnrichmentProvider)
+    assert provider._instruction_ref == {
+        "pack_id": "knowledge-candidate-v1",
+        "version": "1.0.0",
+        "sha256": "c" * 64,
+    }
+
+
+def test_worker_supervised_mode_rejects_partial_pack_identity() -> None:
+    with pytest.raises(RuntimeError, match="must be configured together"):
+        harness_enrichment_provider_from_environment(
+            {
+                "KNOWLEDGE_ENRICHMENT_PROVIDER_MODE": "harness",
+                "KNOWLEDGE_HARNESS_EXECUTION_MODE": "opencode-supervised",
+                "KNOWLEDGE_HARNESS_SUPERVISOR_URL": "http://harness-supervisor:8790",
+                "KNOWLEDGE_HARNESS_SUPERVISOR_TOKEN_REF": (
+                    "env://SUPERVISOR_MACHINE_TOKEN"
+                ),
+                "SUPERVISOR_MACHINE_TOKEN": "internal-supervisor-token",
+                "KNOWLEDGE_HARNESS_SPEC_SHA256": "a" * 64,
+                "KNOWLEDGE_HARNESS_PACK_ID": "knowledge-candidate-v1",
+            }
+        )
 
 
 class NeverCompletesSupervisorTransport(SuccessfulSupervisorTransport):

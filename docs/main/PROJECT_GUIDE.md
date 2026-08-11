@@ -16,7 +16,7 @@
 主文档允许定义尚未实现的目标，但必须显式区分“当前基线”和“目标状态”。
 `docs/main/memory/` 只保存长期上下文，不属于 canonical 主文档，也不得覆盖它们。
 
-架构定调本身不切换执行计划。2026-08-05 用户随后另行授权 H0 重定计划，已在保持 P12 lifecycle 的前提下完成最小 Harness 骨架；2026-08-09 至 2026-08-10 又完成 OpenCode 容器准入、Knowledge remote provider 和显式 Compose 独立 Supervisor 离线 Gate。这些技术 Gate 不自动扩展到 P2-B3 live vertical 或临床 Workflow Harness 化。
+架构定调本身不切换执行计划。2026-08-05 用户随后另行授权 H0 重定计划，已在保持 P12 lifecycle 的前提下完成最小 Harness 骨架；2026-08-09 至 2026-08-11 又完成 OpenCode 容器准入、独立 Supervisor 和 P15 Knowledge PostgreSQL/API 本地 POC。这些技术 Gate 不自动扩展到 P2-B3 live vertical 或临床 Workflow Harness 化。
 
 ## 概述
 
@@ -35,7 +35,7 @@
 |------|----------|----------|
 | 知识控制面 | PostgreSQL durable DAG、Document/Enrichment Worker、ObjectStore、Candidate/Review、React GUI 已有骨架 | 完成 Harness enrichment、评估、通用 Release 和只读知识 MCP 闭环 |
 | 临床控制面 | 固定十阶段合同、Review Protocol、ActionPolicy、Study 文件状态已有原型；仍存在自建 Agent Loop、多套状态表达和执行入口 | 收敛为唯一 Workflow Orchestrator，由容器化 Harness 执行 Engine 已选定的 Step |
-| Harness | 已有版本化合同、独立 Supervisor 生命周期、staging/MCP、OpenCode digest 准入及显式 Compose `harness` profile；普通 Compose 仍默认 replay | 以更收敛的生产 runtime authority 和受控出站部署 Harness Attempt，不向业务 Worker 暴露 Docker 控制权 |
+| Harness | 已有版本化合同、独立 Supervisor 生命周期、staging/MCP、OpenCode digest 准入及 P15 PostgreSQL/API 本地 POC；普通 Compose 仍默认 replay | 以更收敛的生产 runtime authority、`secret://` 和受控出站部署 Harness Attempt，不向业务 Worker 暴露 Docker 控制权 |
 | MCP | Attempt 级 broker 与 OpenCode 标准 stdio shim 已纳入独立 Supervisor 离线部署并实测 `initialize/tools-list/tools/call`、路径拒绝和脱敏审计；知识消费仍主要是 REST | 扩展确定性工具；知识消费 MCP 只从 immutable Release 读取 |
 | GUI | 九个一级导航和核心治理页面已有框架，检索、评估和发布仍有占位页面 | 细化为 Workflow 观察、人工治理、评估和发布控制台；聊天不是治理入口 |
 
@@ -45,8 +45,8 @@
 
 1. 先由四份 canonical 主文档固定产品边界、执行合同和现状/目标口径。
 2. 第一条验证线放在知识产品：保留现有 PostgreSQL ledger、canonical entities、ObjectStore 和 GUI，不另建 Knowledge Agent。
-3. 建立最小容器化 Harness 骨架、OpenCode 准入、知识 remote Attempt 及独立 Supervisor 的显式 Compose 离线部署（均已完成）。
-4. 经 `secret://`、受控网络策略和用户 live 授权后，用同一控制面跑通 Source → Evidence → Harness Candidate → 人工治理 → Evaluation → immutable Release → read-only MCP，并在现有 GUI 上细化观察与治理页面。
+3. 建立最小容器化 Harness 骨架、OpenCode 准入、独立 Supervisor，并以内部 Mock 跑通 Source → Evidence → Harness Candidate → PostgreSQL/API（均已完成）。
+4. 经 `secret://`、受控网络策略和用户 live 授权后，用同一控制面完成真实 provider → 人工治理 → Evaluation → immutable Release → read-only MCP，并在现有 GUI 上细化观察与治理页面。
 5. 知识闭环证明合同后，临床 Workflow 再复用同一 Harness execution contract，收敛现有多套 Runner；不得复制第二套 Harness Runtime。
 
 ## 架构原则
@@ -56,7 +56,20 @@
 - 产品控制面决定“当前允许执行哪个 Step”，并拥有 Run、Attempt、Review 和 canonical state。
 - Harness 执行面只决定“如何完成已授权 Step”，不得选择临床下一阶段、改写知识 DAG 或推进 Release。
 - Harness session、聊天记录、内部任务数据库和跨 Attempt memory 不能成为第三套状态权威。
-- 产品编译并 hash-lock 权威输入与上下文；Harness 只能在该闭包内组织窗口和检索，不得自行扩展来源。
+- 产品编译并 hash-lock 权威输入与上下文；普通执行 Step 只能在该闭包内组织窗口和检索。只有显式获批
+  的研究 Step 才能发现外部资料，且只能形成不可信 SourceCandidate/抓取证据，不能自行扩展 canonical
+  Source/Evidence 或权威上下文。
+
+“受控”作用于可观察的外部副作用，而不是替 Harness 决定如何完成任务。产品按 Step/Attempt 授权
+Skill、MCP、browser、文件、网络、数据、secret、预算和时限；OpenCode 在授权集合内保留原生规划、
+工具选择、多步循环、浏览、交叉验证和自检。控制面不得用全局禁用网络或工具的方式把成熟 Harness
+降级为固定脚本，Harness 也不得自行扩大 capability、数据或网络边界。
+
+网络能力按用途组合：`none` 不影响获授权的本地工具；模型策略只增加相应 provider endpoint；未来
+公共研究策略应保留 OpenCode 原生 Browser/Playwright/Skill，通过 recording egress gateway 记录并
+限制外部副作用，而不是由 Research MCP 替代 Agent 的调研决策。公共网页访问与来源可追溯是两条
+独立 Gate：前者处理网络安全，后者要求 URL、重定向、时间、快照/hash 和 citation；任何网页资料仍需
+SourceCandidate → canonical Source/Evidence 治理，不能因有浏览日志就自动晋升为知识事实。
 
 ### 2. 不自建 Agent
 
@@ -77,7 +90,7 @@
 - 镜像必须以版本和 digest 锁定；
 - 输入与知识上下文只读挂载；
 - Harness 只写 scratch 和 staging output；
-- 默认禁止网络，显式 allowlist 后才可出站；
+- 默认禁止网络，按 Attempt 选择已实现、hash-locked 的 capability/network policy 后才可出站；
 - 不向容器注入 PostgreSQL、ObjectStore、Release 或人员会话凭据；
 - supervisor 负责周期 heartbeat、timeout、cancel/kill、事件收集和退出码归一化；
 - Harness 只返回不可信 `HarnessResult`；supervisor 独立采集生命周期、MCP 事件和 Artifact，并生成 `ExecutionReceipt`。
@@ -164,6 +177,8 @@ fixed stages · Study FS/Git                  durable DAG · PostgreSQL/ObjectSt
 - fake/replay adapter，用于默认零出站测试。
 
 首期候选已选定 OpenCode `1.18.14`。知识侧 `opencode-supervised` 已成为 remote provider：Worker 只提交产品级、hash-locked Attempt；独立 Supervisor 拥有 Bearer 机器身份、durable journal、heartbeat/cancel/orphan recovery、固定编译器和终态幂等。显式 Compose `harness` profile 使用内部 control network，仅 Supervisor 持有宿主 Docker socket，并把容器内 state volume 路径映射为 daemon-visible bind source。真实合成凭据 Attempt 证明子容器固定 digest、`network none`、非 root、只读 rootfs、cap-drop ALL、no-new-privileges 和资源上限，失败后容器、workspace 与临时 secret 清理，Receipt 可重复查询。该 Gate 仍是本地离线部署，不是 live/生产出站：普通 Compose 继续 replay，`secret://` 后端、受控网络和更收敛的 runtime authority 仍待完成。多 Harness 路由、多 Agent 协作和跨租户调度不属于当前阶段。
+
+P15 已新增产品拥有的 `clinical-llm-wiki/harness-packs/knowledge-candidate-v1/`：Pack 只声明 instruction、Skill、schema 与逻辑 MCP capability，Supervisor 在每个 Attempt 编译 `/workspace/.opencode/skills`、隔离 HOME/XDG、默认 deny permission、`read_evidence` MCP 和内部 OpenAI-compatible provider。固定 OpenCode 真实走 `/v1/responses`，从 PostgreSQL canonical Evidence 生成 schema-valid Candidate；产品 Validator 写入唯一 ModelInvocation/Candidate，API 核对 Evidence 与 invocation lineage，状态停在 `author_confirmation_required`。主模型与 `small_model` 同锁，合成 key 通过独立只读文件进入 `env://` resolver；它不是生产 Secret Store。项目/外部 Skill 被隔离，但镜像内建 `customize-opencode` 仍存在；Docker internal 网络、socket authority、Attempt staging bind 和 Linux 临时目录宽写权限都只是本地 POC 证据，不是生产 Secret、egress 或 runtime authority 认证。
 
 ### MCP 边界
 

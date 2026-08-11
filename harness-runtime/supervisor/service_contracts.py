@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from contracts.receipt import ExecutionReceipt
 from contracts.request import StrictContractModel
+from contracts.spec import InstructionRef
 
 
 def canonical_sha256(value: object) -> str:
@@ -39,12 +40,16 @@ class SupervisorAttemptRequest(BaseModel):
     spec_sha256: str
     input_sha256: str
     input_bundle: dict[str, object]
+    instruction_ref: InstructionRef | None = None
     secret_refs: tuple[str, ...] = ()
     timeout_seconds: int = Field(default=60, ge=1, le=3600)
     network_mode: Literal["none"] = "none"
 
     def request_sha256(self) -> str:
-        return canonical_sha256(self.model_dump(mode="json"))
+        payload = self.model_dump(mode="json")
+        if self.instruction_ref is None:
+            payload.pop("instruction_ref")
+        return canonical_sha256(payload)
 
 
 class SupervisorAttemptStatus(StrictContractModel):

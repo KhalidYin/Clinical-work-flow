@@ -6,7 +6,7 @@
 - `clinical-llm-wiki/`：临床知识控制面，负责来源、证据、知识候选、审核、评估与 Release。
 - `clinical-studies/`：Study 实例脚手架，不是第三个产品。
 
-后续方向不是继续自建 Agent，而是让两个产品各自拥有 Workflow、状态与治理，并复用受限的容器化成熟 Harness 执行已授权 Step。Harness 是共享基础设施，不是第三个产品；H0、OpenCode `1.18.14` 容器准入、知识侧 remote Attempt 和显式 Compose `harness` profile 的独立 Supervisor 离线部署已完成。默认 Compose 仍使用 replay；`secret://`、受控出站与 live vertical 尚未完成。
+后续方向不是继续自建 Agent，而是让两个产品各自拥有 Workflow、状态与治理，并复用受限的容器化成熟 Harness 执行已授权 Step。Harness 是共享基础设施，不是第三个产品；H0、OpenCode `1.18.14` 容器准入、独立 Supervisor，以及 P15 合成 Evidence → PostgreSQL Candidate/API 本地 POC 已完成。默认 Compose 仍使用 replay；`secret://`、生产受控出站与 DeepSeek live 尚未完成。
 
 P12 lifecycle 继续记录当前执行状态；用户已于 2026-08-05 显式授权 H0 重定计划，H0 完成后执行主线回到 P12 P2-B3。P13 保留为迁移记录。历史 Markdown Wiki 已迁移为 PostgreSQL canonical entities、hash-locked ObjectStore 制品和一次性 Release，并已从工作树移除。
 

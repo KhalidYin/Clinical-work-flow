@@ -57,6 +57,18 @@ class _FakeContainers:
         return [self.container]
 
 
+class _FakeNetworks:
+    def __init__(self, *, internal: bool) -> None:
+        self.internal = internal
+
+    def get(self, name: str):
+        assert name == "p15-model-internal"
+        return SimpleNamespace(
+            id="d" * 64,
+            attrs={"Internal": self.internal},
+        )
+
+
 def test_config_requires_digest_locked_image() -> None:
     with pytest.raises(ValidationError):
         ContainerConfig(
@@ -116,6 +128,64 @@ def test_create_uses_supported_engine_arguments_and_hardening(tmp_path: Path) ->
         "clinical.harness.attempt": "managed",
         "clinical.harness.attempt_id": "attempt-1",
     }
+
+
+def test_copy_from_is_noop_when_staging_is_already_host_bound(tmp_path: Path) -> None:
+    from supervisor.docker_runtime import DockerEngineContainerRuntime
+
+    container = _FakeContainer()
+    containers = _FakeContainers(container)
+    runtime = DockerEngineContainerRuntime(client=SimpleNamespace(containers=containers))
+    container_id = runtime.create(
+        ContainerConfig(
+            image_ref=f"clinical-harness:fake@sha256:{'f' * 64}",
+            scratch_dir="/scratch",
+            staging_dir="/staging",
+            host_staging_dir=str(tmp_path / "staging"),
+        )
+    )
+
+    runtime.copy_from(container_id, "/staging", str(tmp_path / "staging"))
+
+
+def test_runtime_resolves_only_docker_internal_network_and_uses_opaque_id(
+    tmp_path: Path,
+) -> None:
+    from supervisor.docker_runtime import DockerEngineContainerRuntime
+
+    container = _FakeContainer()
+    containers = _FakeContainers(container)
+    runtime = DockerEngineContainerRuntime(
+        client=SimpleNamespace(
+            containers=containers,
+            networks=_FakeNetworks(internal=True),
+        )
+    )
+
+    network_id = runtime.require_internal_network("p15-model-internal")
+    runtime.create(
+        ContainerConfig(
+            image_ref=f"clinical-harness:fake@sha256:{'f' * 64}",
+            command=("--version",),
+            scratch_dir="/scratch",
+            staging_dir="/staging",
+            host_scratch_dir=str(tmp_path / "scratch"),
+            host_staging_dir=str(tmp_path / "staging"),
+            internal_network_id=network_id,
+        )
+    )
+
+    assert network_id == "d" * 64
+    assert containers.create_kwargs["network_mode"] == "d" * 64
+
+    external_runtime = DockerEngineContainerRuntime(
+        client=SimpleNamespace(
+            containers=containers,
+            networks=_FakeNetworks(internal=False),
+        )
+    )
+    with pytest.raises(RuntimeError, match="not Docker-internal"):
+        external_runtime.require_internal_network("p15-model-internal")
 
 
 def test_terminate_sends_sigterm_with_attempt_timeout(tmp_path: Path) -> None:

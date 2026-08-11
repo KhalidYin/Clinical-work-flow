@@ -7,16 +7,16 @@ name = "harness-runtime"
 version = "0.1.0"
 description = "Shared containerized Harness execution infrastructure (not a third product)"
 requires-python = ">=3.11"
-dependencies = ["pydantic>=2.0"]
+dependencies = ["pydantic>=2.0", "PyYAML>=6,<7"]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0,<10", "ruff>=0.8,<0.16"]
+dev = ["pytest>=7.0,<10", "ruff>=0.8,<0.16", "jsonschema>=4.23,<5"]
 docker = ["docker>=7.0,<8"]
 service = ["fastapi>=0.115,<1", "uvicorn>=0.34,<1"]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["adapters*", "contracts*", "supervisor*"]
+include = ["adapters*", "contracts*", "poc*", "supervisor*"]
 exclude = ["tests*", "images*"]
 
 [tool.pytest.ini_options]

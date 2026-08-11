@@ -13,6 +13,7 @@ from typing import Any
 from pydantic import TypeAdapter
 
 from .manifest import ArtifactManifest
+from .pack import HarnessPackIdentity, HarnessPackManifest, HarnessPackMcpPolicy
 from .receipt import ExecutionReceipt, ValidationReceipt
 from .request import HarnessExecutionRequest
 from .result import HarnessEvent, HarnessResult
@@ -26,6 +27,9 @@ _CONTRACT_TYPES = (
     | ExecutionReceipt
     | ValidationReceipt
     | ArtifactManifest
+    | HarnessPackIdentity
+    | HarnessPackManifest
+    | HarnessPackMcpPolicy
 )
 
 

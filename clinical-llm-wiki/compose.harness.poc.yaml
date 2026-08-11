@@ -1,0 +1,82 @@
+services:
+  p15-setup:
+    profiles: ["harness"]
+    build: .
+    image: clinical-knowledge-platform:local
+    command: ["python", "-m", "service.processing.harness_poc_setup"]
+    restart: "no"
+    environment:
+      KNOWLEDGE_DATABASE_URL: postgresql+psycopg://knowledge:${KNOWLEDGE_POSTGRES_PASSWORD:?set KNOWLEDGE_POSTGRES_PASSWORD}@postgres:5432/knowledge
+    depends_on:
+      bootstrap:
+        condition: service_completed_successfully
+    networks: ["default"]
+
+  worker-enrichment:
+    restart: "no"
+    command:
+      [
+        "python",
+        "-m",
+        "service.processing.worker",
+        "--pool",
+        "enrichment",
+        "--once",
+      ]
+    depends_on:
+      p15-setup:
+        condition: service_completed_successfully
+    environment:
+      KNOWLEDGE_ENRICHMENT_MODEL_PROFILE_ID: p15-internal-mock
+      KNOWLEDGE_ENRICHMENT_MODEL_PROFILE_VERSION: 1.0.0
+
+  p15-api:
+    profiles: ["harness"]
+    build: .
+    image: clinical-knowledge-platform:local
+    command: ["python", "-m", "service.platform_api.main"]
+    restart: unless-stopped
+    environment:
+      KNOWLEDGE_DATABASE_URL: postgresql+psycopg://knowledge:${KNOWLEDGE_POSTGRES_PASSWORD:?set KNOWLEDGE_POSTGRES_PASSWORD}@postgres:5432/knowledge
+      KNOWLEDGE_OBJECT_STORE_ROOT: /var/lib/clinical-knowledge/objects
+      KNOWLEDGE_API_HOST: 0.0.0.0
+      KNOWLEDGE_API_PORT: "8788"
+      KNOWLEDGE_API_BIND_SCOPE: compose_local
+      KNOWLEDGE_BROWSER_ORIGINS: http://p15-api:8788
+      KNOWLEDGE_ORGANIZATION_NAME: ${KNOWLEDGE_ORGANIZATION_NAME:-临床知识平台}
+      KNOWLEDGE_RUNTIME_CONSUMER_SECRET: ${KNOWLEDGE_RUNTIME_CONSUMER_SECRET:?set runtime consumer machine credential}
+    depends_on:
+      p15-setup:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8788/api/prerelease/v1/health', timeout=2)",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - knowledge-objects:/var/lib/clinical-knowledge
+    networks: ["default"]
+
+  p15-verify:
+    profiles: ["harness"]
+    build: .
+    image: clinical-knowledge-platform:local
+    command: ["python", "-m", "service.processing.harness_poc_verify"]
+    restart: "no"
+    environment:
+      KNOWLEDGE_P15_API_ORIGIN: http://p15-api:8788
+      KNOWLEDGE_ADMIN_USERNAME: ${KNOWLEDGE_ADMIN_USERNAME:?set initial administrator username}
+      KNOWLEDGE_ADMIN_PASSWORD: ${KNOWLEDGE_ADMIN_PASSWORD:?set initial administrator password}
+      KNOWLEDGE_P15_VERIFIER_PASSWORD: ${KNOWLEDGE_P15_VERIFIER_PASSWORD:?set a disposable P15 verifier password}
+    depends_on:
+      p15-api:
+        condition: service_healthy
+      worker-enrichment:
+        condition: service_completed_successfully
+    networks: ["default"]

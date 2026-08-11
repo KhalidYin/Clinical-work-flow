@@ -331,6 +331,206 @@ def test_product_mcp_bridge_executes_read_input_and_rejects_escape(tmp_path: Pat
 
 
 @pytest.mark.integration
+def test_pack_mcp_bridge_reads_only_allowlisted_evidence_with_hash_audit(
+    tmp_path: Path,
+) -> None:
+    client, manifest = _docker_and_image()
+    runtime = DockerEngineContainerRuntime(client=client)
+    inputs = tmp_path / "pack-tool-inputs"
+    evidence_dir = inputs / "evidence"
+    evidence_dir.mkdir(parents=True)
+    evidence_dir.joinpath("evidence-poc-001.json").write_text(
+        '{"evidence_id":"evidence-poc-001","content":"synthetic"}',
+        encoding="utf-8",
+    )
+    bundle = tmp_path / "pack-tool-bundle.json"
+    bundle.write_text(
+        json.dumps(
+            {
+                "attempt_id": "attempt-pack-tool",
+                "generation_token_sha256": "1" * 64,
+                "fencing_token_sha256": "2" * 64,
+                "spec_sha256": "3" * 64,
+                "pack_sha256": "4" * 64,
+                "allowed_tools": ["read_evidence"],
+                "allowed_evidence_ids": ["evidence-poc-001"],
+                "input_root": "/inputs",
+            }
+        ),
+        encoding="utf-8",
+    )
+    scratch = tmp_path / "pack-tool-scratch"
+    staging = tmp_path / "pack-tool-staging"
+    scratch.mkdir()
+    staging.mkdir()
+    script = """printf '%s\\n' \
+'{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
+'{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' \
+'{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"read_evidence","arguments":{"evidence_id":"evidence-poc-001"}}}' \
+'{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"read_evidence","arguments":{"evidence_id":"evidence-not-allowed"}}}' \
+| /bin/sh /harness/mcp_stdio_bridge.sh /harness/mcp-bundle.json /staging/mcp-audit.jsonl"""
+    config = ContainerConfig(
+        image_ref=str(manifest["image_ref"]),
+        entrypoint=("/bin/sh", "-c"),
+        command=(script,),
+        read_only_inputs=(
+            ReadOnlyMount(host_path=str(inputs), container_path="/inputs"),
+            ReadOnlyMount(
+                host_path=str(MCP_BRIDGE),
+                container_path="/harness/mcp_stdio_bridge.sh",
+            ),
+            ReadOnlyMount(
+                host_path=str(bundle),
+                container_path="/harness/mcp-bundle.json",
+            ),
+        ),
+        scratch_dir="/scratch",
+        staging_dir="/staging",
+        host_scratch_dir=str(scratch),
+        host_staging_dir=str(staging),
+        timeout_seconds=30,
+    )
+    container_id = runtime.create(config)
+    try:
+        runtime.start(container_id)
+        assert runtime.wait(container_id, timeout_seconds=30) == 0
+        responses = [json.loads(line) for line in runtime.logs(container_id).splitlines()]
+        assert responses[1]["result"]["tools"][0]["name"] == "read_evidence"
+        assert "evidence-poc-001" in responses[2]["result"]["content"][0]["text"]
+        assert responses[3]["error"]["code"] == -32602
+        audit_rows = [
+            json.loads(line)
+            for line in staging.joinpath("mcp-audit.jsonl")
+            .read_text(encoding="utf-8")
+            .splitlines()
+        ]
+        assert audit_rows[0]["spec_sha256"] == "3" * 64
+        assert audit_rows[0]["pack_sha256"] == "4" * 64
+        assert audit_rows[0]["fencing_token_sha256"] == "2" * 64
+        assert audit_rows[0]["result"] == "succeeded"
+        assert audit_rows[1]["result"] == "failed"
+        serialized = json.dumps(audit_rows)
+        assert "generation-pack" not in serialized
+        assert "fencing-pack" not in serialized
+    finally:
+        runtime.remove(container_id)
+
+
+@pytest.mark.integration
+def test_fixed_image_loads_only_pack_project_skill_and_compiled_config(
+    tmp_path: Path,
+) -> None:
+    from contracts.spec import InstructionRef
+    from supervisor.pack_compiler import (
+        HarnessPackCompiler,
+        HarnessPackResolver,
+        McpCapabilityBinding,
+        OpenAICompatibleModelBinding,
+    )
+
+    client, manifest = _docker_and_image()
+    runtime = DockerEngineContainerRuntime(client=client)
+    pack_root = ROOT.parent / "clinical-llm-wiki" / "harness-packs" / (
+        "knowledge-candidate-v1"
+    )
+    resolver = HarnessPackResolver({"knowledge-candidate-v1": pack_root})
+    pack_sha256 = resolver.measure("knowledge-candidate-v1")
+    resolved = resolver.resolve(
+        InstructionRef(
+            pack_id="knowledge-candidate-v1",
+            version="1.0.0",
+            sha256=pack_sha256,
+        ),
+        adapter_id="opencode@1.18.14",
+        image_ref=str(manifest["image_ref"]),
+    )
+    compiler = HarnessPackCompiler(
+        {
+            "knowledge.read-evidence": McpCapabilityBinding(
+                capability_id="knowledge.read-evidence",
+                server_name="clinical_attempt",
+                tools=frozenset({"read_evidence"}),
+                command=("/bin/sh", "/harness/mcp_stdio_bridge.sh"),
+            )
+        },
+        model_binding=OpenAICompatibleModelBinding(
+            provider_id="openai",
+            model_id="gpt-4o-mini",
+            base_url="http://p15-openai-mock:8080/v1",
+        ),
+    )
+    compiled = compiler.compile(resolved, tmp_path / "compiled-attempt")
+    forbidden_skill = (
+        tmp_path
+        / "compiled-attempt"
+        / "scratch"
+        / "home"
+        / ".agents"
+        / "skills"
+        / "forbidden-global"
+    )
+    forbidden_skill.mkdir(parents=True)
+    forbidden_skill.joinpath("SKILL.md").write_text(
+        "---\nname: forbidden-global\ndescription: Must not load.\n---\n",
+        encoding="utf-8",
+    )
+    staging = tmp_path / "compiled-staging"
+    staging.mkdir()
+    environment = dict(manifest["environment"])
+    environment.update(
+        {
+            "HOME": "/scratch/home",
+            "XDG_CONFIG_HOME": "/scratch/config",
+            "XDG_DATA_HOME": "/scratch/data",
+            "XDG_CACHE_HOME": "/scratch/cache",
+            "XDG_STATE_HOME": "/scratch/state",
+            "OPENCODE_DISABLE_EXTERNAL_SKILLS": "1",
+            "OPENCODE_DISABLE_CLAUDE_CODE_SKILLS": "1",
+        }
+    )
+    script = (
+        "cd /workspace && "
+        "opencode debug config --pure > /staging/config.json && "
+        "opencode debug skill --pure > /staging/skills.json"
+    )
+    config = ContainerConfig(
+        image_ref=str(manifest["image_ref"]),
+        entrypoint=("/bin/sh", "-c"),
+        command=(script,),
+        read_only_inputs=(
+            ReadOnlyMount(
+                host_path=str(compiled.workspace_root),
+                container_path="/workspace",
+            ),
+        ),
+        scratch_dir="/scratch",
+        staging_dir="/staging",
+        host_scratch_dir=str(tmp_path / "compiled-attempt" / "scratch"),
+        host_staging_dir=str(staging),
+        environment=tuple(environment.items()),
+        timeout_seconds=30,
+    )
+    container_id = runtime.create(config)
+    try:
+        runtime.start(container_id)
+        exit_code = runtime.wait(container_id, timeout_seconds=30)
+        logs = runtime.logs(container_id)
+        assert exit_code == 0, logs
+        loaded_config = json.loads(staging.joinpath("config.json").read_text("utf-8"))
+        skills = json.loads(staging.joinpath("skills.json").read_text("utf-8"))
+        assert loaded_config["model"] == "openai/gpt-4o-mini"
+        assert loaded_config["provider"]["openai"]["options"]["baseURL"] == (
+            "http://p15-openai-mock:8080/v1"
+        )
+        skill_names = {skill["name"] for skill in skills}
+        assert "evidence-candidate" in skill_names
+        assert "forbidden-global" not in skill_names
+        assert skill_names - {"evidence-candidate", "customize-opencode"} == set()
+    finally:
+        runtime.remove(container_id)
+
+
+@pytest.mark.integration
 def test_sigterm_stops_the_container_namespace(tmp_path: Path) -> None:
     client, manifest = _docker_and_image()
     runtime = DockerEngineContainerRuntime(client=client)

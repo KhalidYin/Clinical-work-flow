@@ -1,6 +1,6 @@
 ---
 name: Harness 架构方向
-description: 两个产品控制面保持独立；H0 与 OpenCode 容器准入已完成，生产部署接线仍待完成。
+description: 两个产品控制面保持独立；Harness 能力按 Attempt 保留，外部副作用受控；生产 Secret/出站仍待完成。
 type: project
 ---
 
@@ -14,6 +14,10 @@ type: project
 - 一个 `executor_kind=harness` 的 Attempt 对应一个受控 OCI 容器边界；确定性 handler 不强制容器化。输入只读、输出先进入 staging、网络默认关闭、镜像和上下文可追溯。
 - MCP 按 Step 暴露最小能力；Harness 不持有数据库、ObjectStore、Release、人员会话或生产 Worker 凭据。
 - Workflow 仍只消费 immutable Release，不读取 Candidate 或直连知识数据库。
+- 2026-08-11 用户确认“能力不阉割，副作用有边界”：控制面按 Attempt 授权 capability、网络、数据、
+  secret 和预算，不替 OpenCode 决定规划、Skill/MCP、浏览与多步工具循环。模型出站与公共研究出站是
+  不同策略；DeepSeek 只是首个模型策略，未来研究能力应保留原生浏览器并经过 recording egress
+  gateway，而不是用受限 Research MCP 替代 Agent 决策。
 
 ## 当前事实
 
