@@ -1,0 +1,5 @@
+contract_version: 1.0.0
+capabilities:
+  - capability_id: knowledge.read-evidence
+    tools:
+      - read_evidence

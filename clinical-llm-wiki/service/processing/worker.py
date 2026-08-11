@@ -302,10 +302,27 @@ def _harness_enrichment_provider_from_environment(values: Mapping[str, str]):
             raise RuntimeError(
                 "KNOWLEDGE_HARNESS_SPEC_SHA256 must be a lowercase SHA-256"
             )
+        pack_environment = {
+            "pack_id": values.get("KNOWLEDGE_HARNESS_PACK_ID"),
+            "version": values.get("KNOWLEDGE_HARNESS_PACK_VERSION"),
+            "sha256": values.get("KNOWLEDGE_HARNESS_PACK_SHA256"),
+        }
+        configured_pack_values = [value for value in pack_environment.values() if value]
+        if configured_pack_values and len(configured_pack_values) != len(pack_environment):
+            raise RuntimeError(
+                "KNOWLEDGE_HARNESS_PACK_ID, KNOWLEDGE_HARNESS_PACK_VERSION and "
+                "KNOWLEDGE_HARNESS_PACK_SHA256 must be configured together"
+            )
+        instruction_ref = (
+            {name: value for name, value in pack_environment.items() if value is not None}
+            if configured_pack_values
+            else None
+        )
         return RemoteSupervisorEnrichmentProvider(
             supervisor_url=supervisor_url,
             machine_token=machine_token,
             spec_sha256=spec_sha256,
+            instruction_ref=instruction_ref,
         )
     if execution_mode != "replay":
         raise RuntimeError(

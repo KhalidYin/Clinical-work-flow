@@ -1325,3 +1325,59 @@ Done — no next steps。
 #### Files Changed / Commits
 
 - `docs/dep/devlog/active/DEVLOG-R089-R128.md`、`docs/dep/devlog/INDEX.md`（modified，uncommitted）
+
+---
+
+## 2026-08-11
+
+### R116 [17:09] [P15-knowledge-opencode-harness-poc] P1: Harness Pack 合同与 Attempt 编译
+
+#### Done
+
+- 新增严格、冻结的 Harness Pack manifest/MCP policy/identity 合同；产品 Pack 只能声明 instruction、
+  Skill、output schema、逻辑 MCP capability、模型协议和 Attempt 预算，不能携带 command、URL、
+  environment、secret、network/mount 或流程推进字段。
+- 新增 allowlisted resolver/compiler：按 pack ID/version/hash、adapter 和 digest-locked image fail closed，
+  校验路径逃逸、symlink/reparse、重复 Skill/MCP、缺失文件与 schema；把产品 Pack 编译到单 Attempt
+  workspace，只由 Supervisor 的可信 binding 提供 MCP command，并生成确定性 compiled-config hash。
+- 在 Knowledge 产品目录签入 `knowledge-candidate-v1`：system instruction、`evidence-candidate` Skill、
+  Evidence policy、Candidate schema、`knowledge.read-evidence` capability 和合成 fixture；固定到已准入的
+  OpenCode `1.18.14` image digest。
+- Supervisor request/ExecutionReceipt 增加非敏感 Pack 引用、identity/config hash 与 advertised
+  Skill/MCP 字段；Knowledge remote provider 只提交 hash-locked `instruction_ref`，环境配置要求
+  pack ID/version/hash 三项同时存在。
+- 修复回归发现的旧请求 hash 漂移：不带 `instruction_ref` 的 P14 请求继续按原 wire body 计算，
+  保持 submit 幂等和 replay/`network none` 兼容。
+
+#### Issues / Blockers
+
+- 当前 Windows 账户不能创建 symlink，相关测试条件跳过；实现同时拒绝 symlink 和 Windows reparse
+  point，但 P2 必须在 Linux 容器中提供实测证据，不能把本机 skip 当作跨平台安全证明。
+- P1 只证明 Pack 合同与确定性编译器，没有启动真实 OpenCode、内部 Mock 或 PostgreSQL，也没有
+  证明 `1.18.14` 对 Skill/MCP/provider 配置的实际兼容性；此风险保留为 P2 fail-closed Gate。
+- Pack hash 会覆盖 Pack 根目录全部文件；任何说明、fixture 或 schema 变化都会要求产品更新并提交
+  新 hash。这提高可重放性，但 P2/P3 必须避免把运行时临时文件写回源 Pack。
+- 没有读取或使用 DeepSeek key，没有公网出站；P1 不是生产 Secret、网络隔离或 live 模型证明。
+
+#### Validation
+
+- 新行为按 RED→GREEN：初始 Harness Pack 15 个失败、Knowledge Pack-ref 1 个失败；最终定向
+  Harness `18 passed, 1 skipped`，Knowledge provider `16 passed`，Ruff 全绿。
+- Harness 全量：`131 passed, 5 skipped`；Knowledge 全量：`220 passed, 8 skipped`；Clinical Workflow
+  全量：`366 passed, 1 skipped`；三个代码库 Ruff 全绿。
+- `git diff --check` 通过；未启动 OpenCode/Compose/PostgreSQL，未执行模型调用或外部网络访问。
+
+#### Next
+
+1. P15/P2 先以失败测试冻结真实 OpenCode `1.18.14` 的 Attempt 目录、隔离 HOME/XDG、provider、
+   Skill discovery/permission、MCP audit 和内部 Mock 请求合同。
+2. 用 digest-locked 镜像在 internal-only 网络实测 Pack Skill + `read_evidence` MCP + 本地
+   OpenAI-compatible Mock；若固定版本不兼容则记录阻断并停止，不自动升级。
+3. 主要风险是 OpenCode 配置语义与文档版本不一致、宿主全局配置被自动发现、内部网络意外具备
+   公网出口，以及合成 key/prompt 泄漏到日志、Receipt 或临时目录。
+
+#### Files Changed / Commits
+
+- `harness-runtime/contracts/`、`harness-runtime/supervisor/pack_compiler.py`、`harness-runtime/tests/test_harness_pack.py`
+- `clinical-llm-wiki/harness-packs/knowledge-candidate-v1/`、remote provider/worker/tests
+- `docs/dep/PLAN.md`、P15、DevLog/INDEX（pending phase commit）

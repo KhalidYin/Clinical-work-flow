@@ -1,6 +1,15 @@
 """H0-B harness runtime contracts (spec / request / event / result / receipts)."""
 
 from .manifest import ArtifactManifest, ArtifactManifestItem
+from .pack import (
+    HarnessPackBudgetPolicy,
+    HarnessPackIdentity,
+    HarnessPackManifest,
+    HarnessPackMcpCapability,
+    HarnessPackMcpPolicy,
+    HarnessPackModelPolicy,
+    HarnessPackSkill,
+)
 from .receipt import (
     ExecutionReceipt,
     ExitClassification,
@@ -31,6 +40,13 @@ __all__ = [
     "GatePolicy",
     "HarnessEvent",
     "HarnessExecutionRequest",
+    "HarnessPackBudgetPolicy",
+    "HarnessPackIdentity",
+    "HarnessPackManifest",
+    "HarnessPackMcpCapability",
+    "HarnessPackMcpPolicy",
+    "HarnessPackModelPolicy",
+    "HarnessPackSkill",
     "HarnessResult",
     "HarnessStatus",
     "InputReference",

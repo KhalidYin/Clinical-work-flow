@@ -264,6 +264,20 @@ def _opencode_provider(tmp_path: Path, *, output: dict | None = None):
     return provider, runtime, workspaces
 
 
+def test_checked_in_pack_schema_matches_enrichment_product_contract() -> None:
+    schema_path = (
+        Path(__file__).resolve().parents[1]
+        / "harness-packs"
+        / "knowledge-candidate-v1"
+        / "schemas"
+        / "candidate.schema.json"
+    )
+    pack_schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    pack_schema.pop("$schema")
+
+    assert pack_schema == enrichment_mod.ENRICHMENT_OUTPUT_SCHEMA
+
+
 def _supervised_request() -> ModelRequest:
     request = _request()
     profile = request.model_profile.model_copy(
@@ -446,6 +460,36 @@ def test_remote_supervisor_provider_sends_only_product_attempt_and_validates_out
     ]
 
 
+def test_remote_supervisor_provider_sends_hash_locked_pack_ref_only() -> None:
+    transport = SuccessfulSupervisorTransport()
+    provider = RemoteSupervisorEnrichmentProvider(
+        supervisor_url="http://harness-supervisor:8790",
+        machine_token="internal-supervisor-token",
+        spec_sha256="a" * 64,
+        instruction_ref={
+            "pack_id": "knowledge-candidate-v1",
+            "version": "1.0.0",
+            "sha256": "c" * 64,
+        },
+        transport=transport,
+        sleep=lambda _seconds: None,
+    )
+
+    provider.invoke(_supervised_request())
+
+    submitted = transport.calls[0][2]
+    assert submitted is not None
+    assert submitted["instruction_ref"] == {
+        "pack_id": "knowledge-candidate-v1",
+        "version": "1.0.0",
+        "sha256": "c" * 64,
+    }
+    serialized = json.dumps(submitted, sort_keys=True)
+    assert '"skills"' not in serialized
+    assert '"opencode_config"' not in serialized
+    assert '"mcp_command"' not in serialized
+
+
 class InvalidOutputSupervisorTransport(SuccessfulSupervisorTransport):
     def __call__(
         self,
@@ -497,10 +541,35 @@ def test_worker_builds_remote_supervisor_provider_without_image_or_model_secret(
             "KNOWLEDGE_HARNESS_SUPERVISOR_TOKEN_REF": "env://SUPERVISOR_MACHINE_TOKEN",
             "SUPERVISOR_MACHINE_TOKEN": "internal-supervisor-token",
             "KNOWLEDGE_HARNESS_SPEC_SHA256": "a" * 64,
+            "KNOWLEDGE_HARNESS_PACK_ID": "knowledge-candidate-v1",
+            "KNOWLEDGE_HARNESS_PACK_VERSION": "1.0.0",
+            "KNOWLEDGE_HARNESS_PACK_SHA256": "c" * 64,
         }
     )
 
     assert isinstance(provider, RemoteSupervisorEnrichmentProvider)
+    assert provider._instruction_ref == {
+        "pack_id": "knowledge-candidate-v1",
+        "version": "1.0.0",
+        "sha256": "c" * 64,
+    }
+
+
+def test_worker_supervised_mode_rejects_partial_pack_identity() -> None:
+    with pytest.raises(RuntimeError, match="must be configured together"):
+        harness_enrichment_provider_from_environment(
+            {
+                "KNOWLEDGE_ENRICHMENT_PROVIDER_MODE": "harness",
+                "KNOWLEDGE_HARNESS_EXECUTION_MODE": "opencode-supervised",
+                "KNOWLEDGE_HARNESS_SUPERVISOR_URL": "http://harness-supervisor:8790",
+                "KNOWLEDGE_HARNESS_SUPERVISOR_TOKEN_REF": (
+                    "env://SUPERVISOR_MACHINE_TOKEN"
+                ),
+                "SUPERVISOR_MACHINE_TOKEN": "internal-supervisor-token",
+                "KNOWLEDGE_HARNESS_SPEC_SHA256": "a" * 64,
+                "KNOWLEDGE_HARNESS_PACK_ID": "knowledge-candidate-v1",
+            }
+        )
 
 
 class NeverCompletesSupervisorTransport(SuccessfulSupervisorTransport):

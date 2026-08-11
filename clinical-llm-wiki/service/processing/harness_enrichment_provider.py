@@ -485,6 +485,7 @@ class RemoteSupervisorEnrichmentProvider(ModelProviderPort):
         supervisor_url: str,
         machine_token: str,
         spec_sha256: str,
+        instruction_ref: Mapping[str, str] | None = None,
         transport: SupervisorTransport | None = None,
         poll_interval_seconds: float = 1.0,
         sleep: Callable[[float], None] = system_sleep,
@@ -501,6 +502,16 @@ class RemoteSupervisorEnrichmentProvider(ModelProviderPort):
             raise ValueError("poll_interval_seconds must be positive")
         self._headers = {"Authorization": f"Bearer {machine_token}"}
         self._spec_sha256 = spec_sha256
+        self._instruction_ref = None
+        if instruction_ref is not None:
+            try:
+                from contracts.spec import InstructionRef
+
+                self._instruction_ref = InstructionRef.model_validate(
+                    dict(instruction_ref)
+                ).model_dump(mode="json", exclude_none=True)
+            except (ImportError, ValueError, TypeError) as exc:
+                raise ValueError("instruction_ref must be a valid Harness Pack reference") from exc
         self._poll_interval_seconds = poll_interval_seconds
         self._sleep = sleep
         self._transport = transport or _UrllibSupervisorTransport(
@@ -537,6 +548,8 @@ class RemoteSupervisorEnrichmentProvider(ModelProviderPort):
             "timeout_seconds": request.model_profile.timeout_seconds,
             "network_mode": "none",
         }
+        if self._instruction_ref is not None:
+            attempt_payload["instruction_ref"] = dict(self._instruction_ref)
         request_sha256 = _canonical_sha256(attempt_payload)
         poll_budget_expired = False
         try:
