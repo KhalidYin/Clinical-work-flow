@@ -26,6 +26,7 @@ from supervisor.pack_compiler import (
     HarnessPackResolver,
 )
 from supervisor.service_contracts import SupervisorAttemptRequest
+from supervisor.secret_store import AttemptSecretMaterializer, SecretCleanupError
 from supervisor.supervisor import HarnessSupervisor
 
 
@@ -47,11 +48,13 @@ class OpenCodeAttemptExecutor:
         mcp_bridge_path: Path,
         secret_resolver: SecretResolver,
         workspace_root: Path,
+        secret_workspace_root: Path,
         environment: tuple[tuple[str, str], ...] = (),
         pack_resolver: HarnessPackResolver | None = None,
         pack_compiler: HarnessPackCompiler | None = None,
         trusted_internal_network_id: str | None = None,
         host_path_mapper: Callable[[str | Path], str] | None = None,
+        secret_path_mapper: Callable[[str | Path], str] | None = None,
         workspace_observer: WorkspaceObserver | None = None,
         clock: Callable[[], datetime] | None = None,
         network_policy_registry: NetworkPolicyRegistry | None = None,
@@ -61,6 +64,10 @@ class OpenCodeAttemptExecutor:
         self._mcp_bridge_path = mcp_bridge_path
         self._secret_resolver = secret_resolver
         self._workspace_root = workspace_root
+        self._secret_workspace_root = secret_workspace_root
+        self._secret_materializer = AttemptSecretMaterializer(
+            root=secret_workspace_root
+        )
         self._environment = environment
         if (pack_resolver is None) != (pack_compiler is None):
             raise ValueError("pack_resolver and pack_compiler must be configured together")
@@ -68,6 +75,7 @@ class OpenCodeAttemptExecutor:
         self._pack_compiler = pack_compiler
         self._trusted_internal_network_id = trusted_internal_network_id
         self._host_path_mapper = host_path_mapper
+        self._secret_path_mapper = secret_path_mapper or (lambda path: str(path))
         self._workspace_observer = workspace_observer
         self._clock = clock or (lambda: datetime.now(timezone.utc))
         self._network_policy_registry = (
@@ -88,12 +96,23 @@ class OpenCodeAttemptExecutor:
             raise RuntimeError("OpenCode MCP stdio bridge is not available")
         if self._pack_resolver is not None and attempt.instruction_ref is None:
             raise ValueError("instruction_ref is required for Pack execution")
+        secret = self._secret_resolver(attempt.secret_refs[0])
+        request_sha256 = attempt.request_sha256()
 
         self._workspace_root.mkdir(parents=True, exist_ok=True)
-        with tempfile.TemporaryDirectory(
-            prefix="supervisor-opencode-",
-            dir=self._workspace_root,
-        ) as directory:
+        self._secret_workspace_root.mkdir(parents=True, exist_ok=True)
+        with (
+            tempfile.TemporaryDirectory(
+                prefix="supervisor-opencode-",
+                dir=self._workspace_root,
+            ) as directory,
+            self._secret_materializer.auth_file(
+                attempt_id=attempt.attempt_id,
+                request_sha256=request_sha256,
+                provider=provider,
+                secret=secret,
+            ) as auth_path,
+        ):
             workdir = Path(directory)
             input_dir = workdir / "inputs"
             secret_dir = workdir / "secrets"
@@ -176,14 +195,6 @@ class OpenCodeAttemptExecutor:
             elif compiled_pack.model_ref != f"{provider}/{model}":
                 raise ValueError("Attempt model does not match the trusted Pack binding")
 
-            secret = self._secret_resolver(attempt.secret_refs[0])
-            auth_path = secret_dir / "opencode-auth.json"
-            auth_path.write_text(
-                json.dumps({provider: {"type": "api", "key": secret}}),
-                encoding="utf-8",
-            )
-            auth_path.chmod(0o444)
-
             harness_request = HarnessExecutionRequest(
                 attempt_id=attempt.attempt_id,
                 adapter_id=attempt.adapter_id,
@@ -259,16 +270,18 @@ class OpenCodeAttemptExecutor:
                         else ()
                     ),
                     ReadOnlyMount(
-                        host_path=str(auth_path),
-                        container_path="/scratch/data/opencode/auth.json",
-                    ),
-                    ReadOnlyMount(
                         host_path=str(mcp_bridge_runtime_path),
                         container_path="/harness/mcp_stdio_bridge.sh",
                     ),
                     ReadOnlyMount(
                         host_path=str(mcp_bundle_path),
                         container_path="/harness/mcp-bundle.json",
+                    ),
+                ),
+                trusted_daemon_read_only_mounts=(
+                    ReadOnlyMount(
+                        host_path=self._secret_path_mapper(auth_path),
+                        container_path="/scratch/data/opencode/auth.json",
                     ),
                 ),
                 environment=tuple(environment.items()),
@@ -394,6 +407,10 @@ class OpenCodeAttemptExecutor:
 
     def cancel(self, attempt_id: str, request_sha256: str) -> ExecutionReceipt:
         managed = self._terminate_managed(attempt_id, request_sha256)
+        cleanup_succeeded = self._cleanup_attempt_secret(
+            attempt_id,
+            request_sha256,
+        )
         now = self._clock()
         spec_sha256 = managed[0].spec_sha256 if managed else "0" * 64
         return ExecutionReceipt(
@@ -409,7 +426,8 @@ class OpenCodeAttemptExecutor:
                 "managed OpenCode container cancelled"
                 if managed
                 else "no matching managed OpenCode container remained"
-            ),
+            )
+            + ("" if cleanup_succeeded else "; attempt secret cleanup failed"),
             started_at=now,
             ended_at=now,
             artifact_manifest=ArtifactManifest(),
@@ -417,6 +435,10 @@ class OpenCodeAttemptExecutor:
 
     def recover_orphan(self, attempt_id: str, request_sha256: str) -> ExecutionReceipt:
         managed = self._terminate_managed(attempt_id, request_sha256)
+        cleanup_succeeded = self._cleanup_attempt_secret(
+            attempt_id,
+            request_sha256,
+        )
         now = self._clock()
         spec_sha256 = managed[0].spec_sha256 if managed else "0" * 64
         return ExecutionReceipt(
@@ -432,7 +454,8 @@ class OpenCodeAttemptExecutor:
                 "orphaned OpenCode container terminated"
                 if managed
                 else "orphaned Attempt had no matching managed container"
-            ),
+            )
+            + ("" if cleanup_succeeded else "; attempt secret cleanup failed"),
             started_at=now,
             ended_at=now,
             artifact_manifest=ArtifactManifest(),
@@ -449,6 +472,17 @@ class OpenCodeAttemptExecutor:
             self._runtime.terminate(container.container_id)
             self._runtime.remove(container.container_id)
         return managed
+
+    def _cleanup_attempt_secret(
+        self,
+        attempt_id: str,
+        request_sha256: str,
+    ) -> bool:
+        try:
+            self._secret_materializer.cleanup(attempt_id, request_sha256)
+        except SecretCleanupError:
+            return False
+        return True
 
     @staticmethod
     def _read_jsonl_output(staging_root: Path) -> dict[str, Any]:

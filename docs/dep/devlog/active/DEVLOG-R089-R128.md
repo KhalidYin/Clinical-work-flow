@@ -1611,3 +1611,54 @@ Done — no next steps。
 - `harness-runtime/contracts/`、`harness-runtime/supervisor/`、`harness-runtime/tests/`
 - `clinical-llm-wiki/service/processing/harness_enrichment_provider.py` 及测试
 - `docs/main/`、P16/PLAN/TASK_STATE、DevLog/INDEX（pending phase commit）
+
+---
+
+### R121 [00:54] [P16-harness-secret-egress-gate] P2: Supervisor-owned tmpfs 临时 Secret
+
+#### Done
+
+- 新增 Supervisor-owned `TmpfsSecretStore` 和本机 stdin 注入 CLI，只接受注册名称；交互式终端使用
+  no-echo reader，成功只返回 `secret accepted`，不接受命令参数中的 secret 值。
+- Compose 为 Supervisor 增加独立 Docker local tmpfs volume `/run/harness-secrets`；Worker 不挂载，
+  持久 state 与临时 secret 分别发现 daemon-visible root，避免认证材料进入 state volume。
+- `secret://deepseek-api-key` 由 Supervisor 解析，每个 Attempt 在 tmpfs 内生成 hash 命名、只读挂载的
+  OpenCode auth 文件。成功、失败、timeout、cancel、orphan、部分写入和重启均清理或丢失；清理失败
+  只生成脱敏失败证据并阻止成功结果。
+- 真实 Docker 零费用 POC 验证 volume driver/type/options 和容器内 filesystem 均为 tmpfs，运行时生成的
+  合成值未进入 Inspect/log；Supervisor 重启后值消失。随后以 P15 internal Mock 跑通真实 OpenCode
+  Attempt，Receipt 为 `network_policy=none`，Attempt secret 目录为空。
+- 临时 P16 POC 项目的容器、卷和项目网络已精确清理；既有 P15 internal model network 未删除。canonical
+  Guide/Spec/Test、USAGE、P16/PLAN/TASK_STATE 已切换到 P3，未读取真实 key、未调用 DeepSeek。
+
+#### Issues / Risks
+
+- 容器内普通 tmpfs 不能经宿主 Docker socket 直接 bind 给 sibling OpenCode；本轮采用 Docker local
+  tmpfs volume，并用独立 mapper 暴露 daemon path。该方案满足本地 Gate，但不是 Vault/云 Secret
+  Manager，也不提供持久审计或自动轮换。
+- Supervisor 重启后 secret 必然丢失，需要重新注入；这是当前安全语义。使用 shell pipe 或把值写入
+  PowerShell 变量仍可能留下本机历史，因此 USAGE 只推荐交互式 no-echo 命令。
+- P2 只解决凭据生命周期。`model-deepseek-v1` 仍 runtime unavailable；没有 gateway、公共网页策略、
+  生产 runtime authority 或真实 live 授权。
+
+#### Validation
+
+- Harness：`189 passed, 5 skipped`；Knowledge：`227 passed, 8 skipped`；两侧 Ruff 全通过。
+- `git diff --check` 通过；新增异常测试先复现认证文件部分写入后的目录残留，再修复为 context 全路径清理。
+- 真实 Docker 检查：tmpfs `size=16m,mode=0700`、注入 hash 匹配、Inspect/log 无合成值、重启清空、
+  internal Mock Attempt 成功且 secret root 零残留；未连接公网或供应商。
+
+#### Next
+
+1. P3 先审查候选通用 CONNECT gateway 的官方来源、许可证、固定 digest、hostname:port allowlist、DNS
+   和不解密 TLS 的边界，再决定最小实现。
+2. 以 RED 冻结 internal client/public uplink 拓扑，以及允许目标、非允许域名、原始 IP、非 443 端口、
+   无代理直连和 `network none` 回归；每条拒绝保留对应 Skill/MCP/工具循环正向测试。
+3. 主要风险是只配置 `HTTPS_PROXY` 却保留普通公网 bridge、DNS/rebinding 绕过、代理镜像供应链，或把
+   gateway 测试通过误述为 DeepSeek live 授权。
+
+#### Files Changed / Commits
+
+- `harness-runtime/supervisor/secret_store.py`、`secret_cli.py`、Executor/Supervisor/main 与测试
+- `clinical-llm-wiki/compose.harness.yaml` 及部署合同测试
+- `USAGE.md`、canonical docs、P16/PLAN/TASK_STATE、DevLog/INDEX（pending phase commit）

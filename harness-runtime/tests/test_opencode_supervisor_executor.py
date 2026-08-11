@@ -133,6 +133,7 @@ def test_executor_rejects_unavailable_model_policy_before_secret_or_container(
         ),
         secret_resolver=lambda reference: resolved.append(reference) or SYNTHETIC_SECRET,
         workspace_root=tmp_path,
+        secret_workspace_root=tmp_path / "ephemeral-secrets",
     )
 
     with pytest.raises(NetworkPolicyDenied) as error:
@@ -167,9 +168,14 @@ def test_executor_compiles_fixed_offline_opencode_attempt_and_cleans_workspace(
             else (_ for _ in ()).throw(KeyError(reference))
         ),
         workspace_root=tmp_path,
+        secret_workspace_root=tmp_path / "ephemeral-secrets",
         host_path_mapper=DaemonRootPathMapper(
             local_root=tmp_path,
             daemon_root="/var/lib/docker/volumes/demo-supervisor/_data",
+        ),
+        secret_path_mapper=DaemonRootPathMapper(
+            local_root=tmp_path / "ephemeral-secrets",
+            daemon_root="/var/lib/docker/volumes/demo-secrets/_data",
         ),
         workspace_observer=observed_workspaces.append,
     )
@@ -188,7 +194,14 @@ def test_executor_compiles_fixed_offline_opencode_attempt_and_cleans_workspace(
     assert all(
         mount.host_path.startswith("/var/lib/docker/volumes/demo-supervisor/_data")
         for mount in runtime.last_config.read_only_inputs
+        if mount.container_path != "/scratch/data/opencode/auth.json"
     )
+    auth_mount = next(
+        mount
+        for mount in runtime.last_config.read_only_inputs
+        if mount.container_path == "/scratch/data/opencode/auth.json"
+    )
+    assert auth_mount.host_path.startswith("/var/lib/docker/volumes/demo-secrets/_data")
     assert runtime.last_config.host_scratch_dir.startswith(
         "/var/lib/docker/volumes/demo-supervisor/_data"
     )
@@ -200,11 +213,109 @@ def test_executor_compiles_fixed_offline_opencode_attempt_and_cleans_workspace(
     assert not observed_workspaces[0].exists()
 
 
+def test_executor_materializes_auth_only_in_ephemeral_secret_root(
+    tmp_path: Path,
+) -> None:
+    from supervisor.opencode_executor import OpenCodeAttemptExecutor
+
+    output = {"claims": [], "advisory_signals": []}
+    event = json.dumps({"type": "text", "data": {"text": json.dumps(output)}})
+    runtime = FakeContainerRuntime(
+        exit_code=0,
+        staged_outputs={Path("events.jsonl"): event.encode("utf-8")},
+    )
+    state_root = tmp_path / "state"
+    secret_root = tmp_path / "ephemeral-secrets"
+    state_root.mkdir()
+    secret_root.mkdir()
+    executor = OpenCodeAttemptExecutor(
+        runtime=runtime,
+        image_ref=IMAGE_REF,
+        mcp_bridge_path=(
+            Path(__file__).resolve().parents[1] / "supervisor" / "mcp_stdio_bridge.sh"
+        ),
+        secret_resolver=lambda _reference: SYNTHETIC_SECRET,
+        workspace_root=state_root,
+        secret_workspace_root=secret_root,
+        host_path_mapper=DaemonRootPathMapper(
+            local_root=state_root,
+            daemon_root="/var/lib/docker/volumes/p16-state/_data",
+        ),
+        secret_path_mapper=DaemonRootPathMapper(
+            local_root=secret_root,
+            daemon_root="/var/lib/docker/volumes/p16-secrets/_data",
+        ),
+    )
+
+    outcome = executor.execute(_attempt())
+
+    assert outcome.receipt.status is HarnessStatus.SUCCEEDED
+    assert runtime.last_config is not None
+    auth_mount = next(
+        mount
+        for mount in runtime.last_config.read_only_inputs
+        if mount.container_path == "/scratch/data/opencode/auth.json"
+    )
+    assert auth_mount.host_path.startswith(
+        "/var/lib/docker/volumes/p16-secrets/_data/"
+    )
+    assert tuple(secret_root.iterdir()) == ()
+    assert all(
+        SYNTHETIC_SECRET not in path.read_text(encoding="utf-8", errors="ignore")
+        for path in state_root.rglob("*")
+        if path.is_file()
+    )
+
+
+@pytest.mark.parametrize(
+    ("exit_code", "hangs", "expected"),
+    [
+        (1, False, ExitClassification.FAILED),
+        (None, True, ExitClassification.TIMED_OUT),
+    ],
+)
+def test_executor_cleans_ephemeral_auth_on_failure_and_timeout(
+    tmp_path: Path,
+    exit_code: int | None,
+    hangs: bool,
+    expected: ExitClassification,
+) -> None:
+    from supervisor.opencode_executor import OpenCodeAttemptExecutor
+
+    secret_root = tmp_path / "ephemeral-secrets"
+    runtime = FakeContainerRuntime(exit_code=exit_code, hangs=hangs)
+    executor = OpenCodeAttemptExecutor(
+        runtime=runtime,
+        image_ref=IMAGE_REF,
+        mcp_bridge_path=(
+            Path(__file__).resolve().parents[1] / "supervisor" / "mcp_stdio_bridge.sh"
+        ),
+        secret_resolver=lambda _reference: SYNTHETIC_SECRET,
+        workspace_root=tmp_path / "state",
+        secret_workspace_root=secret_root,
+    )
+
+    outcome = executor.execute(_attempt())
+
+    assert outcome.receipt.exit_classification is expected
+    assert tuple(secret_root.iterdir()) == ()
+    assert SYNTHETIC_SECRET not in outcome.receipt.model_dump_json()
+
+
 def test_executor_cancel_terminates_only_exact_managed_attempt(tmp_path: Path) -> None:
     from supervisor.opencode_executor import OpenCodeAttemptExecutor
+    from supervisor.secret_store import AttemptSecretMaterializer
 
     now = datetime.now(timezone.utc)
     runtime = ManagedFakeRuntime()
+    secret_root = tmp_path / "ephemeral-secrets"
+    materializer = AttemptSecretMaterializer(root=secret_root)
+    materializer.materialize(
+        attempt_id="attempt-001",
+        request_sha256=_attempt().request_sha256(),
+        provider="synthetic",
+        secret=SYNTHETIC_SECRET,
+    )
     executor = OpenCodeAttemptExecutor(
         runtime=runtime,
         image_ref=IMAGE_REF,
@@ -213,22 +324,36 @@ def test_executor_cancel_terminates_only_exact_managed_attempt(tmp_path: Path) -
         ),
         secret_resolver=lambda _reference: SYNTHETIC_SECRET,
         workspace_root=tmp_path,
+        secret_workspace_root=secret_root,
         clock=lambda: now,
     )
 
-    receipt = executor.cancel("attempt-001", _attempt().request_sha256())
+    try:
+        receipt = executor.cancel("attempt-001", _attempt().request_sha256())
 
-    assert receipt.exit_classification == ExitClassification.CANCELLED
-    assert receipt.request_sha256 == _attempt().request_sha256()
-    assert runtime.terminated_ids == ["managed-container-1"]
-    assert runtime.removed_ids == ["managed-container-1"]
+        assert receipt.exit_classification == ExitClassification.CANCELLED
+        assert receipt.request_sha256 == _attempt().request_sha256()
+        assert runtime.terminated_ids == ["managed-container-1"]
+        assert runtime.removed_ids == ["managed-container-1"]
+        assert tuple(secret_root.iterdir()) == ()
+    finally:
+        materializer.cleanup("attempt-001", _attempt().request_sha256())
 
 
 def test_executor_orphan_recovery_terminates_exact_labeled_container(tmp_path: Path) -> None:
     from supervisor.opencode_executor import OpenCodeAttemptExecutor
+    from supervisor.secret_store import AttemptSecretMaterializer
 
     now = datetime.now(timezone.utc)
     runtime = ManagedFakeRuntime()
+    secret_root = tmp_path / "ephemeral-secrets"
+    materializer = AttemptSecretMaterializer(root=secret_root)
+    materializer.materialize(
+        attempt_id="attempt-001",
+        request_sha256=_attempt().request_sha256(),
+        provider="synthetic",
+        secret=SYNTHETIC_SECRET,
+    )
     executor = OpenCodeAttemptExecutor(
         runtime=runtime,
         image_ref=IMAGE_REF,
@@ -237,15 +362,68 @@ def test_executor_orphan_recovery_terminates_exact_labeled_container(tmp_path: P
         ),
         secret_resolver=lambda _reference: SYNTHETIC_SECRET,
         workspace_root=tmp_path,
+        secret_workspace_root=secret_root,
         clock=lambda: now,
     )
 
-    receipt = executor.recover_orphan("attempt-001", _attempt().request_sha256())
+    try:
+        receipt = executor.recover_orphan(
+            "attempt-001",
+            _attempt().request_sha256(),
+        )
 
-    assert receipt.status is HarnessStatus.FAILED
-    assert receipt.exit_classification == ExitClassification.ORPHANED
-    assert runtime.terminated_ids == ["managed-container-1"]
-    assert runtime.removed_ids == ["managed-container-1"]
+        assert receipt.status is HarnessStatus.FAILED
+        assert receipt.exit_classification == ExitClassification.ORPHANED
+        assert runtime.terminated_ids == ["managed-container-1"]
+        assert runtime.removed_ids == ["managed-container-1"]
+        assert tuple(secret_root.iterdir()) == ()
+    finally:
+        materializer.cleanup("attempt-001", _attempt().request_sha256())
+
+
+def test_cancel_returns_sanitized_evidence_when_secret_cleanup_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from supervisor.opencode_executor import OpenCodeAttemptExecutor
+    from supervisor.secret_store import AttemptSecretMaterializer
+
+    now = datetime.now(timezone.utc)
+    runtime = ManagedFakeRuntime()
+    secret_root = tmp_path / "ephemeral-secrets"
+    materializer = AttemptSecretMaterializer(root=secret_root)
+    materializer.materialize(
+        attempt_id="attempt-001",
+        request_sha256=_attempt().request_sha256(),
+        provider="synthetic",
+        secret=SYNTHETIC_SECRET,
+    )
+    executor = OpenCodeAttemptExecutor(
+        runtime=runtime,
+        image_ref=IMAGE_REF,
+        mcp_bridge_path=(
+            Path(__file__).resolve().parents[1] / "supervisor" / "mcp_stdio_bridge.sh"
+        ),
+        secret_resolver=lambda _reference: SYNTHETIC_SECRET,
+        workspace_root=tmp_path,
+        secret_workspace_root=secret_root,
+        clock=lambda: now,
+    )
+
+    def fail_remove(_directory: Path) -> None:
+        raise OSError(f"{SYNTHETIC_SECRET} at {secret_root}")
+
+    monkeypatch.setattr("supervisor.secret_store._remove_tree", fail_remove)
+    try:
+        receipt = executor.cancel("attempt-001", _attempt().request_sha256())
+
+        assert receipt.exit_classification is ExitClassification.CANCELLED
+        assert receipt.message.endswith("attempt secret cleanup failed")
+        assert SYNTHETIC_SECRET not in receipt.model_dump_json()
+        assert str(secret_root) not in receipt.model_dump_json()
+    finally:
+        monkeypatch.undo()
+        materializer.cleanup("attempt-001", _attempt().request_sha256())
 
 
 def test_executor_compiles_pack_workspace_internal_mock_and_receipt_identity(
@@ -370,6 +548,7 @@ def test_executor_compiles_pack_workspace_internal_mock_and_receipt_identity(
         ),
         secret_resolver=lambda _reference: SYNTHETIC_SECRET,
         workspace_root=tmp_path,
+        secret_workspace_root=tmp_path / "ephemeral-secrets",
         pack_resolver=resolver,
         pack_compiler=compiler,
         trusted_internal_network_id="d" * 64,
@@ -445,6 +624,7 @@ def test_pack_executor_rejects_attempt_without_instruction_ref_before_launch(
         ),
         secret_resolver=lambda _reference: SYNTHETIC_SECRET,
         workspace_root=tmp_path,
+        secret_workspace_root=tmp_path / "ephemeral-secrets",
         pack_resolver=HarnessPackResolver({"knowledge-candidate-v1": PACK_ROOT}),
         pack_compiler=HarnessPackCompiler({}),
     )
@@ -496,6 +676,7 @@ def test_executor_classifies_invalid_or_empty_output_as_failed(
         ),
         secret_resolver=lambda _reference: SYNTHETIC_SECRET,
         workspace_root=tmp_path,
+        secret_workspace_root=tmp_path / "ephemeral-secrets",
     )
 
     outcome = executor.execute(_attempt())

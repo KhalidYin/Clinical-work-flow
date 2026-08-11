@@ -62,6 +62,7 @@ class HarnessSupervisor:
         entrypoint: tuple[str, ...] = (),
         command: tuple[str, ...] = (),
         extra_read_only_mounts: tuple[ReadOnlyMount, ...] = (),
+        trusted_daemon_read_only_mounts: tuple[ReadOnlyMount, ...] = (),
         environment: tuple[tuple[str, str], ...] = (),
         control_request_sha256: str | None = None,
         trusted_internal_network_id: str | None = None,
@@ -98,6 +99,7 @@ class HarnessSupervisor:
                     )
                     for mount in extra_read_only_mounts
                 ),
+                *trusted_daemon_read_only_mounts,
             ),
             scratch_dir="/scratch",
             staging_dir="/staging",

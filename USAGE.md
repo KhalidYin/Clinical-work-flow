@@ -61,7 +61,8 @@ docker compose --project-name clinical-knowledge-demo up -d --build --wait
 - 已准入：OpenCode `1.18.14` GHCR image 的版本+digest 双锁、真实容器断网启动/JSON 事件、SIGTERM、MCP stdio、零非必要出站与合成短期凭据只读文件装载。
 - 已部署（显式离线 Gate）：叠加 `compose.harness.yaml` 并启用 `harness` profile 后，`worker-enrichment` 只通过内部 control network 调用独立 Supervisor；Worker 无 Docker socket、无模型 secret，子容器固定 digest、`network none` 和安全资源基线。合成 secret 的真实 Attempt 按预期 fail closed，ExecutionReceipt/ValidationReceipt 可审计。
 - 已完成（P15 本地 POC）：再叠加 `compose.harness.poc.yaml`，真实 OpenCode 从 PostgreSQL canonical Evidence 通过 Pack Skill/MCP 和 internal Mock 创建唯一 Candidate，API 可核对 lineage，状态停在作者确认前。
-- 默认未启用：普通 Compose 仍运行 replay；`secret://` Secret Store 和受控出站网络尚未完成。Supervisor 持有宿主 Docker socket，是高权限信任边界；socket 不得挂给业务 Worker，也不得把 bind 标记为只读误述为 Docker API 降权。
+- 已完成（P16/P2 本地临时 Secret）：Supervisor 独占 tmpfs volume，通过本机终端无回显 stdin 注入注册名称；每个 Attempt 的 auth 文件只读挂载并在所有终态清理，Supervisor 重启后值丢失。Worker 不挂载该卷。
+- 默认未启用：普通 Compose 仍运行 replay；通用 egress gateway 和 DeepSeek policy runtime 尚未完成。Supervisor 持有宿主 Docker socket，是高权限信任边界；socket 不得挂给业务 Worker，也不得把 bind 标记为只读误述为 Docker API 降权。
 - 未授权：任何真实模型出站和 P2-B3 live vertical。完成前两层不会自动开启第三层。
 
 ### 4.1 显式运行离线 Harness Gate
@@ -92,7 +93,23 @@ docker compose --project-name clinical-harness-gate `
   down --volumes --remove-orphans
 ```
 
-### 4.2 显式运行 P15 PostgreSQL/API 本地 POC
+### 4.2 注入 P16 临时 Secret（只做准备，不会启用 live）
+
+先启动上述 `harness-supervisor`，再在本机交互式终端执行：
+
+```powershell
+docker compose --project-name clinical-harness-gate `
+  -f compose.yaml -f compose.harness.yaml --profile harness `
+  exec harness-supervisor `
+  python -m supervisor.secret_cli inject deepseek-api-key
+```
+
+终端显示 `Secret:` 时输入，内容不会回显；成功只输出 `secret accepted`。不要把值写在命令参数、
+PowerShell 变量、`.env`、Compose environment，也不要用 `echo <值> | ...`，否则可能进入 shell 历史、
+进程信息或日志。只允许注册名称，重复注入会原子替换；Supervisor 重启后必须重新注入。当前
+`model-deepseek-v1` 仍因 P3 gateway 未完成而 fail closed，因此这条命令不会授权或触发 DeepSeek 调用。
+
+### 4.3 显式运行 P15 PostgreSQL/API 本地 POC
 
 该 POC 只允许使用签入的明显合成 key 和内部 Mock；不要填写 DeepSeek 或其他供应商 key。先按第 2 节
 准备本机 `.env`，再在当前 PowerShell 会话设置一次性测试值：
@@ -117,7 +134,8 @@ docker compose --project-name clinical-harness-p15-db-poc `
 Verifier 输出一个 Candidate ID、真实 canonical Evidence ID、origin invocation ID 和
 `author_confirmation_required`。Worker 再运行一次时 Mock 请求数、ModelInvocation 和 Candidate 均不得
 增加。这里的 `env://` 合成 key、Docker internal 网络、Supervisor socket authority 和每 Attempt 临时
-目录权限都是 POC 折中；P16 必须用正式 Secret backend、受控 egress 和更收敛的 runtime authority 替换。
+目录权限都是 POC 折中；P16/P2 的 tmpfs Store 不改变该历史 POC 的 `env://` 配置，受控 egress 和更
+收敛的 runtime authority 仍待完成。
 验收后如需删除，仅对上述精确 POC project 执行（会删除它的 PostgreSQL/对象卷）：
 
 ```powershell

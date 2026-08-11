@@ -77,6 +77,34 @@ def test_supervisor_image_has_dedicated_service_entrypoint() -> None:
     assert 'CMD ["python", "-m", "supervisor.main"]' in dockerfile
 
 
+def test_supervisor_secret_volume_is_ephemeral_and_not_shared_with_worker() -> None:
+    harness = yaml.safe_load(
+        (ROOT / "compose.harness.yaml").read_text(encoding="utf-8")
+    )
+    supervisor = harness["services"]["harness-supervisor"]
+    worker = harness["services"]["worker-enrichment"]
+
+    assert supervisor["environment"]["HARNESS_SUPERVISOR_SECRET_ROOT"] == (
+        "/run/harness-secrets"
+    )
+    assert "harness-supervisor-secrets:/run/harness-secrets" in supervisor["volumes"]
+    assert all(
+        "harness-supervisor-secrets" not in volume
+        for volume in worker.get("volumes", [])
+    )
+    assert harness["volumes"]["harness-supervisor-secrets"] == {
+        "driver": "local",
+        "driver_opts": {
+            "type": "tmpfs",
+            "device": "tmpfs",
+            "o": "size=16m,mode=0700",
+        },
+    }
+    rendered = yaml.safe_dump(harness)
+    assert "deepseek-api-key" not in rendered
+    assert "synthetic-opaque-value" not in rendered
+
+
 def test_p15_poc_overlay_runs_setup_before_one_shot_enrichment() -> None:
     poc = yaml.safe_load(
         (ROOT / "compose.harness.poc.yaml").read_text(encoding="utf-8")

@@ -277,6 +277,7 @@ def test_real_opencode_calls_pack_skill_and_attempt_mcp_over_internal_mock(
             mcp_bridge_path=ROOT / "supervisor" / "mcp_stdio_bridge.sh",
             secret_resolver=lambda _reference: SYNTHETIC_SECRET,
             workspace_root=tmp_path / "attempts",
+            secret_workspace_root=tmp_path / "attempt-secrets",
             environment=tuple(
                 (str(key), str(value))
                 for key, value in dict(manifest["environment"]).items()
@@ -400,6 +401,7 @@ def test_real_opencode_calls_pack_skill_and_attempt_mcp_over_internal_mock(
             mcp_bridge_path=ROOT / "supervisor" / "mcp_stdio_bridge.sh",
             secret_resolver=lambda _reference: SYNTHETIC_SECRET,
             workspace_root=tmp_path / "denied-attempts",
+            secret_workspace_root=tmp_path / "denied-attempt-secrets",
             environment=tuple(
                 (str(key), str(value))
                 for key, value in dict(manifest["environment"]).items()

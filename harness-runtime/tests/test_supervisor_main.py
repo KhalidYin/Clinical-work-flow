@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from supervisor.fake_container_runtime import FakeContainerRuntime
@@ -24,6 +25,18 @@ class MountAwareRuntime(EmptyManagedRuntime):
     def current_container_mount_source(self, destination: str) -> str:
         self.mount_destinations.append(destination)
         return "/var/lib/docker/volumes/demo-supervisor/_data"
+
+
+class DistinctMountAwareRuntime(EmptyManagedRuntime):
+    def __init__(self) -> None:
+        super().__init__()
+        self.mount_destinations: list[str] = []
+
+    def current_container_mount_source(self, destination: str) -> str:
+        self.mount_destinations.append(destination)
+        if destination.endswith("secrets"):
+            return "/var/lib/docker/volumes/demo-secrets/_data"
+        return "/var/lib/docker/volumes/demo-state/_data"
 
 
 class InternalNetworkRuntime(EmptyManagedRuntime):
@@ -50,6 +63,24 @@ def test_secret_reference_prefers_mounted_file_over_container_environment(
     ) == "synthetic-file-value"
 
 
+def test_secret_reference_resolves_only_through_ephemeral_store(tmp_path: Path) -> None:
+    from supervisor.main import resolve_secret_reference
+    from supervisor.secret_store import TmpfsSecretStore
+
+    store = TmpfsSecretStore(
+        root=tmp_path,
+        allowed_names=frozenset({"deepseek-api-key"}),
+        clear_on_start=True,
+    )
+    store.inject("deepseek-api-key", "synthetic-opaque-value")
+
+    assert resolve_secret_reference(
+        "secret://deepseek-api-key",
+        {},
+        secret_store=store,
+    ) == "synthetic-opaque-value"
+
+
 def test_environment_factory_builds_private_supervisor_service(tmp_path: Path) -> None:
     from supervisor.main import build_supervisor_app
 
@@ -72,6 +103,7 @@ def test_environment_factory_builds_private_supervisor_service(tmp_path: Path) -
         "HARNESS_SUPERVISOR_ALLOWED_SPEC_SHA256": "a" * 64,
         "HARNESS_SUPERVISOR_IMAGE_MANIFEST_PATH": str(manifest_path),
         "HARNESS_SUPERVISOR_STATE_ROOT": str(tmp_path / "state"),
+        "HARNESS_SUPERVISOR_SECRET_ROOT": str(tmp_path / "secrets"),
         "HARNESS_SUPERVISOR_MCP_BRIDGE_PATH": str(
             Path(__file__).resolve().parents[1] / "supervisor" / "mcp_stdio_bridge.sh"
         ),
@@ -87,6 +119,41 @@ def test_environment_factory_builds_private_supervisor_service(tmp_path: Path) -
         "network_policy": "none",
         "adapter_id": "opencode@1.18.14",
     }
+
+
+def test_environment_factory_requires_ephemeral_secret_root(tmp_path: Path) -> None:
+    from supervisor.main import build_supervisor_app
+
+    manifest_path = tmp_path / "opencode.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "adapter_id": "opencode@1.18.14",
+                "image_ref": "ghcr.io/anomalyco/opencode:1.18.14@sha256:" + "b" * 64,
+                "environment": {"OPENCODE_DISABLE_MODELS_FETCH": "1"},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="HARNESS_SUPERVISOR_SECRET_ROOT is required",
+    ):
+        build_supervisor_app(
+            {
+                "HARNESS_SUPERVISOR_MACHINE_TOKEN": "synthetic-supervisor-machine-token",
+                "HARNESS_SUPERVISOR_ALLOWED_SPEC_SHA256": "a" * 64,
+                "HARNESS_SUPERVISOR_IMAGE_MANIFEST_PATH": str(manifest_path),
+                "HARNESS_SUPERVISOR_STATE_ROOT": str(tmp_path / "state"),
+                "HARNESS_SUPERVISOR_MCP_BRIDGE_PATH": str(
+                    Path(__file__).resolve().parents[1]
+                    / "supervisor"
+                    / "mcp_stdio_bridge.sh"
+                ),
+            },
+            runtime=EmptyManagedRuntime(),
+        )
 
 
 def test_container_factory_discovers_daemon_visible_state_mount(tmp_path: Path) -> None:
@@ -111,6 +178,7 @@ def test_container_factory_discovers_daemon_visible_state_mount(tmp_path: Path) 
             "HARNESS_SUPERVISOR_ALLOWED_SPEC_SHA256": "a" * 64,
             "HARNESS_SUPERVISOR_IMAGE_MANIFEST_PATH": str(manifest_path),
             "HARNESS_SUPERVISOR_STATE_ROOT": str(state_root),
+            "HARNESS_SUPERVISOR_SECRET_ROOT": str(tmp_path / "secrets"),
             "HARNESS_SUPERVISOR_MCP_BRIDGE_PATH": str(
                 Path(__file__).resolve().parents[1]
                 / "supervisor"
@@ -121,10 +189,61 @@ def test_container_factory_discovers_daemon_visible_state_mount(tmp_path: Path) 
         runtime=runtime,
     )
 
-    assert runtime.mount_destinations == [str(state_root)]
+    assert runtime.mount_destinations == [str(state_root), str(tmp_path / "secrets")]
     assert app.state.daemon_state_root == (
         "/var/lib/docker/volumes/demo-supervisor/_data"
     )
+    assert app.state.daemon_secret_root == (
+        "/var/lib/docker/volumes/demo-supervisor/_data"
+    )
+
+
+def test_container_factory_discovers_distinct_ephemeral_secret_mount(
+    tmp_path: Path,
+) -> None:
+    from supervisor.main import build_supervisor_app
+
+    manifest_path = tmp_path / "opencode.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "adapter_id": "opencode@1.18.14",
+                "image_ref": "ghcr.io/anomalyco/opencode:1.18.14@sha256:" + "b" * 64,
+                "environment": {"OPENCODE_DISABLE_MODELS_FETCH": "1"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    state_root = tmp_path / "state"
+    secret_root = tmp_path / "secrets"
+    secret_root.mkdir()
+    (secret_root / "orphan-marker").write_text(
+        "synthetic-marker",
+        encoding="utf-8",
+    )
+    runtime = DistinctMountAwareRuntime()
+
+    app = build_supervisor_app(
+        {
+            "HARNESS_SUPERVISOR_MACHINE_TOKEN": "synthetic-supervisor-machine-token",
+            "HARNESS_SUPERVISOR_ALLOWED_SPEC_SHA256": "a" * 64,
+            "HARNESS_SUPERVISOR_IMAGE_MANIFEST_PATH": str(manifest_path),
+            "HARNESS_SUPERVISOR_STATE_ROOT": str(state_root),
+            "HARNESS_SUPERVISOR_SECRET_ROOT": str(secret_root),
+            "HARNESS_SUPERVISOR_MCP_BRIDGE_PATH": str(
+                Path(__file__).resolve().parents[1]
+                / "supervisor"
+                / "mcp_stdio_bridge.sh"
+            ),
+            "HARNESS_SUPERVISOR_DISCOVER_DAEMON_STATE_ROOT": "true",
+        },
+        runtime=runtime,
+    )
+
+    assert runtime.mount_destinations == [str(state_root), str(secret_root)]
+    assert app.state.daemon_state_root == "/var/lib/docker/volumes/demo-state/_data"
+    assert app.state.daemon_secret_root == "/var/lib/docker/volumes/demo-secrets/_data"
+    assert tuple(secret_root.iterdir()) == ()
 
 
 def test_environment_factory_configures_pack_and_verified_internal_mock(
@@ -166,6 +285,7 @@ def test_environment_factory_configures_pack_and_verified_internal_mock(
             "HARNESS_SUPERVISOR_ALLOWED_SPEC_SHA256": "a" * 64,
             "HARNESS_SUPERVISOR_IMAGE_MANIFEST_PATH": str(manifest_path),
             "HARNESS_SUPERVISOR_STATE_ROOT": str(tmp_path / "state"),
+            "HARNESS_SUPERVISOR_SECRET_ROOT": str(tmp_path / "secrets"),
             "HARNESS_SUPERVISOR_MCP_BRIDGE_PATH": str(
                 Path(__file__).resolve().parents[1]
                 / "supervisor"

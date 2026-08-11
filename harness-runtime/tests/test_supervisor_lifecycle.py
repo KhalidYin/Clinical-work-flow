@@ -17,7 +17,8 @@ SPEC_SHA256 = "a" * 64
 def _attempt() -> SupervisorAttemptRequest:
     input_bundle = {
         "messages": [{"role": "user", "content": "offline synthetic evidence"}],
-        "model": {"provider": "synthetic", "name": "invalid-offline-model"},
+        "provider": "synthetic",
+        "model": "invalid-offline-model",
     }
     return SupervisorAttemptRequest(
         attempt_id="attempt-001",
@@ -66,6 +67,80 @@ class SuccessfulExecutor:
 class FailingExecutor:
     def execute(self, _attempt: SupervisorAttemptRequest):
         raise RuntimeError("provider failed with super-secret-marker")
+
+
+def test_cleanup_failure_becomes_sanitized_failed_receipt(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    import json
+
+    from supervisor.fake_container_runtime import FakeContainerRuntime
+    from supervisor.journal import FileAttemptJournal
+    from supervisor.lifecycle import AttemptCoordinator, FileAttemptResultStore
+    from supervisor.opencode_executor import OpenCodeAttemptExecutor
+    from supervisor.secret_store import AttemptSecretMaterializer
+
+    marker = "synthetic-cleanup-failure-marker"
+    now = datetime.now(timezone.utc)
+    attempt = _attempt()
+    secret_root = tmp_path / "ephemeral-secrets"
+    event = json.dumps(
+        {
+            "type": "text",
+            "data": {"text": json.dumps({"claims": [], "advisory_signals": []})},
+        }
+    )
+    executor = OpenCodeAttemptExecutor(
+        runtime=FakeContainerRuntime(
+            exit_code=0,
+            staged_outputs={Path("events.jsonl"): event.encode("utf-8")},
+        ),
+        image_ref="ghcr.io/anomalyco/opencode:1.18.14@sha256:" + "b" * 64,
+        mcp_bridge_path=(
+            Path(__file__).resolve().parents[1] / "supervisor" / "mcp_stdio_bridge.sh"
+        ),
+        secret_resolver=lambda _reference: marker,
+        workspace_root=tmp_path / "state",
+        secret_workspace_root=secret_root,
+        clock=lambda: now,
+    )
+    journal = FileAttemptJournal(tmp_path / "journal")
+    journal.create(
+        attempt_id=attempt.attempt_id,
+        request_sha256=attempt.request_sha256(),
+        lease_expires_at=now + timedelta(seconds=30),
+    )
+    coordinator = AttemptCoordinator(
+        journal=journal,
+        result_store=FileAttemptResultStore(tmp_path / "results"),
+        executor=executor,
+        clock=lambda: now,
+        lease_seconds=30,
+        submit=lambda task: task(),
+    )
+
+    def fail_remove(_directory: Path) -> None:
+        raise OSError(f"{marker} at {secret_root}")
+
+    monkeypatch.setattr("supervisor.secret_store._remove_tree", fail_remove)
+    try:
+        coordinator.dispatch(attempt)
+
+        record = journal.get(attempt.attempt_id)
+        assert record is not None
+        assert record.state == "failed"
+        assert record.receipt is not None
+        assert record.receipt.exit_classification is ExitClassification.FAILED
+        assert record.receipt.message == "executor failed before receipt was produced"
+        assert marker not in record.model_dump_json()
+        assert str(secret_root) not in record.model_dump_json()
+    finally:
+        monkeypatch.undo()
+        AttemptSecretMaterializer(root=secret_root).cleanup(
+            attempt.attempt_id,
+            attempt.request_sha256(),
+        )
 
 
 def test_coordinator_persists_terminal_receipt_and_output_separately(

@@ -100,8 +100,8 @@ OpenCode 在边界内继续自主规划、选择 Skill/MCP、组织多步工具�
 | Phase | 目标 | 预估轮次 | 依赖 | 状态 |
 |-------|------|----------|------|------|
 | P1 | 冻结 Secret、能力保持型网络策略与审计合同 | 1-2 | P14 | completed |
-| P2 | 实现 Supervisor-owned tmpfs 临时 Secret | 1-2 | P1 | in-progress |
-| P3 | 实现通用双网络 egress gateway 与首个 DeepSeek 策略 | 2-3 | P2 | pending |
+| P2 | 实现 Supervisor-owned tmpfs 临时 Secret | 1-2 | P1 | completed |
+| P3 | 实现通用双网络 egress gateway 与首个 DeepSeek 策略 | 2-3 | P2 | in-progress |
 | P4 | 完成零费用安全 Gate 与 P12 handoff | 2 | P3 | pending |
 
 ---
@@ -173,11 +173,11 @@ OpenCode 在边界内继续自主规划、选择 Skill/MCP、组织多步工具�
 
 ### 完成标准
 
-- [ ] 单元/集成测试证明注入、解析、缺失、重复替换、重启丢失和名称拒绝均符合合同。
-- [ ] secret 不出现在 Supervisor/Worker/OpenCode environment、Compose render、容器 Inspect、
+- [x] 单元/集成测试证明注入、解析、缺失、重复替换、重启丢失和名称拒绝均符合合同。
+- [x] secret 不出现在 Supervisor/Worker/OpenCode environment、Compose render、容器 Inspect、
   journal、stdout/stderr、错误响应或 Receipt。
-- [ ] 每个终态和异常恢复路径都会清理 Attempt 认证文件；清理失败会生成脱敏失败证据并阻止成功 Receipt。
-- [ ] Knowledge Worker 仍只持有 opaque secret reference，无法读取、枚举或回显实际值。
+- [x] 每个终态和异常恢复路径都会清理 Attempt 认证文件；清理失败会生成脱敏失败证据并阻止成功 Receipt。
+- [x] Knowledge Worker 仍只持有 opaque secret reference，无法读取、枚举或回显实际值。
 
 ### 边界（本 Phase 明确不做）
 
@@ -304,6 +304,8 @@ OpenCode 在边界内继续自主规划、选择 Skill/MCP、组织多步工具�
 | P16-F01 | P1 为兼容既有 P15 离线 POC 保留 `env://`，并只允许 `secret://p15-openai-mock` 进入 `none`；这不是 P2 opaque Secret Store，不能作为生产凭据路径 | P1 | accepted risk | P2 新增 tmpfs Store 后仍保留显式策略注册，禁止把任意 `secret://` 名称开放为通配 |
 | P16-F02 | `model-deepseek-v1` 已定义但默认 runtime unavailable；测试可显式启用注册表只验证编译/能力保持，不代表已有 gateway 或可安全启动模型容器 | P1 | boundary | P3 只有在 gateway identity/config hash 和 policy-scoped network 完成后才能启用 Runtime |
 | P16-F03 | 为保持旧客户端 request hash，新增可选字段按实际 wire fields 参与 canonical hash；调用方显式发送 `network_policy_id=none` 后会得到新的、可审计 request hash | P1 | compatibility | Knowledge remote provider 已显式发送 `none`，既有未发送字段的客户端 hash 保持不变 |
+| P16-F04 | Supervisor 容器内普通 tmpfs 路径不能经宿主 Docker socket 直接 bind 给 sibling OpenCode；若退回持久 state volume，Supervisor crash 会留下认证材料 | P2 | architecture | 使用独立 Docker local tmpfs volume，同时发现 state/secret 两个 daemon-visible root；Worker 无挂载，Supervisor 启动清空，Attempt 全终态清理 |
+| P16-F05 | P2 tmpfs Store 是本地、可丢失实现，不具备 Vault/云 Secret Manager 的持久审计、轮换和生产凭据链 | P2 | accepted risk | 保持重启后重新注入；P16 不冒充生产 Secret Manager，生产化另行规划 |
 
 ## 关键决策记录
 
@@ -319,3 +321,4 @@ OpenCode 在边界内继续自主规划、选择 Skill/MCP、组织多步工具�
 |------|----------|------|
 | 2026-08-11 | `PLAN.md` | 方案 A 获批；随后因 Knowledge–OpenCode POC 前置而由 P15 顺延为 P16，尚未进入 Development，未配置 key、未发生出站 |
 | 2026-08-11 | `PLAN.md`、canonical 架构原则（R119） | 用户确认能力不阉割原则；P16 改为通用策略/gateway + DeepSeek 首个实例，公共研究能力明确保留但不冒充已实现 |
+| 2026-08-12 | `PROJECT_GUIDE.md`、`PROJECT_SPEC.md`、`TEST_GUIDE.md`、`USAGE.md`、`PLAN.md`（R121） | P2 完成本地 tmpfs Store、stdin 注入、独立 daemon mapper、Attempt 物化/全终态清理和真实 Docker 零费用证据；P3 gateway/live 仍未完成 |

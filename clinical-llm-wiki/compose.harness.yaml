@@ -42,6 +42,7 @@ services:
       HARNESS_SUPERVISOR_ALLOWED_SPEC_SHA256: ${HARNESS_SUPERVISOR_SPEC_SHA256:?set the approved harness spec SHA-256}
       HARNESS_SUPERVISOR_IMAGE_MANIFEST_PATH: /app/images/opencode-1.18.14.json
       HARNESS_SUPERVISOR_STATE_ROOT: /var/lib/harness-supervisor
+      HARNESS_SUPERVISOR_SECRET_ROOT: /run/harness-secrets
       HARNESS_SUPERVISOR_MCP_BRIDGE_PATH: /app/supervisor/mcp_stdio_bridge.sh
       HARNESS_SUPERVISOR_DISCOVER_DAEMON_STATE_ROOT: "true"
       HARNESS_SUPERVISOR_LEASE_SECONDS: "30"
@@ -67,6 +68,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - harness-supervisor-state:/var/lib/harness-supervisor
+      - harness-supervisor-secrets:/run/harness-secrets
       - ./harness-packs/knowledge-candidate-v1:/opt/harness-packs/knowledge-candidate-v1:ro
     networks: ["harness-control"]
 
@@ -96,6 +98,12 @@ networks:
 
 volumes:
   harness-supervisor-state:
+  harness-supervisor-secrets:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: size=16m,mode=0700
   p15-mock-audit:
 
 secrets:

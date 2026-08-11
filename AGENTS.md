@@ -35,6 +35,6 @@ Set-Location clinical-workflow
 python -m pytest -q
 ```
 
-当前签入的 Study 只有 draft runtime manifest，不应直接用 `agent_loop` 当作可运行产品入口；它仍是迁移输入，且默认可自动创建目录和 Git commit。受控示意用法与前置条件见 `USAGE.md`。P15 OpenCode 本地 POC 不等于生产 Runtime；`secret://`、受控网络、DeepSeek live 和临床 Workflow Harness 化尚未完成。
+当前签入的 Study 只有 draft runtime manifest，不应直接用 `agent_loop` 当作可运行产品入口；它仍是迁移输入，且默认可自动创建目录和 Git commit。受控示意用法与前置条件见 `USAGE.md`。P15 OpenCode 本地 POC 不等于生产 Runtime；P16/P2 仅完成本地 `secret://` tmpfs Store，生产 Secret Manager、受控网络、DeepSeek live 和临床 Workflow Harness 化尚未完成。
 
 修改数据库结构必须新增 Alembic migration；应用启动不得 `create_all`。修改功能先写失败测试，阶段完成后运行后端、前端、Workflow 与 E2E 门禁。

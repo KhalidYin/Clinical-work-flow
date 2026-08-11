@@ -28,6 +28,7 @@ from supervisor.pack_compiler import (
     OpenAICompatibleModelBinding,
 )
 from supervisor.service import create_supervisor_app
+from supervisor.secret_store import P16_EPHEMERAL_SECRET_NAMES, TmpfsSecretStore
 
 
 def _required(values: Mapping[str, str], name: str) -> str:
@@ -37,12 +38,23 @@ def _required(values: Mapping[str, str], name: str) -> str:
     return value
 
 
-def resolve_secret_reference(reference: str, values: Mapping[str, str]) -> str:
-    """Resolve an env-style product reference from a mounted file when present."""
+def resolve_secret_reference(
+    reference: str,
+    values: Mapping[str, str],
+    *,
+    secret_store: TmpfsSecretStore | None = None,
+) -> str:
+    """Resolve a legacy env reference or an opaque ephemeral-store reference."""
 
     scheme, separator, name = reference.partition("://")
-    if separator != "://" or scheme != "env":
-        raise ValueError("this deployment supports env:// secret references only")
+    if separator != "://":
+        raise ValueError("secret reference scheme is invalid")
+    if scheme == "secret":
+        if secret_store is None:
+            raise ValueError("ephemeral secret store is unavailable")
+        return secret_store.resolve(reference)
+    if scheme != "env":
+        raise ValueError("secret reference scheme is not supported")
     file_path = values.get(f"{name}_FILE")
     if file_path:
         try:
@@ -86,6 +98,12 @@ def build_supervisor_app(
         raise RuntimeError("OpenCode image manifest is missing image_ref/environment")
 
     state_root = Path(_required(values, "HARNESS_SUPERVISOR_STATE_ROOT")).resolve()
+    secret_root = Path(_required(values, "HARNESS_SUPERVISOR_SECRET_ROOT")).resolve()
+    secret_store = TmpfsSecretStore(
+        root=secret_root,
+        allowed_names=P16_EPHEMERAL_SECRET_NAMES,
+        clear_on_start=True,
+    )
     mcp_bridge_path = Path(_required(values, "HARNESS_SUPERVISOR_MCP_BRIDGE_PATH"))
     lease_seconds = int(values.get("HARNESS_SUPERVISOR_LEASE_SECONDS", "30"))
     if lease_seconds < 1:
@@ -101,7 +119,9 @@ def build_supervisor_app(
             "HARNESS_SUPERVISOR_DISCOVER_DAEMON_STATE_ROOT must be true or false"
         )
     daemon_state_root: str | None = None
+    daemon_secret_root: str | None = None
     host_path_mapper = None
+    secret_path_mapper = None
     if discover_daemon_root == "true":
         discover_mount = getattr(
             container_runtime,
@@ -115,9 +135,18 @@ def build_supervisor_app(
             local_root=state_root,
             daemon_root=daemon_state_root,
         )
+        daemon_secret_root = discover_mount(str(secret_root))
+        secret_path_mapper = DaemonRootPathMapper(
+            local_root=secret_root,
+            daemon_root=daemon_secret_root,
+        )
 
     def resolve_secret(reference: str) -> str:
-        return resolve_secret_reference(reference, values)
+        return resolve_secret_reference(
+            reference,
+            values,
+            secret_store=secret_store,
+        )
 
     pack_environment_names = (
         "HARNESS_SUPERVISOR_PACK_ID",
@@ -181,11 +210,13 @@ def build_supervisor_app(
         mcp_bridge_path=mcp_bridge_path,
         secret_resolver=resolve_secret,
         workspace_root=state_root / "workspaces",
+        secret_workspace_root=secret_root,
         environment=tuple((str(key), str(value)) for key, value in environment.items()),
         pack_resolver=pack_resolver,
         pack_compiler=pack_compiler,
         trusted_internal_network_id=internal_network_id,
         host_path_mapper=host_path_mapper,
+        secret_path_mapper=secret_path_mapper,
         network_policy_registry=network_policy_registry,
     )
     journal = FileAttemptJournal(state_root / "journal")
@@ -232,6 +263,7 @@ def build_supervisor_app(
 
     app.state.attempt_pool = pool
     app.state.daemon_state_root = daemon_state_root
+    app.state.daemon_secret_root = daemon_secret_root
     app.router.add_event_handler(
         "shutdown",
         lambda: pool.shutdown(wait=True, cancel_futures=False),
