@@ -98,6 +98,51 @@ def _attempt() -> SupervisorAttemptRequest:
     )
 
 
+def _deepseek_attempt() -> SupervisorAttemptRequest:
+    payload = _attempt().model_dump(mode="json")
+    payload.update(
+        {
+            "secret_refs": ["secret://deepseek-api-key"],
+            "network_policy_id": "model-deepseek-v1",
+            "model_egress": {
+                "profile_id": "deepseek-v4-flash-extractor",
+                "profile_version": "1.0.0",
+                "provider": "deepseek",
+                "endpoint": "https://api.deepseek.com:443",
+                "data_boundary": "external_allowed",
+            },
+            "capabilities": ["harness.browser", "knowledge.read-evidence"],
+        }
+    )
+    return SupervisorAttemptRequest.model_validate(payload)
+
+
+def test_executor_rejects_unavailable_model_policy_before_secret_or_container(
+    tmp_path: Path,
+) -> None:
+    from supervisor.network_policy import NetworkPolicyDenied
+    from supervisor.opencode_executor import OpenCodeAttemptExecutor
+
+    runtime = FakeContainerRuntime(exit_code=0)
+    resolved: list[str] = []
+    executor = OpenCodeAttemptExecutor(
+        runtime=runtime,
+        image_ref=IMAGE_REF,
+        mcp_bridge_path=(
+            Path(__file__).resolve().parents[1] / "supervisor" / "mcp_stdio_bridge.sh"
+        ),
+        secret_resolver=lambda reference: resolved.append(reference) or SYNTHETIC_SECRET,
+        workspace_root=tmp_path,
+    )
+
+    with pytest.raises(NetworkPolicyDenied) as error:
+        executor.execute(_deepseek_attempt())
+
+    assert error.value.code == "network_policy_not_available"
+    assert resolved == []
+    assert runtime.last_config is None
+
+
 def test_executor_compiles_fixed_offline_opencode_attempt_and_cleans_workspace(
     tmp_path: Path,
 ) -> None:

@@ -13,7 +13,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from .manifest import ArtifactManifest
 from .pack import HarnessPackIdentity
@@ -32,6 +32,30 @@ class ExitClassification(str, Enum):
 class ToolCallSummary(StrictContractModel):
     tool: str = Field(min_length=1)
     calls: int = Field(ge=0)
+
+
+class NetworkPolicyEvidence(StrictContractModel):
+    """Non-sensitive proof of the trusted network policy used for an attempt."""
+
+    policy_id: str = Field(pattern=r"^[a-z0-9][a-z0-9.-]{0,99}$")
+    policy_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    kind: Literal["none", "model_endpoint", "capability_scoped"]
+    allowed_endpoints: tuple[str, ...] = ()
+    gateway_identity: str | None = Field(default=None, min_length=1, max_length=200)
+    gateway_config_sha256: str | None = Field(
+        default=None,
+        pattern=r"^[0-9a-f]{64}$",
+    )
+
+    @model_validator(mode="after")
+    def endpoint_evidence_matches_kind(self) -> "NetworkPolicyEvidence":
+        if self.kind == "none" and self.allowed_endpoints:
+            raise ValueError("none policy cannot record allowed endpoints")
+        if self.kind == "model_endpoint" and not self.allowed_endpoints:
+            raise ValueError("model endpoint policy requires endpoint evidence")
+        if (self.gateway_identity is None) != (self.gateway_config_sha256 is None):
+            raise ValueError("gateway identity and config hash must be recorded together")
+        return self
 
 
 class ExecutionReceipt(StrictContractModel):
@@ -61,6 +85,7 @@ class ExecutionReceipt(StrictContractModel):
     )
     advertised_skills: tuple[str, ...] = ()
     allowed_mcp_capabilities: tuple[str, ...] = ()
+    network_policy: NetworkPolicyEvidence | None = None
     retryable: bool = False
     validator_input: dict[str, object] = Field(default_factory=dict)
 
@@ -74,3 +99,4 @@ class ValidationReceipt(StrictContractModel):
     input_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     result: Literal["passed", "failed"]
     findings: tuple[str, ...] = ()
+    network_policy: NetworkPolicyEvidence | None = None

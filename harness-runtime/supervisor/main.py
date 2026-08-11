@@ -19,6 +19,7 @@ from supervisor.container_runtime import (
 from supervisor.docker_runtime import DockerEngineContainerRuntime
 from supervisor.journal import FileAttemptJournal
 from supervisor.lifecycle import AttemptCoordinator, FileAttemptResultStore
+from supervisor.network_policy import p16_network_policy_registry
 from supervisor.opencode_executor import OpenCodeAttemptExecutor
 from supervisor.pack_compiler import (
     HarnessPackCompiler,
@@ -173,6 +174,7 @@ def build_supervisor_app(
             _required(values, "HARNESS_SUPERVISOR_INTERNAL_NETWORK_NAME")
         )
 
+    network_policy_registry = p16_network_policy_registry()
     executor = OpenCodeAttemptExecutor(
         runtime=container_runtime,
         image_ref=image_ref,
@@ -184,6 +186,7 @@ def build_supervisor_app(
         pack_compiler=pack_compiler,
         trusted_internal_network_id=internal_network_id,
         host_path_mapper=host_path_mapper,
+        network_policy_registry=network_policy_registry,
     )
     journal = FileAttemptJournal(state_root / "journal")
     result_store = FileAttemptResultStore(state_root / "results")
@@ -205,6 +208,7 @@ def build_supervisor_app(
         journal=journal,
         result_store=result_store,
         lease_seconds=lease_seconds,
+        network_policy_registry=network_policy_registry,
     )
 
     @app.get("/health")

@@ -40,17 +40,19 @@ class InputReference(StrictContractModel):
 
 
 class NetworkPolicy(StrictContractModel):
-    """Default zero outbound network; allowlist only when explicitly granted."""
+    """Select a trusted policy; product input never supplies network targets."""
 
-    mode: Literal["none", "allowlist"] = "none"
+    policy_id: str = Field(
+        default="none",
+        pattern=r"^[a-z0-9][a-z0-9.-]{0,99}$",
+    )
+    mode: Literal["none"] = "none"
     allowlist: tuple[str, ...] = ()
 
     @model_validator(mode="after")
-    def allowlist_requires_mode(self) -> "NetworkPolicy":
-        if self.mode == "allowlist" and not self.allowlist:
-            raise ValueError("allowlist mode requires at least one allowed target")
-        if self.mode == "none" and self.allowlist:
-            raise ValueError("allowlist must be empty when network mode is none")
+    def reject_product_supplied_targets(self) -> "NetworkPolicy":
+        if self.allowlist:
+            raise ValueError("network targets must come from the trusted policy registry")
         return self
 
 
@@ -97,7 +99,7 @@ class StepExecutionSpec(StrictContractModel):
     model_version: str | None = None
     timeout_seconds: int = Field(default=300, ge=1, le=86400)
     budget: BudgetPolicy | None = None
-    network: NetworkPolicy = Field(default_factory=lambda: NetworkPolicy(mode="none"))
+    network: NetworkPolicy = Field(default_factory=NetworkPolicy)
     capabilities: frozenset[str] = frozenset()
     output: OutputSpec
     gates: GatePolicy = Field(default_factory=GatePolicy)

@@ -453,6 +453,7 @@ def test_remote_supervisor_provider_sends_only_product_attempt_and_validates_out
     assert submitted["contract_version"] == "1.0.0"
     assert submitted["adapter_id"] == "opencode@1.18.14"
     assert submitted["network_mode"] == "none"
+    assert submitted["network_policy_id"] == "none"
     assert submitted["secret_refs"] == ["env://KNOWLEDGE_DEMO_SECRET"]
     assert submitted["input_bundle"]["provider"] == "openai"
     assert submitted["input_bundle"]["model"] == "gpt-test"

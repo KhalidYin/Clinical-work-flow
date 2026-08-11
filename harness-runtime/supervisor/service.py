@@ -27,6 +27,7 @@ from .service_contracts import (
 )
 from .journal import AttemptJournalRecord, FileAttemptJournal
 from .lifecycle import FileAttemptResultStore
+from .network_policy import NetworkPolicyDenied, NetworkPolicyRegistry, p16_network_policy_registry
 
 
 _AUTHENTICATION_DETAIL = {
@@ -47,6 +48,7 @@ def create_supervisor_app(
     result_store: FileAttemptResultStore | None = None,
     clock: Callable[[], datetime] | None = None,
     lease_seconds: int = 30,
+    network_policy_registry: NetworkPolicyRegistry | None = None,
 ) -> FastAPI:
     """Build the internal Supervisor API with one machine credential."""
 
@@ -59,6 +61,7 @@ def create_supervisor_app(
     attempts: dict[str, SupervisorAttemptStatus] = {}
     attempts_lock = Lock()
     now = clock or (lambda: datetime.now(timezone.utc))
+    policy_registry = network_policy_registry or p16_network_policy_registry()
 
     def journal_status(record: AttemptJournalRecord) -> SupervisorAttemptStatus:
         return SupervisorAttemptStatus(
@@ -138,6 +141,14 @@ def create_supervisor_app(
                     "message": "input_sha256 does not match input_bundle",
                 },
             )
+
+        try:
+            policy_registry.authorize(payload)
+        except NetworkPolicyDenied as error:
+            raise HTTPException(
+                status_code=403,
+                detail={"code": error.code, "message": error.message},
+            ) from None
 
         request_sha256 = payload.request_sha256()
         with attempts_lock:

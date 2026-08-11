@@ -13,6 +13,7 @@ from .pack import (
 from .receipt import (
     ExecutionReceipt,
     ExitClassification,
+    NetworkPolicyEvidence,
     ToolCallSummary,
     ValidationReceipt,
 )
@@ -53,6 +54,7 @@ __all__ = [
     "InstructionRef",
     "McpConfig",
     "NetworkPolicy",
+    "NetworkPolicyEvidence",
     "OutputSpec",
     "StepExecutionSpec",
     "StrictContractModel",

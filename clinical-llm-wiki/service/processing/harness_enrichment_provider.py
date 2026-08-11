@@ -540,6 +540,7 @@ class RemoteSupervisorEnrichmentProvider(ModelProviderPort):
             "input_bundle": input_bundle,
             "secret_refs": [request.model_profile.secret_ref],
             "timeout_seconds": request.model_profile.timeout_seconds,
+            "network_policy_id": "none",
             "network_mode": "none",
         }
         if self._instruction_ref is not None:

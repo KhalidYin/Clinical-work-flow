@@ -54,6 +54,10 @@ def test_success_returns_receipt_with_manifest(tmp_path) -> None:
     assert receipt.exit_classification.value == "succeeded"
     assert receipt.artifact_manifest.items[0].key == "output.json"
     assert len(receipt.artifact_manifest.items[0].sha256) == 64
+    assert receipt.network_policy is not None
+    assert receipt.network_policy.policy_id == "none"
+    assert receipt.network_policy.kind == "none"
+    assert receipt.network_policy.allowed_endpoints == ()
     assert receipt.validator_input == {
         "network_mode": "none",
         "read_only_root": True,

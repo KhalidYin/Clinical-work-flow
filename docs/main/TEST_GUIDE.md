@@ -102,7 +102,7 @@ Receipt 和 API verifier 为准。
 - Processing ledger：DAG、claim、lease、checkpoint、过期恢复、retry/cancel 和 Attempt lineage。
 - Document Worker：TXT/MD/PDF/DOCX/XLSX 的受控解析、分支/fan-in、Evidence locator。
 - ModelProvider：fake/replay、injected callable 下的单次 direct-model adapter/授权合同、数据边界和失败分类；没有真实 provider 质量结论。
-- Harness：版本化合同、fake/replay/OpenCode adapter、Fake/Docker runtime、staging 安全扫描、Step-scoped MCP、OpenCode 真实容器准入、独立 Supervisor 机器身份/幂等/注入拒绝/durable lifecycle、Knowledge remote provider、产品 Pack 编译，以及 internal Mock 下 PostgreSQL canonical Evidence → Skill/MCP → Candidate/API 成功、幂等与越权拒绝 Attempt。
+- Harness：版本化合同、fake/replay/OpenCode adapter、Fake/Docker runtime、staging 安全扫描、Step-scoped MCP、OpenCode 真实容器准入、独立 Supervisor 机器身份/幂等/注入拒绝/durable lifecycle、Knowledge remote provider、产品 Pack 编译，以及 internal Mock 下 PostgreSQL canonical Evidence → Skill/MCP → Candidate/API 成功、幂等与越权拒绝 Attempt。P16/P1 另覆盖 unknown/unavailable policy、非法/未知 opaque secret、DeepSeek profile/endpoint/data-boundary 漂移的 pre-dispatch 拒绝，`none` Receipt 证据，以及 network policy 与 browser/Skill/MCP capability 分离的正向合同。
 - Governance：Candidate revision、作者确认、独立审核、relation eligibility 和 released immutability。
 - 认证：用户名、Argon2id、HttpOnly/SameSite Cookie、CSRF、会话撤销和 RBAC。
 - 前端：Vitest/Testing Library 已覆盖核心组件行为；真实浏览器与 390px 窄屏是既往手工验收，不是已签入自动化 E2E。
@@ -111,7 +111,7 @@ Receipt 和 API verifier 为准。
 ### 尚未覆盖
 
 - 面向生产的 socket proxy/rootless runtime authority、TLS/服务身份轮换与获授权出站网络；当前只覆盖显式本地 Compose 离线信任链。
-- `secret://` 后端及获授权网络策略；`env://` auth 文件物化/清理、产品 shim→OpenCode 的 `tools/call`、路径拒绝和合成凭据不泄露已覆盖。
+- `secret://` Store、Attempt 临时认证材料及真实 gateway allow/deny/绕过；P16/P1 已覆盖引用语法、允许名称、策略注册/绑定与非敏感 Receipt schema，但没有解析真实 opaque secret 或启用任何供应商出站。`env://` auth 文件物化/清理、产品 shim→OpenCode 的 `tools/call`、路径拒绝和合成凭据不泄露已覆盖。
 - 非 root Supervisor、socket proxy/远程容器运行时、明确 UID/GID 的 volume ownership；P15 为隔离的每 Attempt 临时目录开放宽写权限只服务本地 POC，不能沿用为生产证明。
 - 通用 Evaluation、Release Worker、Knowledge MCP 和对应 GUI。
 - 临床统一 Runner 与 Harness artifact promotion。

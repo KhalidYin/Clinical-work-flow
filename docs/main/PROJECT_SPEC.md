@@ -38,6 +38,7 @@
 - [已实现] fake/replay Harness adapter，默认测试零真实出站。
 - [已实现（单 Attempt）] Step-scoped broker 合同校验 Attempt/fencing/spec/capability/路径/幂等；版本锁定 stdio shim 已在独立 Supervisor 启动的真实 OpenCode 容器实测 `initialize/tools-list/tools/call`、路径逃逸拒绝和脱敏审计。
 - [已实现（P15 本地 POC）] 产品拥有的 `knowledge-candidate-v1` Pack 经相对 POSIX 路径 hash-lock，Supervisor 编译只读 workspace、项目 Skill、permission、MCP 与内部模型配置；真实固定 OpenCode 从 PostgreSQL canonical Evidence 完成 `evidence-candidate` → `read_evidence` → schema-valid Candidate，产品 Validator 落账唯一 ModelInvocation/Candidate，内部 API 可核对 Evidence/Attempt lineage。Docker internal 网络只连本地 Mock，公网/宿主探针失败，未授权 bash 失败关闭且不自动创建外层 retry。
+- [已实现（P16/P1 合同，不含出站实现）] Step/Attempt 只选择 Supervisor 注册的 network policy ID，不能提交 endpoint allowlist、Docker network、proxy、image、mount 或 environment；`none` 保持唯一默认可用策略，`model-deepseek-v1` 已冻结为 `deepseek-v4-flash-extractor@1.0.0`、`external_allowed`、`api.deepseek.com:443` 与 `secret://deepseek-api-key` 的精确交集，但在 gateway 完成前保持 runtime unavailable。Execution/Validation Receipt 已可记录 policy/config hash、允许 endpoint 及可选 gateway identity/config hash，不记录 secret；网络策略不删除获授权的 Skill/MCP/browser capability。
 
 首个 Harness 候选 OpenCode `1.18.14` 已完成容器准入、知识 remote Attempt、显式 Compose 离线部署和 P15 PostgreSQL/API 本地 POC；合成 Secret 文件、MCP stdio/审计、Pack/config identity、Receipt 落账、Candidate 治理及 daemon-visible bind 映射已验证。固定镜像仍自带 `customize-opencode` 并向模型广告内建工具，安全性依赖 Supervisor 编译的默认 deny permission，而不是“工具不可见”。仍不得进入 live：POC 使用 `env://` 合成 key、internal Mock 和 Docker socket authority，必须先由 P16 完成 `secret://` 后端、生产受控网络策略，并取得用户对 ModelProfile、Evidence 和单次预算的出站授权。
 
@@ -72,7 +73,7 @@
 ### 尚未实现
 
 - 独立 Supervisor 当前只完成显式本地 Compose 离线部署 Gate，尚未形成面向生产的 socket proxy/rootless runtime、TLS 或集群调度边界；普通 Compose 仍默认 replay。
-- `secret://` Secret Store adapter 与受控出站网络策略；当前本地 resolver 只支持 `env://`，真实回归仅使用合成 key 和 `network none`。
+- `secret://` Secret Store adapter、Attempt 临时认证材料与受控出站 gateway；P16/P1 只完成引用/策略/Receipt 合同，当前本地 resolver 仍只支持 `env://`，DeepSeek policy 未启用，真实回归仅使用合成 key 和 `network none`。
 - 通用 Knowledge Workflow Spec、完整多事件审计和更丰富的确定性 MCP 工具面。
 - 通用 Evaluation、Release Worker、Query Lab 及其完整 GUI。
 - 临床 Workflow 对 Harness 的生产接线和统一 run ledger。

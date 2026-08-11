@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Callable
 
 from contracts.manifest import ArtifactManifest
-from contracts.receipt import ExecutionReceipt, ExitClassification
+from contracts.receipt import ExecutionReceipt, ExitClassification, NetworkPolicyEvidence
 from contracts.request import HarnessExecutionRequest
 from contracts.result import HarnessStatus
 from supervisor.container_runtime import (
@@ -25,6 +25,7 @@ from supervisor.container_runtime import (
     ReadOnlyMount,
 )
 from supervisor.staging import StagingLimits, StagingScanError, scan_staging
+from supervisor.network_policy import none_network_policy_evidence
 
 _SIGNAL_EXIT_CODES = (130, 137, 143)  # SIGINT / SIGKILL / SIGTERM
 
@@ -64,6 +65,7 @@ class HarnessSupervisor:
         environment: tuple[tuple[str, str], ...] = (),
         control_request_sha256: str | None = None,
         trusted_internal_network_id: str | None = None,
+        network_policy_evidence: NetworkPolicyEvidence | None = None,
     ) -> ExecutionReceipt:
         if request.spec_sha256 is None:
             raise ValueError("spec_sha256 is required for harness execution")
@@ -177,6 +179,7 @@ class HarnessSupervisor:
             event_summary=tuple(event.type for event in events),
             tool_call_summary=(),
             artifact_manifest=manifest,
+            network_policy=network_policy_evidence or none_network_policy_evidence(),
             retryable=classification in {
                 ExitClassification.FAILED,
                 ExitClassification.TIMED_OUT,

@@ -107,6 +107,29 @@ def _request_body() -> dict[str, object]:
     }
 
 
+def _deepseek_request_body() -> dict[str, object]:
+    body = _request_body()
+    body.update(
+        {
+            "secret_refs": ["secret://deepseek-api-key"],
+            "network_policy_id": "model-deepseek-v1",
+            "model_egress": {
+                "profile_id": "deepseek-v4-flash-extractor",
+                "profile_version": "1.0.0",
+                "provider": "deepseek",
+                "endpoint": "https://api.deepseek.com:443",
+                "data_boundary": "external_allowed",
+            },
+            "capabilities": [
+                "harness.browser",
+                "knowledge.read-evidence",
+                "mcp.knowledge-read",
+            ],
+        }
+    )
+    return body
+
+
 def test_submit_requires_machine_bearer_without_echoing_credentials() -> None:
     from supervisor.service import create_supervisor_app
 
@@ -225,6 +248,182 @@ def test_submit_rejects_spec_hash_outside_supervisor_allowlist() -> None:
     assert response.json() == {
         "detail": {"code": "spec_not_allowed", "message": "spec hash is not allowed"}
     }
+    assert dispatcher.calls == []
+
+
+def test_submit_rejects_policy_that_is_defined_but_not_runtime_available() -> None:
+    from supervisor.service import create_supervisor_app
+
+    dispatcher = RecordingDispatcher()
+    app = create_supervisor_app(
+        machine_token="supervisor-machine-token",
+        allowed_spec_sha256=frozenset({SPEC_SHA256}),
+        dispatch=dispatcher,
+    )
+
+    response = TestClient(app).post(
+        "/v1/attempts",
+        json=_deepseek_request_body(),
+        headers={"Authorization": "Bearer supervisor-machine-token"},
+    )
+
+    assert response.status_code == 403
+    assert response.json() == {
+        "detail": {
+            "code": "network_policy_not_available",
+            "message": "requested network policy is not available",
+        }
+    }
+    assert dispatcher.calls == []
+
+
+def test_submit_rejects_unknown_future_policy_without_disabling_capabilities() -> None:
+    from supervisor.service import create_supervisor_app
+
+    dispatcher = RecordingDispatcher()
+    body = _request_body()
+    body["network_policy_id"] = "research-public-web-v1"
+    body["capabilities"] = ["harness.browser"]
+    app = create_supervisor_app(
+        machine_token="supervisor-machine-token",
+        allowed_spec_sha256=frozenset({SPEC_SHA256}),
+        dispatch=dispatcher,
+    )
+
+    response = TestClient(app).post(
+        "/v1/attempts",
+        json=body,
+        headers={"Authorization": "Bearer supervisor-machine-token"},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"]["code"] == "network_policy_not_available"
+    assert dispatcher.calls == []
+
+
+def test_authorized_model_policy_preserves_browser_skill_and_mcp_capabilities() -> None:
+    from supervisor.network_policy import p16_network_policy_registry
+    from supervisor.service import create_supervisor_app
+
+    dispatcher = RecordingDispatcher()
+    registry = p16_network_policy_registry(
+        available_policy_ids=frozenset({"none", "model-deepseek-v1"})
+    )
+    app = create_supervisor_app(
+        machine_token="supervisor-machine-token",
+        allowed_spec_sha256=frozenset({SPEC_SHA256}),
+        dispatch=dispatcher,
+        network_policy_registry=registry,
+    )
+
+    response = TestClient(app).post(
+        "/v1/attempts",
+        json=_deepseek_request_body(),
+        headers={"Authorization": "Bearer supervisor-machine-token"},
+    )
+
+    assert response.status_code == 202
+    assert len(dispatcher.calls) == 1
+    dispatched = dispatcher.calls[0]
+    assert getattr(dispatched, "capabilities") == frozenset(
+        {"harness.browser", "knowledge.read-evidence", "mcp.knowledge-read"}
+    )
+    evidence = registry.authorize(dispatched)
+    assert evidence.policy_id == "model-deepseek-v1"
+    assert evidence.allowed_endpoints == ("api.deepseek.com:443",)
+    assert "secret" not in evidence.model_dump_json().lower()
+
+
+@pytest.mark.parametrize(
+    ("mutation", "expected_code"),
+    [
+        ({"profile_id": "unreviewed-profile"}, "network_policy_binding_mismatch"),
+        ({"endpoint": "https://api.deepseek.example:443"}, "network_policy_binding_mismatch"),
+        ({"data_boundary": "prohibited"}, "network_policy_binding_mismatch"),
+    ],
+)
+def test_model_policy_rejects_binding_drift_before_dispatch(
+    mutation: dict[str, str],
+    expected_code: str,
+) -> None:
+    from supervisor.network_policy import p16_network_policy_registry
+    from supervisor.service import create_supervisor_app
+
+    dispatcher = RecordingDispatcher()
+    body = _deepseek_request_body()
+    model_egress = dict(body["model_egress"])
+    model_egress.update(mutation)
+    body["model_egress"] = model_egress
+    app = create_supervisor_app(
+        machine_token="supervisor-machine-token",
+        allowed_spec_sha256=frozenset({SPEC_SHA256}),
+        dispatch=dispatcher,
+        network_policy_registry=p16_network_policy_registry(
+            available_policy_ids=frozenset({"none", "model-deepseek-v1"})
+        ),
+    )
+
+    response = TestClient(app).post(
+        "/v1/attempts",
+        json=body,
+        headers={"Authorization": "Bearer supervisor-machine-token"},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"]["code"] == expected_code
+    assert dispatcher.calls == []
+
+
+def test_model_policy_rejects_unknown_secret_name_before_dispatch() -> None:
+    from supervisor.network_policy import p16_network_policy_registry
+    from supervisor.service import create_supervisor_app
+
+    dispatcher = RecordingDispatcher()
+    body = _deepseek_request_body()
+    body["secret_refs"] = ["secret://unknown-provider-key"]
+    app = create_supervisor_app(
+        machine_token="supervisor-machine-token",
+        allowed_spec_sha256=frozenset({SPEC_SHA256}),
+        dispatch=dispatcher,
+        network_policy_registry=p16_network_policy_registry(
+            available_policy_ids=frozenset({"none", "model-deepseek-v1"})
+        ),
+    )
+
+    response = TestClient(app).post(
+        "/v1/attempts",
+        json=body,
+        headers={"Authorization": "Bearer supervisor-machine-token"},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == {
+        "code": "secret_reference_not_allowed",
+        "message": "secret reference is not allowed by network policy",
+    }
+    assert dispatcher.calls == []
+
+
+def test_none_policy_rejects_unknown_secret_name_before_dispatch() -> None:
+    from supervisor.service import create_supervisor_app
+
+    dispatcher = RecordingDispatcher()
+    body = _request_body()
+    body["secret_refs"] = ["secret://unknown-provider-key"]
+    app = create_supervisor_app(
+        machine_token="supervisor-machine-token",
+        allowed_spec_sha256=frozenset({SPEC_SHA256}),
+        dispatch=dispatcher,
+    )
+
+    response = TestClient(app).post(
+        "/v1/attempts",
+        json=body,
+        headers={"Authorization": "Bearer supervisor-machine-token"},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"]["code"] == "secret_reference_not_allowed"
     assert dispatcher.calls == []
 
 

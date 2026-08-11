@@ -1,8 +1,8 @@
 ---
 phase_index: 16
-status: planning
+status: in-progress
 created: 2026-08-11
-updated: 2026-08-11
+updated: 2026-08-12
 priority: 1
 estimated_rounds: 6-9
 depends_on:
@@ -99,8 +99,8 @@ OpenCode 在边界内继续自主规划、选择 Skill/MCP、组织多步工具�
 
 | Phase | 目标 | 预估轮次 | 依赖 | 状态 |
 |-------|------|----------|------|------|
-| P1 | 冻结 Secret、能力保持型网络策略与审计合同 | 1-2 | P14 | pending |
-| P2 | 实现 Supervisor-owned tmpfs 临时 Secret | 1-2 | P1 | pending |
+| P1 | 冻结 Secret、能力保持型网络策略与审计合同 | 1-2 | P14 | completed |
+| P2 | 实现 Supervisor-owned tmpfs 临时 Secret | 1-2 | P1 | in-progress |
 | P3 | 实现通用双网络 egress gateway 与首个 DeepSeek 策略 | 2-3 | P2 | pending |
 | P4 | 完成零费用安全 Gate 与 P12 handoff | 2 | P3 | pending |
 
@@ -127,12 +127,12 @@ OpenCode 在边界内继续自主规划、选择 Skill/MCP、组织多步工具�
 
 ### 完成标准
 
-- [ ] 合同测试先失败并证明未知 secret scheme/name、未知/未实现 network policy 和请求级容器注入均被拒绝。
-- [ ] `model-deepseek-v1` 只可由已授权 DeepSeek profile/data boundary 编译，profile 或 endpoint
+- [x] 合同测试先失败并证明未知 secret scheme/name、未知/未实现 network policy 和请求级容器注入均被拒绝。
+- [x] `model-deepseek-v1` 只可由已授权 DeepSeek profile/data boundary 编译，profile 或 endpoint
   漂移在 secret 解析和容器启动前失败。
-- [ ] Receipt schema 只包含非敏感策略证据，序列化、错误和日志路径不存在 secret 字段。
-- [ ] `network none` 离线默认保持不变，普通 Compose/replay 不因本合同自动获得出站能力。
-- [ ] 正向合同测试证明网络策略与 Skill/MCP/browser capability 分离：安全控制不能全局删除 Harness
+- [x] Receipt schema 只包含非敏感策略证据，序列化、错误和日志路径不存在 secret 字段。
+- [x] `network none` 离线默认保持不变，普通 Compose/replay 不因本合同自动获得出站能力。
+- [x] 正向合同测试证明网络策略与 Skill/MCP/browser capability 分离：安全控制不能全局删除 Harness
   原生能力，Agent 在获授权 capability 内仍可自主执行工具循环。
 
 ### 边界（本 Phase 明确不做）
@@ -301,7 +301,9 @@ OpenCode 在边界内继续自主规划、选择 Skill/MCP、组织多步工具�
 
 | ID | 描述 | 发现于 | 类型 | 处理 |
 |----|------|--------|------|------|
-| - | 当前无 | - | - | - |
+| P16-F01 | P1 为兼容既有 P15 离线 POC 保留 `env://`，并只允许 `secret://p15-openai-mock` 进入 `none`；这不是 P2 opaque Secret Store，不能作为生产凭据路径 | P1 | accepted risk | P2 新增 tmpfs Store 后仍保留显式策略注册，禁止把任意 `secret://` 名称开放为通配 |
+| P16-F02 | `model-deepseek-v1` 已定义但默认 runtime unavailable；测试可显式启用注册表只验证编译/能力保持，不代表已有 gateway 或可安全启动模型容器 | P1 | boundary | P3 只有在 gateway identity/config hash 和 policy-scoped network 完成后才能启用 Runtime |
+| P16-F03 | 为保持旧客户端 request hash，新增可选字段按实际 wire fields 参与 canonical hash；调用方显式发送 `network_policy_id=none` 后会得到新的、可审计 request hash | P1 | compatibility | Knowledge remote provider 已显式发送 `none`，既有未发送字段的客户端 hash 保持不变 |
 
 ## 关键决策记录
 

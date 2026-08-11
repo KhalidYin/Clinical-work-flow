@@ -19,6 +19,7 @@ from contracts.request import HarnessExecutionRequest, McpConfig
 from contracts.result import HarnessStatus
 from supervisor.container_runtime import ContainerRuntimePort, ReadOnlyMount
 from supervisor.lifecycle import AttemptExecutionOutcome
+from supervisor.network_policy import NetworkPolicyRegistry, p16_network_policy_registry
 from supervisor.pack_compiler import (
     CompiledHarnessPack,
     HarnessPackCompiler,
@@ -53,6 +54,7 @@ class OpenCodeAttemptExecutor:
         host_path_mapper: Callable[[str | Path], str] | None = None,
         workspace_observer: WorkspaceObserver | None = None,
         clock: Callable[[], datetime] | None = None,
+        network_policy_registry: NetworkPolicyRegistry | None = None,
     ) -> None:
         self._runtime = runtime
         self._image_ref = image_ref
@@ -68,8 +70,12 @@ class OpenCodeAttemptExecutor:
         self._host_path_mapper = host_path_mapper
         self._workspace_observer = workspace_observer
         self._clock = clock or (lambda: datetime.now(timezone.utc))
+        self._network_policy_registry = (
+            network_policy_registry or p16_network_policy_registry()
+        )
 
     def execute(self, attempt: SupervisorAttemptRequest) -> AttemptExecutionOutcome:
+        network_policy_evidence = self._network_policy_registry.authorize(attempt)
         if len(attempt.secret_refs) != 1:
             raise ValueError("OpenCode Attempt requires exactly one secret reference")
         provider = attempt.input_bundle.get("provider")
@@ -272,6 +278,7 @@ class OpenCodeAttemptExecutor:
                     if compiled_pack is not None
                     else None
                 ),
+                network_policy_evidence=network_policy_evidence,
             )
             if compiled_pack is not None:
                 tool_call_summary = self._read_mcp_summary(

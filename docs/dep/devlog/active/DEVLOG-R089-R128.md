@@ -1553,3 +1553,61 @@ Done — no next steps。
 - `docs/dep/plans/backlog/P16-harness-secret-egress-gate.md`、`docs/dep/PLAN.md`
 - `AGENTS.md`、`docs/main/PROJECT_GUIDE.md`、`PROJECT_SPEC.md`、`TEST_GUIDE.md`
 - `docs/main/memory/project-harness-architecture-direction.md`、DevLog/INDEX（pending planning commit）
+
+---
+
+## 2026-08-12
+
+### R120 [00:16] [P16-harness-secret-egress-gate] P1: 冻结 Secret、网络策略与能力保持审计合同
+
+#### Done
+
+- 按 RED→GREEN 扩展 Step/Attempt 合同：产品只提交安全格式的 `network_policy_id`、可选
+  `ModelEgressBinding` 与 capability 集合；仍只能提交 `network_mode=none`，不能注入 endpoint allowlist、
+  Docker network、proxy、image、mount、command 或 environment。新增 wire-field canonical hash 兼容规则，
+  未发送新可选字段的旧客户端 hash 不漂移；Knowledge remote provider 开始显式提交 policy `none`。
+- 新增通用 trusted `NetworkPolicyRegistry`，把 policy definition 与 runtime availability 分离。`none` 是
+  唯一默认可用策略；`model-deepseek-v1` 只接受 `deepseek-v4-flash-extractor@1.0.0`、provider
+  `deepseek`、`external_allowed`、`https://api.deepseek.com:443` 和 `secret://deepseek-api-key` 的精确交集，
+  但在 P3 gateway 完成前保持 unavailable。未来 `research-public-web-v1` 可作为新注册策略扩展，当前未知/
+  未实现策略失败关闭。
+- HTTP Supervisor 在入队前授权，OpenCode Executor 在解析 secret 和创建容器前再次授权；非法 scheme、
+  路径型名称、未知 opaque secret、跨策略 secret、profile/endpoint/data-boundary 漂移均不进入 dispatch/
+  secret resolver/container。为 P15 离线回归只显式保留 `env://` 与 `secret://p15-openai-mock`，未实现
+  P2 `secret://` Store。
+- ExecutionReceipt/ValidationReceipt 新增非敏感 policy evidence：policy/config hash、允许 endpoint 以及
+  可选 gateway identity/config hash；真实 `none` ExecutionReceipt 已写入稳定证据。正向测试证明网络
+  授权不会删除 `harness.browser`、Knowledge Skill/MCP capability，控制副作用不等于阉割 Agent 工具循环。
+- canonical Guide/Spec/Test、Harness 架构记忆、P16/PLAN/TASK_STATE 已同步。P1 关闭后 Gate 进入 P2；
+  没有读取既往 DeepSeek key、启用 DeepSeek policy、实现 gateway、连接供应商或发生真实出站。
+
+#### Issues / Risks
+
+- `model-deepseek-v1` 的“测试可编译”只证明精确合同交集，不证明 Runtime 可用；默认 registry 和 Executor
+  都拒绝该策略。P3 必须绑定 gateway identity/config hash 与 policy-scoped network 后才能启用。
+- `env://` 和 P15 mock opaque 名称只为现有离线 POC 回归保留，不是生产 Secret backend；P2 必须从
+  本机 stdin 注入 Supervisor-owned tmpfs，且成功/失败/timeout/cancel/orphan 全路径清理。
+- capability 保持不代表开放互联网；`harness.browser` 在 DeepSeek 模型策略下仍没有公共网页出站。
+  `research-public-web-v1` 继续是目标能力，需另行完成 recording、SSRF、下载和 SourceCandidate Gate。
+
+#### Validation
+
+- Harness：`169 passed, 5 skipped`；Ruff 全通过。
+- Knowledge：`226 passed, 8 skipped`；Ruff 全通过。
+- `git diff --check` 通过；未知/未实现 policy、unknown secret、DeepSeek binding drift、双重 pre-launch
+  拒绝、Receipt 非敏感字段和正向 capability 保持均有自动测试。
+- 未读取或保存真实 key，未调用 DeepSeek、`/models`、公共网页或任何真实供应商 endpoint。
+
+#### Next
+
+1. P2 先写 tmpfs Store 名称/注入/重启丢失/不回显 RED，再实现本机终端 stdin 注入入口。
+2. 将 `secret://deepseek-api-key` 解析为 Attempt-scoped auth 文件，只读挂载给 OpenCode，并覆盖成功、失败、
+   timeout、cancel、orphan 与清理失败路径；Worker、environment、journal、日志和 Receipt 不得出现 secret 值。
+3. 主要风险是 Windows/Compose 环境下 tmpfs 语义被宿主 bind 偷换、stdin 值进入 shell 历史/错误文本、
+   Supervisor crash 留下 auth 文件；P2 不实现 gateway，也不得启用 DeepSeek policy 或真实出站。
+
+#### Files Changed / Commits
+
+- `harness-runtime/contracts/`、`harness-runtime/supervisor/`、`harness-runtime/tests/`
+- `clinical-llm-wiki/service/processing/harness_enrichment_provider.py` 及测试
+- `docs/main/`、P16/PLAN/TASK_STATE、DevLog/INDEX（pending phase commit）

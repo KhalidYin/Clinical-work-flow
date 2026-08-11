@@ -6,7 +6,7 @@ import hashlib
 import json
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from contracts.receipt import ExecutionReceipt
 from contracts.request import StrictContractModel
@@ -42,14 +42,58 @@ class SupervisorAttemptRequest(BaseModel):
     input_bundle: dict[str, object]
     instruction_ref: InstructionRef | None = None
     secret_refs: tuple[str, ...] = ()
+    network_policy_id: str = Field(
+        default="none",
+        pattern=r"^[a-z0-9][a-z0-9.-]{0,99}$",
+    )
+    model_egress: "ModelEgressBinding | None" = None
+    capabilities: frozenset[str] = frozenset()
     timeout_seconds: int = Field(default=60, ge=1, le=3600)
     network_mode: Literal["none"] = "none"
 
+    @field_validator("secret_refs")
+    @classmethod
+    def validate_secret_refs(cls, refs: tuple[str, ...]) -> tuple[str, ...]:
+        import re
+
+        pattern = re.compile(
+            r"^(?:env|secret)://[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+        )
+        if any(pattern.fullmatch(ref) is None for ref in refs):
+            raise ValueError("secret references must use an approved scheme and safe name")
+        return refs
+
+    @field_validator("capabilities")
+    @classmethod
+    def validate_capabilities(cls, values: frozenset[str]) -> frozenset[str]:
+        import re
+
+        pattern = re.compile(r"^[a-z0-9][a-z0-9._-]{0,127}$")
+        if any(pattern.fullmatch(value) is None for value in values):
+            raise ValueError("capability identifiers must use the canonical safe form")
+        return values
+
     def request_sha256(self) -> str:
-        payload = self.model_dump(mode="json")
-        if self.instruction_ref is None:
-            payload.pop("instruction_ref")
+        # Hash the actual wire fields so additive optional contract fields do
+        # not silently invalidate already-supported clients.
+        payload = self.model_dump(mode="json", exclude_unset=True)
         return canonical_sha256(payload)
+
+
+class ModelEgressBinding(BaseModel):
+    """Requested model identity and data boundary, never a routing decision."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    profile_id: str = Field(min_length=1, max_length=160)
+    profile_version: str = Field(pattern=r"^\d+\.\d+\.\d+$")
+    provider: str = Field(pattern=r"^[a-z0-9][a-z0-9._-]{0,99}$")
+    endpoint: str = Field(
+        min_length=1,
+        max_length=500,
+        pattern=r"^https://[^/?#]+(?::[0-9]{1,5})?(?:/[^?#]*)?$",
+    )
+    data_boundary: str = Field(pattern=r"^[a-z0-9][a-z0-9._-]{0,99}$")
 
 
 class SupervisorAttemptStatus(StrictContractModel):
