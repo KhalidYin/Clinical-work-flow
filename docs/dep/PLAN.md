@@ -1,5 +1,5 @@
 ---
-updated: 2026-08-10
+updated: 2026-08-11
 ---
 
 # 项目计划
@@ -8,15 +8,15 @@ updated: 2026-08-10
 
 | # | 当前 Gate | 子计划 | 状态 |
 |---|----------|--------|------|
-| P12 | P2-B3 `secret://`/受控网络准备 → 单一 live vertical | [P12-knowledge-application-platform.md](plans/ongoing/P12-knowledge-application-platform.md) | P14 独立 Supervisor 离线 Gate done；live 仍需用户配置与单独授权，未调用 |
+| P12 | P2-B3 等待 P15 `secret://`/受控网络 Gate → 单一 live vertical | [P12-knowledge-application-platform.md](plans/ongoing/P12-knowledge-application-platform.md) | P15 已批准但未开始；live 仍需用户配置与单独授权，未调用 |
 
 ## 待开始
 
 | # | 子计划 | 文件 | 预估轮次 | 依赖 |
 |---|--------|------|----------|------|
-| - | 当前无其他已批准子计划 | - | - | - |
+| P15 | Harness 临时 Secret 与受控出站 Gate | [P15-harness-secret-egress-gate.md](plans/backlog/P15-harness-secret-egress-gate.md) | 6-9 | P14 完成；完成后恢复 P12 P2-B3 live Gate |
 
-P13、H0 与 P14 已关闭。OpenCode `1.18.14` 已完成容器准入；R111-R114 完成 Receipt 落账、独立 Supervisor 的窄 HTTP 合同、机器身份、durable lifecycle、固定容器编译器、Knowledge remote provider，以及显式 Compose 私网/Worker 零 socket/真实离线 Attempt。普通 Compose 仍默认 replay；P12 是唯一执行主线，下一 Gate 不是自动 live，而是由用户另行提供获授权 ModelProfile、`secret://` 后端、允许出站 Evidence、网络策略与单次预算。真实供应商调用仍未授权、未发生。
+P13、H0 与 P14 已关闭。OpenCode `1.18.14` 已完成容器准入；R111-R114 完成 Receipt 落账、独立 Supervisor 的窄 HTTP 合同、机器身份、durable lifecycle、固定容器编译器、Knowledge remote provider，以及显式 Compose 私网/Worker 零 socket/真实离线 Attempt。普通 Compose 仍默认 replay；P12 是唯一产品执行主线，P15 是其已批准但未开始的安全前置 Gate，负责 Supervisor-owned tmpfs `secret://`、internal-only OpenCode 网络与 DeepSeek allowlisted egress proxy。P15 完成后，P12 live 仍需用户另行提供获授权 ModelProfile、允许出站 Evidence、网络策略、单次预算与明确调用授权。真实供应商调用仍未授权、未发生。
 
 P12/P13 共同构成唯一知识产品主线：P12 保持可信知识闭环，P13 收敛人员认证、中文界面和旧 Wiki 迁移退役。产品结果固定为“受控 Source → Evidence → AI Candidate → 作者确认 → 独立审核 → 检索评估 → immutable Release → REST/MCP 消费”。D0 Evidence Ledger HTML 继续作为颜色、排版、布局和核心交互基线。P1 已关闭产品基础 Gate；P2-A 已关闭 Source Registry、对象一致性、确定性解析、Document Worker DAG/fan-in、Evidence lineage、`202 + run_id` API 与 KUI-02/03。P2-B1 已冻结 Candidate eligibility、edge evidence、作者确认、独立审核、stale/idempotency、released immutability 和 worker/admin 越权合同。P2-B2 已用无网络 replay 接通真实 Source → Evidence → Candidate → request-change/revision → 独立批准的可启动前后端闭环，并证明 approved 仍无 Release。Docling/OCR、GraphRAG/Neo4j、Workflow、Agent Runtime 和 Project Memory 均不牵引当前执行。
 
