@@ -101,7 +101,7 @@ Validator 在 PostgreSQL 创建一个可由 Knowledge API 查询的 Candidate。
 | Phase | 目标 | 预估轮次 | 依赖 | 状态 |
 |-------|------|----------|------|------|
 | P1 | 冻结 Harness Pack 合同、配置所有权与 Supervisor 编译器 | 1-2 | P14 | complete |
-| P2 | 真实 OpenCode 加载 Pack Skill/MCP 并调用内部 Mock Model | 2-3 | P1 | pending |
+| P2 | 真实 OpenCode 加载 Pack Skill/MCP 并调用内部 Mock Model | 2-3 | P1 | complete |
 | P3 | 接通 Knowledge PostgreSQL Candidate/API 并关闭 POC Gate | 2-3 | P2 | pending |
 
 ---
@@ -186,17 +186,18 @@ Validator 在 PostgreSQL 创建一个可由 Knowledge API 查询的 Candidate。
 
 ### 完成标准
 
-- [ ] 真实固定镜像从 `/workspace` 启动，只发现 Pack 中 `evidence-candidate` Skill；宿主/全局 Skill
-  不可见，未授权 Skill 调用被拒绝。
-- [ ] Mock 收到的模型请求包含预期 provider/model、允许工具与 schema 上下文；脚本化交互实际
+- [x] 真实固定镜像从 `/workspace` 启动；项目/外部 Skill 只有 Pack 的 `evidence-candidate`，宿主
+  `.agents`/`.claude` Skill 不可见。固定镜像自带 `customize-opencode` 内建 Skill，不能声称运行时
+  只有一个总 Skill；它不属于产品 Pack，未被 POC 调用。
+- [x] Mock 收到的模型请求包含预期 provider/model、允许工具与 schema 上下文；脚本化交互实际
   触发 Skill 加载和 `read-evidence` MCP，MCP broker 重新校验 Attempt、fencing、spec/pack hash、
   Evidence ID 与只读 capability。
-- [ ] OpenCode 只能访问 internal Mock Model，不能访问公网、宿主网络或其他 Compose 服务；
+- [x] OpenCode 只能访问 internal Mock Model，不能访问公网、宿主网络或其他 Compose 服务；
   合成 key 不进入日志、事件、Receipt、Artifact 或 Inspect 环境。
-- [ ] 最终输出通过产品 JSON Schema/证据引用验证；Skill 未发现/denied、MCP 越权、Mock timeout、
+- [x] 最终输出通过产品 JSON Schema/证据引用验证；Skill 未发现/denied、MCP 越权、Mock timeout、
   非法 JSON、空输出、cancel 和 OpenCode 异常均失败关闭且不自动 retry。
-- [ ] 固定版本若不支持预期 Skill/MCP/provider 配置，记录为 POC 阻断并停止，不升级镜像或按最新
-  文档猜测配置。
+- [x] 固定版实际使用 `/v1/responses`、会写 `.opencode/.gitignore`、会发起 `small_model` 标题请求；
+  均按 `1.18.14` 实测结果做固定适配，没有升级镜像或按最新文档猜测配置。
 
 ### 边界（本 Phase 明确不做）
 
@@ -284,8 +285,14 @@ Validator 在 PostgreSQL 创建一个可由 Knowledge API 查询的 Candidate。
 | ID | 描述 | 发现于 | 类型 | 处理 |
 |----|------|--------|------|------|
 | P15-F01 | Pydantic 新增可选 `instruction_ref` 默认序列化为 `null`，一度改变旧 P14 canonical request hash | P1 | fixed | hash 计算在字段缺失时继续省略该字段；旧幂等测试及 Harness 全量回归通过 |
-| P15-F02 | 当前 Windows 账户不能创建 symlink，symlink 单测为条件跳过 | P1 | risk | resolver 同时检查 `is_symlink` 与 Windows reparse flag；P2 Linux 容器 Gate 必须实测 symlink/reparse 拒绝，P1 不把本机 skip 计作平台实证 |
+| P15-F02 | 当前 Windows 账户不能创建 symlink，宿主 symlink 单测为条件跳过，且 Linux 不具备 NTFS reparse 语义 | P1 | risk-controlled | P2 已在实际 Supervisor Linux 镜像内创建 Pack symlink 并实测 resolver 启动前拒绝；Windows reparse 分支继续用 `FILE_ATTRIBUTE_REPARSE_POINT` 合同覆盖，但在具备权限/NTFS 的 CI 前不声称有真实 reparse 平台证据 |
 | P15-F03 | P1 编译的是声明式 OpenCode 配置合同，尚未证明 `1.18.14` 真正接受 Skill/MCP/provider 组合 | P1 | deferred | 严格留给 P2 固定镜像准入；若不兼容则阻断，不升级或猜测配置 |
+| P15-F04 | 固定 OpenCode 启动时尝试写 `/workspace/.opencode/.gitignore`，只读 Pack 初次启动失败 | P2 | fixed | 编译器预置确定性 `.gitignore`，Pack workspace 继续整体只读挂载；真实固定镜像回归通过 |
+| P15-F05 | `1.18.14` 对 OpenAI provider 使用 `/v1/responses`，并默认用另一 small model 生成标题 | P2 | fixed | Mock 实现 Responses 流协议，`model`/`small_model` 同锁到内部 `openai/gpt-4o-mini` |
+| P15-F06 | 固定镜像自带 `customize-opencode`，且会向模型广告内建工具，不能误写成“运行时只有一个 Skill/Tool” | P2 | risk-controlled | 禁用外部/Claude Skill；permission 默认 `* = deny`，仅允许 Pack Skill 与 `clinical_attempt_read_evidence`；真实 bash 越权探针失败且未落文件 |
+| P15-F07 | `/staging` 同时 bind 后再 `docker cp` 会复制两份；改成 tmpfs 又会在容器停止时丢失内容 | P2 | fixed-with-risk | 每 Attempt 独立 staging bind；Docker runtime 对已绑定 staging 的 copy 幂等 no-op，退出后只扫描一次；生产仍需评估 volume/snapshot 导出 |
+| P15-F08 | Pack 文件排序使用平台 `Path` 顺序，Windows/Linux 对 `SKILL.md` 与 `references` 次序不同，导致同字节 Pack SHA 不同 | P2 | fixed | 明确按相对 POSIX 路径排序；宿主与 Linux Supervisor 统一为 `d44e151ad45a06aba7ca28eaaab9aae6ea91ac3663603c3d3efef7444cfd42b9` |
+| P15-F09 | Docker `internal` 网络是本地 POC 隔离，不是生产网络认证 | P2 | risk | 实测 internal Mock 可达、公网与已监听的宿主端口不可达；P16 仍负责生产 Secret、proxy/rootless authority 与受控出站 |
 
 ## 关键决策记录
 
@@ -302,3 +309,4 @@ Validator 在 PostgreSQL 创建一个可由 Knowledge API 查询的 Candidate。
 |------|----------|------|
 | 2026-08-11 | `PLAN.md` | 用户批准 Knowledge–OpenCode 自定义 Harness Stack POC，登记为 P15；原 Secret/出站计划顺延 P16，均未开始 Development |
 | 2026-08-11 | `PLAN.md`、DevLog R116 | P1 Pack 合同、产品源目录、allowlisted resolver/compiler、Pack ref/Receipt identity 与回归 Gate 完成；当前 Gate 转到尚未开始的 P2 |
+| 2026-08-11 | `PROJECT_SPEC.md`、`PROJECT_GUIDE.md`、`TEST_GUIDE.md`、`PLAN.md`、DevLog R117 | P2 固定 OpenCode + Pack Skill + MCP + internal Mock 成功/拒绝链完成；当前 Gate 转到 P3 PostgreSQL Candidate/API |

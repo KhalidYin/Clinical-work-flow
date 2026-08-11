@@ -65,6 +65,8 @@ python -m ruff check contracts adapters supervisor tests
 ```
 
 默认环境允许跳过 PATH 上真实 OpenCode binary 或 Windows 不支持的 symlink/hardlink/executable-bit 用例。OpenCode 容器准入 Gate 必须安装 `.[docker]` extra、连接 Docker daemon 并预拉 digest-locked 镜像；相关容器测试不得跳过。
+P15 P2 另在实际 Supervisor Linux 镜像内创建 Pack symlink 并验证 resolver 启动前拒绝；这不等于已在
+具备 NTFS reparse 权限的 Windows CI 上取得 reparse point 实证，该平台风险必须继续显式保留。
 
 ### 当前 Compose 骨架
 
@@ -76,10 +78,12 @@ docker compose --project-name clinical-knowledge-demo ps
 
 默认 Compose 不启动 `release` profile；当前也没有通用 Release handler。只有在该能力实现后，Release Worker 身份与健康 Gate 才能通过显式 `--profile release` 纳入验收。
 
-独立 Harness 部署必须显式叠加 `compose.harness.yaml` 并启用 `harness` profile。Gate 使用合成、无效
-provider secret；预期 OpenCode 在 `network none` 下失败关闭并返回脱敏 Receipt。必须同时检查 Worker
-无 Docker socket/模型 secret、Supervisor 独占 socket、终态重复查询一致、受管容器和临时 workspace 清理，
-以及 `alembic_version=20260809_0010`。不得以该离线 Gate 代替 live 出站授权。
+独立 Harness 部署必须显式叠加 `compose.harness.yaml` 并启用 `harness` profile。P14 离线 Gate 使用
+合成无效 provider 和 `network none`；P15 P2 Gate 另用合成 key 文件与 `harness-model` internal network，
+真实验证固定 OpenCode → Pack Skill → `read_evidence` MCP → 本地 Responses Mock。必须检查项目/外部
+Skill 隔离、默认 deny permission、main/small model 同锁、Candidate schema、MCP/Pack/config identity、
+公网与宿主端口不可达、未授权 bash 不落文件、单容器无自动 retry，以及 key 不进入 Inspect 环境、
+日志、事件、Receipt 或 Artifact。Docker internal 网络仍不是生产出站认证，不得代替 P16/live 授权。
 
 删除卷属于显式破坏性测试，只能对已核对的 `clinical-knowledge-demo` 项目执行，并且不得作为日常测试前置。
 
@@ -91,7 +95,7 @@ provider secret；预期 OpenCode 在 `network none` 下失败关闭并返回脱
 - Processing ledger：DAG、claim、lease、checkpoint、过期恢复、retry/cancel 和 Attempt lineage。
 - Document Worker：TXT/MD/PDF/DOCX/XLSX 的受控解析、分支/fan-in、Evidence locator。
 - ModelProvider：fake/replay、injected callable 下的单次 direct-model adapter/授权合同、数据边界和失败分类；没有真实 provider 质量结论。
-- Harness：版本化合同、fake/replay/OpenCode adapter、Fake/Docker runtime、staging 安全扫描、Step-scoped MCP、OpenCode 真实容器准入、独立 Supervisor 机器身份/幂等/注入拒绝/durable lifecycle、Knowledge remote provider，以及 Compose 私网/Worker 零 socket/真实离线 Attempt。
+- Harness：版本化合同、fake/replay/OpenCode adapter、Fake/Docker runtime、staging 安全扫描、Step-scoped MCP、OpenCode 真实容器准入、独立 Supervisor 机器身份/幂等/注入拒绝/durable lifecycle、Knowledge remote provider、产品 Pack 编译，以及 internal Mock 下真实 Skill/MCP/Candidate 成功与越权拒绝 Attempt。
 - Governance：Candidate revision、作者确认、独立审核、relation eligibility 和 released immutability。
 - 认证：用户名、Argon2id、HttpOnly/SameSite Cookie、CSRF、会话撤销和 RBAC。
 - 前端：Vitest/Testing Library 已覆盖核心组件行为；真实浏览器与 390px 窄屏是既往手工验收，不是已签入自动化 E2E。

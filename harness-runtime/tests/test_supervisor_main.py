@@ -26,6 +26,30 @@ class MountAwareRuntime(EmptyManagedRuntime):
         return "/var/lib/docker/volumes/demo-supervisor/_data"
 
 
+class InternalNetworkRuntime(EmptyManagedRuntime):
+    def __init__(self) -> None:
+        super().__init__()
+        self.network_names: list[str] = []
+
+    def require_internal_network(self, name: str) -> str:
+        self.network_names.append(name)
+        return "d" * 64
+
+
+def test_secret_reference_prefers_mounted_file_over_container_environment(
+    tmp_path: Path,
+) -> None:
+    from supervisor.main import resolve_secret_reference
+
+    secret_file = tmp_path / "p15-key"
+    secret_file.write_text("synthetic-file-value\n", encoding="utf-8")
+
+    assert resolve_secret_reference(
+        "env://SYNTHETIC_PROVIDER_KEY",
+        {"SYNTHETIC_PROVIDER_KEY_FILE": str(secret_file)},
+    ) == "synthetic-file-value"
+
+
 def test_environment_factory_builds_private_supervisor_service(tmp_path: Path) -> None:
     from supervisor.main import build_supervisor_app
 
@@ -101,3 +125,73 @@ def test_container_factory_discovers_daemon_visible_state_mount(tmp_path: Path) 
     assert app.state.daemon_state_root == (
         "/var/lib/docker/volumes/demo-supervisor/_data"
     )
+
+
+def test_environment_factory_configures_pack_and_verified_internal_mock(
+    tmp_path: Path,
+) -> None:
+    from supervisor.main import build_supervisor_app
+    from supervisor.pack_compiler import HarnessPackResolver
+
+    project_root = Path(__file__).resolve().parents[2]
+    pack_root = (
+        project_root
+        / "clinical-llm-wiki"
+        / "harness-packs"
+        / "knowledge-candidate-v1"
+    )
+    image_ref = (
+        "ghcr.io/anomalyco/opencode:1.18.14@sha256:"
+        "16a66f622a0bb0b4bb2a05242749907704a4149ef25805932c067d5afb340f6a"
+    )
+    manifest_path = tmp_path / "opencode.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "adapter_id": "opencode@1.18.14",
+                "image_ref": image_ref,
+                "environment": {"OPENCODE_DISABLE_MODELS_FETCH": "1"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    pack_sha256 = HarnessPackResolver(
+        {"knowledge-candidate-v1": pack_root}
+    ).measure("knowledge-candidate-v1")
+    runtime = InternalNetworkRuntime()
+
+    app = build_supervisor_app(
+        {
+            "HARNESS_SUPERVISOR_MACHINE_TOKEN": "synthetic-supervisor-machine-token",
+            "HARNESS_SUPERVISOR_ALLOWED_SPEC_SHA256": "a" * 64,
+            "HARNESS_SUPERVISOR_IMAGE_MANIFEST_PATH": str(manifest_path),
+            "HARNESS_SUPERVISOR_STATE_ROOT": str(tmp_path / "state"),
+            "HARNESS_SUPERVISOR_MCP_BRIDGE_PATH": str(
+                Path(__file__).resolve().parents[1]
+                / "supervisor"
+                / "mcp_stdio_bridge.sh"
+            ),
+            "HARNESS_SUPERVISOR_PACK_ID": "knowledge-candidate-v1",
+            "HARNESS_SUPERVISOR_PACK_ROOT": str(pack_root),
+            "HARNESS_SUPERVISOR_MODEL_PROVIDER": "openai",
+            "HARNESS_SUPERVISOR_MODEL_ID": "gpt-4o-mini",
+            "HARNESS_SUPERVISOR_MODEL_BASE_URL": (
+                "http://p15-openai-mock:8080/v1"
+            ),
+            "HARNESS_SUPERVISOR_INTERNAL_NETWORK_NAME": "p15-model-internal",
+            "SYNTHETIC_PROVIDER_KEY": "synthetic-offline-provider-key",
+        },
+        runtime=runtime,
+    )
+
+    response = TestClient(app).get("/health")
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "ok",
+        "network_policy": "internal-only",
+        "adapter_id": "opencode@1.18.14",
+        "pack_id": "knowledge-candidate-v1",
+        "pack_sha256": pack_sha256,
+        "model_ref": "openai/gpt-4o-mini",
+    }
+    assert runtime.network_names == ["p15-model-internal"]

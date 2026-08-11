@@ -165,6 +165,8 @@ fixed stages · Study FS/Git                  durable DAG · PostgreSQL/ObjectSt
 
 首期候选已选定 OpenCode `1.18.14`。知识侧 `opencode-supervised` 已成为 remote provider：Worker 只提交产品级、hash-locked Attempt；独立 Supervisor 拥有 Bearer 机器身份、durable journal、heartbeat/cancel/orphan recovery、固定编译器和终态幂等。显式 Compose `harness` profile 使用内部 control network，仅 Supervisor 持有宿主 Docker socket，并把容器内 state volume 路径映射为 daemon-visible bind source。真实合成凭据 Attempt 证明子容器固定 digest、`network none`、非 root、只读 rootfs、cap-drop ALL、no-new-privileges 和资源上限，失败后容器、workspace 与临时 secret 清理，Receipt 可重复查询。该 Gate 仍是本地离线部署，不是 live/生产出站：普通 Compose 继续 replay，`secret://` 后端、受控网络和更收敛的 runtime authority 仍待完成。多 Harness 路由、多 Agent 协作和跨租户调度不属于当前阶段。
 
+P15 P2 已新增产品拥有的 `clinical-llm-wiki/harness-packs/knowledge-candidate-v1/`：Pack 只声明 instruction、Skill、schema 与逻辑 MCP capability，Supervisor 在每个 Attempt 编译 `/workspace/.opencode/skills`、隔离 HOME/XDG、默认 deny permission、`read_evidence` MCP 和内部 OpenAI-compatible provider。固定 OpenCode 真实走 `/v1/responses`，加载 Pack Skill、读取获批合成 Evidence 并输出 schema-valid Candidate；主模型与 `small_model` 同锁，合成 key 通过 Compose secret 文件而非容器环境注入。项目/外部 Skill 被隔离，但镜像内建 `customize-opencode` 仍存在；Docker internal 网络与 Attempt staging bind 只是本地 POC 证据，不是生产 Secret、egress 或 runtime authority 认证。P15 P3 尚需把该链接到 Knowledge PostgreSQL/API。
+
 ### MCP 边界
 
 目标 MCP 必须使用标准协议和显式 JSON Schema，分为不同身份面：

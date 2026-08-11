@@ -8,7 +8,6 @@ No Docker is required for these tests.
 from __future__ import annotations
 
 from datetime import datetime
-
 import pytest
 
 from contracts.request import HarnessExecutionRequest
@@ -149,6 +148,7 @@ def test_supervisor_maps_all_bind_sources_to_daemon_visible_state_root(tmp_path)
     daemon_root = "/var/lib/docker/volumes/demo-supervisor/_data"
     assert config.host_scratch_dir.startswith(daemon_root)
     assert config.host_staging_dir.startswith(daemon_root)
+    assert "/staging" not in dict(config.tmpfs)
     assert all(
         mount.host_path.startswith(daemon_root) for mount in config.read_only_inputs
     )

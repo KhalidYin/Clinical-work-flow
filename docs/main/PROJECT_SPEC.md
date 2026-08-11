@@ -24,7 +24,7 @@
 - 知识产品已有 Source/Evidence/Candidate/Revision/Relation/Audit canonical entities、PostgreSQL durable ledger，以及拒绝覆盖写并校验 hash 的本地 ObjectStore adapter；未发布对象仍允许补偿或 reconcile 删除。
 - Document Worker 已支持受控文档解析、分支/fan-in、Evidence locator/hash 和可恢复 Attempt。
 - Enrichment Worker 已有 fake/replay、direct-model 授权合同及 Candidate 治理闭环；migration `20260805_0009` 增加 `executor_kind`。`opencode-supervised` 已迁移为独立 Supervisor remote provider，普通 Compose 仍默认 replay；显式 `harness` profile 的真实零网络部署 Gate 已通过。
-- `harness-runtime/` 已实现版本化合同、fake/replay adapter、OpenCode `1.18.14` headless adapter、Fake/Docker runtime、staging 扫描、Execution/Validation Receipt、Step-scoped MCP，以及独立 Supervisor 的机器身份、durable journal、heartbeat/cancel/orphan recovery 和固定容器编译器。
+- `harness-runtime/` 已实现版本化合同、fake/replay adapter、OpenCode `1.18.14` headless adapter、Fake/Docker runtime、staging 扫描、Execution/Validation Receipt、Step-scoped MCP、产品 Pack 编译，以及独立 Supervisor 的机器身份、durable journal、heartbeat/cancel/orphan recovery 和固定容器编译器。
 - 人员密码会话、HttpOnly Cookie、RBAC、Worker 机器身份和中文 React GUI 骨架已存在。
 - 临床产品已有固定十阶段合同、ActionPolicy、Review Protocol、知识 Release resolve 和若干 POC artifact 流程；十个内部 Stage 对应 Protocol → SAP → SDTM → ADaM → TFL → QC → Submission 七个业务依赖组。
 
@@ -37,8 +37,9 @@
 - [已实现] Fake/Docker runtime 与 supervisor 支持 timeout、SIGTERM/kill fallback、事件、staging 扫描和失败分类；真实 OpenCode 容器安全基线与生命周期已准入实测。
 - [已实现] fake/replay Harness adapter，默认测试零真实出站。
 - [已实现（单 Attempt）] Step-scoped broker 合同校验 Attempt/fencing/spec/capability/路径/幂等；版本锁定 stdio shim 已在独立 Supervisor 启动的真实 OpenCode 容器实测 `initialize/tools-list/tools/call`、路径逃逸拒绝和脱敏审计。
+- [已实现（P15 P2 本地 POC）] 产品拥有的 `knowledge-candidate-v1` Pack 经相对 POSIX 路径 hash-lock，Supervisor 编译只读 workspace、项目 Skill、permission、MCP 与内部模型配置；真实固定 OpenCode 完成 `evidence-candidate` → `read_evidence` → schema-valid Candidate。Docker internal 网络只连本地 Mock，公网/宿主探针失败，未授权 bash 失败关闭且不自动创建外层 retry。
 
-首个 Harness 候选 OpenCode `1.18.14` 已完成容器准入、知识 remote Attempt 和显式 Compose 离线部署；`env://` 合成 Secret 即时物化/清理、MCP stdio、Receipt 落账及 daemon-visible bind 映射已验证。仍不得进入 live：还必须完成 `secret://` 后端、受控网络策略，并取得用户对 ModelProfile、Evidence 和单次预算的出站授权。
+首个 Harness 候选 OpenCode `1.18.14` 已完成容器准入、知识 remote Attempt、显式 Compose 离线部署和 P15 P2 internal Mock POC；合成 Secret 文件、MCP stdio/审计、Pack/config identity、Receipt 落账及 daemon-visible bind 映射已验证。固定镜像仍自带 `customize-opencode` 并向模型广告内建工具，安全性依赖 Supervisor 编译的默认 deny permission，而不是“工具不可见”。仍不得进入 live：P15 P3 尚未接 PostgreSQL Candidate/API，且必须完成 `secret://` 后端、生产受控网络策略，并取得用户对 ModelProfile、Evidence 和单次预算的出站授权。
 
 #### 知识生产闭环
 

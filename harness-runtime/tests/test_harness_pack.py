@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -140,6 +141,21 @@ def test_resolver_hash_locks_allowlisted_pack_and_rejects_drift(tmp_path: Path) 
             image_ref=IMAGE_REF,
         )
 
+
+def test_pack_hash_uses_platform_independent_relative_posix_order(tmp_path: Path) -> None:
+    pack_root = _write_pack(tmp_path)
+    digest = hashlib.sha256()
+    files = sorted(
+        (path for path in pack_root.rglob("*") if path.is_file()),
+        key=lambda path: path.relative_to(pack_root).as_posix(),
+    )
+    for path in files:
+        digest.update(path.relative_to(pack_root).as_posix().encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(path.read_bytes())
+        digest.update(b"\0")
+
+    assert _resolver(pack_root).measure("knowledge-candidate-v1") == digest.hexdigest()
 
 @pytest.mark.parametrize(
     "forbidden_field",
@@ -310,14 +326,19 @@ def test_compiler_materializes_only_pack_skills_and_trusted_mcp_binding(
     ).is_file()
     assert not (first.workspace_root / ".agents").exists()
     assert not (first.workspace_root / ".claude").exists()
+    assert (
+        first.workspace_root / ".opencode" / ".gitignore"
+    ).read_text(encoding="utf-8") == "*\n"
     assert (first.workspace_root / "AGENTS.md").read_text(encoding="utf-8").startswith(
         "Generate one evidence-linked"
     )
     config = json.loads(first.opencode_config_path.read_text(encoding="utf-8"))
+    assert config["permission"]["*"] == "deny"
     assert config["permission"]["skill"] == {
         "*": "deny",
         "evidence-candidate": "allow",
     }
+    assert config["permission"]["clinical_attempt_read_evidence"] == "allow"
     assert config["mcp"]["clinical_attempt"]["command"][0:2] == [
         "/bin/sh",
         "/harness/mcp_stdio_bridge.sh",
@@ -327,6 +348,58 @@ def test_compiler_materializes_only_pack_skills_and_trusted_mcp_binding(
     serialized = json.dumps({"config": config, "bundle": bundle}, sort_keys=True)
     assert str(pack_root) not in serialized
     assert str(tmp_path) not in serialized
+
+
+def test_compiler_uses_real_opencode_config_path_and_trusted_model_binding(
+    tmp_path: Path,
+) -> None:
+    from supervisor.pack_compiler import (
+        HarnessPackCompiler,
+        McpCapabilityBinding,
+        OpenAICompatibleModelBinding,
+    )
+
+    pack_root = _write_pack(tmp_path / "source")
+    resolver = _resolver(pack_root)
+    measured = resolver.measure("knowledge-candidate-v1")
+    resolved = resolver.resolve(
+        _ref(measured),
+        adapter_id="opencode@1.18.14",
+        image_ref=IMAGE_REF,
+    )
+    compiler = HarnessPackCompiler(
+        {
+            "knowledge.read-evidence": McpCapabilityBinding(
+                capability_id="knowledge.read-evidence",
+                server_name="clinical_attempt",
+                tools=frozenset({"read_evidence"}),
+                command=("/bin/sh", "/harness/mcp_stdio_bridge.sh"),
+            )
+        },
+        model_binding=OpenAICompatibleModelBinding(
+            provider_id="openai",
+            model_id="gpt-4o-mini",
+            base_url="http://p15-openai-mock:8080/v1",
+        ),
+    )
+
+    compiled = compiler.compile(resolved, tmp_path / "attempt")
+
+    assert compiled.opencode_config_path.relative_to(tmp_path / "attempt").as_posix() == (
+        "scratch/config/opencode/opencode.json"
+    )
+    assert compiled.mcp_bundle_path.relative_to(tmp_path / "attempt").as_posix() == (
+        "scratch/mcp-bundle.json"
+    )
+    assert compiled.model_ref == "openai/gpt-4o-mini"
+    config = json.loads(compiled.opencode_config_path.read_text(encoding="utf-8"))
+    assert config["model"] == "openai/gpt-4o-mini"
+    assert config["small_model"] == "openai/gpt-4o-mini"
+    assert config["provider"] == {
+        "openai": {
+            "options": {"baseURL": "http://p15-openai-mock:8080/v1"}
+        }
+    }
 
 
 def test_compiler_rejects_pack_drift_after_resolution(tmp_path: Path) -> None:

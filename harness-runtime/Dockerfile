@@ -17,6 +17,7 @@ RUN python -m pip install --no-cache-dir \
 COPY adapters ./adapters
 COPY contracts ./contracts
 COPY supervisor ./supervisor
+COPY poc ./poc
 COPY images ./images
 RUN python -m pip install --no-deps .
 

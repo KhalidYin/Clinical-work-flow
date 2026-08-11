@@ -1381,3 +1381,62 @@ Done — no next steps。
 - `harness-runtime/contracts/`、`harness-runtime/supervisor/pack_compiler.py`、`harness-runtime/tests/test_harness_pack.py`
 - `clinical-llm-wiki/harness-packs/knowledge-candidate-v1/`、remote provider/worker/tests
 - `docs/dep/PLAN.md`、P15、DevLog/INDEX（pending phase commit）
+
+---
+
+### R117 [18:18] [P15-knowledge-opencode-harness-poc] P2: 固定 OpenCode、Pack Skill/MCP 与 internal Mock
+
+#### Done
+
+- 按 RED→GREEN 接通真实 OpenCode `1.18.14`：Supervisor 编译只读 Pack workspace、隔离 HOME/XDG、
+  `model`/`small_model`、默认 deny permission、项目 `evidence-candidate` Skill 和 Attempt-scoped
+  `read_evidence` MCP；固定镜像实际使用 `/v1/responses`，先加载 Skill、再读取 Evidence、最后输出
+  schema-valid Candidate。
+- 新增确定性 OpenAI-compatible Mock：仅接受合成 key 文件，支持 Responses/Chat Completions 测试合同，
+  审计只保存模型、工具名、请求 hash 与结构元数据；不保存 key 或 prompt。Compose 新增只连接
+  `harness-model` internal 网络的 Mock，Supervisor 只验证网络 ID并把受管 OpenCode 接入该网络。
+- 真实网络探针证明 internal Mock 可达，而 `1.1.1.1` 和一个已监听的 `host.docker.internal` 端口不可达；
+  成功 Attempt 的 MCP audit/Receipt 记录一次 `read_evidence`，容器与 workspace 清理，模型 key 不在
+  OpenCode/Mock Inspect 环境、事件、Receipt、Artifact 或审计中。
+- 权限负向链让 Mock 故意要求 `bash` 写 `/staging/unauthorized-marker`；OpenCode 返回 tool error、文件
+  未创建、坏 JSON 被 executor 转为结构化失败，Pack Receipt `retryable=false`，且只创建一个容器。
+- 修复固定版/跨平台缺陷：预置 `.opencode/.gitignore` 以保持 Pack 只读；支持 `part.text` JSON event；
+  避免 staging bind 后重复 `docker cp`；Pack hash 改为相对 POSIX 路径排序，Windows/Linux 统一 SHA
+  `d44e151ad45a06aba7ca28eaaab9aae6ea91ac3663603c3d3efef7444cfd42b9`。
+- 在实际 Supervisor Linux 镜像内复制 Pack、替换 instruction 为 symlink，resolver 在 OpenCode 启动前
+  fail-closed；Windows 宿主因账户权限仍跳过 symlink，NTFS reparse 分支尚缺具备相应平台的实测证据。
+
+#### Issues / Blockers
+
+- 固定镜像自带 `customize-opencode`，并向模型广告 bash/edit/read 等内建工具；项目/外部 Skill 已隔离，
+  但不能声称运行时只有 Pack Skill/Tool。安全控制是默认 deny permission 与真实越权拒绝，不是隐藏工具。
+- 每 Attempt staging 使用限定目录 bind；这是为了避免停止后 tmpfs 丢失和重复复制。它只允许写当前
+  Attempt 目录并在退出后扫描，但生产仍应评估 Docker volume/快照导出以进一步收敛 host-write 风险。
+- Docker internal 网络、合成 key 文件和本地 Mock 只构成 POC 证据，不是生产 Secret Manager、
+  egress proxy、socket proxy/rootless runtime 或 DeepSeek 质量证明；P16 仍负责这些 Gate。
+- P2 没有连接 Knowledge PostgreSQL，也没有创建 ModelInvocation/Candidate 或 API 记录；这属于 P3。
+
+#### Validation
+
+- 真实固定镜像成功+拒绝纵向测试通过：Pack Skill、Responses Mock、MCP、Candidate schema、internal
+  网络公网/宿主拒绝、bash 越权和单容器无自动 retry 均有实测证据。
+- Compose project `clinical-harness-p15-poc` 的 Mock 与 Supervisor 均 healthy；Supervisor health 返回
+  `network_policy=internal-only`、固定 adapter/model、Pack ID 和 Linux 侧 canonical Pack SHA；模型 key
+  只以 secret 文件路径出现在 Inspect 环境。
+- Harness 全量 `152 passed, 5 skipped`，Ruff 全通过；Knowledge `220 passed, 8 skipped`、Workflow
+  `366 passed, 1 skipped` 及各自 Ruff 全通过，Compose 配置解析通过。
+- 无 DeepSeek key、真实供应商调用、Knowledge DB 写入或公网模型出站。
+
+#### Next
+
+1. P15/P3 先写 PostgreSQL 纵向 RED：canonical Evidence claim → remote Supervisor → Candidate/API，并冻结
+   ModelInvocation、Receipt/Pack lineage、幂等与失败不落 Candidate。
+2. P3 只用合成 Evidence，Candidate 停在作者确认前；不得触发 Reviewer、Evaluation 或 Release。
+3. P15 完成后再进入 P16；主要风险是 Worker/ModelProfile 的 Pack SHA 配置漂移、跨服务幂等和
+   Supervisor Docker authority，仍不得自动进入 DeepSeek live。
+
+#### Files Changed / Commits
+
+- `harness-runtime/supervisor/`、`harness-runtime/poc/openai_mock/`、`harness-runtime/tests/`
+- `clinical-llm-wiki/compose.harness.yaml`、`clinical-llm-wiki/tests/test_harness_supervisor_deployment.py`
+- `docs/main/`、`docs/dep/PLAN.md`、P15、TASK_STATE、DevLog/INDEX

@@ -1,9 +1,42 @@
 services:
+  p15-openai-mock:
+    profiles: ["harness"]
+    build: ../harness-runtime
+    image: clinical-harness-supervisor:local
+    command: ["python", "-m", "poc.openai_mock.server"]
+    restart: unless-stopped
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      P15_MOCK_API_KEY_FILE: /run/secrets/p15_mock_key
+      P15_MOCK_AUDIT_PATH: /var/lib/p15-mock/requests.jsonl
+    secrets: ["p15_mock_key"]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    volumes:
+      - p15-mock-audit:/var/lib/p15-mock
+    networks: ["harness-model"]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2)",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
   harness-supervisor:
     profiles: ["harness"]
     build: ../harness-runtime
     image: clinical-harness-supervisor:local
     restart: unless-stopped
+    depends_on:
+      p15-openai-mock:
+        condition: service_healthy
     environment:
       HARNESS_SUPERVISOR_MACHINE_TOKEN: ${HARNESS_SUPERVISOR_MACHINE_TOKEN:?set a dedicated supervisor machine credential}
       HARNESS_SUPERVISOR_ALLOWED_SPEC_SHA256: ${HARNESS_SUPERVISOR_SPEC_SHA256:?set the approved harness spec SHA-256}
@@ -12,7 +45,14 @@ services:
       HARNESS_SUPERVISOR_MCP_BRIDGE_PATH: /app/supervisor/mcp_stdio_bridge.sh
       HARNESS_SUPERVISOR_DISCOVER_DAEMON_STATE_ROOT: "true"
       HARNESS_SUPERVISOR_LEASE_SECONDS: "30"
-      SYNTHETIC_PROVIDER_KEY: ${HARNESS_SYNTHETIC_PROVIDER_KEY:?set a synthetic non-provider value}
+      HARNESS_SUPERVISOR_PACK_ID: knowledge-candidate-v1
+      HARNESS_SUPERVISOR_PACK_ROOT: /opt/harness-packs/knowledge-candidate-v1
+      HARNESS_SUPERVISOR_MODEL_PROVIDER: openai
+      HARNESS_SUPERVISOR_MODEL_ID: gpt-4o-mini
+      HARNESS_SUPERVISOR_MODEL_BASE_URL: http://p15-openai-mock:8080/v1
+      HARNESS_SUPERVISOR_INTERNAL_NETWORK_NAME: clinical-harness-p15-model
+      SYNTHETIC_PROVIDER_KEY_FILE: /run/secrets/p15_mock_key
+    secrets: ["p15_mock_key"]
     healthcheck:
       test:
         [
@@ -27,6 +67,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - harness-supervisor-state:/var/lib/harness-supervisor
+      - ./harness-packs/knowledge-candidate-v1:/opt/harness-packs/knowledge-candidate-v1:ro
     networks: ["harness-control"]
 
   worker-enrichment:
@@ -41,11 +82,22 @@ services:
       KNOWLEDGE_HARNESS_SUPERVISOR_TOKEN_REF: env://SUPERVISOR_MACHINE_TOKEN
       SUPERVISOR_MACHINE_TOKEN: ${HARNESS_SUPERVISOR_MACHINE_TOKEN:?set a dedicated supervisor machine credential}
       KNOWLEDGE_HARNESS_SPEC_SHA256: ${HARNESS_SUPERVISOR_SPEC_SHA256:?set the approved harness spec SHA-256}
+      KNOWLEDGE_HARNESS_PACK_ID: knowledge-candidate-v1
+      KNOWLEDGE_HARNESS_PACK_VERSION: 1.0.0
+      KNOWLEDGE_HARNESS_PACK_SHA256: ${HARNESS_PACK_SHA256:?set the measured knowledge-candidate-v1 Pack SHA-256}
     networks: ["default", "harness-control"]
 
 networks:
   harness-control:
     internal: true
+  harness-model:
+    internal: true
+    name: clinical-harness-p15-model
 
 volumes:
   harness-supervisor-state:
+  p15-mock-audit:
+
+secrets:
+  p15_mock_key:
+    file: ${HARNESS_SYNTHETIC_PROVIDER_KEY_FILE:?set a file containing a synthetic non-provider value}

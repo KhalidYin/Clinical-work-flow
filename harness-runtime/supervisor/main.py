@@ -20,6 +20,12 @@ from supervisor.docker_runtime import DockerEngineContainerRuntime
 from supervisor.journal import FileAttemptJournal
 from supervisor.lifecycle import AttemptCoordinator, FileAttemptResultStore
 from supervisor.opencode_executor import OpenCodeAttemptExecutor
+from supervisor.pack_compiler import (
+    HarnessPackCompiler,
+    HarnessPackResolver,
+    McpCapabilityBinding,
+    OpenAICompatibleModelBinding,
+)
 from supervisor.service import create_supervisor_app
 
 
@@ -27,6 +33,25 @@ def _required(values: Mapping[str, str], name: str) -> str:
     value = values.get(name)
     if not value:
         raise RuntimeError(f"{name} is required")
+    return value
+
+
+def resolve_secret_reference(reference: str, values: Mapping[str, str]) -> str:
+    """Resolve an env-style product reference from a mounted file when present."""
+
+    scheme, separator, name = reference.partition("://")
+    if separator != "://" or scheme != "env":
+        raise ValueError("this deployment supports env:// secret references only")
+    file_path = values.get(f"{name}_FILE")
+    if file_path:
+        try:
+            value = Path(file_path).read_text(encoding="utf-8").strip()
+        except OSError as exc:
+            raise ValueError("required model secret file is unavailable") from exc
+    else:
+        value = values.get(name, "")
+    if not value:
+        raise ValueError("required model secret reference is not configured")
     return value
 
 
@@ -91,13 +116,62 @@ def build_supervisor_app(
         )
 
     def resolve_secret(reference: str) -> str:
-        scheme, separator, name = reference.partition("://")
-        if separator != "://" or scheme != "env":
-            raise ValueError("this deployment supports env:// secret references only")
-        value = values.get(name)
-        if not value:
-            raise ValueError("required model secret reference is not configured")
-        return value
+        return resolve_secret_reference(reference, values)
+
+    pack_environment_names = (
+        "HARNESS_SUPERVISOR_PACK_ID",
+        "HARNESS_SUPERVISOR_PACK_ROOT",
+        "HARNESS_SUPERVISOR_MODEL_PROVIDER",
+        "HARNESS_SUPERVISOR_MODEL_ID",
+        "HARNESS_SUPERVISOR_MODEL_BASE_URL",
+        "HARNESS_SUPERVISOR_INTERNAL_NETWORK_NAME",
+    )
+    configured_pack_values = [values.get(name) for name in pack_environment_names]
+    if any(configured_pack_values) and not all(configured_pack_values):
+        raise RuntimeError("all Harness Pack POC settings must be configured together")
+    pack_resolver = None
+    pack_compiler = None
+    internal_network_id = None
+    pack_sha256 = None
+    model_ref = None
+    pack_id = None
+    if all(configured_pack_values):
+        pack_id = _required(values, "HARNESS_SUPERVISOR_PACK_ID")
+        pack_root = Path(_required(values, "HARNESS_SUPERVISOR_PACK_ROOT"))
+        pack_resolver = HarnessPackResolver({pack_id: pack_root})
+        pack_sha256 = pack_resolver.measure(pack_id)
+        model_binding = OpenAICompatibleModelBinding(
+            provider_id=_required(values, "HARNESS_SUPERVISOR_MODEL_PROVIDER"),
+            model_id=_required(values, "HARNESS_SUPERVISOR_MODEL_ID"),
+            base_url=_required(values, "HARNESS_SUPERVISOR_MODEL_BASE_URL"),
+        )
+        model_ref = model_binding.model_ref
+        pack_compiler = HarnessPackCompiler(
+            {
+                "knowledge.read-evidence": McpCapabilityBinding(
+                    capability_id="knowledge.read-evidence",
+                    server_name="clinical_attempt",
+                    tools=frozenset({"read_evidence"}),
+                    command=(
+                        "/bin/sh",
+                        "/harness/mcp_stdio_bridge.sh",
+                        "/harness/mcp-bundle.json",
+                        "/staging/mcp-audit.jsonl",
+                    ),
+                )
+            },
+            model_binding=model_binding,
+        )
+        require_internal_network = getattr(
+            container_runtime,
+            "require_internal_network",
+            None,
+        )
+        if not callable(require_internal_network):
+            raise RuntimeError("container runtime cannot verify the POC model network")
+        internal_network_id = require_internal_network(
+            _required(values, "HARNESS_SUPERVISOR_INTERNAL_NETWORK_NAME")
+        )
 
     executor = OpenCodeAttemptExecutor(
         runtime=container_runtime,
@@ -106,6 +180,9 @@ def build_supervisor_app(
         secret_resolver=resolve_secret,
         workspace_root=state_root / "workspaces",
         environment=tuple((str(key), str(value)) for key, value in environment.items()),
+        pack_resolver=pack_resolver,
+        pack_compiler=pack_compiler,
+        trusted_internal_network_id=internal_network_id,
         host_path_mapper=host_path_mapper,
     )
     journal = FileAttemptJournal(state_root / "journal")
@@ -132,11 +209,22 @@ def build_supervisor_app(
 
     @app.get("/health")
     def health() -> dict[str, str]:
-        return {
+        projection = {
             "status": "ok",
-            "network_policy": "none",
+            "network_policy": (
+                "internal-only" if internal_network_id is not None else "none"
+            ),
             "adapter_id": "opencode@1.18.14",
         }
+        if pack_id is not None and pack_sha256 is not None and model_ref is not None:
+            projection.update(
+                {
+                    "pack_id": pack_id,
+                    "pack_sha256": pack_sha256,
+                    "model_ref": model_ref,
+                }
+            )
+        return projection
 
     app.state.attempt_pool = pool
     app.state.daemon_state_root = daemon_state_root

@@ -44,11 +44,31 @@ class McpCapabilityBinding:
 
 
 @dataclass(frozen=True, slots=True)
+class OpenAICompatibleModelBinding:
+    """Supervisor-owned endpoint binding; never accepted from a product Pack."""
+
+    provider_id: str
+    model_id: str
+    base_url: str
+
+    def __post_init__(self) -> None:
+        if not self.provider_id or not self.model_id:
+            raise ValueError("model binding identifiers must not be empty")
+        if not self.base_url.startswith("http://"):
+            raise ValueError("POC model binding must use an internal HTTP endpoint")
+
+    @property
+    def model_ref(self) -> str:
+        return f"{self.provider_id}/{self.model_id}"
+
+
+@dataclass(frozen=True, slots=True)
 class CompiledHarnessPack:
     pack_identity: HarnessPackIdentity
     compiled_config_sha256: str
     advertised_skills: tuple[str, ...]
     allowed_mcp_capabilities: tuple[str, ...]
+    model_ref: str | None
     workspace_root: Path
     opencode_config_path: Path
     mcp_bundle_path: Path
@@ -70,7 +90,10 @@ class HarnessPackResolver:
     def measure(self, pack_id: str) -> str:
         root, _manifest, _mcp_policy = self._load(pack_id)
         digest = hashlib.sha256()
-        entries = sorted(root.rglob("*"))
+        entries = sorted(
+            root.rglob("*"),
+            key=lambda path: path.relative_to(root).as_posix(),
+        )
         for path in entries:
             self._require_inside(root, path)
         files = [path for path in entries if path.is_file()]
@@ -190,13 +213,20 @@ class HarnessPackResolver:
 
 
 class HarnessPackCompiler:
-    def __init__(self, bindings: Mapping[str, McpCapabilityBinding]) -> None:
+    def __init__(
+        self,
+        bindings: Mapping[str, McpCapabilityBinding],
+        *,
+        model_binding: OpenAICompatibleModelBinding | None = None,
+    ) -> None:
         self._bindings = dict(bindings)
+        self._model_binding = model_binding
 
     def compile(self, pack: ResolvedHarnessPack, attempt_root: Path) -> CompiledHarnessPack:
         self._require_unchanged(pack)
         workspace = attempt_root / "workspace"
-        config_root = attempt_root / "config"
+        scratch_root = attempt_root / "scratch"
+        config_root = scratch_root / "config" / "opencode"
         workspace.mkdir(parents=True, exist_ok=True)
         config_root.mkdir(parents=True, exist_ok=True)
 
@@ -209,10 +239,14 @@ class HarnessPackCompiler:
             shutil.copytree(source, target, dirs_exist_ok=True)
             advertised_skills.append(skill.skill_id)
             skill_permissions[skill.skill_id] = "allow"
+        # OpenCode 1.18.14 tries to create this bookkeeping file during startup.
+        # Pre-materializing it lets the compiled Pack stay mounted read-only.
+        (workspace / ".opencode" / ".gitignore").write_text("*\n", encoding="utf-8")
         schema_target = workspace / "output.schema.json"
         shutil.copyfile(pack.root / pack.manifest.output_schema_file, schema_target)
 
         allowed_tools: set[str] = set()
+        allowed_opencode_tools: set[str] = set()
         mcp_config: dict[str, object] = {}
         capability_ids: list[str] = []
         for capability in pack.mcp_policy.capabilities:
@@ -223,6 +257,9 @@ class HarnessPackCompiler:
             if not requested.issubset(binding.tools):
                 raise PackResolutionError("Harness Pack requests unauthorized MCP tools")
             allowed_tools.update(requested)
+            allowed_opencode_tools.update(
+                f"{binding.server_name}_{tool}" for tool in requested
+            )
             capability_ids.append(capability.capability_id)
             mcp_config[binding.server_name] = {
                 "type": "local",
@@ -236,10 +273,25 @@ class HarnessPackCompiler:
         }
         config = {
             "$schema": "https://opencode.ai/config.json",
-            "permission": {"skill": skill_permissions},
+            "permission": {
+                "*": "deny",
+                "skill": skill_permissions,
+                **{
+                    tool_name: "allow"
+                    for tool_name in sorted(allowed_opencode_tools)
+                },
+            },
             "mcp": mcp_config,
         }
-        mcp_bundle_path = config_root / "mcp-bundle.json"
+        if self._model_binding is not None:
+            config["model"] = self._model_binding.model_ref
+            config["small_model"] = self._model_binding.model_ref
+            config["provider"] = {
+                self._model_binding.provider_id: {
+                    "options": {"baseURL": self._model_binding.base_url}
+                }
+            }
+        mcp_bundle_path = scratch_root / "mcp-bundle.json"
         opencode_config_path = config_root / "opencode.json"
         mcp_bundle_path.write_bytes(_canonical_bytes(bundle))
         opencode_config_path.write_bytes(_canonical_bytes(config))
@@ -249,6 +301,11 @@ class HarnessPackCompiler:
             "mcp_bundle": bundle,
             "advertised_skills": advertised_skills,
             "allowed_mcp_capabilities": capability_ids,
+            "model_ref": (
+                self._model_binding.model_ref
+                if self._model_binding is not None
+                else None
+            ),
         }
         compiled_hash = hashlib.sha256(_canonical_bytes(compiled_identity)).hexdigest()
         self._require_unchanged(pack)
@@ -257,6 +314,11 @@ class HarnessPackCompiler:
             compiled_config_sha256=compiled_hash,
             advertised_skills=tuple(advertised_skills),
             allowed_mcp_capabilities=tuple(capability_ids),
+            model_ref=(
+                self._model_binding.model_ref
+                if self._model_binding is not None
+                else None
+            ),
             workspace_root=workspace,
             opencode_config_path=opencode_config_path,
             mcp_bundle_path=mcp_bundle_path,
@@ -276,6 +338,7 @@ __all__ = [
     "HarnessPackCompiler",
     "HarnessPackResolver",
     "McpCapabilityBinding",
+    "OpenAICompatibleModelBinding",
     "PackResolutionError",
     "ResolvedHarnessPack",
 ]
