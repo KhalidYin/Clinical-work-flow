@@ -321,4 +321,4 @@ OpenCode 在边界内继续自主规划、选择 Skill/MCP、组织多步工具�
 |------|----------|------|
 | 2026-08-11 | `PLAN.md` | 方案 A 获批；随后因 Knowledge–OpenCode POC 前置而由 P15 顺延为 P16，尚未进入 Development，未配置 key、未发生出站 |
 | 2026-08-11 | `PLAN.md`、canonical 架构原则（R119） | 用户确认能力不阉割原则；P16 改为通用策略/gateway + DeepSeek 首个实例，公共研究能力明确保留但不冒充已实现 |
-| 2026-08-12 | `PROJECT_GUIDE.md`、`PROJECT_SPEC.md`、`TEST_GUIDE.md`、`USAGE.md`、`PLAN.md`（R121） | P2 完成本地 tmpfs Store、stdin 注入、独立 daemon mapper、Attempt 物化/全终态清理和真实 Docker 零费用证据；P3 gateway/live 仍未完成 |
+| 2026-08-12 | `PROJECT_GUIDE.md`、`PROJECT_SPEC.md`、`TEST_GUIDE.md`、`USAGE.md`、`PLAN.md`（R121，提交 `94de7ec`） | P2 完成本地 tmpfs Store、stdin 注入、独立 daemon mapper、Attempt 物化/全终态清理和真实 Docker 零费用证据；P3 gateway/live 仍未完成 |

@@ -23,7 +23,7 @@ P3 — 实现通用双网络 egress gateway 与首个 DeepSeek 策略（子计�
 - [x] 核对 Supervisor state volume、daemon path mapper、TemporaryDirectory、cancel/orphan 和 Compose mount：容器内普通 tmpfs 无法直接 bind 给 sibling OpenCode，需使用 Docker local tmpfs volume 并单独发现 daemon-visible root。
 - [x] P2 真实 Docker Gate：tmpfs mount/driver/options、注入不回显、Inspect/log 无合成值、Supervisor 重启清空、P15 internal Mock Attempt 成功且 Attempt secret 零残留。
 - [x] P2 全量 Gate：Harness `189 passed, 5 skipped`；Knowledge `227 passed, 8 skipped`；两侧 Ruff 与 `git diff --check` 通过。
-- [ ] P2 阶段提交并推送远端。
+- [x] P2 阶段提交 `94de7ec` 并推送 `origin/codex/p16-capability-egress-gate`。
 - [ ] P3 先审查 gateway 实现/镜像来源、许可证、固定 digest 和不解密 TLS 的能力边界。
 - [ ] P3 用 RED 冻结 internal client/public uplink 拓扑及 allow/deny/绕过/能力保持 Gate。
 

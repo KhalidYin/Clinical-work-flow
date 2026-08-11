@@ -1661,4 +1661,4 @@ Done — no next steps。
 
 - `harness-runtime/supervisor/secret_store.py`、`secret_cli.py`、Executor/Supervisor/main 与测试
 - `clinical-llm-wiki/compose.harness.yaml` 及部署合同测试
-- `USAGE.md`、canonical docs、P16/PLAN/TASK_STATE、DevLog/INDEX（pending phase commit）
+- `USAGE.md`、canonical docs、P16/PLAN/TASK_STATE、DevLog/INDEX；P2 实现提交 `94de7ec` 已推送远端
