@@ -21,8 +21,8 @@
 - [x] P16/P3 模型 egress：internal client network、digest/hash-locked Squid CONNECT gateway、DeepSeek hostname:443 首个策略和真实 OpenCode Skill/MCP 正向 Gate
 
 默认知识 Compose 仍使用 replay。显式离线 Gate 的命令与安全边界见仓库根 `USAGE.md`；
-P16/P4 全量安全 Gate、生产 Secret/runtime authority 和 DeepSeek live 仍未完成或授权。P3 gateway
-只提供模型 endpoint 出站，不提供公共网页研究/爬虫出口。
+P16 全量安全 Gate 已完成，但生产 Secret/runtime authority 和 DeepSeek live 仍未完成或授权。该
+gateway 只提供模型 endpoint 出站，不提供公共网页研究/爬虫出口。
 
 ## 封装可行性矩阵（H0-A 产出）
 

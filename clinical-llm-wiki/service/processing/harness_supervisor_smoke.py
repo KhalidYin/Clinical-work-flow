@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 
 from .model_provider import (
@@ -20,6 +21,28 @@ from .worker import harness_enrichment_provider_from_environment
 
 def build_smoke_request() -> ModelRequest:
     """Use an impossible provider under network-none; success is not expected."""
+
+    evidence_content = "Synthetic offline harness evidence."
+    canonical_message = json.dumps(
+        {
+            "evidence": [
+                {
+                    "evidence_id": "evidence-compose-offline-smoke",
+                    "locator": {
+                        "kind": "synthetic_test",
+                        "source_id": "compose-offline-smoke",
+                    },
+                    "content_sha256": hashlib.sha256(
+                        evidence_content.encode("utf-8")
+                    ).hexdigest(),
+                    "content": evidence_content,
+                }
+            ]
+        },
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
 
     return ModelRequest(
         attempt=StepAttemptContext(
@@ -54,7 +77,7 @@ def build_smoke_request() -> ModelRequest:
         ),
         data_boundary=DataBoundary.ENTERPRISE_PROVIDER_ONLY,
         messages=(
-            ModelMessage(role="user", content="Synthetic offline harness evidence."),
+            ModelMessage(role="user", content=canonical_message),
         ),
     )
 

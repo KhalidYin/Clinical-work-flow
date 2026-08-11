@@ -12,4 +12,4 @@
 - [P9.1 Workbench 流程基线](p9-workbench-flow-baseline.md) — P9.1 已由用户关闭；保留 Runner/Review 边界及 prerelease schema 不污染 released bundle 的约束。
 - [P12 Knowledge Ledger 设计基线](p12-knowledge-ledger-design-baseline.md) — 知识 GUI 的颜色、排版、布局和状态语义参考；不定义后续架构。
 - [P12 执行计划权威](p12-plan-authority.md) — P12 lifecycle 继续记录当前执行状态，但不覆盖 `docs/main` 架构；新 Harness 工作需另行重定计划。
-- [Harness 架构方向](project-harness-architecture-direction.md) — H0、OpenCode 准入、知识 remote Attempt、显式 Compose 独立 Supervisor 及 P16/P2-P3 本地 `secret://` tmpfs Store/模型 gateway 已完成；P16/P4、生产 Secret/runtime authority、公共研究网关和 live vertical 仍待完成。
+- [Harness 架构方向](project-harness-architecture-direction.md) — H0、OpenCode 准入、知识 remote Attempt、显式 Compose 独立 Supervisor 及 P16 本地 `secret://` tmpfs Store/模型 gateway/全量 Gate 已完成；生产 Secret/runtime authority、公共研究网关和 live vertical 仍待完成。

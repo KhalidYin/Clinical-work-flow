@@ -111,7 +111,7 @@ Receipt 和 API verifier 为准。
 ### 尚未覆盖
 
 - 面向生产的 socket proxy/rootless runtime authority、TLS/服务身份轮换与获授权出站网络；当前只覆盖显式本地 Compose 离线信任链。
-- 生产 Secret Manager、生产 socket/rootless runtime authority、真实供应商出站质量与公共研究 recording gateway；P16/P3 只使用合成 secret 和本地 TLS 假 endpoint，未调用 DeepSeek。P4 尚需运行全仓、Frontend、Workflow、migration 与 Compose 汇总 Gate。
+- 生产 Secret Manager、生产 socket/rootless runtime authority、真实供应商出站质量与公共研究 recording gateway；P16 只使用合成 secret 和本地 TLS 假 endpoint，未调用 DeepSeek。全仓、Frontend、Workflow、migration 与 Compose 汇总 Gate 已通过。
 - 非 root Supervisor、socket proxy/远程容器运行时、明确 UID/GID 的 volume ownership；P15 为隔离的每 Attempt 临时目录开放宽写权限只服务本地 POC，不能沿用为生产证明。
 - 通用 Evaluation、Release Worker、Knowledge MCP 和对应 GUI。
 - 临床统一 Runner 与 Harness artifact promotion。

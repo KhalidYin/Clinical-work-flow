@@ -154,6 +154,9 @@ def test_p15_mock_key_fixture_is_single_line_and_obviously_synthetic() -> None:
 
 
 def test_compose_smoke_request_is_synthetic_and_cannot_select_live_network() -> None:
+    import hashlib
+    import json
+
     from service.processing.harness_supervisor_smoke import build_smoke_request
 
     request = build_smoke_request()
@@ -163,3 +166,14 @@ def test_compose_smoke_request_is_synthetic_and_cannot_select_live_network() -> 
     assert request.model_profile.secret_ref == "env://SYNTHETIC_PROVIDER_KEY"
     assert request.model_profile.endpoint_ref is None
     assert request.model_profile.timeout_seconds == 30
+    payload = json.loads(request.messages[0].content)
+    assert len(payload["evidence"]) == 1
+    evidence = payload["evidence"][0]
+    assert evidence["evidence_id"] == "evidence-compose-offline-smoke"
+    assert evidence["locator"] == {
+        "kind": "synthetic_test",
+        "source_id": "compose-offline-smoke",
+    }
+    assert evidence["content_sha256"] == hashlib.sha256(
+        evidence["content"].encode("utf-8")
+    ).hexdigest()

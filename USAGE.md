@@ -13,7 +13,7 @@
 
 其中“异步富化”当前是同一 durable DAG 中的单个 Enrichment step，并非已经形成可编排的富化子图。
 
-P13 已提供一次性 legacy immutable Release 和 Workflow REST 消费适配。H0 已建立 `harness-runtime/`；OpenCode `1.18.14` 的 digest 容器准入、独立 Supervisor、P15 合成 Evidence → PostgreSQL Candidate/API 本地 POC，以及 P16/P2-P3 临时 Secret/模型 gateway 均已通过本地 Gate。Receipt migration 为 `20260809_0010`。默认 Compose 仍使用 replay，P16/P4 与 DeepSeek live 未完成。通用 Release Builder、检索评估闭环与只读知识 MCP 仍是目标能力。Document、Enrichment、Release 是独立 Worker pool，通过 PostgreSQL durable DAG 协作，不是流式 pipeline；当前通用 Release handler 尚未完成。空卷 Compose 默认没有 current Release。临床 Workflow 的固定阶段顺序不变。
+P13 已提供一次性 legacy immutable Release 和 Workflow REST 消费适配。H0 已建立 `harness-runtime/`；OpenCode `1.18.14` 的 digest 容器准入、独立 Supervisor、P15 合成 Evidence → PostgreSQL Candidate/API 本地 POC，以及 P16 临时 Secret/模型 gateway/全量 Gate 均已通过本地验证。Receipt migration 为 `20260809_0010`。默认 Compose 仍使用 replay，DeepSeek live 未完成且未授权。通用 Release Builder、检索评估闭环与只读知识 MCP 仍是目标能力。Document、Enrichment、Release 是独立 Worker pool，通过 PostgreSQL durable DAG 协作，不是流式 pipeline；当前通用 Release handler 尚未完成。空卷 Compose 默认没有 current Release。临床 Workflow 的固定阶段顺序不变。
 
 ## 2. 启动当前知识产品
 
@@ -63,7 +63,7 @@ docker compose --project-name clinical-knowledge-demo up -d --build --wait
 - 已完成（P15 本地 POC）：再叠加 `compose.harness.poc.yaml`，真实 OpenCode 从 PostgreSQL canonical Evidence 通过 Pack Skill/MCP 和 internal Mock 创建唯一 Candidate，API 可核对 lineage，状态停在作者确认前。
 - 已完成（P16/P2 本地临时 Secret）：Supervisor 独占 tmpfs volume，通过本机终端无回显 stdin 注入注册名称；每个 Attempt 的 auth 文件只读挂载并在所有终态清理，Supervisor 重启后值丢失。Worker 不挂载该卷。
 - 已完成（P16/P3 本地模型 gateway）：显式 `harness` profile 启动 digest/hash-locked Squid 和 internal client/public uplink 双网络；只有 gateway 双宿主，OpenCode 按获批 policy 接入 client network。`model-deepseek-v1` 只允许 CONNECT `api.deepseek.com:443`，不解密 TLS；本地假 TLS endpoint 已验证 Skill/MCP/模型工具循环。
-- 默认未启用：普通 Compose 仍运行 replay；P16/P4 全量 Gate、生产 Secret/runtime authority、公共研究网关和 DeepSeek live 尚未完成。Supervisor 持有宿主 Docker socket，是高权限信任边界；socket 不得挂给业务 Worker，也不得把 bind 标记为只读误述为 Docker API 降权。
+- 默认未启用：普通 Compose 仍运行 replay；生产 Secret/runtime authority、公共研究网关和 DeepSeek live 尚未完成。Supervisor 持有宿主 Docker socket，是高权限信任边界；socket 不得挂给业务 Worker，也不得把 bind 标记为只读误述为 Docker API 降权。
 - 未授权：任何真实模型出站和 P2-B3 live vertical。完成前两层不会自动开启第三层。
 
 ### 4.1 显式运行离线 Harness Gate
@@ -141,7 +141,7 @@ Verifier 输出一个 Candidate ID、真实 canonical Evidence ID、origin invoc
 `author_confirmation_required`。Worker 再运行一次时 Mock 请求数、ModelInvocation 和 Candidate 均不得
 增加。这里的 `env://` 合成 key、Docker internal 网络、Supervisor socket authority 和每 Attempt 临时
 目录权限都是 POC 折中；P16/P2 的 tmpfs Store 不改变该历史 POC 的 `env://` 配置，P16/P3 模型
-gateway 也不把该 POC 升级为生产网络或凭据认证；P4 与更收敛的 runtime authority 仍待完成。
+gateway 也不把该 POC 升级为生产网络或凭据认证；更收敛的 runtime authority 仍待完成。
 验收后如需删除，仅对上述精确 POC project 执行（会删除它的 PostgreSQL/对象卷）：
 
 ```powershell

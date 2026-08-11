@@ -1,6 +1,6 @@
 ---
 phase_index: 16
-status: in-progress
+status: completed
 created: 2026-08-11
 updated: 2026-08-12
 priority: 1
@@ -102,7 +102,7 @@ OpenCode 在边界内继续自主规划、选择 Skill/MCP、组织多步工具�
 | P1 | 冻结 Secret、能力保持型网络策略与审计合同 | 1-2 | P14 | completed |
 | P2 | 实现 Supervisor-owned tmpfs 临时 Secret | 1-2 | P1 | completed |
 | P3 | 实现通用双网络 egress gateway 与首个 DeepSeek 策略 | 2-3 | P2 | completed |
-| P4 | 完成零费用安全 Gate 与 P12 handoff | 2 | P3 | pending |
+| P4 | 完成零费用安全 Gate 与 P12 handoff | 2 | P3 | completed |
 
 ---
 
@@ -266,13 +266,13 @@ OpenCode 在边界内继续自主规划、选择 Skill/MCP、组织多步工具�
 
 ### 完成标准
 
-- [ ] Harness、Knowledge、Frontend、Workflow、migration 和 Compose Gate 全部通过，P14 安全基线无回归。
-- [ ] 测试证据证明 secret 不落盘、不泄漏，OpenCode 不能绕过代理，拒绝路径 fail closed。
-- [ ] OpenCode `1.18.14` 本地 mock 兼容性通过；若固定版本与当前官方配置文档不一致，停止
+- [x] Harness、Knowledge、Frontend、Workflow、migration 和 Compose Gate 全部通过，P14 安全基线无回归。
+- [x] 测试证据证明 secret 不落盘、不泄漏，OpenCode 不能绕过代理，拒绝路径 fail closed。
+- [x] OpenCode `1.18.14` 本地 mock 兼容性通过；若固定版本与当前官方配置文档不一致，停止
   P12 live 并记录阻断，不在运行时猜测配置。
-- [ ] P12 handoff 明确真实调用必须取得新的单独用户授权；未经授权不得探测 `/models`、
+- [x] P12 handoff 明确真实调用必须取得新的单独用户授权；未经授权不得探测 `/models`、
   发送测试 prompt 或自动重试。
-- [ ] 主文档同步、阶段提交和远端推送完成，P16 移入 `plans/complete/` 后方可恢复 P12 live Gate。
+- [x] 主文档同步、阶段提交和远端推送完成，P16 移入 `plans/complete/` 后方可恢复 P12 live Gate。
 
 ### 边界（本 Phase 明确不做）
 
@@ -310,6 +310,7 @@ OpenCode 在边界内继续自主规划、选择 Skill/MCP、组织多步工具�
 | P16-F07 | 只注入 `HTTPS_PROXY` 不能阻止 OpenCode 绕过代理；显式 `harness` profile 启动双宿主 gateway 也会扩大本地部署面 | P3 | architecture/accepted risk | OpenCode 只连接 internal client network，gateway 是唯一双宿主服务；Worker/Supervisor 不连接 client/uplink，普通 Compose 保持 replay；生产拆分 egress overlay/runtime authority |
 | P16-F08 | 原合同只绑定 Profile/provider/endpoint，`input_bundle.model` 仍可漂移到同供应商其他模型，影响成本与产品授权 | P3 | fixed | `ModelEgressBinding` 新增精确 model，HTTP pre-dispatch 与 Executor pre-secret 双重校验 provider/model，漂移不解析 secret、不启动容器 |
 | P16-F09 | 本地允许路径必须使用私网 TLS 假 endpoint，production Squid 正确拒绝私网目标 | P3 | test boundary | 测试只在临时 config 副本删除 private-destination deny，并使用一小时自签证书、合成 key；签入配置不放宽，未访问 DeepSeek |
+| P16-F10 | Compose Smoke fixture 仍发送旧纯文本，当前 Enrichment provider 在 Supervisor 前要求 canonical JSON Evidence | P4 | fixed regression | 新增部署合同 RED，Smoke 改为带 locator/content hash 的合成 canonical Evidence；真实 Compose Worker→Supervisor 离线失败关闭恢复，未产生外部出站 |
 
 ## 关键决策记录
 
@@ -328,3 +329,4 @@ OpenCode 在边界内继续自主规划、选择 Skill/MCP、组织多步工具�
 | 2026-08-11 | `PLAN.md`、canonical 架构原则（R119） | 用户确认能力不阉割原则；P16 改为通用策略/gateway + DeepSeek 首个实例，公共研究能力明确保留但不冒充已实现 |
 | 2026-08-12 | `PROJECT_GUIDE.md`、`PROJECT_SPEC.md`、`TEST_GUIDE.md`、`USAGE.md`、`PLAN.md`（R121，提交 `94de7ec`） | P2 完成本地 tmpfs Store、stdin 注入、独立 daemon mapper、Attempt 物化/全终态清理和真实 Docker 零费用证据；P3 gateway/live 仍未完成 |
 | 2026-08-12 | canonical docs、`USAGE.md`、Harness README、P16/PLAN/TASK_STATE（R122） | P3 完成 digest/hash-locked Squid、双网络拓扑、allow/deny/bypass、精确 model 绑定与真实 OpenCode Skill/MCP 本地 TLS 正向 Gate；P4/live 仍未完成 |
+| 2026-08-12 | canonical docs、`USAGE.md`、P12/PLAN/TASK_STATE（R123） | P4 完成全仓、Frontend/Workflow、空卷 migration、Compose/Smoke、泄漏/清理汇总 Gate；P16 归档，P12 live 只恢复到等待单独授权状态 |

@@ -668,6 +668,11 @@ P2-B 不再作为一次性“大模型 + 关系图 + 全部审核 UI”交付。
   `network none` 的受限 OpenCode 子容器，并把 `ExecutionReceipt`/`ValidationReceipt` 交回 migration
   `20260809_0010` 的 ModelInvocation 字段。真实无效 provider Attempt 按预期 fail closed，Receipt
   可重复查询，临时容器/workspace/secret 均清理；没有真实出站。普通 Compose 仍默认 replay。
+- 2026-08-12 P16 已完成并归档：Supervisor-owned local tmpfs `secret://deepseek-api-key`、精确
+  Profile/provider/model/endpoint/data-boundary 绑定、internal client/public uplink Squid CONNECT
+  gateway、allow/deny/bypass、Receipt identity、固定 OpenCode Pack Skill/MCP 本地 TLS mock、空卷
+  migration 和完整 Compose Smoke 均通过。该 Gate 未读取真实 key、未调用 DeepSeek，也不等于生产
+  Secret Manager/runtime authority。P2-B3 现在只恢复为“可由用户另行授权”的 handoff 状态，不自动执行。
 
 #### 产出
 
@@ -707,9 +712,13 @@ P2-B 不再作为一次性“大模型 + 关系图 + 全部审核 UI”交付。
 - live vertical 的完成标准不变：Source → Evidence → live Candidate → 作者确认 → 独立审核
   的可回放闭环，`approved` 仍不等于 `released`；关闭 P2 Gate 仍需用户提供获授权的
   ModelProfile/Secret reference 与允许出站 Evidence（时机可延后到 H0 骨架就绪后）。
-- OpenCode 候选评估、容器准入、remote Attempt、`env://` 合成 Secret/MCP transport、Receipt
-  产品落账和独立 Supervisor 的 Compose 离线 Gate 已完成；在 `secret://` 后端、受控网络策略、
-  对应回归及用户对 ModelProfile/Evidence/预算的明确授权通过前，仍不得进入 live vertical。
+- OpenCode 候选评估、容器准入、remote Attempt、Receipt 产品落账、独立 Supervisor、P16 本地
+  `secret://` 与受控模型 gateway 已完成。进入 live vertical 仍须用户在新的明确授权中逐项确认：
+  轮换既往暴露过的 key；仅通过本机 no-echo stdin 注入；使用 canonical
+  `deepseek-v4-flash-extractor@1.0.0` / `deepseek-v4-flash`；只选择 fresh、synthetic、
+  `external_allowed` Evidence；先运行只读 preflight；以 `--run-id` 定向、`max_calls=1` 执行；
+  禁止 SDK 自动 retry/fallback；执行后核对 cost/token、ModelInvocation、Attempt/Receipt、Evidence→Candidate
+  lineage 并停在人工治理。未经该授权不得探测 `/models`、发送测试 prompt 或调用 DeepSeek。
 - 不因重定计划修改本切片已冻结的 Candidate/Relation/Review/Release 语义。
 
 ### P2-B 涉及文件

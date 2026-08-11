@@ -42,7 +42,7 @@
 - [已实现（P16/P2 本地临时 Secret）] Supervisor 独占 Docker local tmpfs volume，接受本机终端无回显 stdin 注入的注册名称，解析 `secret://deepseek-api-key`，并为单个 Attempt 物化只读 OpenCode auth 文件；Worker 无挂载、请求/环境/Receipt 无 secret 值。成功、失败、timeout、cancel、orphan、部分写入和 Supervisor 重启都有清理或丢失测试，持久 state 与临时 secret 使用独立 daemon path mapper。该实现不是长期 Secret Manager；策略 runtime availability 由 P3 gateway 独立决定。
 - [已实现（P16/P3 本地 gateway）] `model-deepseek-v1` 使用 hash-locked Squid 配置和 digest-locked Canonical 镜像；OpenCode 只连接 policy-scoped internal client network，gateway 是唯一同时连接 client 与 public uplink 的服务。只允许 CONNECT `api.deepseek.com:443`，拒绝其他 hostname、原始 IP、端口、私网/保留地址和直连；不配置 TLS interception。固定 OpenCode `1.18.14` 已经由本地 TLS 假端点完成 Pack Skill → MCP → 模型工具循环，且输入 provider/model 必须与 ModelProfile 绑定一致。
 
-首个 Harness 候选 OpenCode `1.18.14` 已完成容器准入、知识 remote Attempt、显式 Compose 部署、P15 PostgreSQL/API 本地 POC，以及 P16/P2-P3 临时 Secret 与模型 endpoint gateway。固定镜像仍自带 `customize-opencode` 并向模型广告内建工具，安全性依赖 Supervisor 编译的默认 deny permission，而不是“工具不可见”。P16/P3 只完成零费用本地网络与能力保持证据；P4 全量 Gate、生产 Secret/runtime authority 和真实调用授权仍未完成。P15 POC 继续使用 `env://` 合成 key 与 internal Mock；不得把 P3 表述为已部署 DeepSeek live。
+首个 Harness 候选 OpenCode `1.18.14` 已完成容器准入、知识 remote Attempt、显式 Compose 部署、P15 PostgreSQL/API 本地 POC，以及 P16 临时 Secret、模型 endpoint gateway 与全仓/Compose 安全汇总 Gate。固定镜像仍自带 `customize-opencode` 并向模型广告内建工具，安全性依赖 Supervisor 编译的默认 deny permission，而不是“工具不可见”。P16 只完成零费用本地安全准备；生产 Secret/runtime authority 和真实调用授权仍未完成。P15 POC 继续使用 `env://` 合成 key 与 internal Mock；不得把 P16 表述为已部署 DeepSeek live。
 
 #### 知识生产闭环
 

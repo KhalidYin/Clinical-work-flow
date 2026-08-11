@@ -1716,3 +1716,56 @@ Done — no next steps。
 - `harness-runtime/egress/`、Supervisor network/executor/Pack compiler、Dockerfile 与测试
 - `clinical-llm-wiki/compose.harness.yaml`
 - canonical docs、README/USAGE/AGENTS、P16/PLAN/TASK_STATE、DevLog/INDEX（pending phase commit）
+
+---
+
+### R123 [02:04] [P16-harness-secret-egress-gate] P4: 零费用安全汇总与 P12 handoff
+
+#### Done
+
+- 完成跨仓 Gate：Harness `207 passed, 5 skipped`；Knowledge `227 passed, 8 skipped`；Frontend
+  `30 passed`、typecheck 与 production build；Workflow `366 passed, 1 skipped`；两侧 Ruff 通过。
+- 独立空卷 Compose 将 Alembic 升至 `20260809_0010 (head)`；完整 Harness Compose 中 PostgreSQL、
+  migration/bootstrap、P15 mock、Squid gateway 与 Supervisor 全部健康。
+- Compose topology 实测 Supervisor 只连 internal control network、无 HTTP(S) proxy 或 DeepSeek key env；
+  gateway 只连 internal client + public uplink、无 host port、read-only/cap-drop/no-new-privileges；
+  secret tmpfs 为空，gateway 没有 `api.deepseek.com` 请求或 ERROR/FATAL。
+- P14 Worker→Supervisor offline Smoke 首次暴露旧纯文本 fixture 与当前 canonical Evidence 合同漂移；
+  新增 RED 后改为带 locator/content hash 的合成 JSON Evidence，重新构建后真实 Smoke 恢复 fail closed。
+- migration 与完整 Compose 临时项目的容器、卷、项目网络均精确清零；已有 P15 shared internal network
+  保留，P16 client network已清理。删除的仅是明确命名的合成临时项目数据且不可恢复。
+- P16 归档并把执行主线交回 P12 P2-B3。handoff 明确轮换旧 key、no-echo stdin、fresh synthetic
+  `external_allowed` Evidence、只读 preflight、定向 `--run-id`、`max_calls=1`、无 retry/fallback、
+  cost/Receipt/lineage 核对和人工治理；仍要求新的单独用户授权。
+
+#### Issues / Risks
+
+- P16 关闭的是本地安全准备 Gate，不是生产 Secret Manager、rootless/socket proxy runtime 或供应商质量
+  认证。Supervisor 仍持有高权限 Docker socket，显式 profile 会启动双宿主 gateway。
+- Compose 使用固定名称的 P15 internal model network；并行项目会提示 ownership warning。Gate 保留了
+  正在使用的 shared network，但生产部署应明确 external network ownership 或项目隔离策略。
+- Smoke 的预期是无效 provider 在 `network none` 下产生脱敏失败 Receipt，不是模型成功；本轮修复只
+  更新 synthetic canonical Evidence fixture，没有扩大 live、网络或凭据权限。
+- mock/本地 TLS 成功不证明 DeepSeek 可用性、输出质量、价格或 API 兼容性；未经授权不得探测 `/models`。
+
+#### Validation
+
+- Frontend/Workflow/Knowledge 及构建命令全部通过；Harness 复用 P3 刚完成的全量结果，P4 未修改
+  Harness 代码。
+- 空卷 migration、完整 Compose health/topology、Worker→Supervisor Smoke、gateway zero-request、
+  tmpfs/Attempt 零残留和精确 cleanup 全部通过。
+- 未读取或注入真实 key，未调用 DeepSeek、`/models`、公共网页或任何供应商 endpoint。
+
+#### Next
+
+1. 等待用户决定是否授权 P12 单次 live vertical；当前不自动继续调用。
+2. 若授权，先完成旧 key 轮换/本机 no-echo 注入、fresh synthetic Evidence 与只读 preflight，再展示
+   精确 run/profile/`max_calls=1` 供执行确认。
+3. 主要风险是把本地 Gate 误述为生产认证、复用既往暴露 key、误选非 synthetic/非 external_allowed
+   Evidence，或在失败时由 SDK 自动重试/fallback。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/service/processing/harness_supervisor_smoke.py` 及部署合同测试
+- canonical docs、P12/P16/PLAN/TASK_STATE、README/USAGE/AGENTS、memory、DevLog/INDEX
+- P3 提交 `2a140f2` 已推送；P4 归档提交 pending
