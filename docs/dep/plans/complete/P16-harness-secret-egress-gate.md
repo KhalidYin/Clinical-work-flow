@@ -329,4 +329,4 @@ OpenCode 在边界内继续自主规划、选择 Skill/MCP、组织多步工具�
 | 2026-08-11 | `PLAN.md`、canonical 架构原则（R119） | 用户确认能力不阉割原则；P16 改为通用策略/gateway + DeepSeek 首个实例，公共研究能力明确保留但不冒充已实现 |
 | 2026-08-12 | `PROJECT_GUIDE.md`、`PROJECT_SPEC.md`、`TEST_GUIDE.md`、`USAGE.md`、`PLAN.md`（R121，提交 `94de7ec`） | P2 完成本地 tmpfs Store、stdin 注入、独立 daemon mapper、Attempt 物化/全终态清理和真实 Docker 零费用证据；P3 gateway/live 仍未完成 |
 | 2026-08-12 | canonical docs、`USAGE.md`、Harness README、P16/PLAN/TASK_STATE（R122） | P3 完成 digest/hash-locked Squid、双网络拓扑、allow/deny/bypass、精确 model 绑定与真实 OpenCode Skill/MCP 本地 TLS 正向 Gate；P4/live 仍未完成 |
-| 2026-08-12 | canonical docs、`USAGE.md`、P12/PLAN/TASK_STATE（R123） | P4 完成全仓、Frontend/Workflow、空卷 migration、Compose/Smoke、泄漏/清理汇总 Gate；P16 归档，P12 live 只恢复到等待单独授权状态 |
+| 2026-08-12 | canonical docs、`USAGE.md`、P12/PLAN/TASK_STATE（R123，提交 `4654433`） | P4 完成全仓、Frontend/Workflow、空卷 migration、Compose/Smoke、泄漏/清理汇总 Gate；P16 归档，P12 live 只恢复到等待单独授权状态 |

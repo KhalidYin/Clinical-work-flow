@@ -1768,4 +1768,4 @@ Done — no next steps。
 
 - `clinical-llm-wiki/service/processing/harness_supervisor_smoke.py` 及部署合同测试
 - canonical docs、P12/P16/PLAN/TASK_STATE、README/USAGE/AGENTS、memory、DevLog/INDEX
-- P3 提交 `2a140f2` 已推送；P4 归档提交 pending
+- P3 提交 `2a140f2`、P4 归档提交 `4654433` 均已推送远端
