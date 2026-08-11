@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import hashlib
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import time
 import uuid
@@ -29,6 +31,50 @@ PACK_ROOT = PROJECT_ROOT / "clinical-llm-wiki" / "harness-packs" / (
 MANIFEST_PATH = ROOT / "images" / "opencode-1.18.14.json"
 MOCK_IMAGE = "clinical-harness-supervisor:local"
 SYNTHETIC_SECRET = "synthetic-p15-file-secret"
+GATEWAY_IMAGE = (
+    "ubuntu/squid:6.6-24.04_edge@sha256:"
+    "8a3baed477e2c282ab8aa5edad442f69873246964f225c5c2ae8364b6610963c"
+)
+POLICY_ROOT = ROOT / "egress" / "model-deepseek-v1"
+
+
+def _write_local_deepseek_certificate(root: Path) -> tuple[Path, Path]:
+    x509 = pytest.importorskip("cryptography.x509")
+    hashes = pytest.importorskip("cryptography.hazmat.primitives.hashes")
+    serialization = pytest.importorskip(
+        "cryptography.hazmat.primitives.serialization"
+    )
+    rsa = pytest.importorskip(
+        "cryptography.hazmat.primitives.asymmetric.rsa"
+    )
+    name = x509.Name([x509.NameAttribute(x509.NameOID.COMMON_NAME, "api.deepseek.com")])
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    now = datetime.now(timezone.utc)
+    certificate = (
+        x509.CertificateBuilder()
+        .subject_name(name)
+        .issuer_name(name)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(now - timedelta(minutes=1))
+        .not_valid_after(now + timedelta(hours=1))
+        .add_extension(
+            x509.SubjectAlternativeName([x509.DNSName("api.deepseek.com")]),
+            critical=False,
+        )
+        .sign(key, hashes.SHA256())
+    )
+    cert_path = root / "local-deepseek-cert.pem"
+    key_path = root / "local-deepseek-key.pem"
+    cert_path.write_bytes(certificate.public_bytes(serialization.Encoding.PEM))
+    key_path.write_bytes(
+        key.private_bytes(
+            serialization.Encoding.PEM,
+            serialization.PrivateFormat.PKCS8,
+            serialization.NoEncryption(),
+        )
+    )
+    return cert_path, key_path
 
 
 class RecordingDockerRuntime(DockerEngineContainerRuntime):
@@ -431,3 +477,276 @@ def test_real_opencode_calls_pack_skill_and_attempt_mcp_over_internal_mock(
         if mock is not None:
             mock.remove(force=True)
         network.remove()
+
+
+@pytest.mark.integration
+def test_real_opencode_preserves_pack_skill_and_mcp_through_model_gateway(
+    tmp_path: Path,
+) -> None:
+    from supervisor.network_policy import (
+        NetworkRuntimeBinding,
+        p16_network_policy_registry,
+    )
+
+    client, manifest = _docker_and_manifest()
+    try:
+        client.images.get(GATEWAY_IMAGE)
+    except Exception as exc:  # pragma: no cover - environment dependent
+        pytest.skip(f"pinned gateway image unavailable: {exc}")
+
+    suffix = uuid.uuid4().hex[:12]
+    labels = {"clinical.p16.test": suffix}
+    client_network = client.networks.create(
+        f"p16-opencode-client-{suffix}",
+        internal=True,
+        labels=labels,
+    )
+    uplink_network = client.networks.create(
+        f"p16-opencode-uplink-{suffix}",
+        internal=False,
+        labels=labels,
+    )
+    containers: list[object] = []
+    mock = None
+    gateway = None
+    try:
+        cert_path, key_path = _write_local_deepseek_certificate(tmp_path)
+        secret_file = tmp_path / "synthetic-model-key"
+        secret_file.write_text(SYNTHETIC_SECRET + "\n", encoding="utf-8")
+        audit_dir = tmp_path / "gateway-mock-audit"
+        audit_dir.mkdir()
+        tls_server = """
+import os
+import ssl
+from http.server import ThreadingHTTPServer
+from pathlib import Path
+from poc.openai_mock.server import ScriptedOpenAIMock, _handler, load_api_key
+
+mock = ScriptedOpenAIMock(
+    api_key=load_api_key(os.environ),
+    audit_path=Path(os.environ['P15_MOCK_AUDIT_PATH']),
+)
+server = ThreadingHTTPServer(('0.0.0.0', 443), _handler(mock))
+context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+context.load_cert_chain('/tls/cert.pem', '/tls/key.pem')
+server.socket = context.wrap_socket(server.socket, server_side=True)
+server.serve_forever()
+"""
+        mock = client.containers.create(
+            MOCK_IMAGE,
+            command=["python", "-c", tls_server],
+            network_mode=uplink_network.name,
+            labels=labels,
+            read_only=True,
+            cap_drop=["ALL"],
+            security_opt=["no-new-privileges"],
+            environment={
+                "P15_MOCK_API_KEY_FILE": "/run/secrets/model-key",
+                "P15_MOCK_AUDIT_PATH": "/audit/requests.jsonl",
+            },
+            volumes={
+                str(secret_file): {
+                    "bind": "/run/secrets/model-key",
+                    "mode": "ro",
+                },
+                str(cert_path): {"bind": "/tls/cert.pem", "mode": "ro"},
+                str(key_path): {"bind": "/tls/key.pem", "mode": "ro"},
+                str(audit_dir): {"bind": "/audit", "mode": "rw"},
+            },
+            tmpfs={"/tmp": "rw,noexec,nosuid,size=16m"},
+        )
+        containers.append(mock)
+        uplink_network.disconnect(mock)
+        uplink_network.connect(mock, aliases=["api.deepseek.com"])
+        mock.start()
+        _wait_running(mock)
+
+        production_config = (POLICY_ROOT / "squid.conf").read_text(
+            encoding="utf-8"
+        )
+        test_config = production_config.replace(
+            "http_access deny blocked_destination",
+            "# test-only local TLS target: production keeps this deny",
+        )
+        config_path = tmp_path / "squid.conf"
+        config_path.write_text(test_config, encoding="utf-8")
+        config_sha256 = hashlib.sha256(config_path.read_bytes()).hexdigest()
+        gateway = client.containers.create(
+            GATEWAY_IMAGE,
+            command=["-f", "/etc/squid/squid.conf", "-NYC"],
+            entrypoint=["/usr/sbin/squid"],
+            user="13:13",
+            network_mode=client_network.name,
+            labels=labels,
+            read_only=True,
+            cap_drop=["ALL"],
+            security_opt=["no-new-privileges"],
+            tmpfs={
+                "/tmp": "rw,noexec,nosuid,size=16m",
+                "/run": "rw,noexec,nosuid,size=4m",
+                "/var/log/squid": "rw,noexec,nosuid,size=16m",
+                "/var/spool/squid": "rw,noexec,nosuid,size=16m",
+            },
+            volumes={
+                str(config_path): {
+                    "bind": "/etc/squid/squid.conf",
+                    "mode": "ro",
+                }
+            },
+        )
+        containers.append(gateway)
+        client_network.disconnect(gateway)
+        client_network.connect(gateway, aliases=["harness-egress-deepseek"])
+        uplink_network.connect(gateway)
+        gateway.start()
+        _wait_running(gateway)
+
+        resolver = HarnessPackResolver({"knowledge-candidate-v1": PACK_ROOT})
+        pack_sha256 = resolver.measure("knowledge-candidate-v1")
+        compiler = HarnessPackCompiler(
+            {
+                "knowledge.read-evidence": McpCapabilityBinding(
+                    capability_id="knowledge.read-evidence",
+                    server_name="clinical_attempt",
+                    tools=frozenset({"read_evidence"}),
+                    command=(
+                        "/bin/sh",
+                        "/harness/mcp_stdio_bridge.sh",
+                        "/harness/mcp-bundle.json",
+                        "/staging/mcp-audit.jsonl",
+                    ),
+                )
+            },
+            model_binding=OpenAICompatibleModelBinding(
+                provider_id="deepseek",
+                model_id="deepseek-v4-flash",
+                base_url="https://api.deepseek.com/v1",
+            ),
+        )
+        input_bundle = {
+            "provider": "deepseek",
+            "model": "deepseek-v4-flash",
+            "data_boundary": "external_allowed",
+            "messages": [{"role": "user", "content": "Use authorized Evidence."}],
+            "evidence": [
+                {
+                    "evidence_id": "evidence-poc-001",
+                    "content": "Synthetic evidence for the P16 gateway integration.",
+                }
+            ],
+        }
+        attempt = SupervisorAttemptRequest(
+            attempt_id=f"attempt-p16-{suffix}",
+            run_id=f"run-p16-{suffix}",
+            step_id="enrichment.extract_candidate",
+            generation_token=f"generation-p16-{suffix}",
+            fencing_token=f"fencing-p16-{suffix}",
+            adapter_id="opencode@1.18.14",
+            spec_sha256="a" * 64,
+            input_sha256=canonical_sha256(input_bundle),
+            input_bundle=input_bundle,
+            instruction_ref=InstructionRef(
+                pack_id="knowledge-candidate-v1",
+                version="1.0.0",
+                sha256=pack_sha256,
+            ),
+            secret_refs=("secret://deepseek-api-key",),
+            network_policy_id="model-deepseek-v1",
+            model_egress={
+                "profile_id": "deepseek-v4-flash-extractor",
+                "profile_version": "1.0.0",
+                "provider": "deepseek",
+                "model": "deepseek-v4-flash",
+                "endpoint": "https://api.deepseek.com:443",
+                "data_boundary": "external_allowed",
+            },
+            capabilities=frozenset(
+                {"knowledge.read-evidence", "harness.browser"}
+            ),
+            timeout_seconds=30,
+            network_mode="none",
+        )
+        runtime = RecordingDockerRuntime(client)
+        binding = NetworkRuntimeBinding(
+            policy_id="model-deepseek-v1",
+            internal_network_id=client_network.id,
+            proxy_url="http://harness-egress-deepseek:3128",
+            gateway_identity="test-only-local-squid",
+            gateway_config_sha256=config_sha256,
+        )
+        environment = {
+            str(key): str(value)
+            for key, value in dict(manifest["environment"]).items()
+        }
+        # The local fixture uses a one-hour self-signed certificate. Production
+        # keeps normal public CA validation and Squid never terminates TLS.
+        environment["NODE_TLS_REJECT_UNAUTHORIZED"] = "0"
+        executor = OpenCodeAttemptExecutor(
+            runtime=runtime,
+            image_ref=str(manifest["image_ref"]),
+            mcp_bridge_path=ROOT / "supervisor" / "mcp_stdio_bridge.sh",
+            secret_resolver=lambda _reference: SYNTHETIC_SECRET,
+            workspace_root=tmp_path / "gateway-attempts",
+            secret_workspace_root=tmp_path / "gateway-attempt-secrets",
+            environment=tuple(environment.items()),
+            pack_resolver=resolver,
+            pack_compiler=compiler,
+            network_policy_registry=p16_network_policy_registry(
+                available_policy_ids=frozenset({"none", "model-deepseek-v1"})
+            ),
+            network_runtime_bindings=(binding,),
+        )
+
+        outcome = executor.execute(attempt)
+
+        debug = {
+            "receipt": outcome.receipt.model_dump(mode="json"),
+            "opencode_logs": runtime.logs_before_removal,
+            "staged_files": runtime.staged_files,
+            "gateway_logs": gateway.logs().decode("utf-8", errors="replace"),
+            "mock_logs": mock.logs().decode("utf-8", errors="replace"),
+            "mock_audit": (
+                audit_dir.joinpath("requests.jsonl").read_text(encoding="utf-8")
+                if audit_dir.joinpath("requests.jsonl").exists()
+                else ""
+            ),
+        }
+        assert outcome.receipt.exit_classification is ExitClassification.SUCCEEDED, (
+            json.dumps(debug, ensure_ascii=False, default=str)
+        )
+        assert outcome.output_bundle is not None
+        assert outcome.output_bundle["candidate_group_id"] == "candidate-poc-001"
+        assert runtime.network_names == {client_network.name}
+        assert outcome.receipt.network_policy is not None
+        assert outcome.receipt.network_policy.policy_id == "model-deepseek-v1"
+        assert outcome.receipt.network_policy.gateway_config_sha256 == config_sha256
+        audits = [
+            json.loads(line)
+            for line in audit_dir.joinpath("requests.jsonl")
+            .read_text(encoding="utf-8")
+            .splitlines()
+        ]
+        assert {audit["model"] for audit in audits} == {"deepseek-v4-flash"}
+        assert "skill" in audits[1]["tool_names"]
+        assert "clinical_attempt_read_evidence" in audits[1]["tool_names"]
+        staged = "\n".join(runtime.staged_files.values())
+        assert "read_evidence" in staged
+        assert SYNTHETIC_SECRET not in staged
+        gateway_logs = debug["gateway_logs"]
+        assert "api.deepseek.com:443" in gateway_logs
+        assert SYNTHETIC_SECRET not in gateway_logs
+        assert client.containers.list(
+            all=True,
+            filters={"label": f"clinical.harness.attempt_id={attempt.attempt_id}"},
+        ) == []
+    finally:
+        for container in reversed(containers):
+            try:
+                container.remove(force=True)  # type: ignore[attr-defined]
+            except Exception:
+                pass
+        for network in (client_network, uplink_network):
+            try:
+                network.remove()
+            except Exception:
+                pass

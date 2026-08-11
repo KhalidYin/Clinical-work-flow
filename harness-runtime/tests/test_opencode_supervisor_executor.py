@@ -100,14 +100,25 @@ def _attempt() -> SupervisorAttemptRequest:
 
 def _deepseek_attempt() -> SupervisorAttemptRequest:
     payload = _attempt().model_dump(mode="json")
+    input_bundle = dict(payload["input_bundle"])
+    input_bundle.update(
+        {
+            "data_boundary": "external_allowed",
+            "provider": "deepseek",
+            "model": "deepseek-v4-flash",
+        }
+    )
     payload.update(
         {
+            "input_bundle": input_bundle,
+            "input_sha256": canonical_sha256(input_bundle),
             "secret_refs": ["secret://deepseek-api-key"],
             "network_policy_id": "model-deepseek-v1",
             "model_egress": {
                 "profile_id": "deepseek-v4-flash-extractor",
                 "profile_version": "1.0.0",
                 "provider": "deepseek",
+                "model": "deepseek-v4-flash",
                 "endpoint": "https://api.deepseek.com:443",
                 "data_boundary": "external_allowed",
             },
@@ -115,6 +126,61 @@ def _deepseek_attempt() -> SupervisorAttemptRequest:
         }
     )
     return SupervisorAttemptRequest.model_validate(payload)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("provider", "synthetic"), ("model", "deepseek-chat")],
+)
+def test_executor_rejects_input_model_binding_drift_before_secret_or_container(
+    tmp_path: Path,
+    field: str,
+    value: str,
+) -> None:
+    from supervisor.network_policy import (
+        NetworkPolicyDenied,
+        NetworkRuntimeBinding,
+        p16_network_policy_registry,
+    )
+    from supervisor.opencode_executor import OpenCodeAttemptExecutor
+
+    attempt_payload = _deepseek_attempt().model_dump(mode="json")
+    input_bundle = dict(attempt_payload["input_bundle"])
+    input_bundle[field] = value
+    attempt_payload["input_bundle"] = input_bundle
+    attempt_payload["input_sha256"] = canonical_sha256(input_bundle)
+    attempt = SupervisorAttemptRequest.model_validate(attempt_payload)
+    runtime = FakeContainerRuntime(exit_code=0)
+    resolved: list[str] = []
+    executor = OpenCodeAttemptExecutor(
+        runtime=runtime,
+        image_ref=IMAGE_REF,
+        mcp_bridge_path=(
+            Path(__file__).resolve().parents[1] / "supervisor" / "mcp_stdio_bridge.sh"
+        ),
+        secret_resolver=lambda reference: resolved.append(reference) or SYNTHETIC_SECRET,
+        workspace_root=tmp_path / "state",
+        secret_workspace_root=tmp_path / "ephemeral-secrets",
+        network_policy_registry=p16_network_policy_registry(
+            available_policy_ids=frozenset({"none", "model-deepseek-v1"})
+        ),
+        network_runtime_bindings=(
+            NetworkRuntimeBinding(
+                policy_id="model-deepseek-v1",
+                internal_network_id="e" * 64,
+                proxy_url="http://harness-egress-deepseek:3128",
+                gateway_identity="canonical-ubuntu-squid-6.14-0ubuntu0.24.04.2",
+                gateway_config_sha256="f" * 64,
+            ),
+        ),
+    )
+
+    with pytest.raises(NetworkPolicyDenied) as error:
+        executor.execute(attempt)
+
+    assert error.value.code == "network_policy_binding_mismatch"
+    assert resolved == []
+    assert runtime.last_config is None
 
 
 def test_executor_rejects_unavailable_model_policy_before_secret_or_container(
@@ -142,6 +208,95 @@ def test_executor_rejects_unavailable_model_policy_before_secret_or_container(
     assert error.value.code == "network_policy_not_available"
     assert resolved == []
     assert runtime.last_config is None
+
+
+def test_executor_requires_trusted_runtime_binding_before_resolving_secret(
+    tmp_path: Path,
+) -> None:
+    from supervisor.network_policy import NetworkPolicyDenied, p16_network_policy_registry
+    from supervisor.opencode_executor import OpenCodeAttemptExecutor
+
+    runtime = FakeContainerRuntime(exit_code=0)
+    resolved: list[str] = []
+    executor = OpenCodeAttemptExecutor(
+        runtime=runtime,
+        image_ref=IMAGE_REF,
+        mcp_bridge_path=(
+            Path(__file__).resolve().parents[1] / "supervisor" / "mcp_stdio_bridge.sh"
+        ),
+        secret_resolver=lambda reference: resolved.append(reference) or SYNTHETIC_SECRET,
+        workspace_root=tmp_path,
+        secret_workspace_root=tmp_path / "ephemeral-secrets",
+        network_policy_registry=p16_network_policy_registry(
+            available_policy_ids=frozenset({"none", "model-deepseek-v1"})
+        ),
+    )
+
+    with pytest.raises(NetworkPolicyDenied) as error:
+        executor.execute(_deepseek_attempt())
+
+    assert error.value.code == "network_runtime_binding_unavailable"
+    assert resolved == []
+    assert runtime.last_config is None
+
+
+def test_executor_compiles_trusted_proxy_network_and_receipt_evidence(
+    tmp_path: Path,
+) -> None:
+    from supervisor.network_policy import (
+        NetworkRuntimeBinding,
+        p16_network_policy_registry,
+    )
+    from supervisor.opencode_executor import OpenCodeAttemptExecutor
+
+    output = {"claims": [], "advisory_signals": []}
+    event = json.dumps({"type": "text", "data": {"text": json.dumps(output)}})
+    runtime = FakeContainerRuntime(
+        exit_code=0,
+        staged_outputs={Path("events.jsonl"): event.encode("utf-8")},
+    )
+    binding = NetworkRuntimeBinding(
+        policy_id="model-deepseek-v1",
+        internal_network_id="e" * 64,
+        proxy_url="http://harness-egress-deepseek:3128",
+        gateway_identity="canonical-ubuntu-squid-6.14-0ubuntu0.24.04.2",
+        gateway_config_sha256="f" * 64,
+    )
+    executor = OpenCodeAttemptExecutor(
+        runtime=runtime,
+        image_ref=IMAGE_REF,
+        mcp_bridge_path=(
+            Path(__file__).resolve().parents[1] / "supervisor" / "mcp_stdio_bridge.sh"
+        ),
+        secret_resolver=lambda reference: (
+            SYNTHETIC_SECRET
+            if reference == "secret://deepseek-api-key"
+            else (_ for _ in ()).throw(KeyError(reference))
+        ),
+        workspace_root=tmp_path / "state",
+        secret_workspace_root=tmp_path / "ephemeral-secrets",
+        network_policy_registry=p16_network_policy_registry(
+            available_policy_ids=frozenset({"none", "model-deepseek-v1"})
+        ),
+        network_runtime_bindings=(binding,),
+    )
+
+    outcome = executor.execute(_deepseek_attempt())
+
+    assert outcome.receipt.status == HarnessStatus.SUCCEEDED
+    assert runtime.last_config is not None
+    assert runtime.last_config.internal_network_id == "e" * 64
+    environment = dict(runtime.last_config.environment)
+    assert environment["HTTPS_PROXY"] == binding.proxy_url
+    assert environment["HTTP_PROXY"] == binding.proxy_url
+    assert environment["NO_PROXY"] == "localhost,127.0.0.1"
+    assert SYNTHETIC_SECRET not in runtime.last_config.model_dump_json()
+    assert outcome.receipt.network_policy is not None
+    assert outcome.receipt.network_policy.gateway_identity == binding.gateway_identity
+    assert (
+        outcome.receipt.network_policy.gateway_config_sha256
+        == binding.gateway_config_sha256
+    )
 
 
 def test_executor_compiles_fixed_offline_opencode_attempt_and_cleans_workspace(

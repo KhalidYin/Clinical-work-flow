@@ -1,4 +1,37 @@
 services:
+  harness-egress-deepseek:
+    profiles: ["harness"]
+    image: ubuntu/squid:6.6-24.04_edge@sha256:8a3baed477e2c282ab8aa5edad442f69873246964f225c5c2ae8364b6610963c
+    platform: linux/amd64
+    restart: unless-stopped
+    read_only: true
+    user: "13:13"
+    entrypoint: ["/usr/sbin/squid"]
+    command: ["-f", "/etc/squid/squid.conf", "-NYC"]
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    volumes:
+      - ../harness-runtime/egress/model-deepseek-v1/squid.conf:/etc/squid/squid.conf:ro
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+      - /run:rw,noexec,nosuid,size=4m
+      - /var/log/squid:rw,noexec,nosuid,size=16m
+      - /var/spool/squid:rw,noexec,nosuid,size=16m
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "/bin/bash",
+          "-c",
+          "exec 3<>/dev/tcp/127.0.0.1/3128; printf 'CONNECT health.invalid:443 HTTP/1.1\\r\\nHost: health.invalid:443\\r\\n\\r\\n' >&3; IFS= read -r line <&3; [[ $$line == $$'HTTP/1.1 403 Forbidden\\r' ]]",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - harness-deepseek-client
+      - harness-egress-uplink
+
   p15-openai-mock:
     profiles: ["harness"]
     build: ../harness-runtime
@@ -35,6 +68,8 @@ services:
     image: clinical-harness-supervisor:local
     restart: unless-stopped
     depends_on:
+      harness-egress-deepseek:
+        condition: service_healthy
       p15-openai-mock:
         condition: service_healthy
     environment:
@@ -44,6 +79,8 @@ services:
       HARNESS_SUPERVISOR_STATE_ROOT: /var/lib/harness-supervisor
       HARNESS_SUPERVISOR_SECRET_ROOT: /run/harness-secrets
       HARNESS_SUPERVISOR_MCP_BRIDGE_PATH: /app/supervisor/mcp_stdio_bridge.sh
+      HARNESS_SUPERVISOR_DEEPSEEK_EGRESS_MANIFEST_PATH: /app/egress/model-deepseek-v1/manifest.json
+      HARNESS_SUPERVISOR_DEEPSEEK_NETWORK_NAME: clinical-harness-deepseek-client
       HARNESS_SUPERVISOR_DISCOVER_DAEMON_STATE_ROOT: "true"
       HARNESS_SUPERVISOR_LEASE_SECONDS: "30"
       HARNESS_SUPERVISOR_PACK_ID: knowledge-candidate-v1
@@ -95,6 +132,10 @@ networks:
   harness-model:
     internal: true
     name: clinical-harness-p15-model
+  harness-deepseek-client:
+    internal: true
+    name: clinical-harness-deepseek-client
+  harness-egress-uplink: {}
 
 volumes:
   harness-supervisor-state:

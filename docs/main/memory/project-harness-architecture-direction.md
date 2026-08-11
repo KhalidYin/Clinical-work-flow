@@ -24,7 +24,7 @@ type: project
 - 知识产品已有 PostgreSQL durable DAG、Document/Enrichment Worker、治理实体与 GUI 骨架，可作为知识 Workflow 控制面继续细化。
 - 临床产品已有固定 Stage、Review Protocol、ActionPolicy 和若干 Runner 原型，但执行链与状态表达尚未统一。
 - 2026-08-05 用户授权重定执行计划，转向最小 Harness 骨架：`docs/dep/plans/complete/H0-harness-minimal-skeleton.md` 已完成 H0-A…H0-F。`harness-runtime/` 已建立 contracts/adapters/supervisor/tests；知识 Enrichment 已通过 `executor_kind=harness` + ReplayHarnessAdapter 接线（`service/processing/harness_enrichment_provider.py` + migration `20260805_0009`）。
-- 2026-08-09 至 2026-08-12 已完成 OpenCode `1.18.14` digest 容器准入、知识侧 `opencode-supervised` remote Attempt、显式 Compose 独立 Supervisor 离线 Gate、P16/P1 网络策略合同和 P16/P2 本地 tmpfs `secret://` Store：标准 MCP、JSONL validator、Receipt 落账、Worker 零 socket/模型 secret、子容器 `network none`、policy 注册/精确模型绑定、capability 分离、无回显注入、独立 daemon mapper 及 Attempt 全终态清理均通过回归。普通 Compose 仍默认 replay；生产 Secret Manager、gateway、DeepSeek runtime availability 与 live vertical 未完成。
+- 2026-08-09 至 2026-08-12 已完成 OpenCode `1.18.14` digest 容器准入、知识侧 `opencode-supervised` remote Attempt、显式 Compose 独立 Supervisor Gate、P16/P1 网络策略合同、P16/P2 本地 tmpfs `secret://` Store 和 P16/P3 模型 endpoint gateway：标准 MCP、Receipt、Worker 零 socket/模型 secret、精确 provider/model/profile 绑定、capability 分离、全终态 secret 清理、internal client/public uplink、精确 CONNECT allow/deny/bypass 及本地 TLS 假端点下的真实 Skill/MCP/模型工具循环均通过。普通 Compose 仍默认 replay；P16/P4、生产 Secret/runtime authority、公共研究 recording gateway 与 DeepSeek live vertical 未完成。
 - P12 保持知识产品主线；P2-B3 live vertical 目标执行器调整为 Harness，`direct_model` 只保留 fake/replay、简单原子调用与回归基线。live Gate 继续未授权、未调用。
 
 ## 应用

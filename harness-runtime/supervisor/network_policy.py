@@ -9,7 +9,9 @@ gateway implementation is enabled.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from typing import Literal
+from urllib.parse import urlsplit
 
 from contracts.receipt import NetworkPolicyEvidence
 
@@ -27,6 +29,43 @@ class NetworkPolicyDenied(Exception):
         super().__init__(message)
         self.code = code
         self.message = message
+
+
+@dataclass(frozen=True)
+class NetworkRuntimeBinding:
+    """Trusted deployment binding for one externally enabled policy."""
+
+    policy_id: str
+    internal_network_id: str
+    proxy_url: str
+    gateway_identity: str
+    gateway_config_sha256: str
+
+    def __post_init__(self) -> None:
+        if re.fullmatch(r"[a-z0-9][a-z0-9._-]{0,63}", self.policy_id) is None:
+            raise ValueError("network runtime policy ID is invalid")
+        if re.fullmatch(r"[0-9a-f]{64}", self.internal_network_id) is None:
+            raise ValueError("network runtime Docker identity is invalid")
+        if re.fullmatch(r"[0-9a-f]{64}", self.gateway_config_sha256) is None:
+            raise ValueError("gateway config hash is invalid")
+        if not self.gateway_identity or len(self.gateway_identity) > 160:
+            raise ValueError("gateway identity is invalid")
+        parsed = urlsplit(self.proxy_url)
+        try:
+            port = parsed.port
+        except ValueError:
+            raise ValueError("gateway proxy URL is invalid") from None
+        if (
+            parsed.scheme != "http"
+            or parsed.hostname is None
+            or port is None
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.path not in {"", "/"}
+            or parsed.query
+            or parsed.fragment
+        ):
+            raise ValueError("gateway proxy URL is invalid")
 
 
 @dataclass(frozen=True)
@@ -153,6 +192,7 @@ def p16_network_policy_registry(
                     profile_id="deepseek-v4-flash-extractor",
                     profile_version="1.0.0",
                     provider="deepseek",
+                    model="deepseek-v4-flash",
                     endpoint="https://api.deepseek.com:443",
                     data_boundary="external_allowed",
                 ),

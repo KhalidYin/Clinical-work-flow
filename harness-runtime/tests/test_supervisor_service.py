@@ -117,6 +117,7 @@ def _deepseek_request_body() -> dict[str, object]:
                 "profile_id": "deepseek-v4-flash-extractor",
                 "profile_version": "1.0.0",
                 "provider": "deepseek",
+                "model": "deepseek-v4-flash",
                 "endpoint": "https://api.deepseek.com:443",
                 "data_boundary": "external_allowed",
             },
@@ -338,6 +339,7 @@ def test_authorized_model_policy_preserves_browser_skill_and_mcp_capabilities() 
     ("mutation", "expected_code"),
     [
         ({"profile_id": "unreviewed-profile"}, "network_policy_binding_mismatch"),
+        ({"model": "deepseek-chat"}, "network_policy_binding_mismatch"),
         ({"endpoint": "https://api.deepseek.example:443"}, "network_policy_binding_mismatch"),
         ({"data_boundary": "prohibited"}, "network_policy_binding_mismatch"),
     ],

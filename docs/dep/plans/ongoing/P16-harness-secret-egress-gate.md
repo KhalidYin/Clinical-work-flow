@@ -101,7 +101,7 @@ OpenCode 在边界内继续自主规划、选择 Skill/MCP、组织多步工具�
 |-------|------|----------|------|------|
 | P1 | 冻结 Secret、能力保持型网络策略与审计合同 | 1-2 | P14 | completed |
 | P2 | 实现 Supervisor-owned tmpfs 临时 Secret | 1-2 | P1 | completed |
-| P3 | 实现通用双网络 egress gateway 与首个 DeepSeek 策略 | 2-3 | P2 | in-progress |
+| P3 | 实现通用双网络 egress gateway 与首个 DeepSeek 策略 | 2-3 | P2 | completed |
 | P4 | 完成零费用安全 Gate 与 P12 handoff | 2 | P3 | pending |
 
 ---
@@ -219,11 +219,11 @@ OpenCode 在边界内继续自主规划、选择 Skill/MCP、组织多步工具�
 
 ### 完成标准
 
-- [ ] 零费用测试证明允许目标经代理成功，非允许域名、IP 直连、其他端口和无代理路径全部失败。
-- [ ] 容器/Compose 检查证明 OpenCode 没有 public uplink、默认公网 bridge 或宿主网络；Worker
+- [x] 零费用测试证明允许目标经代理成功，非允许域名、IP 直连、其他端口和无代理路径全部失败。
+- [x] 容器/Compose 检查证明 OpenCode 没有 public uplink、默认公网 bridge 或宿主网络；Worker
   也不能借控制网络扩张 OpenCode 出站。
-- [ ] gateway 配置和镜像以 digest/hash 锁定，域名解析/CDN IP 变化不要求把任意静态 IP 加入白名单。
-- [ ] `network none` 与 `model-deepseek-v1` 测试并存，未授权 Attempt 保持零网络；获授权 Attempt 的
+- [x] gateway 配置和镜像以 digest/hash 锁定，域名解析/CDN IP 变化不要求把任意静态 IP 加入白名单。
+- [x] `network none` 与 `model-deepseek-v1` 测试并存，未授权 Attempt 保持零网络；获授权 Attempt 的
   OpenCode 原生 Skill/MCP/模型工具循环仍成功，不能只验拒绝路径。
 
 ### 边界（本 Phase 明确不做）
@@ -306,6 +306,10 @@ OpenCode 在边界内继续自主规划、选择 Skill/MCP、组织多步工具�
 | P16-F03 | 为保持旧客户端 request hash，新增可选字段按实际 wire fields 参与 canonical hash；调用方显式发送 `network_policy_id=none` 后会得到新的、可审计 request hash | P1 | compatibility | Knowledge remote provider 已显式发送 `none`，既有未发送字段的客户端 hash 保持不变 |
 | P16-F04 | Supervisor 容器内普通 tmpfs 路径不能经宿主 Docker socket 直接 bind 给 sibling OpenCode；若退回持久 state volume，Supervisor crash 会留下认证材料 | P2 | architecture | 使用独立 Docker local tmpfs volume，同时发现 state/secret 两个 daemon-visible root；Worker 无挂载，Supervisor 启动清空，Attempt 全终态清理 |
 | P16-F05 | P2 tmpfs Store 是本地、可丢失实现，不具备 Vault/云 Secret Manager 的持久审计、轮换和生产凭据链 | P2 | accepted risk | 保持重启后重新注入；P16 不冒充生产 Secret Manager，生产化另行规划 |
+| P16-F06 | Canonical `ubuntu/squid:6.6-24.04_edge` 的锁定 digest 内实际 package 为 Squid `6.14-0ubuntu0.24.04.2`，tag 文本不能充当软件版本证据 | P3 | supply-chain evidence | manifest 同时锁定 image digest、config hash 与实测 package runtime identity；README 记录来源、GPL-2.0-or-later 和版本差异 |
+| P16-F07 | 只注入 `HTTPS_PROXY` 不能阻止 OpenCode 绕过代理；显式 `harness` profile 启动双宿主 gateway 也会扩大本地部署面 | P3 | architecture/accepted risk | OpenCode 只连接 internal client network，gateway 是唯一双宿主服务；Worker/Supervisor 不连接 client/uplink，普通 Compose 保持 replay；生产拆分 egress overlay/runtime authority |
+| P16-F08 | 原合同只绑定 Profile/provider/endpoint，`input_bundle.model` 仍可漂移到同供应商其他模型，影响成本与产品授权 | P3 | fixed | `ModelEgressBinding` 新增精确 model，HTTP pre-dispatch 与 Executor pre-secret 双重校验 provider/model，漂移不解析 secret、不启动容器 |
+| P16-F09 | 本地允许路径必须使用私网 TLS 假 endpoint，production Squid 正确拒绝私网目标 | P3 | test boundary | 测试只在临时 config 副本删除 private-destination deny，并使用一小时自签证书、合成 key；签入配置不放宽，未访问 DeepSeek |
 
 ## 关键决策记录
 
@@ -314,6 +318,7 @@ OpenCode 在边界内继续自主规划、选择 Skill/MCP、组织多步工具�
 | 2026-08-11 | 本地单次 live 前的 Secret/出站方案 | A tmpfs Secret + 双网络代理 / B Compose 文件 Secret + 代理 / C 外部 Vault + 生产网关 | A | 避免长期 key 进入环境变量或宿主明文文件，并用 internal-only 网络阻断子容器绕过代理；不为一次 Gate 提前引入外部 Secret 基础设施 |
 | 2026-08-11 | P16 与 P12 的边界 | P16 直接 live / P16 准备后回到 P12 | P16 准备后回到 P12 | P12 是知识产品和 live ModelProfile/data-boundary/预算权威；P16 只补 Harness 安全能力，防止形成第二条产品主线 |
 | 2026-08-11 | 受控出站与 Agent 原生能力 | 全局断网/Research MCP 替代 / 原生能力 + Attempt 策略 + gateway | 原生能力 + Attempt 策略 + gateway | 受控作用于外部副作用和数据边界，不替 Agent 规划或浏览；DeepSeek 只是首个模型策略，公共研究另行实现 recording gateway |
+| 2026-08-12 | 首个通用 gateway | Canonical Squid CONNECT / TLS interception / 应用级 DeepSeek shim | Canonical Squid CONNECT | 只观察 hostname/port/连接元数据，不解密 TLS；internal client network 强制代理，策略文件而非 gateway 引擎承载 DeepSeek hostname |
 
 ## 同步记录
 
@@ -322,3 +327,4 @@ OpenCode 在边界内继续自主规划、选择 Skill/MCP、组织多步工具�
 | 2026-08-11 | `PLAN.md` | 方案 A 获批；随后因 Knowledge–OpenCode POC 前置而由 P15 顺延为 P16，尚未进入 Development，未配置 key、未发生出站 |
 | 2026-08-11 | `PLAN.md`、canonical 架构原则（R119） | 用户确认能力不阉割原则；P16 改为通用策略/gateway + DeepSeek 首个实例，公共研究能力明确保留但不冒充已实现 |
 | 2026-08-12 | `PROJECT_GUIDE.md`、`PROJECT_SPEC.md`、`TEST_GUIDE.md`、`USAGE.md`、`PLAN.md`（R121，提交 `94de7ec`） | P2 完成本地 tmpfs Store、stdin 注入、独立 daemon mapper、Attempt 物化/全终态清理和真实 Docker 零费用证据；P3 gateway/live 仍未完成 |
+| 2026-08-12 | canonical docs、`USAGE.md`、Harness README、P16/PLAN/TASK_STATE（R122） | P3 完成 digest/hash-locked Squid、双网络拓扑、allow/deny/bypass、精确 model 绑定与真实 OpenCode Skill/MCP 本地 TLS 正向 Gate；P4/live 仍未完成 |

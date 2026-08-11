@@ -19,6 +19,7 @@ COPY contracts ./contracts
 COPY supervisor ./supervisor
 COPY poc ./poc
 COPY images ./images
+COPY egress ./egress
 RUN python -m pip install --no-deps .
 
 EXPOSE 8790

@@ -9,6 +9,7 @@ from pathlib import Path
 import shutil
 import stat
 from typing import Mapping
+from urllib.parse import urlsplit
 
 from pydantic import ValidationError
 import yaml
@@ -54,8 +55,16 @@ class OpenAICompatibleModelBinding:
     def __post_init__(self) -> None:
         if not self.provider_id or not self.model_id:
             raise ValueError("model binding identifiers must not be empty")
-        if not self.base_url.startswith("http://"):
-            raise ValueError("POC model binding must use an internal HTTP endpoint")
+        parsed = urlsplit(self.base_url)
+        if (
+            parsed.scheme not in {"http", "https"}
+            or parsed.hostname is None
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.query
+            or parsed.fragment
+        ):
+            raise ValueError("trusted model binding endpoint is invalid")
 
     @property
     def model_ref(self) -> str:

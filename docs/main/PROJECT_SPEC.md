@@ -38,10 +38,11 @@
 - [已实现] fake/replay Harness adapter，默认测试零真实出站。
 - [已实现（单 Attempt）] Step-scoped broker 合同校验 Attempt/fencing/spec/capability/路径/幂等；版本锁定 stdio shim 已在独立 Supervisor 启动的真实 OpenCode 容器实测 `initialize/tools-list/tools/call`、路径逃逸拒绝和脱敏审计。
 - [已实现（P15 本地 POC）] 产品拥有的 `knowledge-candidate-v1` Pack 经相对 POSIX 路径 hash-lock，Supervisor 编译只读 workspace、项目 Skill、permission、MCP 与内部模型配置；真实固定 OpenCode 从 PostgreSQL canonical Evidence 完成 `evidence-candidate` → `read_evidence` → schema-valid Candidate，产品 Validator 落账唯一 ModelInvocation/Candidate，内部 API 可核对 Evidence/Attempt lineage。Docker internal 网络只连本地 Mock，公网/宿主探针失败，未授权 bash 失败关闭且不自动创建外层 retry。
-- [已实现（P16/P1 合同，不含出站实现）] Step/Attempt 只选择 Supervisor 注册的 network policy ID，不能提交 endpoint allowlist、Docker network、proxy、image、mount 或 environment；`none` 保持唯一默认可用策略，`model-deepseek-v1` 已冻结为 `deepseek-v4-flash-extractor@1.0.0`、`external_allowed`、`api.deepseek.com:443` 与 `secret://deepseek-api-key` 的精确交集，但在 gateway 完成前保持 runtime unavailable。Execution/Validation Receipt 已可记录 policy/config hash、允许 endpoint 及可选 gateway identity/config hash，不记录 secret；网络策略不删除获授权的 Skill/MCP/browser capability。
-- [已实现（P16/P2 本地临时 Secret）] Supervisor 独占 Docker local tmpfs volume，接受本机终端无回显 stdin 注入的注册名称，解析 `secret://deepseek-api-key`，并为单个 Attempt 物化只读 OpenCode auth 文件；Worker 无挂载、请求/环境/Receipt 无 secret 值。成功、失败、timeout、cancel、orphan、部分写入和 Supervisor 重启都有清理或丢失测试，持久 state 与临时 secret 使用独立 daemon path mapper。该实现不是长期 Secret Manager，也不使 DeepSeek policy 可用。
+- [已实现（P16/P1 合同）] Step/Attempt 只选择 Supervisor 注册的 network policy ID，不能提交 endpoint allowlist、Docker network、proxy、image、mount 或 environment；`model-deepseek-v1` 精确绑定 `deepseek-v4-flash-extractor@1.0.0`、`deepseek-v4-flash`、`external_allowed`、`api.deepseek.com:443` 与 `secret://deepseek-api-key`。Execution/Validation Receipt 记录 policy/config hash、允许 endpoint 及 gateway identity/config hash，不记录 secret；网络策略不删除获授权的 Skill/MCP/browser capability。
+- [已实现（P16/P2 本地临时 Secret）] Supervisor 独占 Docker local tmpfs volume，接受本机终端无回显 stdin 注入的注册名称，解析 `secret://deepseek-api-key`，并为单个 Attempt 物化只读 OpenCode auth 文件；Worker 无挂载、请求/环境/Receipt 无 secret 值。成功、失败、timeout、cancel、orphan、部分写入和 Supervisor 重启都有清理或丢失测试，持久 state 与临时 secret 使用独立 daemon path mapper。该实现不是长期 Secret Manager；策略 runtime availability 由 P3 gateway 独立决定。
+- [已实现（P16/P3 本地 gateway）] `model-deepseek-v1` 使用 hash-locked Squid 配置和 digest-locked Canonical 镜像；OpenCode 只连接 policy-scoped internal client network，gateway 是唯一同时连接 client 与 public uplink 的服务。只允许 CONNECT `api.deepseek.com:443`，拒绝其他 hostname、原始 IP、端口、私网/保留地址和直连；不配置 TLS interception。固定 OpenCode `1.18.14` 已经由本地 TLS 假端点完成 Pack Skill → MCP → 模型工具循环，且输入 provider/model 必须与 ModelProfile 绑定一致。
 
-首个 Harness 候选 OpenCode `1.18.14` 已完成容器准入、知识 remote Attempt、显式 Compose 离线部署和 P15 PostgreSQL/API 本地 POC；合成 Secret 文件、MCP stdio/审计、Pack/config identity、Receipt 落账、Candidate 治理及 daemon-visible bind 映射已验证。固定镜像仍自带 `customize-opencode` 并向模型广告内建工具，安全性依赖 Supervisor 编译的默认 deny permission，而不是“工具不可见”。P16/P2 已补上本地 `secret://` 临时 Store，但仍不得进入 live：P15 POC 继续使用 `env://` 合成 key、internal Mock 和 Docker socket authority，P16 尚须完成受控网络策略，且真实调用还要取得用户对 ModelProfile、Evidence 和单次预算的单独授权。
+首个 Harness 候选 OpenCode `1.18.14` 已完成容器准入、知识 remote Attempt、显式 Compose 部署、P15 PostgreSQL/API 本地 POC，以及 P16/P2-P3 临时 Secret 与模型 endpoint gateway。固定镜像仍自带 `customize-opencode` 并向模型广告内建工具，安全性依赖 Supervisor 编译的默认 deny permission，而不是“工具不可见”。P16/P3 只完成零费用本地网络与能力保持证据；P4 全量 Gate、生产 Secret/runtime authority 和真实调用授权仍未完成。P15 POC 继续使用 `env://` 合成 key 与 internal Mock；不得把 P3 表述为已部署 DeepSeek live。
 
 #### 知识生产闭环
 
@@ -74,7 +75,7 @@
 ### 尚未实现
 
 - 独立 Supervisor 当前只完成显式本地 Compose 离线部署 Gate，尚未形成面向生产的 socket proxy/rootless runtime、TLS 或集群调度边界；普通 Compose 仍默认 replay。
-- 受控出站 gateway 及生产级 Secret/runtime authority；P16/P2 已完成本地 Supervisor-owned tmpfs Store 与 Attempt 临时认证材料，但不是持久 Vault/云 Secret Manager。DeepSeek policy 仍未启用，真实回归仅使用运行时生成的合成值、本地 Mock 和 `network none`。
+- 生产级 Secret/runtime authority、公共研究 recording gateway 与真实供应商 Gate；P16/P2-P3 已完成本地 tmpfs Store、Attempt 临时认证材料和模型 CONNECT gateway，但不是持久 Vault/云 Secret Manager 或生产网络认证。DeepSeek live 仍未启用，真实回归仅使用合成值与本地 Mock/TLS 假 endpoint。
 - 通用 Knowledge Workflow Spec、完整多事件审计和更丰富的确定性 MCP 工具面。
 - 通用 Evaluation、Release Worker、Query Lab 及其完整 GUI。
 - 临床 Workflow 对 Harness 的生产接线和统一 run ledger。

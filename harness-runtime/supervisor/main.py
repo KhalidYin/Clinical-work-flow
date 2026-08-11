@@ -17,6 +17,7 @@ from supervisor.container_runtime import (
     DaemonRootPathMapper,
 )
 from supervisor.docker_runtime import DockerEngineContainerRuntime
+from supervisor.egress_gateway import load_network_runtime_binding
 from supervisor.journal import FileAttemptJournal
 from supervisor.lifecycle import AttemptCoordinator, FileAttemptResultStore
 from supervisor.network_policy import p16_network_policy_registry
@@ -203,7 +204,31 @@ def build_supervisor_app(
             _required(values, "HARNESS_SUPERVISOR_INTERNAL_NETWORK_NAME")
         )
 
-    network_policy_registry = p16_network_policy_registry()
+    gateway_manifest_path = values.get(
+        "HARNESS_SUPERVISOR_DEEPSEEK_EGRESS_MANIFEST_PATH",
+        "",
+    )
+    gateway_network_name = values.get(
+        "HARNESS_SUPERVISOR_DEEPSEEK_NETWORK_NAME",
+        "",
+    )
+    if bool(gateway_manifest_path) != bool(gateway_network_name):
+        raise RuntimeError("DeepSeek gateway deployment configuration is incomplete")
+    network_runtime_bindings = ()
+    available_policy_ids = frozenset({"none"})
+    if gateway_manifest_path:
+        network_runtime_bindings = (
+            load_network_runtime_binding(
+                manifest_path=Path(gateway_manifest_path),
+                network_name=gateway_network_name,
+                runtime=container_runtime,
+            ),
+        )
+        available_policy_ids = frozenset({"none", "model-deepseek-v1"})
+
+    network_policy_registry = p16_network_policy_registry(
+        available_policy_ids=available_policy_ids
+    )
     executor = OpenCodeAttemptExecutor(
         runtime=container_runtime,
         image_ref=image_ref,
@@ -217,6 +242,7 @@ def build_supervisor_app(
         trusted_internal_network_id=internal_network_id,
         host_path_mapper=host_path_mapper,
         secret_path_mapper=secret_path_mapper,
+        network_runtime_bindings=network_runtime_bindings,
         network_policy_registry=network_policy_registry,
     )
     journal = FileAttemptJournal(state_root / "journal")
@@ -264,6 +290,7 @@ def build_supervisor_app(
     app.state.attempt_pool = pool
     app.state.daemon_state_root = daemon_state_root
     app.state.daemon_secret_root = daemon_secret_root
+    app.state.network_runtime_bindings = network_runtime_bindings
     app.router.add_event_handler(
         "shutdown",
         lambda: pool.shutdown(wait=True, cancel_futures=False),

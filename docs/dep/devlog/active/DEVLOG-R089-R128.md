@@ -1662,3 +1662,57 @@ Done — no next steps。
 - `harness-runtime/supervisor/secret_store.py`、`secret_cli.py`、Executor/Supervisor/main 与测试
 - `clinical-llm-wiki/compose.harness.yaml` 及部署合同测试
 - `USAGE.md`、canonical docs、P16/PLAN/TASK_STATE、DevLog/INDEX；P2 实现提交 `94de7ec` 已推送远端
+
+---
+
+### R122 [01:45] [P16-harness-secret-egress-gate] P3: 双网络模型 egress gateway
+
+#### Done
+
+- 选定 Canonical Verified Publisher `ubuntu/squid`，锁定 tag+digest、GPL-2.0-or-later、实际
+  `squid 6.14-0ubuntu0.24.04.2` runtime identity 和配置 SHA-256；Supervisor 对 image、proxy、
+  gateway identity、endpoint 与 config hash 漂移全部 fail closed。
+- Compose 新增 `internal: true` DeepSeek client network 与 public uplink；Squid 是唯一双宿主服务，
+  Worker/Supervisor 均不连接 client/uplink。OpenCode 由 Supervisor 接入 policy network 并注入代理
+  地址，Receipt 记录非敏感 gateway identity/config hash。
+- production Squid 仅允许 CONNECT `api.deepseek.com:443`，拒绝其他 hostname、原始 IP、端口、
+  私网/保留地址及直连；无 `ssl_bump`/`https_port`，不解密 TLS，也不持有 key。
+- 发现并修复 ModelProfile 绑定缺口：`ModelEgressBinding` 增加精确 `model`，HTTP pre-dispatch 与
+  Executor pre-secret 双重校验 input provider/model，漂移不解析 secret、不启动容器。
+- 固定 OpenCode `1.18.14` 在仅连接 internal client network 时，经真实 Squid 和本地 TLS 假 DeepSeek
+  完成 Pack Skill → `read_evidence` MCP → 多轮模型工具循环；合成 secret 未进入环境、staging、
+  gateway log 或 Receipt。所有带 `clinical.p16.test` 标签的临时容器/网络已清零。
+
+#### Issues / Risks
+
+- `HTTPS_PROXY` 本身不是安全边界；若 OpenCode 同时拥有普通公网 bridge 就能绕过。当前由 internal
+  client network 强制，gateway 是唯一双宿主服务。
+- 显式 `harness` profile 现在会启动 public-uplink gateway，即使普通 replay 和离线 Smoke 不使用它；
+  这扩大本地部署面。普通 Compose 保持 replay，生产应拆分 egress overlay 与更收敛 runtime authority。
+- gateway 看不到 TLS 正文，但能看到 hostname、port、时间和字节量。DNS/rebinding 由解析后私网/保留
+  地址 ACL 缓解，不应把本地 Gate 冒充生产网络认证。
+- 本地正向测试为访问 private fake endpoint，临时复制配置并只删除 private-destination deny，同时用
+  一小时自签证书和测试专用 TLS 验证关闭；签入 production 配置未放宽，未访问 DeepSeek。
+- 当前策略只增加模型 endpoint，不提供公共网页搜索/浏览/爬虫；未来研究策略必须另做 recording、
+  SSRF/重定向、下载隔离、配额和 SourceCandidate Gate，不能削弱 Agent 原生工具循环。
+
+#### Validation
+
+- Harness：`207 passed, 5 skipped`；Knowledge：`227 passed, 8 skipped`；Ruff 通过。
+- 真实 gateway allow/deny/bypass 集成通过；真实 OpenCode Skill/MCP/TLS proxy 集成通过；Compose gateway
+  与完整 Supervisor POC 健康、无 public port、无 secret/env 泄漏，临时项目资源精确清理。
+- 未读取真实 key，未调用 DeepSeek、`/models` 或任何公共 provider endpoint。
+
+#### Next
+
+1. P4 运行 Frontend、Workflow、migration、Compose render/health、泄漏/清理与 P14 回归的汇总 Gate。
+2. 汇总 OpenCode `1.18.14` 本地 OpenAI-compatible auth/config 兼容性证据，形成 P12 单次 live handoff；
+   未经新的明确授权不得探测或调用 DeepSeek。
+3. 主要风险仍是 Docker socket/Supervisor 高权限、临时 Store 非生产 Secret Manager、显式 profile 的
+   gateway 部署面，以及把 mock 成功误述为供应商质量或生产认证。
+
+#### Files Changed / Commits
+
+- `harness-runtime/egress/`、Supervisor network/executor/Pack compiler、Dockerfile 与测试
+- `clinical-llm-wiki/compose.harness.yaml`
+- canonical docs、README/USAGE/AGENTS、P16/PLAN/TASK_STATE、DevLog/INDEX（pending phase commit）

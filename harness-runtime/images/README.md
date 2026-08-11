@@ -26,6 +26,10 @@ fake/replay 是默认执行路径，零真实出站。
 - 后续候选继续采用“一 Harness 一清单”；只有官方镜像无法满足受控运行时依赖时才新增
   `Dockerfile.harness`，且仍必须锁定基础镜像与构建产物 digest。
 
+P16/P3 的通用 CONNECT gateway 不属于 Harness agent 镜像，锁定清单与配置位于
+`../egress/model-deepseek-v1/`；来源、许可证、实际 package 版本、TLS 与网络边界见
+`../egress/README.md`。
+
 安全约束（`PROJECT_GUIDE.md` / `PROJECT_SPEC.md`）：
 
 - 镜像必须版本 + digest 锁定；

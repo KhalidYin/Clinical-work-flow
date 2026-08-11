@@ -49,6 +49,62 @@ class InternalNetworkRuntime(EmptyManagedRuntime):
         return "d" * 64
 
 
+def test_environment_factory_enables_deepseek_only_with_verified_gateway_binding(
+    tmp_path: Path,
+) -> None:
+    from supervisor.main import build_supervisor_app
+
+    manifest_path = tmp_path / "opencode.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "adapter_id": "opencode@1.18.14",
+                "image_ref": (
+                    "ghcr.io/anomalyco/opencode:1.18.14@sha256:"
+                    + "b" * 64
+                ),
+                "environment": {"OPENCODE_DISABLE_MODELS_FETCH": "1"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    gateway_manifest = (
+        Path(__file__).resolve().parents[1]
+        / "egress"
+        / "model-deepseek-v1"
+        / "manifest.json"
+    )
+    runtime = InternalNetworkRuntime()
+
+    app = build_supervisor_app(
+        {
+            "HARNESS_SUPERVISOR_MACHINE_TOKEN": "synthetic-supervisor-machine-token",
+            "HARNESS_SUPERVISOR_ALLOWED_SPEC_SHA256": "a" * 64,
+            "HARNESS_SUPERVISOR_IMAGE_MANIFEST_PATH": str(manifest_path),
+            "HARNESS_SUPERVISOR_STATE_ROOT": str(tmp_path / "state"),
+            "HARNESS_SUPERVISOR_SECRET_ROOT": str(tmp_path / "secrets"),
+            "HARNESS_SUPERVISOR_MCP_BRIDGE_PATH": str(
+                Path(__file__).resolve().parents[1]
+                / "supervisor"
+                / "mcp_stdio_bridge.sh"
+            ),
+            "HARNESS_SUPERVISOR_DEEPSEEK_EGRESS_MANIFEST_PATH": str(
+                gateway_manifest
+            ),
+            "HARNESS_SUPERVISOR_DEEPSEEK_NETWORK_NAME": (
+                "clinical-harness-deepseek-client"
+            ),
+        },
+        runtime=runtime,
+    )
+
+    assert runtime.network_names == ["clinical-harness-deepseek-client"]
+    assert len(app.state.network_runtime_bindings) == 1
+    binding = app.state.network_runtime_bindings[0]
+    assert binding.policy_id == "model-deepseek-v1"
+    assert binding.internal_network_id == "d" * 64
+
+
 def test_secret_reference_prefers_mounted_file_over_container_environment(
     tmp_path: Path,
 ) -> None:

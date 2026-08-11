@@ -32,6 +32,7 @@ def _attempt_payload() -> dict[str, object]:
             "profile_id": "deepseek-extractor",
             "profile_version": "1.0.0",
             "provider": "deepseek",
+            "model": "deepseek-v4-flash",
             "endpoint": "https://api.deepseek.com:443",
             "data_boundary": "external_allowed",
         },
@@ -66,6 +67,7 @@ def test_attempt_contract_preserves_agent_capabilities_beside_model_policy() -> 
 
     assert request.network_policy_id == "model-deepseek-v1"
     assert request.model_egress.provider == "deepseek"
+    assert request.model_egress.model == "deepseek-v4-flash"
     assert request.capabilities == frozenset(
         {"harness.browser", "knowledge.read-evidence"}
     )

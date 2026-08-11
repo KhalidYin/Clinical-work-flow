@@ -402,6 +402,18 @@ def test_compiler_uses_real_opencode_config_path_and_trusted_model_binding(
     }
 
 
+def test_trusted_model_binding_accepts_https_provider_endpoint() -> None:
+    from supervisor.pack_compiler import OpenAICompatibleModelBinding
+
+    binding = OpenAICompatibleModelBinding(
+        provider_id="deepseek",
+        model_id="deepseek-v4-flash",
+        base_url="https://api.deepseek.com/v1",
+    )
+
+    assert binding.model_ref == "deepseek/deepseek-v4-flash"
+
+
 def test_compiler_rejects_pack_drift_after_resolution(tmp_path: Path) -> None:
     from supervisor.pack_compiler import (
         HarnessPackCompiler,

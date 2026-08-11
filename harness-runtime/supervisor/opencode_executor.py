@@ -19,7 +19,12 @@ from contracts.request import HarnessExecutionRequest, McpConfig
 from contracts.result import HarnessStatus
 from supervisor.container_runtime import ContainerRuntimePort, ReadOnlyMount
 from supervisor.lifecycle import AttemptExecutionOutcome
-from supervisor.network_policy import NetworkPolicyRegistry, p16_network_policy_registry
+from supervisor.network_policy import (
+    NetworkPolicyDenied,
+    NetworkPolicyRegistry,
+    NetworkRuntimeBinding,
+    p16_network_policy_registry,
+)
 from supervisor.pack_compiler import (
     CompiledHarnessPack,
     HarnessPackCompiler,
@@ -55,6 +60,7 @@ class OpenCodeAttemptExecutor:
         trusted_internal_network_id: str | None = None,
         host_path_mapper: Callable[[str | Path], str] | None = None,
         secret_path_mapper: Callable[[str | Path], str] | None = None,
+        network_runtime_bindings: tuple[NetworkRuntimeBinding, ...] = (),
         workspace_observer: WorkspaceObserver | None = None,
         clock: Callable[[], datetime] | None = None,
         network_policy_registry: NetworkPolicyRegistry | None = None,
@@ -76,6 +82,11 @@ class OpenCodeAttemptExecutor:
         self._trusted_internal_network_id = trusted_internal_network_id
         self._host_path_mapper = host_path_mapper
         self._secret_path_mapper = secret_path_mapper or (lambda path: str(path))
+        self._network_runtime_bindings = {
+            binding.policy_id: binding for binding in network_runtime_bindings
+        }
+        if len(self._network_runtime_bindings) != len(network_runtime_bindings):
+            raise ValueError("network runtime policy IDs must be unique")
         self._workspace_observer = workspace_observer
         self._clock = clock or (lambda: datetime.now(timezone.utc))
         self._network_policy_registry = (
@@ -84,6 +95,23 @@ class OpenCodeAttemptExecutor:
 
     def execute(self, attempt: SupervisorAttemptRequest) -> AttemptExecutionOutcome:
         network_policy_evidence = self._network_policy_registry.authorize(attempt)
+        network_runtime = self._network_runtime_bindings.get(
+            attempt.network_policy_id
+        )
+        if network_policy_evidence.kind != "none" and network_runtime is None:
+            raise NetworkPolicyDenied(
+                "network_runtime_binding_unavailable",
+                "requested network runtime is not available",
+            )
+        if network_runtime is not None:
+            network_policy_evidence = network_policy_evidence.model_copy(
+                update={
+                    "gateway_identity": network_runtime.gateway_identity,
+                    "gateway_config_sha256": (
+                        network_runtime.gateway_config_sha256
+                    ),
+                }
+            )
         if len(attempt.secret_refs) != 1:
             raise ValueError("OpenCode Attempt requires exactly one secret reference")
         provider = attempt.input_bundle.get("provider")
@@ -92,6 +120,14 @@ class OpenCodeAttemptExecutor:
             raise ValueError("OpenCode provider identifier is invalid")
         if not isinstance(model, str) or _MODEL.fullmatch(model) is None:
             raise ValueError("OpenCode model identifier is invalid")
+        if attempt.model_egress is not None and (
+            provider != attempt.model_egress.provider
+            or model != attempt.model_egress.model
+        ):
+            raise NetworkPolicyDenied(
+                "network_policy_binding_mismatch",
+                "Attempt model does not match network policy binding",
+            )
         if not self._mcp_bridge_path.is_file():
             raise RuntimeError("OpenCode MCP stdio bridge is not available")
         if self._pack_resolver is not None and attempt.instruction_ref is None:
@@ -218,6 +254,14 @@ class OpenCodeAttemptExecutor:
             environment = dict(self._environment)
             environment["XDG_DATA_HOME"] = "/scratch/data"
             environment["XDG_CONFIG_HOME"] = "/scratch/config"
+            if network_runtime is not None:
+                environment.update(
+                    {
+                        "HTTPS_PROXY": network_runtime.proxy_url,
+                        "HTTP_PROXY": network_runtime.proxy_url,
+                        "NO_PROXY": "localhost,127.0.0.1",
+                    }
+                )
             if compiled_pack is not None:
                 environment.update(
                     {
@@ -287,9 +331,13 @@ class OpenCodeAttemptExecutor:
                 environment=tuple(environment.items()),
                 control_request_sha256=attempt.request_sha256(),
                 trusted_internal_network_id=(
-                    self._trusted_internal_network_id
-                    if compiled_pack is not None
-                    else None
+                    network_runtime.internal_network_id
+                    if network_runtime is not None
+                    else (
+                        self._trusted_internal_network_id
+                        if compiled_pack is not None
+                        else None
+                    )
                 ),
                 network_policy_evidence=network_policy_evidence,
             )

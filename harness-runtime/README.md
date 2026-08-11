@@ -17,9 +17,12 @@
 - [x] 独立 FastAPI Supervisor：机器身份、hash 幂等、durable journal、heartbeat/cancel/orphan recovery
 - [x] 固定 OpenCode executor：digest image、`network none`、非 root、只读 rootfs、cap-drop 与资源上限
 - [x] Compose `harness` profile：仅 Supervisor 持有 Docker socket；Worker 通过内部 control network 提交 Attempt
+- [x] P16/P2 本地临时 Secret：Supervisor-owned Docker local tmpfs、无回显 stdin 注入、Attempt auth 全终态清理
+- [x] P16/P3 模型 egress：internal client network、digest/hash-locked Squid CONNECT gateway、DeepSeek hostname:443 首个策略和真实 OpenCode Skill/MCP 正向 Gate
 
 默认知识 Compose 仍使用 replay。显式离线 Gate 的命令与安全边界见仓库根 `USAGE.md`；
-`secret://`、受控出站和 live 模型仍未实现或授权。
+P16/P4 全量安全 Gate、生产 Secret/runtime authority 和 DeepSeek live 仍未完成或授权。P3 gateway
+只提供模型 endpoint 出站，不提供公共网页研究/爬虫出口。
 
 ## 封装可行性矩阵（H0-A 产出）
 

@@ -13,7 +13,7 @@
 
 其中“异步富化”当前是同一 durable DAG 中的单个 Enrichment step，并非已经形成可编排的富化子图。
 
-P13 已提供一次性 legacy immutable Release 和 Workflow REST 消费适配。H0 已建立 `harness-runtime/`；OpenCode `1.18.14` 的 digest 容器准入、独立 Supervisor，以及 P15 合成 Evidence → PostgreSQL Candidate/API 本地 POC 均已通过。Receipt migration 为 `20260809_0010`。默认 Compose 仍使用 replay，DeepSeek live 未完成。通用 Release Builder、检索评估闭环与只读知识 MCP 仍是目标能力。Document、Enrichment、Release 是独立 Worker pool，通过 PostgreSQL durable DAG 协作，不是流式 pipeline；当前通用 Release handler 尚未完成。空卷 Compose 默认没有 current Release。临床 Workflow 的固定阶段顺序不变。
+P13 已提供一次性 legacy immutable Release 和 Workflow REST 消费适配。H0 已建立 `harness-runtime/`；OpenCode `1.18.14` 的 digest 容器准入、独立 Supervisor、P15 合成 Evidence → PostgreSQL Candidate/API 本地 POC，以及 P16/P2-P3 临时 Secret/模型 gateway 均已通过本地 Gate。Receipt migration 为 `20260809_0010`。默认 Compose 仍使用 replay，P16/P4 与 DeepSeek live 未完成。通用 Release Builder、检索评估闭环与只读知识 MCP 仍是目标能力。Document、Enrichment、Release 是独立 Worker pool，通过 PostgreSQL durable DAG 协作，不是流式 pipeline；当前通用 Release handler 尚未完成。空卷 Compose 默认没有 current Release。临床 Workflow 的固定阶段顺序不变。
 
 ## 2. 启动当前知识产品
 
@@ -62,7 +62,8 @@ docker compose --project-name clinical-knowledge-demo up -d --build --wait
 - 已部署（显式离线 Gate）：叠加 `compose.harness.yaml` 并启用 `harness` profile 后，`worker-enrichment` 只通过内部 control network 调用独立 Supervisor；Worker 无 Docker socket、无模型 secret，子容器固定 digest、`network none` 和安全资源基线。合成 secret 的真实 Attempt 按预期 fail closed，ExecutionReceipt/ValidationReceipt 可审计。
 - 已完成（P15 本地 POC）：再叠加 `compose.harness.poc.yaml`，真实 OpenCode 从 PostgreSQL canonical Evidence 通过 Pack Skill/MCP 和 internal Mock 创建唯一 Candidate，API 可核对 lineage，状态停在作者确认前。
 - 已完成（P16/P2 本地临时 Secret）：Supervisor 独占 tmpfs volume，通过本机终端无回显 stdin 注入注册名称；每个 Attempt 的 auth 文件只读挂载并在所有终态清理，Supervisor 重启后值丢失。Worker 不挂载该卷。
-- 默认未启用：普通 Compose 仍运行 replay；通用 egress gateway 和 DeepSeek policy runtime 尚未完成。Supervisor 持有宿主 Docker socket，是高权限信任边界；socket 不得挂给业务 Worker，也不得把 bind 标记为只读误述为 Docker API 降权。
+- 已完成（P16/P3 本地模型 gateway）：显式 `harness` profile 启动 digest/hash-locked Squid 和 internal client/public uplink 双网络；只有 gateway 双宿主，OpenCode 按获批 policy 接入 client network。`model-deepseek-v1` 只允许 CONNECT `api.deepseek.com:443`，不解密 TLS；本地假 TLS endpoint 已验证 Skill/MCP/模型工具循环。
+- 默认未启用：普通 Compose 仍运行 replay；P16/P4 全量 Gate、生产 Secret/runtime authority、公共研究网关和 DeepSeek live 尚未完成。Supervisor 持有宿主 Docker socket，是高权限信任边界；socket 不得挂给业务 Worker，也不得把 bind 标记为只读误述为 Docker API 降权。
 - 未授权：任何真实模型出站和 P2-B3 live vertical。完成前两层不会自动开启第三层。
 
 ### 4.1 显式运行离线 Harness Gate
@@ -84,8 +85,11 @@ docker compose --project-name clinical-harness-gate `
   python -m service.processing.harness_supervisor_smoke
 ```
 
-Smoke 的正确结果是无效 provider 在 `network none` 下失败关闭并输出脱敏 Receipt，而不是模型
-调用成功。验收后只清理已核对的测试项目；`--volumes` 会不可恢复地删除该项目的数据：
+显式 `harness` profile 现在也会启动双宿主 egress gateway；Worker 和 Supervisor 不连接 gateway
+的 client/uplink network，Smoke 仍使用 `network none`，正确结果仍是无效 provider 失败关闭并
+输出脱敏 Receipt，而不是模型调用成功。仅启动 gateway 不会读取 key 或调用 DeepSeek，但会扩大
+本地部署面；若只需普通 replay，不要启用该 profile。验收后只清理已核对的测试项目；`--volumes`
+会不可恢复地删除该项目的数据：
 
 ```powershell
 docker compose --project-name clinical-harness-gate `
@@ -106,8 +110,10 @@ docker compose --project-name clinical-harness-gate `
 
 终端显示 `Secret:` 时输入，内容不会回显；成功只输出 `secret accepted`。不要把值写在命令参数、
 PowerShell 变量、`.env`、Compose environment，也不要用 `echo <值> | ...`，否则可能进入 shell 历史、
-进程信息或日志。只允许注册名称，重复注入会原子替换；Supervisor 重启后必须重新注入。当前
-`model-deepseek-v1` 仍因 P3 gateway 未完成而 fail closed，因此这条命令不会授权或触发 DeepSeek 调用。
+进程信息或日志。只允许注册名称，重复注入会原子替换；Supervisor 重启后必须重新注入。P3 已使
+`model-deepseek-v1` runtime binding 在显式 profile 内可加载，但 Secret、network policy、Profile、
+Evidence、预算和产品 live Gate 必须同时获批；单独注入 secret 不会创建 Attempt，也不会授权或触发
+DeepSeek 调用。当前仍禁止真实调用。
 
 ### 4.3 显式运行 P15 PostgreSQL/API 本地 POC
 
@@ -134,8 +140,8 @@ docker compose --project-name clinical-harness-p15-db-poc `
 Verifier 输出一个 Candidate ID、真实 canonical Evidence ID、origin invocation ID 和
 `author_confirmation_required`。Worker 再运行一次时 Mock 请求数、ModelInvocation 和 Candidate 均不得
 增加。这里的 `env://` 合成 key、Docker internal 网络、Supervisor socket authority 和每 Attempt 临时
-目录权限都是 POC 折中；P16/P2 的 tmpfs Store 不改变该历史 POC 的 `env://` 配置，受控 egress 和更
-收敛的 runtime authority 仍待完成。
+目录权限都是 POC 折中；P16/P2 的 tmpfs Store 不改变该历史 POC 的 `env://` 配置，P16/P3 模型
+gateway 也不把该 POC 升级为生产网络或凭据认证；P4 与更收敛的 runtime authority 仍待完成。
 验收后如需删除，仅对上述精确 POC project 执行（会删除它的 PostgreSQL/对象卷）：
 
 ```powershell
@@ -213,6 +219,6 @@ python -m pytest tests -q
 python -m ruff check contracts adapters supervisor tests
 ```
 
-OpenCode 容器测试需要 `.[docker]` extra、可用 Docker daemon 和本地已拉取的 digest-locked 镜像；PATH 上真实 OpenCode binary 与部分 Linux 文件语义用例仍可能在 Windows 条件跳过。离线 Supervisor/Compose Gate 通过不代表 `secret://`、受控出站或 live 模型授权已完成。
+OpenCode 容器测试需要 `.[docker]` extra、可用 Docker daemon 和本地已拉取的 digest-locked 镜像；PATH 上真实 OpenCode binary 与部分 Linux 文件语义用例仍可能在 Windows 条件跳过。本地 tmpfs/gateway Gate 通过不代表生产 Secret/runtime authority、公共研究出站或 live 模型授权已完成。
 
 当前已签入 Vitest/Testing Library 组件行为测试；真实浏览器和 390px 窄屏属于既往手工验收证据，尚无可重复执行的浏览器 E2E/视觉脚本。后续完整 Gate 包括空卷 migration/bootstrap/start、用户名密码与会话 E2E、中文/窄屏 UI、Document/Enrichment 身份隔离及显式 release profile 下的 Release 身份隔离、ADAE online/offline 固定回归，以及无未授权真实模型调用。

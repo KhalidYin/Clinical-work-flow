@@ -24,24 +24,27 @@ P3 — 实现通用双网络 egress gateway 与首个 DeepSeek 策略（子计�
 - [x] P2 真实 Docker Gate：tmpfs mount/driver/options、注入不回显、Inspect/log 无合成值、Supervisor 重启清空、P15 internal Mock Attempt 成功且 Attempt secret 零残留。
 - [x] P2 全量 Gate：Harness `189 passed, 5 skipped`；Knowledge `227 passed, 8 skipped`；两侧 Ruff 与 `git diff --check` 通过。
 - [x] P2 阶段提交 `94de7ec` 并推送 `origin/codex/p16-capability-egress-gate`。
-- [ ] P3 先审查 gateway 实现/镜像来源、许可证、固定 digest 和不解密 TLS 的能力边界。
-- [ ] P3 用 RED 冻结 internal client/public uplink 拓扑及 allow/deny/绕过/能力保持 Gate。
+- [x] P3 审查并锁定 Canonical `ubuntu/squid` 来源、GPL-2.0-or-later、image digest、实际 package identity 与无 TLS 解密边界。
+- [x] P3 用 RED→GREEN 冻结 internal client/public uplink 拓扑及 allow/deny/绕过 Gate；只有 gateway 双宿主。
+- [x] P3 补齐 Profile/provider/model/endpoint/data-boundary 精确绑定，漂移在 secret 解析和容器启动前拒绝。
+- [x] P3 真实固定 OpenCode 经本地 TLS 假 DeepSeek 完成 Pack Skill → MCP → 模型工具循环；未调用供应商。
+- [x] P3 全量 Gate：Harness `207 passed, 5 skipped`；Knowledge `227 passed, 8 skipped`；Ruff 与测试资源清零通过。
 
 ## Working Context
 
 - **Files being edited**: `harness-runtime/supervisor/`、`harness-runtime/contracts/`、`harness-runtime/tests/`、Knowledge remote provider、canonical docs 与 `docs/dep/`
-- **Last command run**: Harness 全量 `189 passed, 5 skipped`；Knowledge 全量 `227 passed, 8 skipped`；两侧 Ruff 和 `git diff --check` 通过
-- **Key decisions**: policy definition 与 runtime availability 分离；`none` 默认可用，`model-deepseek-v1` 在 P3 gateway 前不可用；Secret 用独立 Docker local tmpfs volume、启动清空和全终态清理；capability 集合不由网络策略删减。
+- **Last command run**: Harness 全量 `207 passed, 5 skipped`；Knowledge 全量 `227 passed, 8 skipped`；Ruff 与 P16 临时 Docker 资源清零通过
+- **Key decisions**: internal client network 是防绕过边界，`HTTPS_PROXY` 只是路由提示；Squid 仅 CONNECT、不解密 TLS；DeepSeek 是首个策略实例，不是 gateway 引擎；Profile/provider/model/endpoint 精确绑定；capability 不由网络策略删减。
 - **Blocker**: None
 
 ## Phase Context
 
 - **Sub-plan**: `docs/dep/plans/ongoing/P16-harness-secret-egress-gate.md`
-- **Phase**: P3 - 通用双网络 egress gateway 与首个 DeepSeek 策略
+- **Phase**: P3 - completed；下一 Gate 为 P4 零费用安全汇总与 P12 handoff
 - **Input conditions**: P2 tmpfs Store、无回显注入、独立 daemon mapper、全终态清理和真实 Docker 零费用 Gate 通过。
 - **Completion criteria**: gateway 来源/许可证/digest 可审计；OpenCode 仅连 internal client network；只允许策略 hostname:port；其他域名/IP/端口/直连失败；`none` 和能力保持回归通过。
-- **Boundaries**: 不解密 TLS，不实现公共研究 gateway，不调用 DeepSeek，不把策略标记 available 直到拓扑与 bypass Gate 全部通过。
+- **Boundaries**: 不解密 TLS，不实现公共研究 gateway，不调用 DeepSeek；P3 runtime binding 可加载不等于产品 live 授权。
 
 ## Resume From
 
-提交并推送 P2 后，先对候选通用 CONNECT gateway 做来源、许可证、digest、hostname:port allowlist、DNS 与 TLS 可见性审查；选型冻结前不改 Runtime，不连接 DeepSeek，也不把 `model-deepseek-v1` 标记为 available。
+提交并推送 P3 后进入 P4：运行 Frontend、Workflow、migration、Compose 与泄漏/清理汇总 Gate，核对 OpenCode `1.18.14` 本地 mock 兼容性证据，形成 P12 handoff。不得探测 DeepSeek `/models`、发送 prompt 或自动进入 live。
