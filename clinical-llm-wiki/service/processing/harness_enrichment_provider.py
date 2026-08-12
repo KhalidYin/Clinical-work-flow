@@ -478,6 +478,7 @@ class RemoteSupervisorEnrichmentProvider(ModelProviderPort):
     _terminal_states = frozenset(
         {"succeeded", "failed", "cancelled", "timed_out", "orphaned"}
     )
+    _terminal_receipt_grace_polls = 5
 
     def __init__(
         self,
@@ -584,6 +585,23 @@ class RemoteSupervisorEnrichmentProvider(ModelProviderPort):
                 state = None
             if state not in self._terminal_states:
                 poll_budget_expired = True
+                # The Supervisor owns the same execution deadline and may be
+                # terminating the container while the product reaches its poll
+                # limit. Allow only receipt collection time here; the child
+                # execution budget is not extended.
+                for _grace_poll in range(self._terminal_receipt_grace_polls):
+                    self._sleep(self._poll_interval_seconds)
+                    status = self._call(
+                        "GET",
+                        f"/v1/attempts/{request.attempt.attempt_id}",
+                        None,
+                        {200},
+                    )
+                    self._validate_projection(status, request, request_sha256)
+                    state = status.get("state")
+                    if state in self._terminal_states:
+                        break
+            if state not in self._terminal_states:
                 cancelled = self._call(
                     "POST",
                     f"/v1/attempts/{request.attempt.attempt_id}/cancel",

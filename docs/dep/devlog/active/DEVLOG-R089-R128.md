@@ -1834,3 +1834,57 @@ Done — no next steps。
 - `clinical-llm-wiki/scripts/harness_poc_loop.py`、`service/processing/harness_poc_verify.py`
 - `compose.harness.yaml`、`compose.harness.poc.yaml` 与定向测试
 - `USAGE.md`、README/AGENTS、canonical Guide/Test、PLAN、DevLog/INDEX（pending phase commit）
+
+---
+
+### R125 [00:10] [P12-knowledge-application-platform] P2-B3 pre-live: OpenCode 离线失败场景矩阵
+
+#### Done
+
+- 新增 `scripts.harness_poc_failure_matrix`，以两个独立随机空卷 Compose project 运行
+  `schema_invalid` 与 `timeout`；每个场景都真实执行第二次 Worker 验证无自动重试，并核对 PostgreSQL、
+  ExecutionReceipt/ValidationReceipt、认证 API 零 Candidate、DeepSeek 日志、受管 Attempt 容器和自动清理。
+- internal Responses Mock 增加确定性结构错误与延迟场景。结构错误仍先完成 Pack Skill 与
+  `read_evidence` MCP，再移除必填 `claim`；超时给 OpenCode 足够启动时间，并使模型响应延迟超过 Attempt
+  预算，避免把启动前超时误报成模型超时。
+- failure verifier 强制唯一 failed Attempt/ModelInvocation、零 Candidate/Evidence link、精确错误分类、
+  Pack/能力/`network_policy=none` 身份和 `retryable=false`。schema 场景要求 Harness succeeded + validation
+  failed；timeout 要求 Supervisor `timed_out` 且无 ValidationReceipt。
+- 修复产品与 Supervisor 共用执行截止时间的 Receipt 竞态：执行预算耗尽后最多等待 5 秒收取 Supervisor
+  正在完成的终态 Receipt；这不延长 OpenCode 容器预算，仍非终态才发取消。另固定 Windows 宿主 Docker
+  输出以 UTF-8 容错解码，避免 GBK 诊断线程掩盖原始错误。
+
+#### Issues / Risks
+
+- timeout 实测会经过两个 internal Mock 请求后终止；这个数字只证明已到达模型调用，不是稳定业务合同，
+  Gate 只要求至少一个请求且重复 Worker 无增量。
+- 5 秒是控制面收据宽限，不是额外执行预算；若未来远程 Supervisor 的终止/持久化延迟超过该值，仍会
+  进入 cancel 并可能只得到通用取消 Receipt，需要用观测数据调整控制面 SLA，不能无限等待。
+- 矩阵仍使用本地 Mock、合成 key、Docker socket 和 internal network；不证明 DeepSeek 兼容、模型质量、
+  生产 Secret/runtime authority 或公共研究能力，也不授权真实出站。
+
+#### Validation
+
+- RED/GREEN：新增 Mock、profile timeout、failure verifier、runner UTF-8 与 terminal Receipt grace 合同；
+  定向 Knowledge/Harness 测试通过。
+- 真实 Docker 双场景复跑：schema internal 请求 `4 → 4`、错误 `structured_output_invalid`；timeout 请求
+  `2 → 2`、Receipt `timed_out`。两者 Candidate 0、DeepSeek 0、自动重试 0、受管容器 0，随机项目自动清理。
+- 正向 `scripts.harness_poc_loop --no-build` 回归仍通过，请求 `4 → 4`、唯一 Candidate lineage、Skill/MCP/
+  Pack/validation 证据完整、DeepSeek 0。
+- 全量 Knowledge `234 passed, 8 skipped`；Harness `209 passed, 5 skipped`；Frontend `30 passed`
+  且 production build 通过；Workflow `366 passed, 1 skipped`。Knowledge/Harness Ruff 全通过，基础、Harness、
+  Harness+POC 三套 Compose config render 均通过。
+
+#### Next
+
+1. 下一离线切片可补 Candidate changes requested 与作者自审拒绝，但它们属于治理层快速 PostgreSQL/API
+   场景，不应强行重复两套慢速 OpenCode 容器。
+2. P12 单次 live vertical 仍需用户另行授权、轮换既往 key、fresh synthetic `external_allowed` Evidence、
+   `max_calls=1` 和只读 preflight；本轮不会自动推进。
+3. 风险是把失败矩阵当成供应商质量证明，或误把 5 秒收据宽限理解为模型预算扩容。
+
+#### Files Changed / Commits
+
+- `harness-runtime/poc/openai_mock/` 与 Mock tests
+- `clinical-llm-wiki/service/processing/`、`scripts/harness_poc_failure_matrix.py`、Compose 与 tests
+- `USAGE.md`、canonical Test、P12/PLAN/TASK_STATE、DevLog/INDEX（pending phase commit）

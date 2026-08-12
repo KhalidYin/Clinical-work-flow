@@ -133,6 +133,23 @@ ModelInvocation、Candidate/Evidence lineage，以及 Receipt 中的 Pack hash�
 `docker compose --project-name <diagnostic_project> ... down --volumes --remove-orphans`，该操作会不可恢复地删除
 该测试项目的 PostgreSQL/对象卷。
 
+在正向环路通过后，可运行首批离线失败矩阵；它会分别建立新的随机项目，不复用失败后的数据库：
+
+```powershell
+Set-Location .\clinical-llm-wiki
+.\.venv\Scripts\python.exe -m scripts.harness_poc_failure_matrix
+```
+
+`schema_invalid` 必须证明 OpenCode 已加载 Pack Skill、调用 `read_evidence` MCP 且执行成功，但产品 Schema
+校验以 `structured_output_invalid` 拒绝产物；`timeout` 必须让 internal Mock 收到请求后由 Supervisor 终止
+OpenCode，并落 `timed_out` Receipt。两者都必须只有一个 failed Attempt/ModelInvocation、零 Candidate、
+第二次 Worker 零新增请求、DeepSeek 请求 0、遗留 Attempt 容器 0，并自动清理随机项目。可用 `--scenario
+schema_invalid|timeout` 单独诊断；`--keep` 会保留项目，必须按输出的精确项目名手工清理。
+
+超时预算只约束 Harness 执行。产品达到轮询预算后可额外等待最多 5 秒收取 Supervisor 已在生成的终态
+Receipt；该宽限不延长 OpenCode 容器执行时间。若仍无终态，产品才发取消。失败矩阵仍是本地 internal Mock
+编排 Gate，不证明真实供应商质量、生产 Secret/runtime authority 或公共研究能力，也不会读取既往 key。
+
 下列命令保留为分步诊断入口。先按第 2 节准备本机 `.env`，再在当前 PowerShell 会话设置一次性测试值：
 
 ```powershell

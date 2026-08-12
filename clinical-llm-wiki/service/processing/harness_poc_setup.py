@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from typing import Any
 
 from sqlalchemy import select
@@ -29,7 +30,9 @@ POC_MODEL_PROFILE_ID = "p15-internal-mock"
 POC_MODEL_PROFILE_VERSION = "1.0.0"
 
 
-def poc_model_profile_values() -> dict[str, Any]:
+def poc_model_profile_values(*, timeout_seconds: int = 30) -> dict[str, Any]:
+    if not 1 <= timeout_seconds <= 3600:
+        raise ValueError("P15 model timeout must be between 1 and 3600 seconds")
     return {
         "provider": "openai",
         "model": "gpt-4o-mini",
@@ -38,7 +41,7 @@ def poc_model_profile_values() -> dict[str, Any]:
         "endpoint_ref": None,
         "allowed_data_boundaries": ["enterprise_provider_only"],
         "capabilities": ["structured_generation"],
-        "timeout_seconds": 30,
+        "timeout_seconds": timeout_seconds,
         "max_output_tokens": 4096,
         "cost_policy": {
             "mode": "p15_internal_mock",
@@ -97,7 +100,10 @@ def configure_p15_harness_poc() -> dict[str, object]:
                 ModelProfile,
                 (POC_MODEL_PROFILE_ID, POC_MODEL_PROFILE_VERSION),
             )
-            values = poc_model_profile_values()
+            timeout_seconds = int(
+                os.environ.get("KNOWLEDGE_P15_MODEL_TIMEOUT_SECONDS", "30")
+            )
+            values = poc_model_profile_values(timeout_seconds=timeout_seconds)
             if profile is None:
                 session.add(
                     ModelProfile(

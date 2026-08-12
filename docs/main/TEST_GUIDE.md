@@ -99,6 +99,14 @@ CandidateEvidence 均为 1，ExecutionReceipt 记录正确 Pack hash、`evidence
 `knowledge.read-evidence` capability、一次 `read_evidence` MCP 和 `network_policy=none`，认证 API lineage
 完全一致，DeepSeek gateway 请求为 0。默认自动清理随机项目；`--keep` 只用于诊断，不得作为状态保留机制。
 
+签入的 `python -m scripts.harness_poc_failure_matrix` 用两个独立随机空卷项目补充首批失败 Gate：
+`schema_invalid` 必须先完成 Pack Skill/MCP 调用，再由产品 ValidationReceipt 以
+`structured_output_invalid` 拒绝；`timeout` 必须确认 internal Mock 已收到模型请求，再由 Supervisor 在
+Attempt 预算内终止 OpenCode 并返回 `timed_out` Receipt。两者均要求唯一 failed Attempt/ModelInvocation、
+零 Candidate/Evidence link、重复 Worker 零请求增量、`retryable=false`、`network_policy=none`、DeepSeek
+请求 0、遗留受管 Attempt 容器 0。产品轮询预算后的最多 5 秒只用于收取 Supervisor 终态 Receipt，不延长
+子容器执行预算；超过宽限仍非终态才取消。
+
 删除卷属于显式破坏性测试，只能对已核对的 `clinical-knowledge-demo` 项目执行，并且不得作为日常测试前置。
 
 ## 当前覆盖范围

@@ -10,7 +10,8 @@ import os
 from pathlib import Path
 import re
 from collections.abc import Mapping
-from typing import Any
+from time import sleep as system_sleep
+from typing import Any, Callable
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,14 +71,27 @@ class ScriptedOpenAIMock:
         api_key: str,
         audit_path: Path | None = None,
         scenario: str = "success",
+        delay_seconds: float = 0.0,
+        sleep: Callable[[float], None] = system_sleep,
     ) -> None:
         if not api_key:
             raise ValueError("mock api_key must not be empty")
-        if scenario not in {"success", "unauthorized_tool"}:
+        if scenario not in {
+            "success",
+            "unauthorized_tool",
+            "schema_invalid",
+            "timeout",
+        }:
             raise ValueError("unsupported P15 mock scenario")
+        if delay_seconds < 0:
+            raise ValueError("mock delay_seconds must not be negative")
+        if scenario == "timeout" and delay_seconds <= 0:
+            raise ValueError("timeout scenario requires a positive delay_seconds")
         self._api_key = api_key
         self._audit_path = audit_path
         self._scenario = scenario
+        self._delay_seconds = delay_seconds
+        self._sleep = sleep
         self._unauthorized_issued = False
         self.audits: list[dict[str, object]] = []
 
@@ -181,6 +195,8 @@ class ScriptedOpenAIMock:
         }
         self.audits.append(audit)
         self._write_audit(audit)
+        if self._scenario == "timeout":
+            self._sleep(self._delay_seconds)
         if not tool_names:
             body = self._responses_text_sse(model, "P15 Candidate")
         elif self._scenario == "unauthorized_tool" and not self._unauthorized_issued:
@@ -214,10 +230,13 @@ class ScriptedOpenAIMock:
                 arguments={"evidence_id": evidence_id},
             )
         else:
+            candidate = _candidate(evidence_id)
+            if self._scenario == "schema_invalid":
+                candidate.pop("claim")
             body = self._responses_text_sse(
                 model,
                 json.dumps(
-                    _candidate(evidence_id),
+                    candidate,
                     ensure_ascii=False,
                     separators=(",", ":"),
                 ),
@@ -599,6 +618,7 @@ def main() -> None:
         api_key=api_key,
         audit_path=Path(audit_path_value) if audit_path_value else None,
         scenario=os.environ.get("P15_MOCK_SCENARIO", "success"),
+        delay_seconds=float(os.environ.get("P15_MOCK_DELAY_SECONDS", "0")),
     )
     server = ThreadingHTTPServer(
         (os.environ.get("P15_MOCK_HOST", "0.0.0.0"), int(os.environ.get("P15_MOCK_PORT", "8080"))),

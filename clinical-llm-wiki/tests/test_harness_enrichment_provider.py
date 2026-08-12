@@ -659,6 +659,55 @@ class NeverCompletesSupervisorTransport(SuccessfulSupervisorTransport):
         return 200, projection
 
 
+class CompletesDuringTimeoutReceiptGraceTransport(SuccessfulSupervisorTransport):
+    def __init__(self) -> None:
+        super().__init__()
+        self.status_polls = 0
+
+    def __call__(
+        self,
+        method: str,
+        path: str,
+        payload: dict[str, object] | None,
+        headers: dict[str, str],
+    ) -> tuple[int, dict[str, object]]:
+        if path == "/v1/attempts":
+            return super().__call__(method, path, payload, headers)
+        self.calls.append((method, path, payload, headers))
+        if method == "GET" and path.endswith("attempt-enrichment-1"):
+            self.status_polls += 1
+        state = "timed_out" if self.status_polls >= 3 else "running"
+        if path.endswith("/result"):
+            receipt = ExecutionReceipt(
+                execution_id="exec-attempt-enrichment-1",
+                spec_sha256="a" * 64,
+                request_sha256=self.request_sha256,
+                harness_id="opencode@1.18.14",
+                adapter_id="opencode@1.18.14",
+                status=HarnessStatus.TIMED_OUT,
+                exit_classification=ExitClassification.TIMED_OUT,
+                started_at="2026-08-09T12:00:00Z",
+                ended_at="2026-08-09T12:00:01Z",
+                artifact_manifest=ArtifactManifest(),
+                retryable=False,
+            ).model_dump(mode="json")
+            return 200, {
+                "contract_version": "1.0.0",
+                "attempt_id": "attempt-enrichment-1",
+                "request_sha256": self.request_sha256,
+                "receipt": receipt,
+                "output_sha256": None,
+                "output_bundle": None,
+            }
+        return 200, {
+            "contract_version": "1.0.0",
+            "attempt_id": "attempt-enrichment-1",
+            "request_sha256": self.request_sha256,
+            "state": state,
+            "receipt": None,
+        }
+
+
 def test_remote_supervisor_provider_cancels_when_poll_budget_expires() -> None:
     transport = NeverCompletesSupervisorTransport()
     provider = RemoteSupervisorEnrichmentProvider(
@@ -677,6 +726,27 @@ def test_remote_supervisor_provider_cancels_when_poll_budget_expires() -> None:
 
     assert caught.value.invocation.error_type is InvocationErrorType.TIMEOUT
     assert any(path.endswith("/cancel") for _, path, _, _ in transport.calls)
+
+
+def test_remote_supervisor_provider_waits_for_terminal_timeout_receipt_before_cancel() -> None:
+    transport = CompletesDuringTimeoutReceiptGraceTransport()
+    provider = RemoteSupervisorEnrichmentProvider(
+        supervisor_url="http://harness-supervisor:8790",
+        machine_token="internal-supervisor-token",
+        spec_sha256="a" * 64,
+        transport=transport,
+        poll_interval_seconds=1,
+        sleep=lambda _seconds: None,
+    )
+    request = _supervised_request()
+    profile = request.model_profile.model_copy(update={"timeout_seconds": 1})
+
+    with pytest.raises(ModelProviderError) as caught:
+        provider.invoke(request.model_copy(update={"model_profile": profile}))
+
+    assert caught.value.invocation.error_type is InvocationErrorType.TIMEOUT
+    assert caught.value.invocation.execution_receipt["status"] == "timed_out"
+    assert not any(path.endswith("/cancel") for _, path, _, _ in transport.calls)
 
 
 def test_worker_supervised_mode_uses_remote_supervisor_without_docker_inputs() -> None:

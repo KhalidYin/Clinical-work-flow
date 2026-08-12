@@ -261,6 +261,46 @@ def test_responses_api_uses_attempt_authorized_evidence_identity() -> None:
     assert "evidence-poc-001" not in evidence.body + candidate.body
 
 
+def test_schema_invalid_scenario_preserves_tools_then_returns_invalid_candidate() -> None:
+    from poc.openai_mock.server import ScriptedOpenAIMock
+
+    mock = ScriptedOpenAIMock(
+        api_key="synthetic-p15-key",
+        scenario="schema_invalid",
+    )
+
+    candidate = mock.respond(
+        path="/v1/responses",
+        authorization="Bearer synthetic-p15-key",
+        payload=_responses_request(output_count=2, evidence_id="evidence-db-001"),
+    )
+
+    assert "candidate-poc-001" in candidate.body
+    assert '"claim"' not in candidate.body
+
+
+def test_timeout_scenario_delays_model_post_after_writing_safe_audit() -> None:
+    from poc.openai_mock.server import ScriptedOpenAIMock
+
+    sleeps: list[float] = []
+    mock = ScriptedOpenAIMock(
+        api_key="synthetic-p15-key",
+        scenario="timeout",
+        delay_seconds=2.0,
+        sleep=sleeps.append,
+    )
+
+    response = mock.respond(
+        path="/v1/responses",
+        authorization="Bearer synthetic-p15-key",
+        payload=_responses_request(),
+    )
+
+    assert response.status == 200
+    assert sleeps == [2.0]
+    assert len(mock.audits) == 1
+
+
 def test_responses_api_recovers_identity_from_opencode_transformed_text() -> None:
     from poc.openai_mock.server import ScriptedOpenAIMock
 

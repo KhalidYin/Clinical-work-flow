@@ -7,6 +7,7 @@ services:
     restart: "no"
     environment:
       KNOWLEDGE_DATABASE_URL: postgresql+psycopg://knowledge:${KNOWLEDGE_POSTGRES_PASSWORD:?set KNOWLEDGE_POSTGRES_PASSWORD}@postgres:5432/knowledge
+      KNOWLEDGE_P15_MODEL_TIMEOUT_SECONDS: ${KNOWLEDGE_P15_MODEL_TIMEOUT_SECONDS:-30}
     depends_on:
       bootstrap:
         condition: service_completed_successfully
@@ -73,6 +74,7 @@ services:
       KNOWLEDGE_DATABASE_URL: postgresql+psycopg://knowledge:${KNOWLEDGE_POSTGRES_PASSWORD:?set KNOWLEDGE_POSTGRES_PASSWORD}@postgres:5432/knowledge
       KNOWLEDGE_P15_API_ORIGIN: http://p15-api:8788
       KNOWLEDGE_P15_PACK_SHA256: ${HARNESS_PACK_SHA256:?set the measured knowledge-candidate-v1 Pack SHA-256}
+      KNOWLEDGE_P15_EXPECTED_FAILURE: ${KNOWLEDGE_P15_EXPECTED_FAILURE:-}
       KNOWLEDGE_ADMIN_USERNAME: ${KNOWLEDGE_ADMIN_USERNAME:?set initial administrator username}
       KNOWLEDGE_ADMIN_PASSWORD: ${KNOWLEDGE_ADMIN_PASSWORD:?set initial administrator password}
       KNOWLEDGE_P15_VERIFIER_PASSWORD: ${KNOWLEDGE_P15_VERIFIER_PASSWORD:?set a disposable P15 verifier password}

@@ -44,6 +44,8 @@ services:
     environment:
       P15_MOCK_API_KEY_FILE: /run/secrets/p15_mock_key
       P15_MOCK_AUDIT_PATH: /var/lib/p15-mock/requests.jsonl
+      P15_MOCK_SCENARIO: ${P15_MOCK_SCENARIO:-success}
+      P15_MOCK_DELAY_SECONDS: ${P15_MOCK_DELAY_SECONDS:-0}
     secrets: ["p15_mock_key"]
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=16m

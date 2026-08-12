@@ -673,6 +673,11 @@ P2-B 不再作为一次性“大模型 + 关系图 + 全部审核 UI”交付。
   gateway、allow/deny/bypass、Receipt identity、固定 OpenCode Pack Skill/MCP 本地 TLS mock、空卷
   migration 和完整 Compose Smoke 均通过。该 Gate 未读取真实 key、未调用 DeepSeek，也不等于生产
   Secret Manager/runtime authority。P2-B3 现在只恢复为“可由用户另行授权”的 handoff 状态，不自动执行。
+- 2026-08-13 P2-B3 本地 OpenCode POC 增加两个真实容器失败场景：`schema_invalid` 在 Skill/MCP
+  成功后由产品 Schema Gate 拒绝，`timeout` 在 internal Mock 已收到请求后由 Supervisor 终止容器。
+  两者均落唯一 failed Attempt/ModelInvocation、零 Candidate、零自动 retry、零 DeepSeek 请求，并检查
+  无受管 Attempt 容器残留。为避免产品与 Supervisor 共用截止时间造成取消/终止 Receipt 竞态，产品在
+  执行预算耗尽后只给 Supervisor 最多 5 秒终态收据宽限；不延长 OpenCode 执行预算。
 
 #### 产出
 

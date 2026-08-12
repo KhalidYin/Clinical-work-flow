@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import subprocess
 from types import SimpleNamespace
 
 import pytest
@@ -19,6 +20,11 @@ def test_poc_profile_is_internal_mock_only() -> None:
         "mode": "p15_internal_mock",
         "network": "internal-only",
     }
+    assert values["timeout_seconds"] == 30
+    assert poc_model_profile_values(timeout_seconds=1)["timeout_seconds"] == 1
+
+    with pytest.raises(ValueError, match="timeout"):
+        poc_model_profile_values(timeout_seconds=0)
 
 
 def test_setup_changes_only_a_queued_unleased_enrichment_step() -> None:
@@ -216,3 +222,136 @@ def test_loop_runner_uses_fresh_internal_mock_environment() -> None:
     }
     with pytest.raises(RuntimeError, match="additional model requests"):
         validate_replay_counts(first=3, second=4)
+
+
+def test_loop_runner_decodes_docker_output_as_utf8(monkeypatch: pytest.MonkeyPatch) -> None:
+    from scripts.harness_poc_loop import PocLoopRunner
+
+    observed: dict[str, object] = {}
+
+    def fake_run(*_args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        observed.update(kwargs)
+        return subprocess.CompletedProcess([], 0, "容器完成", "")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    runner = PocLoopRunner(
+        project_name="clinical-harness-poc-encoding",
+        knowledge_root=Path(__file__).resolve().parents[1],
+        environment={},
+        build=False,
+        keep=False,
+    )
+
+    result = runner._run(("ps",))
+
+    assert result.stdout == "容器完成"
+    assert observed["encoding"] == "utf-8"
+    assert observed["errors"] == "replace"
+
+
+@pytest.mark.parametrize(
+    ("scenario", "error_type", "receipt_status", "validation"),
+    [
+        ("schema_invalid", "structured_output_invalid", "succeeded", "failed"),
+        ("timeout", "timeout", "timed_out", None),
+    ],
+)
+def test_failure_verifier_requires_one_failed_lineage_and_zero_candidate(
+    scenario: str,
+    error_type: str,
+    receipt_status: str,
+    validation: str | None,
+) -> None:
+    from service.processing.harness_poc_verify import validate_failure_snapshot
+
+    pack_sha256 = "d" * 64
+    snapshot = {
+        "run_id": "run-p15-001",
+        "run_status": "failed",
+        "step_status": "failed",
+        "attempt_id": "attempt-p15-001",
+        "attempt_status": "failed",
+        "attempt_error_type": error_type,
+        "invocation_id": "inv-p15-001",
+        "invocation_status": "failed",
+        "invocation_error_type": error_type,
+        "provider_request_id": "execution-p15-001",
+        "candidate_id": None,
+        "evidence_ids": [],
+        "counts": {
+            "attempts": 1,
+            "model_invocations": 1,
+            "candidates": 0,
+            "candidate_evidence": 0,
+        },
+        "execution_receipt": {
+            "execution_id": "execution-p15-001",
+            "status": receipt_status,
+            "exit_classification": receipt_status,
+            "pack_identity": {
+                "pack_id": "knowledge-candidate-v1",
+                "version": "1.0.0",
+                "sha256": pack_sha256,
+            },
+            "advertised_skills": ["evidence-candidate"],
+            "allowed_mcp_capabilities": ["knowledge.read-evidence"],
+            "tool_call_summary": (
+                [{"tool": "read_evidence", "calls": 1}]
+                if scenario == "schema_invalid"
+                else []
+            ),
+            "network_policy": {
+                "policy_id": "none",
+                "kind": "none",
+                "allowed_endpoints": [],
+            },
+            "retryable": False,
+        },
+        "validation_receipt": (
+            {"result": validation, "findings": ["structured_output_invalid"]}
+            if validation is not None
+            else None
+        ),
+    }
+
+    result = validate_failure_snapshot(
+        snapshot=snapshot,
+        expected_scenario=scenario,
+        expected_pack_sha256=pack_sha256,
+    )
+
+    assert result["scenario"] == scenario
+    assert result["error_type"] == error_type
+    assert result["candidate_count"] == 0
+    assert result["retryable"] is False
+
+    with pytest.raises(RuntimeError, match="zero Candidate"):
+        validate_failure_snapshot(
+            snapshot={
+                **snapshot,
+                "counts": {**snapshot["counts"], "candidates": 1},
+            },
+            expected_scenario=scenario,
+            expected_pack_sha256=pack_sha256,
+        )
+
+
+def test_failure_matrix_environment_never_carries_live_keys() -> None:
+    from scripts.harness_poc_failure_matrix import build_scenario_environment
+
+    schema = build_scenario_environment(
+        base={"HARNESS_PACK_SHA256": "d" * 64},
+        scenario="schema_invalid",
+    )
+    timeout = build_scenario_environment(
+        base={"HARNESS_PACK_SHA256": "d" * 64},
+        scenario="timeout",
+    )
+
+    assert schema["P15_MOCK_SCENARIO"] == "schema_invalid"
+    assert schema["KNOWLEDGE_P15_MODEL_TIMEOUT_SECONDS"] == "30"
+    assert timeout["P15_MOCK_SCENARIO"] == "timeout"
+    assert timeout["P15_MOCK_DELAY_SECONDS"] == "30"
+    assert timeout["KNOWLEDGE_P15_MODEL_TIMEOUT_SECONDS"] == "20"
+    assert "DEEPSEEK_API_KEY" not in schema | timeout
+    assert "KNOWLEDGE_MODEL_API_KEY" not in schema | timeout
