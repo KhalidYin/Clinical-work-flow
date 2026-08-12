@@ -105,7 +105,10 @@ def test_compose_gateway_is_only_dual_homed_service_and_client_is_internal() -> 
     assert "ports" not in gateway
     assert networks["harness-deepseek-client"] == {
         "internal": True,
-        "name": "clinical-harness-deepseek-client",
+        "name": (
+            "${HARNESS_DEEPSEEK_CLIENT_NETWORK_NAME:-"
+            "clinical-harness-deepseek-client}"
+        ),
     }
     assert networks["harness-egress-uplink"].get("internal", False) is False
 

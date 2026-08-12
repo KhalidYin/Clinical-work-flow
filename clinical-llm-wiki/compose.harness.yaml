@@ -80,7 +80,7 @@ services:
       HARNESS_SUPERVISOR_SECRET_ROOT: /run/harness-secrets
       HARNESS_SUPERVISOR_MCP_BRIDGE_PATH: /app/supervisor/mcp_stdio_bridge.sh
       HARNESS_SUPERVISOR_DEEPSEEK_EGRESS_MANIFEST_PATH: /app/egress/model-deepseek-v1/manifest.json
-      HARNESS_SUPERVISOR_DEEPSEEK_NETWORK_NAME: clinical-harness-deepseek-client
+      HARNESS_SUPERVISOR_DEEPSEEK_NETWORK_NAME: ${HARNESS_DEEPSEEK_CLIENT_NETWORK_NAME:-clinical-harness-deepseek-client}
       HARNESS_SUPERVISOR_DISCOVER_DAEMON_STATE_ROOT: "true"
       HARNESS_SUPERVISOR_LEASE_SECONDS: "30"
       HARNESS_SUPERVISOR_PACK_ID: knowledge-candidate-v1
@@ -88,7 +88,7 @@ services:
       HARNESS_SUPERVISOR_MODEL_PROVIDER: openai
       HARNESS_SUPERVISOR_MODEL_ID: gpt-4o-mini
       HARNESS_SUPERVISOR_MODEL_BASE_URL: http://p15-openai-mock:8080/v1
-      HARNESS_SUPERVISOR_INTERNAL_NETWORK_NAME: clinical-harness-p15-model
+      HARNESS_SUPERVISOR_INTERNAL_NETWORK_NAME: ${HARNESS_P15_MODEL_NETWORK_NAME:-clinical-harness-p15-model}
       SYNTHETIC_PROVIDER_KEY_FILE: /run/secrets/p15_mock_key
     secrets: ["p15_mock_key"]
     healthcheck:
@@ -131,10 +131,10 @@ networks:
     internal: true
   harness-model:
     internal: true
-    name: clinical-harness-p15-model
+    name: ${HARNESS_P15_MODEL_NETWORK_NAME:-clinical-harness-p15-model}
   harness-deepseek-client:
     internal: true
-    name: clinical-harness-deepseek-client
+    name: ${HARNESS_DEEPSEEK_CLIENT_NETWORK_NAME:-clinical-harness-deepseek-client}
   harness-egress-uplink: {}
 
 volumes:

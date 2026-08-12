@@ -1769,3 +1769,68 @@ Done — no next steps。
 - `clinical-llm-wiki/service/processing/harness_supervisor_smoke.py` 及部署合同测试
 - canonical docs、P12/P16/PLAN/TASK_STATE、README/USAGE/AGENTS、memory、DevLog/INDEX
 - P3 提交 `2a140f2`、P4 归档提交 `4654433` 均已推送远端
+
+---
+
+### R124 [22:28] [P12-knowledge-application-platform] P2-B3 pre-live: 新模型工作流本地 POC 测试环路
+
+#### Done
+
+- 新增 `scripts.harness_poc_loop` 单命令 Gate。每次生成随机 Compose project、一次性测试凭据、独立
+  P15 model/DeepSeek client network，从空卷启动 migration/bootstrap、Supervisor、固定 OpenCode、Pack、
+  internal Responses Mock、Knowledge API 与 one-shot Enrichment Worker；常见 live key 环境变量被显式移除。
+- 首次 Worker 完成后，环路再次真实执行同一 Worker并比较 internal Mock audit 行数；第二次没有可领取
+  Attempt，模型请求增量必须为 0。随后从 PostgreSQL 核对 Attempt/ModelInvocation/Candidate/
+  CandidateEvidence 均唯一，并以正式 HttpOnly Cookie API 交叉核对 Evidence 与 invocation lineage。
+- `p15-verify` 升级为 canonical loop verifier：强制 ExecutionReceipt 证明正确 Pack hash、
+  `evidence-candidate` Skill、`knowledge.read-evidence` capability、一次 `read_evidence` MCP、
+  `network_policy=none`、不可自动 retry；ValidationReceipt 必须 passed，状态停在
+  `author_confirmation_required`。
+- Compose 的 P15 model 与 DeepSeek client 显式网络名支持 project-scoped override，修复并行/随机项目对
+  固定共享网络的依赖；默认值保持既有手工 P15/P16 命令兼容。环路默认自动删除精确随机项目的容器、卷
+  和网络；`--keep` 只作诊断，JSON 不是第三套状态权威。
+- USAGE、canonical Guide/Test、README/AGENTS、PLAN 同步。该环路只验证本地 orchestration、Skill/MCP、
+  Receipt、lineage 与幂等，不证明 DeepSeek API 兼容、供应商输出质量、生产 Secret/runtime authority 或
+  公共研究能力；P12 live 仍需新的单独授权。
+
+#### Issues / Risks
+
+- 首次正式 Gate 默认重建镜像，实测约 213 秒；复用本轮已构建镜像的 `--no-build` 日常复跑约 71 秒。
+  快速模式可能掩盖陈旧镜像，因此不能替代阶段正式 build Gate。
+- OpenCode 一次成功 Attempt 对 internal Mock 产生 4 个 `/v1/responses` 请求，这是 Skill/MCP/模型工具循环，
+  不是 4 个外层 Attempt；幂等判断比较第二次 Worker 前后 audit 增量，同时要求数据库四类 canonical 记录
+  都保持 1。
+- Verifier 必须在初始化链完成后使用 `--no-deps` 只读运行；让 Compose 重新解析依赖会再次启动 bootstrap，
+  而已推进的业务状态会使 bootstrap 正确失败。环路改为 bounded API health probe 后再启动独立 Verifier，
+  避免健康竞态且不重放初始化。
+- 显式 `harness` profile 仍启动双宿主 DeepSeek gateway，即便 POC Attempt 使用 `network_policy=none`；
+  环路检查 gateway 日志中 DeepSeek 请求为 0，但这不是公共网路或生产 egress 认证。
+- Supervisor 仍持宿主 Docker socket，合成 `env://` key、internal Docker network 和本地临时目录权限仍是
+  POC 折中；不得把结果扩写为生产部署完成。
+
+#### Validation
+
+- RED：新增 verifier/runner/network isolation 合同先以 4 failed 证明缺少实现；GREEN：定向
+  `11 passed`，Ruff 通过，Compose 三 overlay render 通过。
+- 真实 Docker 正式 build Gate：随机空卷项目成功，首次/重复 Worker 完成，模型请求 `4 → 4`、增量 0；
+  Attempt/ModelInvocation/Candidate/CandidateEvidence 均为 1，Receipt/API/DB lineage 一致，DeepSeek 请求 0，
+  自动清理后随机项目容器/网络/卷均为 0。
+- `--no-build` 再次独立复跑成功并输出单一 JSON。Knowledge `229 passed, 8 skipped`；Harness
+  `207 passed, 5 skipped`；Frontend `30 passed` 且 production build 通过；Workflow
+  `366 passed, 1 skipped`；Knowledge/Harness/Workflow Ruff 全通过。
+- 未读取既往 DeepSeek key，未调用 DeepSeek、`/models`、公共网页或任何真实供应商 endpoint。
+
+#### Next
+
+1. P12 P2-B3 若继续 live，仍先取得新的明确授权，轮换 key、准备 fresh synthetic `external_allowed`
+   Evidence 和 `max_calls=1`，只读 preflight 后再次确认才可调用。
+2. 若下一步优先扩展测试环路，应建立“失败场景矩阵”而非接 live：schema invalid、Harness timeout、
+   Candidate changes requested、作者自审拒绝；不要把所有失败塞进一次慢速 Compose。
+3. 主要风险是把 Mock 编排成功当作模型质量、用 `--no-build` 替代正式 Gate，或把环路 JSON/Compose project
+   当成业务状态权威。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/scripts/harness_poc_loop.py`、`service/processing/harness_poc_verify.py`
+- `compose.harness.yaml`、`compose.harness.poc.yaml` 与定向测试
+- `USAGE.md`、README/AGENTS、canonical Guide/Test、PLAN、DevLog/INDEX（pending phase commit）

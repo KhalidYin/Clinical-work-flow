@@ -23,8 +23,11 @@ def test_harness_compose_profile_isolates_socket_and_machine_credentials() -> No
     assert harness["networks"]["harness-control"]["internal"] is True
     assert harness["networks"]["harness-model"] == {
         "internal": True,
-        "name": "clinical-harness-p15-model",
+        "name": "${HARNESS_P15_MODEL_NETWORK_NAME:-clinical-harness-p15-model}",
     }
+    assert harness["networks"]["harness-deepseek-client"]["name"] == (
+        "${HARNESS_DEEPSEEK_CLIENT_NETWORK_NAME:-clinical-harness-deepseek-client}"
+    )
     assert model_mock["networks"] == ["harness-model"]
     assert model_mock["read_only"] is True
     assert model_mock["cap_drop"] == ["ALL"]
@@ -60,7 +63,10 @@ def test_harness_compose_profile_isolates_socket_and_machine_credentials() -> No
         "http://p15-openai-mock:8080/v1"
     )
     assert supervisor["environment"]["HARNESS_SUPERVISOR_INTERNAL_NETWORK_NAME"] == (
-        "clinical-harness-p15-model"
+        "${HARNESS_P15_MODEL_NETWORK_NAME:-clinical-harness-p15-model}"
+    )
+    assert supervisor["environment"]["HARNESS_SUPERVISOR_DEEPSEEK_NETWORK_NAME"] == (
+        "${HARNESS_DEEPSEEK_CLIENT_NETWORK_NAME:-clinical-harness-deepseek-client}"
     )
     assert worker["environment"]["KNOWLEDGE_HARNESS_PACK_ID"] == (
         "knowledge-candidate-v1"
@@ -143,6 +149,10 @@ def test_p15_poc_overlay_runs_setup_before_one_shot_enrichment() -> None:
     )
     assert verifier["depends_on"]["p15-api"]["condition"] == "service_healthy"
     assert "KNOWLEDGE_P15_VERIFIER_PASSWORD" in verifier["environment"]
+    assert "KNOWLEDGE_DATABASE_URL" in verifier["environment"]
+    assert verifier["environment"]["KNOWLEDGE_P15_PACK_SHA256"] == (
+        "${HARNESS_PACK_SHA256:?set the measured knowledge-candidate-v1 Pack SHA-256}"
+    )
 
 
 def test_p15_mock_key_fixture_is_single_line_and_obviously_synthetic() -> None:

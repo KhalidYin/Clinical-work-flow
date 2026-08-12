@@ -117,8 +117,23 @@ DeepSeek 调用。当前仍禁止真实调用。
 
 ### 4.3 显式运行 P15 PostgreSQL/API 本地 POC
 
-该 POC 只允许使用签入的明显合成 key 和内部 Mock；不要填写 DeepSeek 或其他供应商 key。先按第 2 节
-准备本机 `.env`，再在当前 PowerShell 会话设置一次性测试值：
+该 POC 只允许使用签入的明显合成 key 和内部 Mock；不要填写 DeepSeek 或其他供应商 key。推荐直接
+运行签入的测试环路，它会生成随机 Compose project、一次性测试凭据和独立网络，从空卷执行首次 Worker、
+再次执行同一 Worker，并从 PostgreSQL、Receipt 与认证 API 三侧核对结果，最后自动删除该随机项目：
+
+```powershell
+Set-Location .\clinical-llm-wiki
+.\.venv\Scripts\python.exe -m scripts.harness_poc_loop
+```
+
+首次正式 Gate 默认重建镜像；已经验证过本地镜像后，日常快速复跑可加 `--no-build`。成功只输出一份 JSON，
+其中必须有 `result=passed`、`duplicate_mock_requests=0`、`deepseek_requests=0`，并显示唯一 Attempt、
+ModelInvocation、Candidate/Evidence lineage，以及 Receipt 中的 Pack hash、Skill、MCP 和 `network_policy=none`。
+若需诊断可加 `--keep` 保留随机项目；此时输出会给出 `diagnostic_project`，使用者必须在核对名称后自行执行
+`docker compose --project-name <diagnostic_project> ... down --volumes --remove-orphans`，该操作会不可恢复地删除
+该测试项目的 PostgreSQL/对象卷。
+
+下列命令保留为分步诊断入口。先按第 2 节准备本机 `.env`，再在当前 PowerShell 会话设置一次性测试值：
 
 ```powershell
 Set-Location .\clinical-llm-wiki
@@ -137,9 +152,10 @@ docker compose --project-name clinical-harness-p15-db-poc `
   --profile harness run --rm p15-verify
 ```
 
-Verifier 输出一个 Candidate ID、真实 canonical Evidence ID、origin invocation ID 和
+Verifier 输出唯一 Attempt/Candidate/canonical Evidence/origin invocation、Receipt 能力证据和
 `author_confirmation_required`。Worker 再运行一次时 Mock 请求数、ModelInvocation 和 Candidate 均不得
-增加。这里的 `env://` 合成 key、Docker internal 网络、Supervisor socket authority 和每 Attempt 临时
+增加。环路 JSON 只是测试报告，不是状态权威；PostgreSQL canonical entities、Receipt 与认证 API 才是
+判定依据。这里的 `env://` 合成 key、Docker internal 网络、Supervisor socket authority 和每 Attempt 临时
 目录权限都是 POC 折中；P16/P2 的 tmpfs Store 不改变该历史 POC 的 `env://` 配置，P16/P3 模型
 gateway 也不把该 POC 升级为生产网络或凭据认证；更收敛的 runtime authority 仍待完成。
 验收后如需删除，仅对上述精确 POC project 执行（会删除它的 PostgreSQL/对象卷）：

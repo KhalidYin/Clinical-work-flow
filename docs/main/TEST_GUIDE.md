@@ -92,6 +92,13 @@ Enrichment Attempt，经真实 Supervisor/OpenCode/internal Mock 落账唯一 Mo
 不落 Candidate、合成 key 不泄露。一次性 Worker 进程退出码不能代替业务 Gate，最终判定以 PostgreSQL、
 Receipt 和 API verifier 为准。
 
+签入的 `python -m scripts.harness_poc_loop` 是该链路的可重复 POC Gate：每次生成随机 Compose project、
+一次性测试凭据和隔离的 internal model/client network，默认从空卷构建；首次 one-shot Worker 完成后再真实
+运行一次 Worker，内部 Mock 请求数必须无增量。最终 JSON 必须证明 Attempt/ModelInvocation/Candidate/
+CandidateEvidence 均为 1，ExecutionReceipt 记录正确 Pack hash、`evidence-candidate` Skill、
+`knowledge.read-evidence` capability、一次 `read_evidence` MCP 和 `network_policy=none`，认证 API lineage
+完全一致，DeepSeek gateway 请求为 0。默认自动清理随机项目；`--keep` 只用于诊断，不得作为状态保留机制。
+
 删除卷属于显式破坏性测试，只能对已核对的 `clinical-knowledge-demo` 项目执行，并且不得作为日常测试前置。
 
 ## 当前覆盖范围
@@ -102,7 +109,7 @@ Receipt 和 API verifier 为准。
 - Processing ledger：DAG、claim、lease、checkpoint、过期恢复、retry/cancel 和 Attempt lineage。
 - Document Worker：TXT/MD/PDF/DOCX/XLSX 的受控解析、分支/fan-in、Evidence locator。
 - ModelProvider：fake/replay、injected callable 下的单次 direct-model adapter/授权合同、数据边界和失败分类；没有真实 provider 质量结论。
-- Harness：版本化合同、fake/replay/OpenCode adapter、Fake/Docker runtime、staging 安全扫描、Step-scoped MCP、OpenCode 真实容器准入、独立 Supervisor 机器身份/幂等/注入拒绝/durable lifecycle、Knowledge remote provider、产品 Pack 编译，以及 internal Mock 下 PostgreSQL canonical Evidence → Skill/MCP → Candidate/API 成功、幂等与越权拒绝 Attempt。P16/P1 覆盖 unknown/unavailable policy、非法/未知 opaque secret、DeepSeek profile/provider/model/endpoint/data-boundary 漂移的 pre-dispatch 拒绝，`none` Receipt 证据及 capability 分离；P16/P2 覆盖临时 Store、独立 daemon mapper、全终态清理和泄漏拒绝；P16/P3 真实 Docker 覆盖 digest/hash-locked Squid、internal client/public uplink 拓扑、精确 CONNECT allow、其他 hostname/IP/port/直连 deny、Receipt gateway identity，以及固定 OpenCode 经本地 TLS 假端点完成 Pack Skill → MCP → 模型工具循环。
+- Harness：版本化合同、fake/replay/OpenCode adapter、Fake/Docker runtime、staging 安全扫描、Step-scoped MCP、OpenCode 真实容器准入、独立 Supervisor 机器身份/幂等/注入拒绝/durable lifecycle、Knowledge remote provider、产品 Pack 编译，以及 internal Mock 下 PostgreSQL canonical Evidence → Skill/MCP → Candidate/API 成功、幂等与越权拒绝 Attempt；该纵向链路已有随机项目、空卷、双 Worker、Receipt/API/DB 交叉核对和自动清理的单命令 POC Gate。P16/P1 覆盖 unknown/unavailable policy、非法/未知 opaque secret、DeepSeek profile/provider/model/endpoint/data-boundary 漂移的 pre-dispatch 拒绝，`none` Receipt 证据及 capability 分离；P16/P2 覆盖临时 Store、独立 daemon mapper、全终态清理和泄漏拒绝；P16/P3 真实 Docker 覆盖 digest/hash-locked Squid、internal client/public uplink 拓扑、精确 CONNECT allow、其他 hostname/IP/port/直连 deny、Receipt gateway identity，以及固定 OpenCode 经本地 TLS 假端点完成 Pack Skill → MCP → 模型工具循环。
 - Governance：Candidate revision、作者确认、独立审核、relation eligibility 和 released immutability。
 - 认证：用户名、Argon2id、HttpOnly/SameSite Cookie、CSRF、会话撤销和 RBAC。
 - 前端：Vitest/Testing Library 已覆盖核心组件行为；真实浏览器与 390px 窄屏是既往手工验收，不是已签入自动化 E2E。
