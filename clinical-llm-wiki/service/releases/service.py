@@ -29,6 +29,10 @@ from .contracts import (
 )
 
 
+class ReleasePublishConflictError(RuntimeError):
+    """The requested publication no longer matches its candidate facts."""
+
+
 class ReleaseBuildRepository(Protocol):
     def resolve_build(self, command: ReleaseBuildCommand) -> ReleaseBuildSnapshot: ...
 
@@ -169,7 +173,7 @@ class ReleasePublisher:
         if candidate is None:
             raise ValueError("Release candidate does not exist")
         if candidate.base_release_id != command.base_release_id:
-            raise ValueError("publish base Release does not match the candidate")
+            raise ReleasePublishConflictError("publish base Release does not match the candidate")
 
         index_content = _canonical_json(candidate.index_manifest)
         _verify_object(self._object_store, candidate.index_descriptor, index_content)
@@ -228,4 +232,4 @@ def _verify_object(
         raise ObjectIntegrityError(f"object bytes mismatch: {descriptor.object_key}")
 
 
-__all__ = ["ReleaseBuilder", "ReleasePublisher"]
+__all__ = ["ReleaseBuilder", "ReleasePublishConflictError", "ReleasePublisher"]

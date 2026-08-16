@@ -20,6 +20,8 @@ import {
   type ReleasedQueryLabResult,
   type EvaluationRunCollection,
   type EvaluationRunDetail,
+  type ReleaseWorkbench,
+  type PublishedRelease,
 } from "../contracts/knowledgeApi";
 
 const fixtureTime = "2026-07-29T14:58:00Z";
@@ -114,6 +116,35 @@ export const evaluationDetailFixture = response<EvaluationRunDetail>({
       },
     },
   ],
+});
+
+export const releaseWorkbenchFixture = response<ReleaseWorkbench>({
+  current: {
+    releaseId: "release-current-ui",
+    version: "2026.08.1",
+    status: "released",
+    baseReleaseId: null,
+    itemCount: 2,
+    isCurrent: true,
+    createdAt: "2026-08-16T08:00:00Z",
+    publishedAt: "2026-08-16T08:05:00Z",
+  },
+  candidate: null,
+  history: [],
+  diff: null,
+  gates: [],
+  blockers: [],
+  allowedActions: [],
+});
+
+export const publishedReleaseFixture = response<PublishedRelease>({
+  releaseId: "release-candidate-ui",
+  version: "2026.08.2",
+  previousReleaseId: "release-current-ui",
+  manifestObjectKey: "releases/release-candidate-ui/manifest.json",
+  manifestSha256: "f".repeat(64),
+  indexManifestVersion: "p17-index-v1",
+  publishedAt: "2026-08-16T10:05:00Z",
 });
 
 export const sourceRegistrationFixture = response<SourceRegistration>({

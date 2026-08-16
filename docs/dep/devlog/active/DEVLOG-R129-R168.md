@@ -234,3 +234,40 @@
 - README/USAGE、canonical Guide/Spec/Test、P17/PLAN/TASK_STATE、DevLog/INDEX（P4-B Evaluation read phase commit）
 
 ---
+
+## 2026-08-16
+
+### R135 [20:58] [P17-knowledge-lifecycle-retrieval-poc] P4-B: Releases governance workbench
+
+#### Done
+
+- 新增 Releases candidate/current/history 权威 read model；五类 membership diff、对象/current/Evaluation/publication snapshot Gates、blockers 与 allowed actions 全由服务端返回，浏览器不直接读取 manifest 或自行计算发布结论。
+- 新增 prerelease workbench GET 与 Release Manager publish POST；发布请求必须显式携带 `baseReleaseId`，P3-C 的 hash/object/snapshot/base 并发校验在发布事务中继续生效。
+- Releases 页面升级为 API 驱动工作台：URL 可选择 candidate，展示 current/candidate、diff、Gate、历史与阻断；409 后刷新权威状态并禁用 stale 动作。
+- Release candidate 仍由独立 Release Worker 构建；人员会话只执行获准发布，没有新增第二套 Release 状态或让前端/人员冒充 Worker。
+
+#### Issues / Risks
+
+- Evaluation 启动、candidate-scope 失败重放和 regression diff 尚未实现；informational E9 不能被当成 Release threshold。
+- 真实浏览器跨页流程与 390px 窄屏尚未执行，因此 P17-UI-06 与 P4 Phase 完成项保持未勾选。
+- candidate 对象先写、数据库事务失败后可能留下不可见孤儿对象的 P3-C 已接受 POC 风险仍存在；本切片没有扩大该生命周期边界。
+
+#### Validation
+
+- TDD RED：缺失 `ReleaseGateFact` 导致 workbench contract collection 失败；Platform API 缺少 service port；Releases 占位页无法呈现 revision/diff/发布动作。
+- 首次真实 PostgreSQL workbench Gate 暴露 SQLAlchemy Result 适配错误，修复为显式 `.all()` 后初始/stale/current-base/retire 场景 `1 passed`。
+- Knowledge 全量 `301 passed, 12 skipped`、Ruff 通过；前端 `38 passed`、typecheck 与 production build 通过；Workflow 既有 P4-B 回归 `366 passed, 1 skipped`。未配置或调用模型，未发生外部模型请求。
+
+#### Next
+
+1. 从 Evaluation 启动 endpoint、candidate-scope replay 与 regression diff 的合同 RED 开始，再接现有 Evaluation/Query Lab 页面。
+2. 随后执行真实浏览器/390px、完整前端/Knowledge/Workflow/Compose 与零未授权出站汇总 Gate。
+3. 风险是将 E9 informational run 错作发布阈值，或让 candidate replay 越过 immutable Release consumer 边界；两者必须由后端 scope/purpose 明确阻断。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/service/releases/workbench*.py`、release repository/service、platform API/OpenAPI 与 PostgreSQL/contract tests
+- `clinical-llm-wiki/frontend/src/pages/ReleasesPage.tsx`、contracts/router/MSW fixtures/CSS 与组件 tests
+- README/USAGE、canonical Guide/Spec/Test、P17/PLAN/TASK_STATE、DevLog/INDEX（P4-B Releases phase commit）
+
+---

@@ -379,7 +379,7 @@ syncs_to:
 - 新增 server-resolved current/历史 Release 检索：客户端只能选择 Release ID，后端先验证 immutable manifest，再以冻结 Chunk ID + ChunkProfile 精确白名单执行 PostgreSQL metadata+FTS；未发布 Chunk 不能靠 SourceVersion 范围混入。
 - Release build 新增 canonical `source_artifact_id` citation Gate；真实 PostgreSQL 证明缺失来源对象时发布前失败，合法 current 与历史 Release 均可返回相同 Evidence identity。
 - Query Lab 已从占位页升级为真实 API 页面：默认空查询不调用、提交后写入 `q/release/top_k` URL、直接展示 API rank/route/capability/citation，并明确 vector/relation degraded、generation disabled 和零模型请求。
-- 当前尚未执行 390px 真实浏览器验收，也未补 Evaluation/Releases 页面，因此 P17-UI-04 与 P4 Phase 完成项保持未勾选。
+- 当前尚未执行 390px 真实浏览器验收；后续虽已补 Evaluation/Releases 页面，但 P17-UI-04 与 P4 Phase 完成项仍保持未勾选，等待跨页真实流程统一验收。
 
 ### P4-B Evaluation read workbench 结果（2026-08-16）
 
@@ -389,6 +389,15 @@ syncs_to:
 - release-candidate Query Lab scope 尚未进入现有 released-only 页面，因此失败案例按钮按 API `candidate_scope_required` 禁用并解释，未错误地拿 current Release 重放；Evaluation 启动和版本 regression diff 也仍待后续切片。
 - 单命令 E9 环路已证明 EvaluationRun 在运行数据库内持久化/重放，并在报告声明 `database_retention=ephemeral`；临时数据库清理后不会冒充当前 Compose 数据。
 - 组件测试已覆盖主体状态，但 390px/真实浏览器尚未执行，因此 P17-UI-05 与 P4 Phase 完成项保持未勾选。
+
+### P4-B Releases governance workbench 结果（2026-08-16）
+
+- 新增 candidate/current/history 权威 read model；服务端基于 immutable manifest membership 计算 included、carried、replaced、added、retired，并返回 Gates、blockers 与 allowed actions，前端不读取对象或自行推导发布结论。
+- candidate integrity、current base、passed EvaluationRun 与 publication snapshot 均复用 P3-C 的对象校验和发布事务；候选预期存在 base 但 base manifest 不可用时 fail closed，不以空 diff 掩盖损坏。
+- 新增 Releases workbench GET 与 Release Manager publish POST。发布请求必须显式携带 `baseReleaseId`（首次发布为显式 `null`）；stale base、对象漂移或 Gate 失败返回冲突，不切换 current。
+- Releases 页面从占位升级为 API 驱动工作台，支持 URL candidate、current/candidate 对照、五类服务端 diff、Gate/阻断、历史 Release 和发布。409 后刷新权威状态并禁用失效动作。
+- 真实 PostgreSQL 覆盖初始候选、stale 候选、current-base carry 与 retire diff；组件覆盖发布 payload 和 stale 刷新。Release candidate 仍由独立 Release Worker 构建，浏览器不冒充 Worker 创建候选。
+- 390px/真实浏览器跨页流程尚未执行，因此 P17-UI-06 与 P4 Phase 完成项保持未勾选。
 
 ### 边界（本 Phase 明确不做）
 
@@ -423,7 +432,7 @@ syncs_to:
 |----|------|--------|------|------|
 | P17-F01 | 新轮转回执最初复用了既有 `review_decisions` 的 `actor_idempotency` 唯一约束名；离线 metadata 测试通过，但真实 PostgreSQL 因索引命名空间冲突拒绝迁移 | P1-A | resolved defect | 先补失败合同，再改为 `rotation_actor_idempotency`；空库 upgrade → schema diff → downgrade → reapply 已通过 |
 | P17-F02 | P1-A 的 RotationCase 只有 proposed outcome/actor，缺少 replace/carry-forward 的目标 revision、理由与 proposal 幂等证据，Reviewer 无法审计“具体提议了什么” | P1-B | resolved contract gap | 在未提交的 `0011` migration 内补充 proposal target/idempotency/rationale 与 shape/unique 约束；API/真实 PostgreSQL 重放和 stale Gate 通过 |
-| P17-F03 | P4 输入假设称 UI 所需 API 已稳定，但实际只有 candidate Query Lab 与 released manifest；没有 released query、Evaluation workbench 或 Release diff/gates 命令 API | P4-A | active contract gap | 先补最小后端权威 read model/command，再接页面；禁止以 MSW fixture 充当 production 数据。P4-A 已关闭 released query，P4-B 已关闭 Evaluation read surface；Evaluation 启动/候选重放和 Releases 继续处理 |
+| P17-F03 | P4 输入假设称 UI 所需 API 已稳定，但实际只有 candidate Query Lab 与 released manifest；没有 released query、Evaluation workbench 或 Release diff/gates 命令 API | P4-A | active contract gap | 先补最小后端权威 read model/command，再接页面；禁止以 MSW fixture 充当 production 数据。released query、Evaluation read surface 与 Releases diff/Gate/publish 已关闭；Evaluation 启动/候选重放仍待处理 |
 | P17-F04 | 首次 released FTS 真实 PostgreSQL Gate 发现既有 Release fixture Evidence 缺少 canonical `source_artifact_id`，导致可发布但无法生成 citation | P4-A | resolved defect | 将 canonical source artifact 纳入 Release build 前置 Gate并补缺失反例；合法 current/历史查询通过 |
 | P17-F05 | 默认 E9 POC 使用临时 PostgreSQL；即使运行中已写 EvaluationRun，容器清理后也不能被 Compose 页面读取 | P4-B | accepted POC boundary | 报告增加 `database_retention=ephemeral`，页面空状态只信当前 API；后续若增加持久环境启动命令，必须同时绑定正确对象存储与数据库，不能导入报告冒充 canonical run |
 

@@ -136,6 +136,8 @@ from .contracts import (
     ModelProfileRegistrationData,
     ModelProfileRegistrationRequest,
     ModelProfileRegistrationResponse,
+    PublishedReleaseData,
+    PublishedReleaseResponse,
     PlatformHealthData,
     PlatformUserData,
     PasswordChangeRequest,
@@ -152,6 +154,12 @@ from .contracts import (
     ReleasedQueryLabData,
     ReleasedQueryLabRequest,
     ReleasedQueryLabResponse,
+    ReleaseDiffData,
+    ReleaseGateData,
+    ReleasePublishRequest,
+    ReleaseSummaryData,
+    ReleaseWorkbenchData,
+    ReleaseWorkbenchResponse,
     RelationEdgeData,
     RelationEvidenceData,
     RelationNodeData,
@@ -208,6 +216,13 @@ from service.retrieval import (
 )
 from service.releases import (
     ImmutableReleaseResolver,
+    ReleaseCandidateNotFoundError,
+    ReleasePublishCommand,
+    ReleasePublishConflictError,
+    ReleasePublisher,
+    ReleaseStateError,
+    ReleaseWorkbenchRecord,
+    ReleaseWorkbenchService,
     ReleasedKnowledgeUnavailableError,
     ReleasedManifestResult,
 )
@@ -254,6 +269,8 @@ class PlatformApiServices:
     released_retrieval: ImmutableReleaseRetrievalService | None = None
     release_resolver: ImmutableReleaseResolver | None = None
     evaluation_read: EvaluationReadPort | None = None
+    release_workbench: ReleaseWorkbenchService | None = None
+    release_publisher: ReleasePublisher | None = None
     object_store: ObjectStorePort | None = None
     runtime_consumer_credential_sha256: str | None = None
 
@@ -299,15 +316,18 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
 
     @app.middleware("http")
     async def enforce_browser_csrf(request: Request, call_next):
-        machine_runtime_path = request.url.path.startswith(
-            f"{API_PREFIX}/runtime-knowledge/"
-        )
-        if request.url.path.startswith(API_PREFIX) and request.method in {
-            "POST",
-            "PUT",
-            "PATCH",
-            "DELETE",
-        } and not machine_runtime_path:
+        machine_runtime_path = request.url.path.startswith(f"{API_PREFIX}/runtime-knowledge/")
+        if (
+            request.url.path.startswith(API_PREFIX)
+            and request.method
+            in {
+                "POST",
+                "PUT",
+                "PATCH",
+                "DELETE",
+            }
+            and not machine_runtime_path
+        ):
             origin = request.headers.get("origin")
             marker = request.headers.get("x-csrf-protection")
             if origin not in services.allowed_browser_origins or marker != "1":
@@ -687,6 +707,102 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
     ) -> ReleasedManifestResult:
         return resolve_release_manifest(release_id)
 
+    @app.get(
+        f"{API_PREFIX}/releases/workbench",
+        operation_id="getReleaseWorkbench",
+        response_model=ReleaseWorkbenchResponse,
+        responses=protected_responses,
+    )
+    def get_release_workbench(
+        actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.QUERY_RELEASED)),
+        ],
+        candidate_id: Annotated[str | None, Query(max_length=160)] = None,
+    ) -> ReleaseWorkbenchResponse:
+        if services.release_workbench is None:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="The Release workbench is unavailable.",
+            )
+        try:
+            record = services.release_workbench.get(
+                actor=actor,
+                candidate_id=candidate_id,
+            )
+        except ReleaseCandidateNotFoundError as exc:
+            raise PlatformApiError(
+                status_code=404,
+                code="release_candidate_not_found",
+                message="The requested Release candidate does not exist.",
+            ) from exc
+        except SQLAlchemyError as exc:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="The Release workbench repository is unavailable.",
+            ) from exc
+        return ReleaseWorkbenchResponse(
+            data=_release_workbench_data(record),
+            meta=_meta(),
+        )
+
+    @app.post(
+        f"{API_PREFIX}/releases/{{release_id}}/publish",
+        operation_id="publishReleaseCandidate",
+        response_model=PublishedReleaseResponse,
+        responses={
+            **protected_responses,
+            404: {"model": ErrorResponse, "description": "Candidate does not exist."},
+            409: {"model": ErrorResponse, "description": "A Release Gate blocked publication."},
+        },
+    )
+    def publish_release_candidate(
+        release_id: str,
+        request: ReleasePublishRequest,
+        actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.RELEASE_PUBLISH)),
+        ],
+    ) -> PublishedReleaseResponse:
+        if services.release_publisher is None:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="The Release publisher is unavailable.",
+            )
+        try:
+            published = services.release_publisher.publish(
+                actor=actor,
+                command=ReleasePublishCommand(
+                    release_id=release_id,
+                    base_release_id=request.base_release_id,
+                ),
+            )
+        except ValueError as exc:
+            raise PlatformApiError(
+                status_code=404,
+                code="release_candidate_not_found",
+                message="The requested Release candidate does not exist.",
+            ) from exc
+        except (ReleasePublishConflictError, ReleaseStateError) as exc:
+            raise PlatformApiError(
+                status_code=409,
+                code="release_publish_blocked",
+                message=str(exc),
+            ) from exc
+        except ObjectStoreError as exc:
+            raise PlatformApiError(
+                status_code=409,
+                code="release_object_integrity_failed",
+                message="Release object integrity verification failed.",
+            ) from exc
+        return PublishedReleaseResponse(
+            data=PublishedReleaseData.model_validate(published.model_dump(mode="json")),
+            meta=_meta(),
+        )
+
     @app.post(
         f"{API_PREFIX}/query-lab/query",
         operation_id="queryReleaseCandidateSandbox",
@@ -845,9 +961,7 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
                 message="The EvaluationRun read model is unavailable.",
             )
         try:
-            record = services.evaluation_read.get_run(
-                evaluation_run_id=evaluation_run_id
-            )
+            record = services.evaluation_read.get_run(evaluation_run_id=evaluation_run_id)
         except EvaluationReadIntegrityError as exc:
             raise PlatformApiError(
                 status_code=409,
@@ -2034,7 +2148,9 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
             Header(alias="X-Correlation-ID", max_length=160),
         ] = None,
     ) -> ModelProfileRegistrationResponse:
-        safe_correlation_id = correlation_id or f"model-profile:{request.profile_id}:{request.version}"
+        safe_correlation_id = (
+            correlation_id or f"model-profile:{request.profile_id}:{request.version}"
+        )
         try:
             record, created = services.repository.register_model_profile(
                 profile_id=request.profile_id,
@@ -2133,12 +2249,27 @@ def _evaluation_summary(record: EvaluationReadRecord) -> EvaluationRunSummaryDat
     )
 
 
+def _release_workbench_data(record: ReleaseWorkbenchRecord) -> ReleaseWorkbenchData:
+    return ReleaseWorkbenchData(
+        current=(
+            ReleaseSummaryData(**asdict(record.current)) if record.current is not None else None
+        ),
+        candidate=(
+            ReleaseSummaryData(**asdict(record.candidate)) if record.candidate is not None else None
+        ),
+        history=[ReleaseSummaryData(**asdict(item)) for item in record.history],
+        diff=(ReleaseDiffData(**asdict(record.diff)) if record.diff is not None else None),
+        gates=[ReleaseGateData(**asdict(gate)) for gate in record.gates],
+        blockers=list(record.blockers),
+        allowed_actions=list(record.allowed_actions),
+    )
+
+
 def _evaluation_detail(record: EvaluationReadRecord) -> EvaluationRunDetailData:
     return EvaluationRunDetailData(
         **_evaluation_summary(record).model_dump(),
         threshold_checks=[
-            EvaluationThresholdCheckData(**asdict(check))
-            for check in record.threshold_checks
+            EvaluationThresholdCheckData(**asdict(check)) for check in record.threshold_checks
         ],
         failure_reasons=list(record.failure_reasons),
         case_results=[
@@ -2213,9 +2344,7 @@ def _chunk_projection_data(record: ChunkProjectionApiRecord) -> ChunkProjectionD
             )
             for chunk in record.chunks
         ],
-        findings=[
-            ChunkProjectionFindingData(**asdict(finding)) for finding in record.findings
-        ],
+        findings=[ChunkProjectionFindingData(**asdict(finding)) for finding in record.findings],
     )
 
 
@@ -2236,9 +2365,7 @@ def _rotation_case_data(
         change_types=list(record.change_types),
         eligible_outcomes=list(record.eligible_outcomes),
         proposed_outcome=record.proposed_outcome,
-        proposed_target_knowledge_revision_id=(
-            record.proposed_target_knowledge_revision_id
-        ),
+        proposed_target_knowledge_revision_id=(record.proposed_target_knowledge_revision_id),
         proposed_by_actor_id=record.proposed_by_actor_id,
         proposed_rationale=record.proposed_rationale,
         case_version=record.case_version,

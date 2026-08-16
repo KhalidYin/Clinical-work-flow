@@ -1,6 +1,6 @@
 # 临床知识台账
 
-这是由 P12/P13 建立的可运行知识应用骨架：React 前端、FastAPI、PostgreSQL/pgvector、拒绝覆盖写并校验 hash 的对象存储和独立异步 Worker。Source → Evidence → Candidate → 人工治理主链路已具备；P17 已接通 ICH E9 离线 Recall、immutable Release Query Lab，以及 PostgreSQL EvaluationRun 列表/详情和质量评估页面。Evaluation 启动/候选重放、Release 治理页面与完整知识 MCP 尚未闭环。
+这是由 P12/P13 建立的可运行知识应用骨架：React 前端、FastAPI、PostgreSQL/pgvector、拒绝覆盖写并校验 hash 的对象存储和独立异步 Worker。Source → Evidence → Candidate → 人工治理主链路已具备；P17 已接通 ICH E9 离线 Recall、immutable Release Query Lab、PostgreSQL EvaluationRun 列表/详情，以及服务端权威的 Releases diff/Gate/publish 工作台。Evaluation 启动/候选重放与完整知识 MCP 尚未闭环。
 
 ## 目录
 

@@ -9,7 +9,6 @@ import {
 
 import { AppShell } from "./app/AppShell";
 import { AdminPage } from "./pages/AdminPage";
-import { ScopePage } from "./pages/ScopePage";
 import { SourcesPage } from "./pages/SourcesPage";
 import { ProcessingPage } from "./pages/ProcessingPage";
 import { CandidatesPage } from "./pages/CandidatesPage";
@@ -17,6 +16,7 @@ import { RelationsPage } from "./pages/RelationsPage";
 import { AuditPage } from "./pages/AuditPage";
 import { QueryLabPage } from "./pages/QueryLabPage";
 import { EvaluationPage } from "./pages/EvaluationPage";
+import { ReleasesPage } from "./pages/ReleasesPage";
 
 const rootRoute = createRootRoute({
   component: AppShell,
@@ -56,16 +56,6 @@ function SourcesRoute() {
   );
 }
 
-const scopeRoutes = [
-  {
-    path: "/releases",
-    eyebrow: "不可变发布门禁",
-    title: "版本发布",
-    description: "未批准、评估失败、hash drift 或职责分离违规都必须阻断发布。",
-    phase: "KUI-08 · 计划在 P5 实现",
-  },
-] as const;
-
 const processingRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/processing",
@@ -98,6 +88,28 @@ const evaluationRoute = createRoute({
   }),
   component: EvaluationRoute,
 });
+
+const releasesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/releases",
+  validateSearch: (search: Record<string, unknown>) => ({
+    candidate: typeof search.candidate === "string" ? search.candidate : "",
+  }),
+  component: ReleasesRoute,
+});
+
+function ReleasesRoute() {
+  const search = releasesRoute.useSearch();
+  const navigate = releasesRoute.useNavigate();
+  return (
+    <ReleasesPage
+      candidateId={search.candidate}
+      onCandidateChange={(candidate) => {
+        void navigate({ search: { candidate }, replace: true });
+      }}
+    />
+  );
+}
 
 function EvaluationRoute() {
   const search = evaluationRoute.useSearch();
@@ -192,14 +204,6 @@ function AuditRoute() {
   );
 }
 
-const generatedScopeRoutes = scopeRoutes.map((scope) =>
-  createRoute({
-    getParentRoute: () => rootRoute,
-    path: scope.path,
-    component: () => <ScopePage {...scope} />,
-  }),
-);
-
 const adminRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/admin",
@@ -212,10 +216,10 @@ const routeTree = rootRoute.addChildren([
   processingRoute,
   queryLabRoute,
   evaluationRoute,
+  releasesRoute,
   candidatesRoute,
   relationsRoute,
   auditRoute,
-  ...generatedScopeRoutes,
   adminRoute,
 ]);
 

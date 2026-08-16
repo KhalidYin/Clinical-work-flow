@@ -131,7 +131,7 @@ Attempt 预算内终止 OpenCode 并返回 `timed_out` Receipt。两者均要求
 - 面向生产的 socket proxy/rootless runtime authority、TLS/服务身份轮换与获授权出站网络；当前只覆盖显式本地 Compose 离线信任链。
 - 生产 Secret Manager、生产 socket/rootless runtime authority、真实供应商出站质量与公共研究 recording gateway；P16 只使用合成 secret 和本地 TLS 假 endpoint，未调用 DeepSeek。全仓、Frontend、Workflow、migration 与 Compose 汇总 Gate 已通过。
 - 非 root Supervisor、socket proxy/远程容器运行时、明确 UID/GID 的 volume ownership；P15 为隔离的每 Attempt 临时目录开放宽写权限只服务本地 POC，不能沿用为生产证明。
-- P17/P3 已在真实 PostgreSQL 联合验收 EvaluationRun、Release Worker candidate、人工发布、stale base、current pointer、历史重放、对象漂移与紧急退役；P4-A 继续验收 canonical source citation Gate 及 current/历史 Release 精确 Chunk metadata+FTS；P4-B 验收 E9 informational 与 synthetic Gate EvaluationRun 共存、重放零增量、列表/详情完整性和 React 默认/空/错/partial 状态。标准 MCP 仍只读解析 immutable manifest；Evaluation 启动/候选重放、vector/relation、Attempt 级 MCP broker 和其余治理 GUI尚未实现。E9 文件报告不是 Release Gate 或当前数据库权威。
+- P17/P3 已在真实 PostgreSQL 联合验收 EvaluationRun、Release Worker candidate、人工发布、stale base、current pointer、历史重放、对象漂移与紧急退役；P4-A 继续验收 canonical source citation Gate 及 current/历史 Release 精确 Chunk metadata+FTS；P4-B 验收 E9 informational 与 synthetic Gate EvaluationRun 共存/重放、列表/详情完整性，以及 Releases 初始/stale/current-base/retire diff、对象与 publication snapshot Gate、显式 base 发布和 React stale/空/错状态。标准 MCP 仍只读解析 immutable manifest；Evaluation 启动/候选重放、vector/relation、Attempt 级 MCP broker 和其余增量治理 GUI 尚未实现。E9 文件报告不是 Release Gate 或当前数据库权威。
 - 临床统一 Runner 与 Harness artifact promotion。
 - 可重复执行的浏览器 E2E 与视觉回归门禁。
 
@@ -174,7 +174,7 @@ Source → Document DAG → Evidence
 - 每个主要页面覆盖默认、加载、空、错误、部分数据和窄屏；不适用时在测试或设计合同中说明原因。
 - 每个数字、分组和状态必须能追溯到 API payload 或静态合同。
 - Processing 页面验证 Attempt、executor、Harness/container、tool summary、validator、retry/cancel 的真实联动。
-- Query Lab 可消费已实现的 current/历史 immutable Release API，candidate sandbox 保留作预发布评估且不得混淆；Evaluation 已消费 PostgreSQL 列表/详情 API，但启动和 candidate-scope 重放必须保持禁用并解释；Release 页面在对应 API 未实现前保持明确占位。任何页面不得使用文件报告或 fixture 冒充 production 权威。
+- Query Lab 可消费已实现的 current/历史 immutable Release API，candidate sandbox 保留作预发布评估且不得混淆；Evaluation 已消费 PostgreSQL 列表/详情 API，但启动和 candidate-scope 重放必须保持禁用并解释；Releases 已消费后端 workbench/publish API，只展示服务端 diff/Gate/allowed action，409 后刷新并禁用 stale 动作。任何页面不得使用文件报告或 fixture 冒充 production 权威。
 - MSW 仅在显式测试/开发开关下启用；production build 默认连接真实同源 API。
 
 ## 测试数据与外部调用

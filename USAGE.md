@@ -13,7 +13,7 @@
 
 其中“异步富化”当前是同一 durable DAG 中的单个 Enrichment step，并非已经形成可编排的富化子图。
 
-P13 已提供一次性 legacy immutable Release 和 Workflow REST 消费适配。H0 已建立 `harness-runtime/`；OpenCode `1.18.14` 的 digest 容器准入、独立 Supervisor、P15 合成 Evidence → PostgreSQL Candidate/API 本地 POC，以及 P16 临时 Secret/模型 gateway/全量 Gate 均已通过本地验证。P17 已增加 Document→Chunk、E9 Recall、immutable Release Query Lab，以及 EvaluationRun 读 API/质量评估页面。默认 Compose 仍使用 replay，DeepSeek live 未完成且未授权。Evaluation 启动/候选重放、Release 治理页与完整只读知识 MCP 仍是目标能力。Document、Enrichment、Release 是独立 Worker pool，通过 PostgreSQL durable DAG 协作，不是流式 pipeline；空卷 Compose 默认没有 current Release 或 EvaluationRun。临床 Workflow 的固定阶段顺序不变。
+P13 已提供一次性 legacy immutable Release 和 Workflow REST 消费适配。H0 已建立 `harness-runtime/`；OpenCode `1.18.14` 的 digest 容器准入、独立 Supervisor、P15 合成 Evidence → PostgreSQL Candidate/API 本地 POC，以及 P16 临时 Secret/模型 gateway/全量 Gate 均已通过本地验证。P17 已增加 Document→Chunk、E9 Recall、immutable Release Query Lab、EvaluationRun 读页面，以及服务端权威的 Releases diff/Gate/publish 工作台。默认 Compose 仍使用 replay，DeepSeek live 未完成且未授权。Evaluation 启动/候选重放与完整只读知识 MCP 仍是目标能力。Document、Enrichment、Release 是独立 Worker pool，通过 PostgreSQL durable DAG 协作，不是流式 pipeline；空卷 Compose 默认没有 current Release、candidate 或 EvaluationRun。临床 Workflow 的固定阶段顺序不变。
 
 ## 2. 启动当前知识产品
 
@@ -40,6 +40,8 @@ docker compose --project-name clinical-knowledge-demo up -d --build --wait
 停止服务但保留数据：`docker compose --project-name clinical-knowledge-demo down`。
 
 “质量评估”页面位于 `#/evaluation`，只从当前 PostgreSQL 的 `/evaluations` 列表/详情 API 读取指标、阈值和逐题结果，不从前端 fixture 或 JSON 报告补值。`python -m scripts.ich_e9_poc` 默认使用并删除临时数据库，适合验证完整 E9 环路；报告中的 `database_retention=ephemeral` 表示该次 EvaluationRun 不会出现在已启动的 Compose 页面。当前尚未提供面向 Compose 数据库的启动命令，空页面是正确状态，不代表前端故障。
+
+“版本发布”页面位于 `#/releases`，读取 current、最新或 URL 指定 candidate、历史、服务端 diff 和 Gate。只有具备 Release Manager 权限且 API 返回 `publish` allowed action 时才显示可用发布动作；请求会显式携带 `baseReleaseId`，409 后刷新 current/candidate 并展示并发阻断。页面不能创建 candidate；candidate 仍由独立 Release Worker 从已审核事实构建。
 
 ## 3. 认证与机器身份
 
@@ -233,7 +235,7 @@ python -m src.runtime.agent_loop `
   '<explicit diagnostic intent>'
 ```
 
-Workflow 不直连知识数据库，也不能修改知识。通用 Agent Loop 遇到知识缺口通常 fail closed；只有限定 POC 路径会生成特定的结构化治理输入，不能概括为通用回流能力。当前知识产品的人类治理流程可以批准新 Revision，通用新 Release 的构建与发布仍是目标能力。
+Workflow 不直连知识数据库，也不能修改知识。通用 Agent Loop 遇到知识缺口通常 fail closed；只有限定 POC 路径会生成特定的结构化治理输入，不能概括为通用回流能力。当前知识产品已具备 Release Worker 候选构建、人工 Release Manager 发布和治理工作台；这不表示 Workflow 可以构建或发布知识，也不表示完整生产 Runtime 已完成。
 
 当前真正具备 start/resume ledger 的 Workflow Workbench 只覆盖限定合成 AE POC，并依赖临时 Study、直接启动 Application API 和测试夹具；它不是 Compose 服务，也不是通用 Workflow Runtime。
 

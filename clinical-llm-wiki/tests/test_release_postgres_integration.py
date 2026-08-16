@@ -59,6 +59,8 @@ from service.releases import (
     ReleaseBuilder,
     ReleasePublishCommand,
     ReleasePublisher,
+    ReleaseWorkbenchService,
+    SqlAlchemyReleaseWorkbenchRepository,
 )
 
 
@@ -364,6 +366,12 @@ def test_postgres_release_publish_is_atomic_stale_safe_and_replayable() -> None:
         repository = SqlAlchemyReleaseRepository(sessions, object_store=objects)
         builder = ReleaseBuilder(repository=repository, object_store=objects)
         publisher = ReleasePublisher(repository=repository, object_store=objects)
+        workbench = ReleaseWorkbenchService(
+            repository=SqlAlchemyReleaseWorkbenchRepository(
+                sessions,
+                releases=repository,
+            )
+        )
 
         with sessions.begin() as session:
             evidence = session.get(Evidence, "evidence-release-p17")
@@ -405,10 +413,25 @@ def test_postgres_release_publish_is_atomic_stale_safe_and_replayable() -> None:
                 evaluation_run_id=stale_evaluation.evaluation_run_id,
             ),
         )
+        first_workbench = workbench.get(
+            actor=_manager(),
+            candidate_id=first.release_id,
+        )
+        assert first_workbench.current is None
+        assert first_workbench.diff is not None
+        assert first_workbench.diff.added_count == 2
+        assert all(gate.passed for gate in first_workbench.gates)
+        assert first_workbench.allowed_actions == ("publish",)
         publisher.publish(
             actor=_manager(),
             command=ReleasePublishCommand(release_id=first.release_id, base_release_id=None),
         )
+        stale_workbench = workbench.get(
+            actor=_manager(),
+            candidate_id=stale.release_id,
+        )
+        assert "base_release_is_stale" in stale_workbench.blockers
+        assert stale_workbench.allowed_actions == ()
         released_retrieval = ImmutableReleaseRetrievalService(
             resolver=ImmutableReleaseResolver(repository=repository),
             repository=PostgresCandidateSearchRepository(sessions),
@@ -435,6 +458,15 @@ def test_postgres_release_publish_is_atomic_stale_safe_and_replayable() -> None:
                 evaluation_run_id=second_evaluation.evaluation_run_id,
             ),
         )
+        second_workbench = workbench.get(
+            actor=_manager(),
+            candidate_id=second.release_id,
+        )
+        assert second_workbench.current is not None
+        assert second_workbench.current.release_id == first.release_id
+        assert second_workbench.diff is not None
+        assert second_workbench.diff.carried_count == 2
+        assert second_workbench.blockers == ()
         publisher.publish(
             actor=_manager(),
             command=ReleasePublishCommand(
@@ -529,6 +561,12 @@ def test_postgres_release_publish_is_atomic_stale_safe_and_replayable() -> None:
                 rotation_case_ids=("rotation-release-p17-retire",),
             ),
         )
+        retired_workbench = workbench.get(
+            actor=_manager(),
+            candidate_id=retired.release_id,
+        )
+        assert retired_workbench.diff is not None
+        assert retired_workbench.diff.retired_revision_ids == ("revision-release-p17",)
         publisher.publish(
             actor=_manager(),
             command=ReleasePublishCommand(

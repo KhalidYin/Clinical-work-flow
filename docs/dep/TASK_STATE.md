@@ -1,7 +1,7 @@
 ---
 status: in-progress
 created: 2026-08-16 12:08
-updated: 2026-08-16 20:34
+updated: 2026-08-16 20:58
 ---
 
 # Current Task
@@ -26,14 +26,16 @@ P17 P4 — 在现有九项导航内补全 API 权威的知识治理 UI，并关�
 - [x] P4-A2：Query Lab 从占位页升级为真实 API 页面，完成空查询、URL 恢复、rank/route/degraded/citation/零模型请求组件测试。
 - [x] P4-B1：E9 baseline 以 informational immutable EvaluationRun 写入 PostgreSQL；与 synthetic Release Gate 共表但用途、阈值和 outcome 分离。
 - [x] P4-B2：新增 Evaluation 列表/详情 API 与真实质量评估页面，完成 URL、Recall/阈值/逐题结果及默认/空/错/partial 组件测试。
+- [x] P4-B3：新增 Releases candidate/current/history 权威 read model、服务端 diff/Gates/blockers/allowed actions 和显式 `base_release_id` 发布命令。
+- [x] P4-B4：Releases 升级为 API 驱动页面，覆盖 URL 候选选择、发布、409 stale 刷新、空/错/partial 与响应式组件行为。
 - [ ] P4：补全现有治理 UI，并关闭前端、Workflow、浏览器和全链路 POC Gate。
 
 ## Working Context
 
-- **Files being edited**: P4-B 位于 `service/evaluation/read_model.py`、platform API/OpenAPI、E9 POC 报告，以及 `frontend` Evaluation 合同、页面和组件测试。
-- **Last command run**: Knowledge `296 passed, 12 skipped`、Ruff 通过；前端 `36 passed`、typecheck/build 通过；Workflow `366 passed, 1 skipped`；真实 PostgreSQL EvaluationRun 共存/重放 `1 passed`；E9 单命令 Recall@5 `0.888889`、Recall@10 `0.944444`、零模型请求。
+- **Files being edited**: P4-B Releases 位于 `service/releases/workbench*.py`、release/platform API/OpenAPI，以及 `frontend` Releases 合同、页面和组件测试。
+- **Last command run**: Knowledge `301 passed, 12 skipped`、Ruff 通过；前端 `38 passed`、typecheck/build 通过；Workflow `366 passed, 1 skipped`；真实 PostgreSQL Releases workbench/publish/diff `1 passed`；零模型请求。
 - **Key decisions**: 只使用 E9，不使用 E9(R1)；原始 PDF 运行时下载且不提交 Git；测试/CI 使用自有合成 fixture；无 embedding 时 vector 显式 degraded；默认零模型调用。
-- **Blocker**: None；Evaluation read surface 已齐备，启动/candidate-scope replay/regression diff 与 Releases read model/command 仍缺失。默认 E9 数据库为 ephemeral，不会填充 Compose 页面。
+- **Blocker**: None；Query Lab、Evaluation read surface 和 Releases workbench 已齐备。Evaluation 启动/candidate-scope replay/regression diff、真实浏览器/390px 与全量 P4 Gate 仍缺失；默认 E9 数据库为 ephemeral，不会填充 Compose 页面。
 
 ## Phase Context
 
@@ -45,4 +47,4 @@ P17 P4 — 在现有九项导航内补全 API 权威的知识治理 UI，并关�
 
 ## Resume From
 
-从 P4-B3 Releases 后端合同 RED 开始：补 candidate/current/history、服务端 diff、gates/blockers/allowed actions 与 base-release publish command，再升级 Releases 页面。随后再接 Evaluation 启动和 candidate-scope 失败重放。风险是前端从 manifest 自算 diff/Gate，或把 ephemeral E9 报告冒充当前数据库记录。
+从 Evaluation 启动 endpoint、candidate-scope 失败重放与 regression diff 的后端合同 RED 开始，再接页面；随后执行真实浏览器/390px 和 P4 汇总 Gate。风险是启动路径把 informational E9 错作 Release threshold，或 candidate 重放越过 immutable Release consumer 边界。

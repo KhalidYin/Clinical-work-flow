@@ -398,6 +398,89 @@ class FakeEvaluationReadService:
         return self.run if evaluation_run_id == self.run.evaluation_run_id else None
 
 
+class FakeReleaseWorkbenchService:
+    def __init__(self, release_module: Any) -> None:
+        self._release_module = release_module
+        self.now = datetime(2026, 8, 16, 9, 0, tzinfo=timezone.utc)
+
+    def get(self, *, actor, candidate_id=None):
+        if candidate_id not in {None, "release-candidate-api"}:
+            raise self._release_module.ReleaseCandidateNotFoundError(candidate_id)
+        summary = self._release_module.ReleaseSummaryRecord
+        manager = any(role.value == "release_manager" for role in actor.roles)
+        return self._release_module.ReleaseWorkbenchRecord(
+            current=summary(
+                release_id="release-current-api",
+                version="2026.08.1",
+                status="released",
+                base_release_id=None,
+                item_count=2,
+                is_current=True,
+                created_at=self.now,
+                published_at=self.now,
+            ),
+            candidate=summary(
+                release_id="release-candidate-api",
+                version="2026.08.2",
+                status="candidate",
+                base_release_id="release-current-api",
+                item_count=2,
+                is_current=False,
+                created_at=self.now,
+                published_at=None,
+            ),
+            history=(),
+            diff=self._release_module.ReleaseDiffRecord(
+                included_count=2,
+                carried_count=1,
+                replaced_count=1,
+                added_count=0,
+                retired_count=1,
+                included_revision_ids=("revision-carried", "revision-replacement"),
+                carried_revision_ids=("revision-carried",),
+                replaced_revision_ids=("revision-replacement",),
+                added_revision_ids=(),
+                retired_revision_ids=("revision-retired",),
+            ),
+            gates=(
+                self._release_module.ReleaseGateFact(
+                    code="candidate_integrity",
+                    passed=True,
+                    reason="candidate_hash_verified",
+                ),
+                self._release_module.ReleaseGateFact(
+                    code="base_release_current",
+                    passed=True,
+                    reason="base_matches_current",
+                ),
+            ),
+            blockers=(),
+            allowed_actions=("publish",) if manager else (),
+        )
+
+
+class FakeReleasePublisher:
+    def __init__(self, release_module: Any) -> None:
+        self._release_module = release_module
+        self.commands = []
+
+    def publish(self, *, actor, command):
+        self.commands.append((actor, command))
+        if command.base_release_id != "release-current-api":
+            raise self._release_module.ReleaseStateError(
+                "current Release changed before publication"
+            )
+        return self._release_module.PublishedReleaseRecord(
+            release_id=command.release_id,
+            version="2026.08.2",
+            previous_release_id=command.base_release_id,
+            manifest_object_key="releases/release-candidate-api/manifest.json",
+            manifest_sha256="f" * 64,
+            index_manifest_version="p17-index-v1",
+            published_at=datetime(2026, 8, 16, 9, 5, tzinfo=timezone.utc),
+        )
+
+
 class FakeSourceRegistry:
     def __init__(self) -> None:
         self.calls: list[dict[str, Any]] = []
@@ -965,11 +1048,13 @@ def _grant(subject: str, display_name: str, role: str, *, status: str = "active"
 def api_client():
     app_module, _, repository_module = _platform_modules()
     evaluation_read_module = import_module("service.evaluation.read_model")
+    release_module = import_module("service.releases")
     assertions = {
         "admin-token": _identity("admin", "Platform Admin"),
         "curator-token": _identity("curator", "Knowledge Curator"),
         "consumer-token": _identity("consumer", "Knowledge Consumer"),
         "reviewer-token": _identity("reviewer", "Knowledge Reviewer"),
+        "release-manager-token": _identity("release-manager", "Release Manager"),
         "disabled-token": _identity("disabled", "Disabled User"),
         "unmapped-token": _identity("unmapped", "Unmapped User"),
     }
@@ -979,6 +1064,7 @@ def api_client():
         _grant("curator", "Knowledge Curator", "knowledge_curator"),
         _grant("consumer", "Knowledge Consumer", "consumer"),
         _grant("reviewer", "Knowledge Reviewer", "reviewer"),
+        _grant("release-manager", "Release Manager", "release_manager"),
         _grant("disabled", "Disabled User", "consumer", status="disabled"),
     ]
     for grant in grants:
@@ -1023,6 +1109,8 @@ def api_client():
             repository=FakeReleasedSearchRepository(),
         ),
         evaluation_read=FakeEvaluationReadService(evaluation_read_module),
+        release_workbench=FakeReleaseWorkbenchService(release_module),
+        release_publisher=FakeReleasePublisher(release_module),
     )
     return TestClient(app_module.create_platform_app(services)), repository
 
@@ -1060,6 +1148,85 @@ def test_platform_services_has_explicit_evaluation_read_port() -> None:
 
     assert "evaluation_read" in {
         field.name for field in fields(app_module.PlatformApiServices)
+    }
+
+
+def test_platform_services_has_explicit_release_workbench_port() -> None:
+    app_module, _, _ = _platform_modules()
+
+    assert "release_workbench" in {field.name for field in fields(app_module.PlatformApiServices)}
+
+
+def test_release_workbench_returns_server_diff_gates_and_actor_actions(
+    api_client,
+) -> None:
+    client, _ = api_client
+
+    consumer = client.get(
+        f"{API_PREFIX}/releases/workbench",
+        headers=_auth("consumer-token"),
+    )
+    manager = client.get(
+        f"{API_PREFIX}/releases/workbench?candidate_id=release-candidate-api",
+        headers=_auth("release-manager-token"),
+    )
+
+    assert consumer.status_code == 200
+    assert consumer.json()["data"]["allowedActions"] == []
+    assert manager.status_code == 200
+    data = manager.json()["data"]
+    assert data["current"]["releaseId"] == "release-current-api"
+    assert data["candidate"]["baseReleaseId"] == "release-current-api"
+    assert data["diff"]["carriedRevisionIds"] == ["revision-carried"]
+    assert data["diff"]["replacedRevisionIds"] == ["revision-replacement"]
+    assert data["diff"]["retiredRevisionIds"] == ["revision-retired"]
+    assert data["gates"][0] == {
+        "code": "candidate_integrity",
+        "passed": True,
+        "reason": "candidate_hash_verified",
+    }
+    assert data["blockers"] == []
+    assert data["allowedActions"] == ["publish"]
+
+
+def test_release_publish_requires_manager_and_base_release(api_client) -> None:
+    client, _ = api_client
+
+    missing_base = client.post(
+        f"{API_PREFIX}/releases/release-candidate-api/publish",
+        headers=_auth("release-manager-token"),
+        json={},
+    )
+    forbidden = client.post(
+        f"{API_PREFIX}/releases/release-candidate-api/publish",
+        headers=_auth("consumer-token"),
+        json={"baseReleaseId": "release-current-api"},
+    )
+    stale = client.post(
+        f"{API_PREFIX}/releases/release-candidate-api/publish",
+        headers=_auth("release-manager-token"),
+        json={"baseReleaseId": "release-stale"},
+    )
+    published = client.post(
+        f"{API_PREFIX}/releases/release-candidate-api/publish",
+        headers=_auth("release-manager-token"),
+        json={"baseReleaseId": "release-current-api"},
+    )
+
+    assert missing_base.status_code == 422
+    assert missing_base.json()["error"]["code"] == "invalid_request"
+    assert forbidden.status_code == 403
+    assert stale.status_code == 409
+    assert stale.json()["error"]["code"] == "release_publish_blocked"
+    assert published.status_code == 200
+    assert published.json()["data"] == {
+        "releaseId": "release-candidate-api",
+        "version": "2026.08.2",
+        "previousReleaseId": "release-current-api",
+        "manifestObjectKey": "releases/release-candidate-api/manifest.json",
+        "manifestSha256": "f" * 64,
+        "indexManifestVersion": "p17-index-v1",
+        "publishedAt": "2026-08-16T09:05:00Z",
     }
 
 
@@ -1901,7 +2068,9 @@ def test_checked_in_openapi_matches_runtime_paths_roles_and_responses(api_client
             f"{API_PREFIX}/health",
             f"{API_PREFIX}/releases/current",
             f"{API_PREFIX}/releases/current/manifest",
+            f"{API_PREFIX}/releases/workbench",
             f"{API_PREFIX}/releases/{{release_id}}/manifest",
+            f"{API_PREFIX}/releases/{{release_id}}/publish",
             f"{API_PREFIX}/query-lab/query",
             f"{API_PREFIX}/query-lab/released-query",
             f"{API_PREFIX}/evaluations",
@@ -1965,6 +2134,21 @@ def test_checked_in_openapi_matches_runtime_paths_roles_and_responses(api_client
         (
             "CurrentReleaseResponse",
             client.get(f"{API_PREFIX}/releases/current", headers=_auth("admin-token")),
+        ),
+        (
+            "ReleaseWorkbenchResponse",
+            client.get(
+                f"{API_PREFIX}/releases/workbench",
+                headers=_auth("release-manager-token"),
+            ),
+        ),
+        (
+            "PublishedReleaseResponse",
+            client.post(
+                f"{API_PREFIX}/releases/release-candidate-api/publish",
+                headers=_auth("release-manager-token"),
+                json={"baseReleaseId": "release-current-api"},
+            ),
         ),
         (
             "SourceCollectionResponse",

@@ -7,6 +7,7 @@ export const API_PATHS = {
   session: "/api/prerelease/v1/session",
   health: "/api/prerelease/v1/health",
   currentRelease: "/api/prerelease/v1/releases/current",
+  releaseWorkbench: "/api/prerelease/v1/releases/workbench",
   releasedQuery: "/api/prerelease/v1/query-lab/released-query",
   evaluations: "/api/prerelease/v1/evaluations",
   sources: "/api/prerelease/v1/sources",
@@ -136,6 +137,70 @@ export interface CurrentRelease {
   status: "released" | "not_released";
   indexVersion: string | null;
   releasedAt: string | null;
+}
+
+export interface ReleaseSummary {
+  releaseId: string;
+  version: string;
+  status: string;
+  baseReleaseId: string | null;
+  itemCount: number;
+  isCurrent: boolean;
+  createdAt: string;
+  publishedAt: string | null;
+}
+
+export type ReleaseGateCode =
+  | "candidate_integrity"
+  | "base_release_current"
+  | "evaluation_passed"
+  | "publication_snapshot";
+
+export interface ReleaseGate {
+  code: ReleaseGateCode;
+  passed: boolean;
+  reason: string;
+}
+
+export interface ReleaseDiff {
+  includedCount: number;
+  carriedCount: number;
+  replacedCount: number;
+  addedCount: number;
+  retiredCount: number;
+  includedRevisionIds: string[];
+  carriedRevisionIds: string[];
+  replacedRevisionIds: string[];
+  addedRevisionIds: string[];
+  retiredRevisionIds: string[];
+}
+
+export interface ReleaseWorkbench {
+  current: ReleaseSummary | null;
+  candidate: ReleaseSummary | null;
+  history: ReleaseSummary[];
+  diff: ReleaseDiff | null;
+  gates: ReleaseGate[];
+  blockers: string[];
+  allowedActions: Array<"publish">;
+}
+
+export interface ReleasePublishRequest {
+  baseReleaseId: string | null;
+}
+
+export interface PublishedRelease {
+  releaseId: string;
+  version: string;
+  previousReleaseId: string | null;
+  manifestObjectKey: string;
+  manifestSha256: string;
+  indexManifestVersion: string;
+  publishedAt: string;
+}
+
+export function releasePublishPath(releaseId: string): string {
+  return `/api/prerelease/v1/releases/${encodeURIComponent(releaseId)}/publish`;
 }
 
 export interface RetrievalCapability {
@@ -581,7 +646,10 @@ export type ApiErrorCode =
   | "stale_revision"
   | "duplicate_decision"
   | "released_knowledge_not_found"
-  | "released_knowledge_invalid";
+  | "released_knowledge_invalid"
+  | "release_candidate_not_found"
+  | "release_publish_blocked"
+  | "release_object_integrity_failed";
 
 export interface ErrorResponse {
   error: {

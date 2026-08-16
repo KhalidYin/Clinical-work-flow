@@ -112,6 +112,25 @@ paths:
         "403": { $ref: "#/components/responses/AuthorizationError" }
         "404": { $ref: "#/components/responses/NotFoundError" }
         "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /releases/workbench:
+    get:
+      operationId: getReleaseWorkbench
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: query
+          name: candidate_id
+          schema: { type: string, maxLength: 160 }
+      responses:
+        "200":
+          description: Server-computed candidate/current/history, diff, Gates and actor-specific actions.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReleaseWorkbenchResponse" }
+        "401": { $ref: "#/components/responses/AuthenticationError" }
+        "403": { $ref: "#/components/responses/AuthorizationError" }
+        "404": { $ref: "#/components/responses/NotFoundError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
   /releases/{release_id}/manifest:
     get:
       operationId: resolveReleasedKnowledgeById
@@ -131,6 +150,32 @@ paths:
         "401": { $ref: "#/components/responses/AuthenticationError" }
         "403": { $ref: "#/components/responses/AuthorizationError" }
         "404": { $ref: "#/components/responses/NotFoundError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /releases/{release_id}/publish:
+    post:
+      operationId: publishReleaseCandidate
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: release_id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReleasePublishRequest" }
+      responses:
+        "200":
+          description: Candidate published and current pointer switched atomically.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublishedReleaseResponse" }
+        "401": { $ref: "#/components/responses/AuthenticationError" }
+        "403": { $ref: "#/components/responses/AuthorizationError" }
+        "404": { $ref: "#/components/responses/NotFoundError" }
+        "409": { $ref: "#/components/responses/ConflictError" }
         "503": { $ref: "#/components/responses/ServiceUnavailable" }
   /query-lab/query:
     post:
@@ -1074,6 +1119,95 @@ components:
         status: { enum: [released, not_released] }
         indexVersion: { type: [string, "null"] }
         releasedAt: { type: [string, "null"], format: date-time }
+    ReleaseSummary:
+      type: object
+      additionalProperties: false
+      required: [releaseId, version, status, baseReleaseId, itemCount, isCurrent, createdAt, publishedAt]
+      properties:
+        releaseId: { type: string }
+        version: { type: string }
+        status: { type: string }
+        baseReleaseId: { type: [string, "null"] }
+        itemCount: { type: integer, minimum: 0 }
+        isCurrent: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        publishedAt: { type: [string, "null"], format: date-time }
+    ReleaseGate:
+      type: object
+      additionalProperties: false
+      required: [code, passed, reason]
+      properties:
+        code: { enum: [candidate_integrity, base_release_current, evaluation_passed, publication_snapshot] }
+        passed: { type: boolean }
+        reason: { type: string }
+    ReleaseDiff:
+      type: object
+      additionalProperties: false
+      required:
+        - includedCount
+        - carriedCount
+        - replacedCount
+        - addedCount
+        - retiredCount
+        - includedRevisionIds
+        - carriedRevisionIds
+        - replacedRevisionIds
+        - addedRevisionIds
+        - retiredRevisionIds
+      properties:
+        includedCount: { type: integer, minimum: 0 }
+        carriedCount: { type: integer, minimum: 0 }
+        replacedCount: { type: integer, minimum: 0 }
+        addedCount: { type: integer, minimum: 0 }
+        retiredCount: { type: integer, minimum: 0 }
+        includedRevisionIds: { type: array, items: { type: string } }
+        carriedRevisionIds: { type: array, items: { type: string } }
+        replacedRevisionIds: { type: array, items: { type: string } }
+        addedRevisionIds: { type: array, items: { type: string } }
+        retiredRevisionIds: { type: array, items: { type: string } }
+    ReleaseWorkbench:
+      type: object
+      additionalProperties: false
+      required: [current, candidate, history, diff, gates, blockers, allowedActions]
+      properties:
+        current:
+          anyOf:
+            - { $ref: "#/components/schemas/ReleaseSummary" }
+            - { type: "null" }
+        candidate:
+          anyOf:
+            - { $ref: "#/components/schemas/ReleaseSummary" }
+            - { type: "null" }
+        history:
+          type: array
+          items: { $ref: "#/components/schemas/ReleaseSummary" }
+        diff:
+          anyOf:
+            - { $ref: "#/components/schemas/ReleaseDiff" }
+            - { type: "null" }
+        gates:
+          type: array
+          items: { $ref: "#/components/schemas/ReleaseGate" }
+        blockers: { type: array, items: { type: string } }
+        allowedActions: { type: array, items: { const: publish } }
+    ReleasePublishRequest:
+      type: object
+      additionalProperties: false
+      required: [baseReleaseId]
+      properties:
+        baseReleaseId: { type: [string, "null"], maxLength: 160 }
+    PublishedRelease:
+      type: object
+      additionalProperties: false
+      required: [releaseId, version, previousReleaseId, manifestObjectKey, manifestSha256, indexManifestVersion, publishedAt]
+      properties:
+        releaseId: { type: string }
+        version: { type: string }
+        previousReleaseId: { type: [string, "null"] }
+        manifestObjectKey: { type: string }
+        manifestSha256: { type: string, pattern: "^[0-9a-f]{64}$" }
+        indexManifestVersion: { type: string }
+        publishedAt: { type: string, format: date-time }
     ReleaseObjectDescriptor:
       type: object
       additionalProperties: false
@@ -2430,6 +2564,18 @@ components:
         - type: object
           properties:
             data: { $ref: "#/components/schemas/CurrentRelease" }
+    ReleaseWorkbenchResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/ReleaseWorkbench" }
+    PublishedReleaseResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/PublishedRelease" }
     SourceCollectionResponse:
       allOf:
         - $ref: "#/components/schemas/Envelope"
@@ -2637,6 +2783,9 @@ components:
                 - invalid_rotation_transition
                 - invalid_request
                 - model_profile_conflict
+                - release_candidate_not_found
+                - release_publish_blocked
+                - release_object_integrity_failed
             message: { type: string }
             details: { type: object }
         meta: { $ref: "#/components/schemas/ResponseMeta" }

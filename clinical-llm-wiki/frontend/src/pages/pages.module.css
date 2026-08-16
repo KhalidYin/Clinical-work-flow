@@ -2052,6 +2052,189 @@
   color: var(--ink-500);
 }
 
+.releaseWorkbench {
+  display: grid;
+  gap: 28px;
+}
+
+.releasePair {
+  display: grid;
+  align-items: stretch;
+  border: 1px solid var(--ink-900);
+  background: var(--paper-50);
+  grid-template-columns: minmax(0, 1fr) 48px minmax(0, 1fr);
+}
+
+.releasePair > article {
+  display: grid;
+  min-width: 0;
+  padding: 18px;
+  gap: 7px;
+}
+
+.releasePair > article strong {
+  font-family: var(--serif);
+  font-size: 24px;
+}
+
+.releasePair > article code,
+.releasePair > article small {
+  overflow: hidden;
+  color: var(--ink-500);
+  text-overflow: ellipsis;
+}
+
+.releasePair > span {
+  display: grid;
+  place-items: center;
+  border-right: 1px solid var(--paper-300);
+  border-left: 1px solid var(--paper-300);
+  color: var(--blue-700);
+  font-size: 20px;
+}
+
+.releaseDiffGrid {
+  display: grid;
+  border-top: 1px solid var(--ink-900);
+  border-left: 1px solid var(--ink-900);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.releaseDiffGrid article {
+  display: grid;
+  min-width: 0;
+  min-height: 150px;
+  padding: 14px;
+  border-right: 1px solid var(--ink-900);
+  border-bottom: 1px solid var(--ink-900);
+  background: white;
+  gap: 8px;
+}
+
+.releaseDiffGrid article > span {
+  color: var(--ink-500);
+  font-family: var(--mono);
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.releaseDiffGrid article > strong {
+  font-family: var(--serif);
+  font-size: 30px;
+}
+
+.releaseDiffGrid article > div {
+  display: grid;
+  align-content: start;
+  min-width: 0;
+  gap: 5px;
+}
+
+.releaseDiffGrid code {
+  overflow: hidden;
+  color: var(--ink-600);
+  font-size: 9px;
+  text-overflow: ellipsis;
+}
+
+.releaseGateList,
+.releaseHistory {
+  padding: 0;
+  margin: 0;
+  border-top: 1px solid var(--paper-300);
+  list-style: none;
+}
+
+.releaseGateList li {
+  display: grid;
+  align-items: center;
+  padding: 12px 14px;
+  border-right: 1px solid var(--paper-300);
+  border-bottom: 1px solid var(--paper-300);
+  border-left: 1px solid var(--paper-300);
+  grid-template-columns: minmax(170px, 0.8fr) minmax(0, 1.6fr) 70px;
+  gap: 14px;
+}
+
+.releaseGateList li[data-state="passed"] b {
+  color: var(--olive-700);
+}
+
+.releaseGateList li[data-state="failed"] {
+  background: var(--red-100);
+}
+
+.releaseGateList li[data-state="failed"] b {
+  color: var(--red-700);
+}
+
+.releaseGateList code,
+.releaseBlockers code {
+  font-size: 10px;
+}
+
+.releaseBlockers,
+.releaseActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+  gap: 10px;
+}
+
+.releaseBlockers {
+  border: 1px solid var(--red-700);
+  color: var(--red-700);
+  background: var(--red-100);
+}
+
+.releaseActions {
+  border: 1px solid var(--ink-900);
+  background: var(--paper-100);
+}
+
+.releaseActions button {
+  padding: 10px 16px;
+  border: 1px solid var(--ink-900);
+  color: white;
+  background: var(--ink-900);
+  font-weight: 750;
+}
+
+.releaseActions button:disabled {
+  border-color: var(--paper-300);
+  color: var(--ink-500);
+  background: var(--paper-200);
+  cursor: not-allowed;
+}
+
+.releaseMutationError,
+.releaseMutationSuccess {
+  padding: 12px 14px;
+  margin: 0;
+  border: 1px solid currentcolor;
+}
+
+.releaseMutationError {
+  color: var(--red-700);
+  background: var(--red-100);
+}
+
+.releaseMutationSuccess {
+  color: var(--olive-700);
+  background: var(--olive-100);
+}
+
+.releaseHistory li {
+  display: grid;
+  padding: 12px 14px;
+  border-right: 1px solid var(--paper-300);
+  border-bottom: 1px solid var(--paper-300);
+  border-left: 1px solid var(--paper-300);
+  grid-template-columns: minmax(120px, 0.7fr) minmax(0, 1.5fr) auto;
+  gap: 14px;
+}
+
 .skeleton {
   display: block;
   height: 13px;
@@ -2175,6 +2358,30 @@
   .thresholdList li,
   .evaluationCaseList li {
     grid-template-columns: 1fr;
+  }
+
+  .releasePair,
+  .releaseGateList li,
+  .releaseHistory li {
+    grid-template-columns: 1fr;
+  }
+
+  .releasePair > span {
+    min-height: 38px;
+    border: 0;
+    border-top: 1px solid var(--paper-300);
+    border-bottom: 1px solid var(--paper-300);
+    transform: rotate(90deg);
+  }
+
+  .releaseDiffGrid {
+    overflow-x: auto;
+    grid-template-columns: repeat(5, minmax(190px, 65vw));
+  }
+
+  .releaseActions {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .evaluationReceipt > div,

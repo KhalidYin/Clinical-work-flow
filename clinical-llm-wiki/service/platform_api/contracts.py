@@ -412,9 +412,7 @@ class RotationCaseData(ApiModel):
             "ambiguous",
         ]
     ]
-    eligible_outcomes: list[
-        Literal["carry_forward", "replace", "retire", "no_action"]
-    ]
+    eligible_outcomes: list[Literal["carry_forward", "replace", "retire", "no_action"]]
     proposed_outcome: Literal["carry_forward", "replace", "retire", "no_action"] | None
     proposed_target_knowledge_revision_id: str | None
     proposed_by_actor_id: str | None
@@ -730,6 +728,65 @@ class EvaluationRunCollectionData(ApiModel):
     warnings: list[str]
 
 
+class ReleaseSummaryData(ApiModel):
+    release_id: str
+    version: str
+    status: str
+    base_release_id: str | None
+    item_count: int = Field(ge=0)
+    is_current: bool
+    created_at: datetime
+    published_at: datetime | None
+
+
+class ReleaseGateData(ApiModel):
+    code: Literal[
+        "candidate_integrity",
+        "base_release_current",
+        "evaluation_passed",
+        "publication_snapshot",
+    ]
+    passed: bool
+    reason: str
+
+
+class ReleaseDiffData(ApiModel):
+    included_count: int = Field(ge=0)
+    carried_count: int = Field(ge=0)
+    replaced_count: int = Field(ge=0)
+    added_count: int = Field(ge=0)
+    retired_count: int = Field(ge=0)
+    included_revision_ids: list[str]
+    carried_revision_ids: list[str]
+    replaced_revision_ids: list[str]
+    added_revision_ids: list[str]
+    retired_revision_ids: list[str]
+
+
+class ReleaseWorkbenchData(ApiModel):
+    current: ReleaseSummaryData | None
+    candidate: ReleaseSummaryData | None
+    history: list[ReleaseSummaryData]
+    diff: ReleaseDiffData | None
+    gates: list[ReleaseGateData]
+    blockers: list[str]
+    allowed_actions: list[Literal["publish"]]
+
+
+class ReleasePublishRequest(ApiModel):
+    base_release_id: str | None = Field(max_length=160)
+
+
+class PublishedReleaseData(ApiModel):
+    release_id: str
+    version: str
+    previous_release_id: str | None
+    manifest_object_key: str
+    manifest_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    index_manifest_version: str
+    published_at: datetime
+
+
 class RetryData(ApiModel):
     run_id: str
     step_id: str
@@ -815,9 +872,9 @@ class ModelProfileRegistrationRequest(ApiModel):
         default=None,
         pattern=r"^(env|secret)://[A-Za-z0-9_./-]+$",
     )
-    allowed_data_boundaries: list[
-        Literal["external_allowed", "enterprise_provider_only"]
-    ] = Field(min_length=1)
+    allowed_data_boundaries: list[Literal["external_allowed", "enterprise_provider_only"]] = Field(
+        min_length=1
+    )
     capabilities: list[Literal["structured_generation"]] = Field(min_length=1)
     timeout_seconds: int = Field(ge=1, le=600)
     max_output_tokens: int = Field(ge=1)
@@ -880,6 +937,9 @@ class ErrorData(ApiModel):
         "released_knowledge_invalid",
         "evaluation_run_not_found",
         "evaluation_run_invalid",
+        "release_candidate_not_found",
+        "release_publish_blocked",
+        "release_object_integrity_failed",
         "runtime_knowledge_lock_rejected",
     ]
     message: str
@@ -1001,6 +1061,16 @@ class EvaluationRunCollectionResponse(ApiModel):
 
 class EvaluationRunDetailResponse(ApiModel):
     data: EvaluationRunDetailData
+    meta: ResponseMeta
+
+
+class ReleaseWorkbenchResponse(ApiModel):
+    data: ReleaseWorkbenchData
+    meta: ResponseMeta
+
+
+class PublishedReleaseResponse(ApiModel):
+    data: PublishedReleaseData
     meta: ResponseMeta
 
 

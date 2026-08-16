@@ -33,7 +33,7 @@
 
 | 领域 | 当前基线 | 目标状态 |
 |------|----------|----------|
-| 知识控制面 | PostgreSQL durable DAG、Document/Enrichment/Release Worker、ObjectStore、Candidate/Review、React GUI 已有骨架；P17/P1-P3 已接通版本化 Chunk、轮转、E9 Recall、Evaluation 与 immutable Release/current/history/manifest resolver，P4-A/P4-B 已接 Release Query Lab 与 Evaluation read workbench | 补全 Evaluation 启动/候选重放、Releases 等治理 GUI、vector/relation route 与生产级 Knowledge MCP 接线 |
+| 知识控制面 | PostgreSQL durable DAG、Document/Enrichment/Release Worker、ObjectStore、Candidate/Review、React GUI 已有骨架；P17/P1-P3 已接通版本化 Chunk、轮转、E9 Recall、Evaluation 与 immutable Release/current/history/manifest resolver，P4 已接 Release Query Lab、Evaluation read workbench 和 Releases 治理工作台 | 补全 Evaluation 启动/候选重放、其余增量治理 GUI、vector/relation route 与生产级 Knowledge MCP 接线 |
 | 临床控制面 | 固定十阶段合同、Review Protocol、ActionPolicy、Study 文件状态已有原型；仍存在自建 Agent Loop、多套状态表达和执行入口 | 收敛为唯一 Workflow Orchestrator，由容器化 Harness 执行 Engine 已选定的 Step |
 | Harness | 已有版本化合同、独立 Supervisor 生命周期、staging/MCP、OpenCode digest 准入、P15 PostgreSQL/API 本地 POC 及 P16/P2-P3 本地 tmpfs `secret://`/模型 gateway；普通 Compose 仍默认 replay | 以更收敛的生产 runtime/Secret authority 和分策略出站部署 Harness Attempt，不向业务 Worker 暴露 Docker 控制权 |
 | MCP | Attempt 级 broker 与 OpenCode 标准 stdio shim 已纳入独立 Supervisor 离线部署并实测 `initialize/tools-list/tools/call`、路径拒绝和脱敏审计；知识消费仍主要是 REST | 扩展确定性工具；知识消费 MCP 只从 immutable Release 读取 |
@@ -196,6 +196,11 @@ P17/P4-B 将 E9 retrieval baseline 以 `informational` immutable EvaluationRun �
 suite/version、Recall、阈值检查与逐题事实；损坏记录产生 partial warning 或完整性错误，不回退到报告
 文件。默认 E9 命令使用临时数据库，报告明确 `database_retention=ephemeral`；它证明持久化合同，但不
 会给正在运行的 Compose 数据库留下记录。Evaluation 启动命令和 release-candidate 失败重放仍待接通。
+
+P17/P4-B 的 Releases workbench 由后端返回 current、候选、历史、五类 membership diff、Gate、阻断原因和
+allowed action；浏览器不直接读取 manifest 或自行判断能否发布。Release Manager 的发布命令必须显式携带
+`base_release_id`，发布事务继续复核对象 hash、current base、passed EvaluationRun 和 publication snapshot；409 后
+客户端刷新权威状态。候选仍只能由独立 Release Worker 构建，工作台不把人类会话扩权成 Worker。
 
 ### 容器化 Harness Runtime
 

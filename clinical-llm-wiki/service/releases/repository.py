@@ -138,6 +138,37 @@ class SqlAlchemyReleaseRepository:
     def get_candidate(self, release_id: str) -> PreparedRelease | None:
         return self._get_prepared(release_id=release_id, required_status="candidate")
 
+    def validate_candidate(self, prepared: PreparedRelease) -> ReleaseBuildSnapshot:
+        """Re-run the publication facts without mutating the candidate or pointer."""
+
+        for descriptor in (
+            prepared.index_descriptor,
+            prepared.manifest_descriptor,
+        ):
+            if self._objects.head(descriptor.object_key) != descriptor:
+                raise ObjectIntegrityError(
+                    f"Release candidate object descriptor drift: {descriptor.object_key}"
+                )
+            self._objects.get_bytes(descriptor.object_key)
+        with self._sessions() as session:
+            release = session.get(Release, prepared.release_id)
+            index = session.scalar(
+                select(IndexManifest).where(
+                    IndexManifest.release_id == prepared.release_id
+                )
+            )
+            if (
+                release is None
+                or release.status != "candidate"
+                or index is None
+                or index.status != "candidate"
+            ):
+                raise ReleaseStateError("Release candidate is no longer publishable")
+            snapshot = _resolve_snapshot(session, _command_from_prepared(prepared))
+            _require_snapshot_matches_manifest(snapshot, prepared.manifest)
+            _require_candidate_columns(release, index, prepared)
+            return snapshot
+
     def get_released(self, release_id: str | None = None) -> PreparedRelease | None:
         with self._sessions() as session:
             resolved_id = release_id

@@ -12,7 +12,7 @@ from .contracts import (
     ReleaseManifestPayload,
     ReleasePublishCommand,
 )
-from .service import ReleaseBuilder, ReleasePublisher
+from .service import ReleaseBuilder, ReleasePublishConflictError, ReleasePublisher
 from service.evaluation import EvaluationGateFailedError
 from .repository import (
     ReleaseMembershipError,
@@ -25,6 +25,21 @@ from .resolver import (
     ReleasedKnowledgeUnavailableError,
     ReleasedManifestResult,
 )
+from .workbench import (
+    ReleaseAllowedAction,
+    ReleaseDiffRecord,
+    ReleaseGateCode,
+    ReleaseGateFact,
+    ReleaseSummaryRecord,
+    ReleaseWorkbenchRecord,
+    ReleaseWorkbenchRepository,
+    ReleaseWorkbenchService,
+    ReleaseWorkbenchSnapshot,
+)
+from .workbench_repository import (
+    ReleaseCandidateNotFoundError,
+    SqlAlchemyReleaseWorkbenchRepository,
+)
 
 __all__ = [
     "IndexCapabilities",
@@ -36,15 +51,27 @@ __all__ = [
     "ReleaseBuildCommand",
     "ReleaseBuildSnapshot",
     "ReleaseBuilder",
+    "ReleaseCandidateNotFoundError",
+    "ReleaseAllowedAction",
+    "ReleaseDiffRecord",
+    "ReleaseGateCode",
+    "ReleaseGateFact",
     "ReleaseItemSnapshot",
     "ReleaseManifestItem",
     "ReleaseManifestPayload",
     "ReleaseMcpApplication",
     "ReleaseMembershipError",
     "ReleasePublishCommand",
+    "ReleasePublishConflictError",
     "ReleasePublisher",
     "ReleaseStateError",
+    "ReleaseSummaryRecord",
+    "ReleaseWorkbenchRecord",
+    "ReleaseWorkbenchRepository",
+    "ReleaseWorkbenchService",
+    "ReleaseWorkbenchSnapshot",
     "ReleasedKnowledgeUnavailableError",
     "ReleasedManifestResult",
     "SqlAlchemyReleaseRepository",
+    "SqlAlchemyReleaseWorkbenchRepository",
 ]
