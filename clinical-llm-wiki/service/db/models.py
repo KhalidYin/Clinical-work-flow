@@ -574,6 +574,216 @@ class Evidence(Base):
     created_at: Mapped[datetime] = _created_at()
 
 
+class ChunkProfile(Base):
+    __tablename__ = "chunk_profiles"
+    __table_args__ = (
+        CheckConstraint(
+            "target_min_tokens > 0 AND target_min_tokens <= target_max_tokens "
+            "AND target_max_tokens <= hard_max_tokens",
+            name="token_targets",
+        ),
+        CheckConstraint(
+            "overlap_tokens >= 0 AND overlap_tokens < target_min_tokens",
+            name="overlap_tokens",
+        ),
+        CheckConstraint(
+            "table_hard_max_tokens >= hard_max_tokens",
+            name="table_token_limit",
+        ),
+        UniqueConstraint("version", name="chunk_profile_version"),
+    )
+
+    chunk_profile_id: Mapped[str] = _text_id()
+    version: Mapped[str] = mapped_column(String(120), nullable=False)
+    tokenizer_id: Mapped[str] = mapped_column(String(240), nullable=False)
+    target_min_tokens: Mapped[int] = mapped_column(Integer, nullable=False)
+    target_max_tokens: Mapped[int] = mapped_column(Integer, nullable=False)
+    hard_max_tokens: Mapped[int] = mapped_column(Integer, nullable=False)
+    overlap_tokens: Mapped[int] = mapped_column(Integer, nullable=False)
+    table_hard_max_tokens: Mapped[int] = mapped_column(Integer, nullable=False)
+    format_rules: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = _created_at()
+
+
+class RetrievalChunk(Base):
+    __tablename__ = "retrieval_chunks"
+    __table_args__ = (
+        CheckConstraint("ordinal >= 0", name="ordinal_nonnegative"),
+        CheckConstraint("token_count > 0", name="token_count_positive"),
+        CheckConstraint(
+            "data_boundary IN "
+            "('local_processing_only', 'enterprise_provider_only', "
+            "'external_allowed', 'prohibited')",
+            name="data_boundary",
+        ),
+        UniqueConstraint(
+            "chunk_profile_id",
+            "source_version_id",
+            "ordinal",
+            name="chunk_projection_ordinal",
+        ),
+        Index(
+            "ix_retrieval_chunks_source_profile_ordinal",
+            "source_version_id",
+            "chunk_profile_id",
+            "ordinal",
+        ),
+    )
+
+    chunk_id: Mapped[str] = _text_id()
+    chunk_profile_id: Mapped[str] = mapped_column(
+        ForeignKey("chunk_profiles.chunk_profile_id", ondelete="RESTRICT"), nullable=False
+    )
+    source_version_id: Mapped[str] = mapped_column(
+        ForeignKey("source_versions.source_version_id", ondelete="RESTRICT"), nullable=False
+    )
+    evidence_type: Mapped[str] = mapped_column(String(80), nullable=False)
+    ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    content_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    token_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    locator: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    data_boundary: Mapped[str] = mapped_column(String(40), nullable=False)
+    rights: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = _created_at()
+
+
+class RetrievalChunkEvidence(Base):
+    __tablename__ = "retrieval_chunk_evidence"
+    __table_args__ = (
+        CheckConstraint("position >= 0", name="position_nonnegative"),
+        CheckConstraint(
+            "start_offset >= 0 AND end_offset > start_offset",
+            name="span_offsets",
+        ),
+        CheckConstraint("span_role IN ('primary', 'overlap')", name="span_role"),
+        PrimaryKeyConstraint("chunk_id", "position"),
+        UniqueConstraint(
+            "chunk_id",
+            "evidence_id",
+            "start_offset",
+            "end_offset",
+            "span_role",
+            name="chunk_evidence_span",
+        ),
+    )
+
+    chunk_id: Mapped[str] = mapped_column(
+        ForeignKey("retrieval_chunks.chunk_id", ondelete="CASCADE"), nullable=False
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    evidence_id: Mapped[str] = mapped_column(
+        ForeignKey("evidence.evidence_id", ondelete="RESTRICT"), nullable=False
+    )
+    start_offset: Mapped[int] = mapped_column(Integer, nullable=False)
+    end_offset: Mapped[int] = mapped_column(Integer, nullable=False)
+    span_role: Mapped[str] = mapped_column(String(40), nullable=False)
+
+
+class ChunkProjectionFinding(Base):
+    __tablename__ = "chunk_projection_findings"
+    __table_args__ = (
+        CheckConstraint(
+            "finding_type IN ('empty', 'duplicate', 'boilerplate', "
+            "'oversize', 'boundary_violation')",
+            name="finding_type",
+        ),
+        Index(
+            "ix_chunk_projection_findings_source_profile",
+            "source_version_id",
+            "chunk_profile_id",
+        ),
+    )
+
+    finding_id: Mapped[str] = _text_id()
+    chunk_profile_id: Mapped[str] = mapped_column(
+        ForeignKey("chunk_profiles.chunk_profile_id", ondelete="RESTRICT"), nullable=False
+    )
+    source_version_id: Mapped[str] = mapped_column(
+        ForeignKey("source_versions.source_version_id", ondelete="RESTRICT"), nullable=False
+    )
+    evidence_id: Mapped[str | None] = mapped_column(
+        ForeignKey("evidence.evidence_id", ondelete="RESTRICT")
+    )
+    finding_type: Mapped[str] = mapped_column(String(60), nullable=False)
+    details: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = _created_at()
+
+
+class ImpactAssessment(Base):
+    __tablename__ = "impact_assessments"
+    __table_args__ = (
+        CheckConstraint(
+            "from_source_version_id <> to_source_version_id",
+            name="distinct_source_versions",
+        ),
+        UniqueConstraint(
+            "from_source_version_id",
+            "to_source_version_id",
+            "comparison_profile_version",
+            name="source_version_comparison",
+        ),
+        Index(
+            "ix_impact_assessments_to_version_created_at",
+            "to_source_version_id",
+            "created_at",
+        ),
+    )
+
+    assessment_id: Mapped[str] = _text_id()
+    from_source_version_id: Mapped[str] = mapped_column(
+        ForeignKey("source_versions.source_version_id", ondelete="RESTRICT"), nullable=False
+    )
+    to_source_version_id: Mapped[str] = mapped_column(
+        ForeignKey("source_versions.source_version_id", ondelete="RESTRICT"), nullable=False
+    )
+    comparison_profile_version: Mapped[str] = mapped_column(String(120), nullable=False)
+    created_at: Mapped[datetime] = _created_at()
+
+
+class EvidenceImpact(Base):
+    __tablename__ = "evidence_impacts"
+    __table_args__ = (
+        CheckConstraint(
+            "change_type IN ('unchanged', 'moved', 'modified', 'added', "
+            "'removed', 'rights_changed', 'ambiguous')",
+            name="change_type",
+        ),
+        CheckConstraint(
+            "mapping_basis IN ('content_exact', 'locator_exact', "
+            "'ordered_alignment', 'unmatched', 'ambiguous')",
+            name="mapping_basis",
+        ),
+        CheckConstraint(
+            "(change_type = 'added' AND from_evidence_id IS NULL "
+            "AND to_evidence_id IS NOT NULL) OR "
+            "(change_type = 'removed' AND from_evidence_id IS NOT NULL "
+            "AND to_evidence_id IS NULL) OR "
+            "(change_type IN ('unchanged', 'moved', 'modified', 'rights_changed') "
+            "AND from_evidence_id IS NOT NULL AND to_evidence_id IS NOT NULL) OR "
+            "(change_type = 'ambiguous' "
+            "AND (from_evidence_id IS NOT NULL OR to_evidence_id IS NOT NULL))",
+            name="evidence_mapping_shape",
+        ),
+        Index("ix_evidence_impacts_assessment_change", "assessment_id", "change_type"),
+    )
+
+    evidence_impact_id: Mapped[str] = _text_id()
+    assessment_id: Mapped[str] = mapped_column(
+        ForeignKey("impact_assessments.assessment_id", ondelete="CASCADE"), nullable=False
+    )
+    change_type: Mapped[str] = mapped_column(String(40), nullable=False)
+    from_evidence_id: Mapped[str | None] = mapped_column(
+        ForeignKey("evidence.evidence_id", ondelete="RESTRICT")
+    )
+    to_evidence_id: Mapped[str | None] = mapped_column(
+        ForeignKey("evidence.evidence_id", ondelete="RESTRICT")
+    )
+    mapping_basis: Mapped[str] = mapped_column(String(60), nullable=False)
+    details: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = _created_at()
+
+
 class KnowledgeCandidate(Base):
     __tablename__ = "knowledge_candidates"
     __table_args__ = (
@@ -898,6 +1108,116 @@ class ReleaseItem(Base):
         nullable=False,
     )
     content_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+
+
+class RotationCase(Base):
+    __tablename__ = "rotation_cases"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('open', 'in_review', 'decided', 'included_in_release', 'closed')",
+            name="status",
+        ),
+        CheckConstraint(
+            "proposed_outcome IS NULL OR proposed_outcome IN "
+            "('carry_forward', 'replace', 'retire', 'no_action')",
+            name="proposed_outcome",
+        ),
+        CheckConstraint(
+            "(proposed_outcome IS NULL AND "
+            "proposed_target_knowledge_revision_id IS NULL AND "
+            "proposed_by_actor_id IS NULL AND proposal_idempotency_key IS NULL) OR "
+            "(proposed_outcome IN ('carry_forward', 'replace') AND "
+            "proposed_target_knowledge_revision_id IS NOT NULL AND "
+            "proposed_by_actor_id IS NOT NULL AND proposal_idempotency_key IS NOT NULL) OR "
+            "(proposed_outcome IN ('retire', 'no_action') AND "
+            "proposed_target_knowledge_revision_id IS NULL AND "
+            "proposed_by_actor_id IS NOT NULL AND proposal_idempotency_key IS NOT NULL)",
+            name="proposal_shape",
+        ),
+        CheckConstraint("case_version >= 1", name="case_version_positive"),
+        CheckConstraint(
+            "(status IN ('open', 'in_review') AND included_release_id IS NULL) OR "
+            "(status = 'included_in_release' AND included_release_id IS NOT NULL) OR "
+            "(status IN ('decided', 'closed'))",
+            name="included_release_shape",
+        ),
+        UniqueConstraint(
+            "impact_assessment_id",
+            "knowledge_revision_id",
+            name="assessment_revision_case",
+        ),
+        UniqueConstraint(
+            "proposed_by_actor_id",
+            "proposal_idempotency_key",
+            name="rotation_proposal_actor_idempotency",
+        ),
+        Index("ix_rotation_cases_status_updated_at", "status", "updated_at"),
+    )
+
+    rotation_case_id: Mapped[str] = _text_id()
+    impact_assessment_id: Mapped[str] = mapped_column(
+        ForeignKey("impact_assessments.assessment_id", ondelete="RESTRICT"), nullable=False
+    )
+    knowledge_revision_id: Mapped[str] = mapped_column(
+        ForeignKey("knowledge_revisions.knowledge_revision_id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    status: Mapped[str] = mapped_column(String(40), nullable=False)
+    proposed_outcome: Mapped[str | None] = mapped_column(String(40))
+    proposed_target_knowledge_revision_id: Mapped[str | None] = mapped_column(
+        ForeignKey("knowledge_revisions.knowledge_revision_id", ondelete="RESTRICT")
+    )
+    proposed_by_actor_id: Mapped[str | None] = mapped_column(String(160))
+    proposal_idempotency_key: Mapped[str | None] = mapped_column(String(160))
+    proposed_rationale: Mapped[str | None] = mapped_column(Text)
+    case_version: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
+    included_release_id: Mapped[str | None] = mapped_column(
+        ForeignKey("releases.release_id", ondelete="RESTRICT")
+    )
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class RotationDecisionReceipt(Base):
+    __tablename__ = "rotation_decision_receipts"
+    __table_args__ = (
+        CheckConstraint(
+            "outcome IN ('carry_forward', 'replace', 'retire', 'no_action')",
+            name="outcome",
+        ),
+        CheckConstraint("expected_case_version >= 1", name="case_version_positive"),
+        CheckConstraint("actor_role = 'reviewer'", name="reviewer_role"),
+        CheckConstraint(
+            "(outcome IN ('carry_forward', 'replace') "
+            "AND target_knowledge_revision_id IS NOT NULL) OR "
+            "(outcome IN ('retire', 'no_action') "
+            "AND target_knowledge_revision_id IS NULL)",
+            name="target_shape",
+        ),
+        UniqueConstraint("rotation_case_id", name="case_decision"),
+        UniqueConstraint(
+            "actor_id",
+            "idempotency_key",
+            name="rotation_actor_idempotency",
+        ),
+    )
+
+    rotation_decision_id: Mapped[str] = _text_id()
+    rotation_case_id: Mapped[str] = mapped_column(
+        ForeignKey("rotation_cases.rotation_case_id", ondelete="RESTRICT"), nullable=False
+    )
+    outcome: Mapped[str] = mapped_column(String(40), nullable=False)
+    expected_case_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    target_knowledge_revision_id: Mapped[str | None] = mapped_column(
+        ForeignKey("knowledge_revisions.knowledge_revision_id", ondelete="RESTRICT")
+    )
+    actor_id: Mapped[str] = mapped_column(String(160), nullable=False)
+    actor_role: Mapped[str] = mapped_column(String(80), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(160), nullable=False)
+    rationale: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = _created_at()
 
 
 class AuditEvent(Base):

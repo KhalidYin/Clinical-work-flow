@@ -371,6 +371,186 @@ class ReviewDecisionData(ApiModel):
     decision_id: str
 
 
+class RotationProposalRequest(ApiModel):
+    expected_case_version: int = Field(ge=1)
+    outcome: Literal["carry_forward", "replace", "retire", "no_action"]
+    target_knowledge_revision_id: str | None = Field(default=None, max_length=160)
+    idempotency_key: str = Field(min_length=8, max_length=160)
+    rationale: str | None = Field(default=None, max_length=4000)
+
+
+class RotationDecisionRequest(RotationProposalRequest):
+    pass
+
+
+class RotationDecisionReceiptData(ApiModel):
+    rotation_decision_id: str
+    rotation_case_id: str
+    outcome: Literal["carry_forward", "replace", "retire", "no_action"]
+    expected_case_version: int = Field(ge=1)
+    target_knowledge_revision_id: str | None
+    actor_id: str
+    actor_role: Literal["reviewer"]
+    idempotency_key: str
+    rationale: str | None
+    created_at: datetime
+
+
+class RotationCaseData(ApiModel):
+    rotation_case_id: str
+    impact_assessment_id: str
+    knowledge_revision_id: str
+    status: Literal["open", "in_review", "decided", "included_in_release", "closed"]
+    change_types: list[
+        Literal[
+            "unchanged",
+            "moved",
+            "modified",
+            "added",
+            "removed",
+            "rights_changed",
+            "ambiguous",
+        ]
+    ]
+    proposed_outcome: Literal["carry_forward", "replace", "retire", "no_action"] | None
+    proposed_target_knowledge_revision_id: str | None
+    proposed_by_actor_id: str | None
+    proposed_rationale: str | None
+    case_version: int = Field(ge=1)
+    included_release_id: str | None
+    released_in_release_ids: list[str]
+    receipts: list[RotationDecisionReceiptData]
+    allowed_actions: list[Literal["propose", "decide"]]
+    created_at: datetime
+    updated_at: datetime
+
+
+class RotationCaseCollectionData(ApiModel):
+    items: list[RotationCaseData]
+    total: int = Field(ge=0)
+    partial: bool
+    warnings: list[str]
+
+
+class RotationDecisionData(ApiModel):
+    case: RotationCaseData
+    receipt: RotationDecisionReceiptData
+
+
+EvidenceChangeKey = Literal[
+    "unchanged",
+    "moved",
+    "modified",
+    "added",
+    "removed",
+    "rights_changed",
+    "ambiguous",
+]
+
+
+class EvidenceImpactData(ApiModel):
+    evidence_impact_id: str
+    change_type: Literal[
+        "unchanged",
+        "moved",
+        "modified",
+        "added",
+        "removed",
+        "rights_changed",
+        "ambiguous",
+    ]
+    from_evidence_id: str | None
+    to_evidence_id: str | None
+    mapping_basis: Literal[
+        "content_exact",
+        "locator_exact",
+        "ordered_alignment",
+        "unmatched",
+        "ambiguous",
+    ]
+    details: dict[str, Any]
+
+
+class ImpactAssessmentData(ApiModel):
+    assessment_id: str
+    from_source_version_id: str
+    to_source_version_id: str
+    comparison_profile_version: str
+    change_counts: dict[EvidenceChangeKey, int]
+    impacts: list[EvidenceImpactData]
+    created_at: datetime
+
+
+class ChunkProfileData(ApiModel):
+    chunk_profile_id: str
+    version: str
+    tokenizer_id: str
+    target_min_tokens: int = Field(gt=0)
+    target_max_tokens: int = Field(gt=0)
+    hard_max_tokens: int = Field(gt=0)
+    overlap_tokens: int = Field(ge=0)
+    table_hard_max_tokens: int = Field(gt=0)
+    format_rules: dict[str, Any]
+
+
+class ChunkEvidenceData(ApiModel):
+    evidence_id: str
+    source_version_id: str
+    source_artifact_id: str
+    evidence_type: str
+    locator: dict[str, Any]
+    content: str
+    content_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+
+class ChunkSpanData(ApiModel):
+    evidence_id: str
+    position: int = Field(ge=0)
+    start_offset: int = Field(ge=0)
+    end_offset: int = Field(gt=0)
+    span_role: Literal["primary", "overlap"]
+
+
+class RetrievalChunkData(ApiModel):
+    chunk_id: str
+    ordinal: int = Field(ge=0)
+    evidence_type: str
+    content: str
+    content_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    token_count: int = Field(gt=0)
+    locator: dict[str, Any]
+    data_boundary: Literal[
+        "local_processing_only",
+        "enterprise_provider_only",
+        "external_allowed",
+        "prohibited",
+    ]
+    rights: dict[str, Any]
+    spans: list[ChunkSpanData]
+
+
+class ChunkProjectionFindingData(ApiModel):
+    finding_id: str
+    evidence_id: str | None
+    finding_type: Literal[
+        "empty",
+        "duplicate",
+        "boilerplate",
+        "oversize",
+        "boundary_violation",
+    ]
+    details: dict[str, Any]
+
+
+class ChunkProjectionData(ApiModel):
+    run_id: str
+    source_version_id: str
+    chunk_profile: ChunkProfileData
+    evidence: list[ChunkEvidenceData]
+    chunks: list[RetrievalChunkData]
+    findings: list[ChunkProjectionFindingData]
+
+
 class RetryData(ApiModel):
     run_id: str
     step_id: str
@@ -507,6 +687,11 @@ class ErrorData(ApiModel):
         "invalid_governance_transition",
         "stale_revision",
         "duplicate_decision",
+        "rotation_case_not_found",
+        "impact_assessment_not_found",
+        "chunk_projection_not_found",
+        "stale_rotation_case",
+        "invalid_rotation_transition",
         "invalid_request",
         "model_profile_conflict",
         "machine_authentication_required",
@@ -515,6 +700,10 @@ class ErrorData(ApiModel):
         "runtime_knowledge_lock_rejected",
     ]
     message: str
+    details: dict[str, Any] | None = Field(
+        default=None,
+        exclude_if=lambda value: value is None,
+    )
 
 
 class SessionResponse(ApiModel):
@@ -584,6 +773,31 @@ class AuthorConfirmationResponse(ApiModel):
 
 class ReviewDecisionResponse(ApiModel):
     data: ReviewDecisionData
+    meta: ResponseMeta
+
+
+class RotationCaseResponse(ApiModel):
+    data: RotationCaseData
+    meta: ResponseMeta
+
+
+class RotationCaseCollectionResponse(ApiModel):
+    data: RotationCaseCollectionData
+    meta: ResponseMeta
+
+
+class RotationDecisionResponse(ApiModel):
+    data: RotationDecisionData
+    meta: ResponseMeta
+
+
+class ImpactAssessmentResponse(ApiModel):
+    data: ImpactAssessmentData
+    meta: ResponseMeta
+
+
+class ChunkProjectionResponse(ApiModel):
+    data: ChunkProjectionData
     meta: ResponseMeta
 
 

@@ -1,6 +1,6 @@
 """FastAPI application for the P12 prerelease read boundary."""
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from hashlib import sha256
 import hmac
@@ -53,7 +53,12 @@ from service.governance.service import (
 from service.knowledge import (
     AuthorConfirmationCommand,
     CandidateRevisionCommand,
+    InvalidRotationTransitionError,
+    RotationCaseNotFoundError,
+    RotationDecisionCommand as LifecycleRotationDecisionCommand,
+    RotationProposalCommand,
     ReviewDecisionCommand,
+    StaleRotationCaseError,
 )
 from service.processing.ledger import (
     LedgerError,
@@ -92,6 +97,12 @@ from .contracts import (
     CandidateRevisionRequest,
     CandidateRevisionResponse,
     CandidateSummaryData,
+    ChunkEvidenceData,
+    ChunkProfileData,
+    ChunkProjectionData,
+    ChunkProjectionFindingData,
+    ChunkProjectionResponse,
+    ChunkSpanData,
     CurrentReleaseData,
     CurrentReleaseResponse,
     CancelData,
@@ -99,6 +110,9 @@ from .contracts import (
     ErrorData,
     ErrorResponse,
     HealthResponse,
+    EvidenceImpactData,
+    ImpactAssessmentData,
+    ImpactAssessmentResponse,
     LoginRequest,
     ModelProfileCollectionData,
     ModelProfileCollectionResponse,
@@ -124,9 +138,19 @@ from .contracts import (
     ReviewDecisionData,
     ReviewDecisionRequest,
     ReviewDecisionResponse,
+    RotationCaseCollectionData,
+    RotationCaseCollectionResponse,
+    RotationCaseData,
+    RotationCaseResponse,
+    RotationDecisionData,
+    RotationDecisionReceiptData,
+    RotationDecisionRequest as LifecycleRotationDecisionRequest,
+    RotationDecisionResponse as LifecycleRotationDecisionResponse,
+    RotationProposalRequest,
     ResponseMeta,
     RetryData,
     RetryResponse,
+    RetrievalChunkData,
     SessionData,
     SessionResponse,
     ServiceAccountCollectionData,
@@ -152,10 +176,15 @@ from service.published_knowledge import (
     resolve_published_runtime_context,
 )
 from .repository import (
+    KnowledgeLifecycleApiPort,
+    ChunkProjectionApiRecord,
+    ImpactAssessmentApiRecord,
     ModelProfileConflictError,
     ModelProfileRecord,
     PlatformReadRepository,
     ProcessingRunRecord,
+    RotationCaseApiRecord,
+    RotationDecisionApiRecord,
 )
 
 
@@ -184,16 +213,25 @@ class PlatformApiServices:
     source_registry: SourceRegistryService | None = None
     processing_ledger: ProcessingLedgerPort | None = None
     governance: KnowledgeGovernanceService | None = None
+    lifecycle: KnowledgeLifecycleApiPort | None = None
     object_store: ObjectStorePort | None = None
     runtime_consumer_credential_sha256: str | None = None
 
 
 class PlatformApiError(RuntimeError):
-    def __init__(self, *, status_code: int, code: str, message: str) -> None:
+    def __init__(
+        self,
+        *,
+        status_code: int,
+        code: str,
+        message: str,
+        details: dict[str, object] | None = None,
+    ) -> None:
         super().__init__(message)
         self.status_code = status_code
         self.code = code
         self.message = message
+        self.details = details
 
 
 def _now() -> datetime:
@@ -249,7 +287,11 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
         error: PlatformApiError,
     ) -> JSONResponse:
         response = ErrorResponse(
-            error=ErrorData(code=error.code, message=error.message),
+            error=ErrorData(
+                code=error.code,
+                message=error.message,
+                details=error.details,
+            ),
             meta=_meta(),
         )
         return JSONResponse(status_code=error.status_code, content=_dump(response))
@@ -785,6 +827,36 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
                 message="The processing run does not exist.",
             )
         return ProcessingRunResponse(data=_processing_run_data(record), meta=_meta())
+
+    @app.get(
+        f"{API_PREFIX}/processing-runs/{{run_id}}/chunk-projection",
+        operation_id="getChunkProjection",
+        response_model=ChunkProjectionResponse,
+        responses=protected_responses,
+    )
+    def get_chunk_projection(
+        run_id: str,
+        _actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.PROCESSING_READ)),
+        ],
+    ) -> ChunkProjectionResponse:
+        lifecycle = _require_lifecycle(services)
+        try:
+            record = lifecycle.get_chunk_projection(run_id=run_id)
+        except SQLAlchemyError as exc:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="The chunk projection repository is unavailable.",
+            ) from exc
+        if record is None:
+            raise PlatformApiError(
+                status_code=404,
+                code="chunk_projection_not_found",
+                message="The processing run has no materialized chunk projection.",
+            )
+        return ChunkProjectionResponse(data=_chunk_projection_data(record), meta=_meta())
 
     @app.get(
         f"{API_PREFIX}/candidates",
@@ -1356,6 +1428,166 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
             meta=_meta(),
         )
 
+    @app.get(
+        f"{API_PREFIX}/rotation-cases",
+        operation_id="listRotationCases",
+        response_model=RotationCaseCollectionResponse,
+        responses=protected_responses,
+    )
+    def list_rotation_cases(
+        actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.CANDIDATE_READ)),
+        ],
+    ) -> RotationCaseCollectionResponse:
+        lifecycle = _require_lifecycle(services)
+        try:
+            records, warnings = lifecycle.list_rotation_cases()
+        except SQLAlchemyError as exc:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="The knowledge lifecycle repository is unavailable.",
+            ) from exc
+        items = [_rotation_case_data(record, actor) for record in records]
+        return RotationCaseCollectionResponse(
+            data=RotationCaseCollectionData(
+                items=items,
+                total=len(items),
+                partial=bool(warnings),
+                warnings=list(warnings),
+            ),
+            meta=_meta(),
+        )
+
+    @app.get(
+        f"{API_PREFIX}/rotation-cases/{{rotation_case_id}}",
+        operation_id="getRotationCase",
+        response_model=RotationCaseResponse,
+        responses=protected_responses,
+    )
+    def get_rotation_case(
+        rotation_case_id: str,
+        actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.CANDIDATE_READ)),
+        ],
+    ) -> RotationCaseResponse:
+        lifecycle = _require_lifecycle(services)
+        try:
+            record = lifecycle.get_rotation_case(rotation_case_id=rotation_case_id)
+        except SQLAlchemyError as exc:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="The knowledge lifecycle repository is unavailable.",
+            ) from exc
+        if record is None:
+            raise PlatformApiError(
+                status_code=404,
+                code="rotation_case_not_found",
+                message="The rotation case does not exist.",
+            )
+        return RotationCaseResponse(data=_rotation_case_data(record, actor), meta=_meta())
+
+    @app.get(
+        f"{API_PREFIX}/impact-assessments/{{assessment_id}}",
+        operation_id="getImpactAssessment",
+        response_model=ImpactAssessmentResponse,
+        responses=protected_responses,
+    )
+    def get_impact_assessment(
+        assessment_id: str,
+        _actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.SOURCE_READ)),
+        ],
+    ) -> ImpactAssessmentResponse:
+        lifecycle = _require_lifecycle(services)
+        try:
+            record = lifecycle.get_impact_assessment(assessment_id=assessment_id)
+        except SQLAlchemyError as exc:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="The impact assessment repository is unavailable.",
+            ) from exc
+        if record is None:
+            raise PlatformApiError(
+                status_code=404,
+                code="impact_assessment_not_found",
+                message="The impact assessment does not exist.",
+            )
+        return ImpactAssessmentResponse(data=_impact_assessment_data(record), meta=_meta())
+
+    @app.post(
+        f"{API_PREFIX}/rotation-cases/{{rotation_case_id}}/proposal",
+        operation_id="proposeRotationCase",
+        response_model=RotationCaseResponse,
+        responses=write_responses,
+    )
+    def propose_rotation_case(
+        rotation_case_id: str,
+        request: RotationProposalRequest,
+        actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.CANDIDATE_WRITE)),
+        ],
+    ) -> RotationCaseResponse:
+        lifecycle = _require_lifecycle(services)
+        try:
+            record = lifecycle.propose_rotation_case(
+                actor=actor,
+                command=RotationProposalCommand(
+                    rotation_case_id=rotation_case_id,
+                    expected_case_version=request.expected_case_version,
+                    outcome=request.outcome,
+                    target_knowledge_revision_id=request.target_knowledge_revision_id,
+                    idempotency_key=request.idempotency_key,
+                    rationale=request.rationale,
+                ),
+            )
+        except Exception as exc:
+            _raise_lifecycle_api_error(exc)
+        return RotationCaseResponse(data=_rotation_case_data(record, actor), meta=_meta())
+
+    @app.post(
+        f"{API_PREFIX}/rotation-cases/{{rotation_case_id}}/decision",
+        operation_id="decideRotationCase",
+        response_model=LifecycleRotationDecisionResponse,
+        responses=write_responses,
+    )
+    def decide_rotation_case(
+        rotation_case_id: str,
+        request: LifecycleRotationDecisionRequest,
+        actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.REVIEW_DECIDE)),
+        ],
+    ) -> LifecycleRotationDecisionResponse:
+        lifecycle = _require_lifecycle(services)
+        try:
+            record, receipt = lifecycle.decide_rotation_case(
+                actor=actor,
+                command=LifecycleRotationDecisionCommand(
+                    rotation_case_id=rotation_case_id,
+                    expected_case_version=request.expected_case_version,
+                    outcome=request.outcome,
+                    target_knowledge_revision_id=request.target_knowledge_revision_id,
+                    idempotency_key=request.idempotency_key,
+                    rationale=request.rationale,
+                ),
+            )
+        except Exception as exc:
+            _raise_lifecycle_api_error(exc)
+        return LifecycleRotationDecisionResponse(
+            data=RotationDecisionData(
+                case=_rotation_case_data(record, actor),
+                receipt=_rotation_decision_data(receipt),
+            ),
+            meta=_meta(),
+        )
+
     @app.post(
         f"{API_PREFIX}/admin/users",
         operation_id="createPlatformUser",
@@ -1563,6 +1795,124 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
     return app
 
 
+def _require_lifecycle(services: PlatformApiServices) -> KnowledgeLifecycleApiPort:
+    if services.lifecycle is None:
+        raise PlatformApiError(
+            status_code=503,
+            code="service_unavailable",
+            message="Knowledge lifecycle governance is not configured.",
+        )
+    return services.lifecycle
+
+
+def _rotation_decision_data(
+    record: RotationDecisionApiRecord,
+) -> RotationDecisionReceiptData:
+    return RotationDecisionReceiptData(
+        rotation_decision_id=record.rotation_decision_id,
+        rotation_case_id=record.rotation_case_id,
+        outcome=record.outcome,
+        expected_case_version=record.expected_case_version,
+        target_knowledge_revision_id=record.target_knowledge_revision_id,
+        actor_id=record.actor_id,
+        actor_role=record.actor_role,
+        idempotency_key=record.idempotency_key,
+        rationale=record.rationale,
+        created_at=record.created_at,
+    )
+
+
+def _impact_assessment_data(record: ImpactAssessmentApiRecord) -> ImpactAssessmentData:
+    counts = {
+        "unchanged": 0,
+        "moved": 0,
+        "modified": 0,
+        "added": 0,
+        "removed": 0,
+        "rights_changed": 0,
+        "ambiguous": 0,
+    }
+    for impact in record.impacts:
+        counts[impact.change_type] += 1
+    return ImpactAssessmentData(
+        assessment_id=record.assessment_id,
+        from_source_version_id=record.from_source_version_id,
+        to_source_version_id=record.to_source_version_id,
+        comparison_profile_version=record.comparison_profile_version,
+        change_counts=counts,
+        impacts=[
+            EvidenceImpactData(
+                evidence_impact_id=impact.evidence_impact_id,
+                change_type=impact.change_type,
+                from_evidence_id=impact.from_evidence_id,
+                to_evidence_id=impact.to_evidence_id,
+                mapping_basis=impact.mapping_basis,
+                details=impact.details,
+            )
+            for impact in record.impacts
+        ],
+        created_at=record.created_at,
+    )
+
+
+def _chunk_projection_data(record: ChunkProjectionApiRecord) -> ChunkProjectionData:
+    return ChunkProjectionData(
+        run_id=record.run_id,
+        source_version_id=record.source_version_id,
+        chunk_profile=ChunkProfileData(**asdict(record.profile)),
+        evidence=[ChunkEvidenceData(**asdict(item)) for item in record.evidence],
+        chunks=[
+            RetrievalChunkData(
+                chunk_id=chunk.chunk_id,
+                ordinal=chunk.ordinal,
+                evidence_type=chunk.evidence_type,
+                content=chunk.content,
+                content_sha256=chunk.content_sha256,
+                token_count=chunk.token_count,
+                locator=chunk.locator,
+                data_boundary=chunk.data_boundary,
+                rights=chunk.rights,
+                spans=[ChunkSpanData(**asdict(span)) for span in chunk.spans],
+            )
+            for chunk in record.chunks
+        ],
+        findings=[
+            ChunkProjectionFindingData(**asdict(finding)) for finding in record.findings
+        ],
+    )
+
+
+def _rotation_case_data(
+    record: RotationCaseApiRecord,
+    actor: ActorContext,
+) -> RotationCaseData:
+    allowed_actions: list[str] = []
+    if record.status == "open" and Permission.CANDIDATE_WRITE in actor.permissions:
+        allowed_actions.append("propose")
+    if record.status == "in_review" and Permission.REVIEW_DECIDE in actor.permissions:
+        allowed_actions.append("decide")
+    return RotationCaseData(
+        rotation_case_id=record.rotation_case_id,
+        impact_assessment_id=record.impact_assessment_id,
+        knowledge_revision_id=record.knowledge_revision_id,
+        status=record.status,
+        change_types=list(record.change_types),
+        proposed_outcome=record.proposed_outcome,
+        proposed_target_knowledge_revision_id=(
+            record.proposed_target_knowledge_revision_id
+        ),
+        proposed_by_actor_id=record.proposed_by_actor_id,
+        proposed_rationale=record.proposed_rationale,
+        case_version=record.case_version,
+        included_release_id=record.included_release_id,
+        released_in_release_ids=list(record.released_in_release_ids),
+        receipts=[_rotation_decision_data(receipt) for receipt in record.receipts],
+        allowed_actions=allowed_actions,
+        created_at=record.created_at,
+        updated_at=record.updated_at,
+    )
+
+
 def _processing_run_data(record: ProcessingRunRecord) -> ProcessingRunData:
     return ProcessingRunData(
         run_id=record.run_id,
@@ -1642,5 +1992,38 @@ def _raise_governance_api_error(error: Exception) -> None:
             status_code=503,
             code="service_unavailable",
             message="The governance repository is unavailable.",
+        ) from error
+    raise error
+
+
+def _raise_lifecycle_api_error(error: Exception) -> None:
+    if isinstance(error, RotationCaseNotFoundError):
+        raise PlatformApiError(
+            status_code=404,
+            code="rotation_case_not_found",
+            message="The rotation case does not exist.",
+        ) from error
+    if isinstance(error, StaleRotationCaseError):
+        raise PlatformApiError(
+            status_code=409,
+            code="stale_rotation_case",
+            message="The rotation case changed before this command.",
+            details={
+                "rotationCaseId": error.rotation_case_id,
+                "expectedCaseVersion": error.expected_case_version,
+                "actualCaseVersion": error.actual_case_version,
+            },
+        ) from error
+    if isinstance(error, InvalidRotationTransitionError | AuthorizationError):
+        raise PlatformApiError(
+            status_code=409,
+            code="invalid_rotation_transition",
+            message="The current rotation state does not permit this command.",
+        ) from error
+    if isinstance(error, SQLAlchemyError):
+        raise PlatformApiError(
+            status_code=503,
+            code="service_unavailable",
+            message="The knowledge lifecycle repository is unavailable.",
         ) from error
     raise error

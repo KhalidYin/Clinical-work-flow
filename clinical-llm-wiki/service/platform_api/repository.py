@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Protocol, Sequence
 from uuid import NAMESPACE_URL, uuid5
 
@@ -11,12 +11,23 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
-from service.auth import PlatformUserGrant
+from service.auth import (
+    ActorContext,
+    AuthorizationError,
+    Permission,
+    PlatformUserGrant,
+    ProductRole,
+    require_permission,
+)
 from service.db.models import (
     AuditEvent,
     CandidateEvidence,
     CandidateRelationProposal,
+    ChunkProfile,
+    ChunkProjectionFinding,
     Evidence,
+    EvidenceImpact,
+    ImpactAssessment,
     JobStep,
     KnowledgeCandidate,
     KnowledgeRelation,
@@ -28,12 +39,23 @@ from service.db.models import (
     Release,
     ReleaseItem,
     RelationProposalEvidence,
+    RetrievalChunk,
+    RetrievalChunkEvidence,
     RoleBinding,
+    RotationCase,
+    RotationDecisionReceipt,
     ServiceAccount,
     Source,
     SourceArtifact,
     SourceVersion,
     StepAttempt,
+)
+from service.knowledge import (
+    InvalidRotationTransitionError,
+    RotationCaseNotFoundError,
+    RotationDecisionCommand,
+    RotationProposalCommand,
+    StaleRotationCaseError,
 )
 
 
@@ -260,6 +282,162 @@ class AuditEventPageRecord:
     total: int
     next_cursor: str | None
     warnings: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class RotationDecisionApiRecord:
+    rotation_decision_id: str
+    rotation_case_id: str
+    outcome: str
+    expected_case_version: int
+    target_knowledge_revision_id: str | None
+    actor_id: str
+    actor_role: str
+    idempotency_key: str
+    rationale: str | None
+    created_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class RotationCaseApiRecord:
+    rotation_case_id: str
+    impact_assessment_id: str
+    knowledge_revision_id: str
+    status: str
+    change_types: tuple[str, ...]
+    proposed_outcome: str | None
+    proposed_target_knowledge_revision_id: str | None
+    proposed_by_actor_id: str | None
+    proposed_rationale: str | None
+    case_version: int
+    included_release_id: str | None
+    released_in_release_ids: tuple[str, ...]
+    receipts: tuple[RotationDecisionApiRecord, ...]
+    created_at: datetime
+    updated_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class EvidenceImpactApiRecord:
+    evidence_impact_id: str
+    change_type: str
+    from_evidence_id: str | None
+    to_evidence_id: str | None
+    mapping_basis: str
+    details: dict[str, object]
+
+
+@dataclass(frozen=True, slots=True)
+class ImpactAssessmentApiRecord:
+    assessment_id: str
+    from_source_version_id: str
+    to_source_version_id: str
+    comparison_profile_version: str
+    impacts: tuple[EvidenceImpactApiRecord, ...]
+    created_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class ChunkProfileApiRecord:
+    chunk_profile_id: str
+    version: str
+    tokenizer_id: str
+    target_min_tokens: int
+    target_max_tokens: int
+    hard_max_tokens: int
+    overlap_tokens: int
+    table_hard_max_tokens: int
+    format_rules: dict[str, object]
+
+
+@dataclass(frozen=True, slots=True)
+class ChunkEvidenceApiRecord:
+    evidence_id: str
+    source_version_id: str
+    source_artifact_id: str
+    evidence_type: str
+    locator: dict[str, object]
+    content: str
+    content_sha256: str
+
+
+@dataclass(frozen=True, slots=True)
+class ChunkSpanApiRecord:
+    evidence_id: str
+    position: int
+    start_offset: int
+    end_offset: int
+    span_role: str
+
+
+@dataclass(frozen=True, slots=True)
+class RetrievalChunkApiRecord:
+    chunk_id: str
+    ordinal: int
+    evidence_type: str
+    content: str
+    content_sha256: str
+    token_count: int
+    locator: dict[str, object]
+    data_boundary: str
+    rights: dict[str, object]
+    spans: tuple[ChunkSpanApiRecord, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class ChunkFindingApiRecord:
+    finding_id: str
+    evidence_id: str | None
+    finding_type: str
+    details: dict[str, object]
+
+
+@dataclass(frozen=True, slots=True)
+class ChunkProjectionApiRecord:
+    run_id: str
+    source_version_id: str
+    profile: ChunkProfileApiRecord
+    evidence: tuple[ChunkEvidenceApiRecord, ...]
+    chunks: tuple[RetrievalChunkApiRecord, ...]
+    findings: tuple[ChunkFindingApiRecord, ...]
+
+
+class KnowledgeLifecycleApiPort(Protocol):
+    def get_impact_assessment(
+        self,
+        *,
+        assessment_id: str,
+    ) -> ImpactAssessmentApiRecord | None: ...
+
+    def get_chunk_projection(
+        self,
+        *,
+        run_id: str,
+    ) -> ChunkProjectionApiRecord | None: ...
+
+    def list_rotation_cases(
+        self,
+    ) -> tuple[Sequence[RotationCaseApiRecord], Sequence[str]]: ...
+
+    def get_rotation_case(
+        self,
+        *,
+        rotation_case_id: str,
+    ) -> RotationCaseApiRecord | None: ...
+
+    def propose_rotation_case(
+        self,
+        *,
+        actor: ActorContext,
+        command: RotationProposalCommand,
+    ) -> RotationCaseApiRecord: ...
+
+    def decide_rotation_case(
+        self,
+        *,
+        actor: ActorContext,
+        command: RotationDecisionCommand,
+    ) -> tuple[RotationCaseApiRecord, RotationDecisionApiRecord]: ...
 
 
 class PlatformReadRepository(Protocol):
@@ -1188,6 +1366,476 @@ class SqlAlchemyPlatformRepository:
             next_cursor=next_cursor,
             warnings=tuple(warnings),
         )
+
+
+class SqlAlchemyKnowledgeLifecycleRepository:
+    """P17 adapter for lifecycle inspection and atomic two-person decisions."""
+
+    def __init__(self, session_factory: sessionmaker[Session]) -> None:
+        self._session_factory = session_factory
+
+    def get_impact_assessment(
+        self,
+        *,
+        assessment_id: str,
+    ) -> ImpactAssessmentApiRecord | None:
+        with self._session_factory() as session:
+            assessment = session.get(ImpactAssessment, assessment_id)
+            if assessment is None:
+                return None
+            impacts = tuple(
+                EvidenceImpactApiRecord(
+                    evidence_impact_id=impact.evidence_impact_id,
+                    change_type=impact.change_type,
+                    from_evidence_id=impact.from_evidence_id,
+                    to_evidence_id=impact.to_evidence_id,
+                    mapping_basis=impact.mapping_basis,
+                    details=impact.details,
+                )
+                for impact in session.scalars(
+                    select(EvidenceImpact)
+                    .where(EvidenceImpact.assessment_id == assessment_id)
+                    .order_by(EvidenceImpact.evidence_impact_id)
+                )
+            )
+            return ImpactAssessmentApiRecord(
+                assessment_id=assessment.assessment_id,
+                from_source_version_id=assessment.from_source_version_id,
+                to_source_version_id=assessment.to_source_version_id,
+                comparison_profile_version=assessment.comparison_profile_version,
+                impacts=impacts,
+                created_at=assessment.created_at,
+            )
+
+    def get_chunk_projection(
+        self,
+        *,
+        run_id: str,
+    ) -> ChunkProjectionApiRecord | None:
+        with self._session_factory() as session:
+            run = session.get(ProcessingRun, run_id)
+            if run is None:
+                return None
+            profile = session.scalar(
+                select(ChunkProfile)
+                .join(
+                    RetrievalChunk,
+                    RetrievalChunk.chunk_profile_id == ChunkProfile.chunk_profile_id,
+                )
+                .where(RetrievalChunk.source_version_id == run.source_version_id)
+                .order_by(ChunkProfile.created_at.desc(), ChunkProfile.chunk_profile_id)
+                .limit(1)
+            )
+            if profile is None:
+                return None
+            chunks = list(
+                session.scalars(
+                    select(RetrievalChunk)
+                    .where(
+                        RetrievalChunk.source_version_id == run.source_version_id,
+                        RetrievalChunk.chunk_profile_id == profile.chunk_profile_id,
+                    )
+                    .order_by(RetrievalChunk.ordinal, RetrievalChunk.chunk_id)
+                )
+            )
+            chunk_ids = [chunk.chunk_id for chunk in chunks]
+            span_rows = (
+                list(
+                    session.scalars(
+                        select(RetrievalChunkEvidence)
+                        .where(RetrievalChunkEvidence.chunk_id.in_(chunk_ids))
+                        .order_by(
+                            RetrievalChunkEvidence.chunk_id,
+                            RetrievalChunkEvidence.position,
+                        )
+                    )
+                )
+                if chunk_ids
+                else []
+            )
+            evidence_ids = {span.evidence_id for span in span_rows}
+            evidence_rows = (
+                list(
+                    session.scalars(
+                        select(Evidence)
+                        .where(Evidence.evidence_id.in_(evidence_ids))
+                        .order_by(Evidence.evidence_id)
+                    )
+                )
+                if evidence_ids
+                else []
+            )
+            findings = list(
+                session.scalars(
+                    select(ChunkProjectionFinding)
+                    .where(
+                        ChunkProjectionFinding.source_version_id == run.source_version_id,
+                        ChunkProjectionFinding.chunk_profile_id == profile.chunk_profile_id,
+                    )
+                    .order_by(ChunkProjectionFinding.finding_id)
+                )
+            )
+            spans_by_chunk: dict[str, list[ChunkSpanApiRecord]] = {}
+            for span in span_rows:
+                spans_by_chunk.setdefault(span.chunk_id, []).append(
+                    ChunkSpanApiRecord(
+                        evidence_id=span.evidence_id,
+                        position=span.position,
+                        start_offset=span.start_offset,
+                        end_offset=span.end_offset,
+                        span_role=span.span_role,
+                    )
+                )
+            return ChunkProjectionApiRecord(
+                run_id=run.run_id,
+                source_version_id=run.source_version_id,
+                profile=ChunkProfileApiRecord(
+                    chunk_profile_id=profile.chunk_profile_id,
+                    version=profile.version,
+                    tokenizer_id=profile.tokenizer_id,
+                    target_min_tokens=profile.target_min_tokens,
+                    target_max_tokens=profile.target_max_tokens,
+                    hard_max_tokens=profile.hard_max_tokens,
+                    overlap_tokens=profile.overlap_tokens,
+                    table_hard_max_tokens=profile.table_hard_max_tokens,
+                    format_rules=profile.format_rules,
+                ),
+                evidence=tuple(
+                    ChunkEvidenceApiRecord(
+                        evidence_id=item.evidence_id,
+                        source_version_id=item.source_version_id,
+                        source_artifact_id=(
+                            item.source_artifact_id or item.derived_artifact_id
+                        ),
+                        evidence_type=item.evidence_type,
+                        locator=item.locator,
+                        content=item.content,
+                        content_sha256=item.content_sha256,
+                    )
+                    for item in evidence_rows
+                ),
+                chunks=tuple(
+                    RetrievalChunkApiRecord(
+                        chunk_id=chunk.chunk_id,
+                        ordinal=chunk.ordinal,
+                        evidence_type=chunk.evidence_type,
+                        content=chunk.content,
+                        content_sha256=chunk.content_sha256,
+                        token_count=chunk.token_count,
+                        locator=chunk.locator,
+                        data_boundary=chunk.data_boundary,
+                        rights=chunk.rights,
+                        spans=tuple(spans_by_chunk.get(chunk.chunk_id, ())),
+                    )
+                    for chunk in chunks
+                ),
+                findings=tuple(
+                    ChunkFindingApiRecord(
+                        finding_id=finding.finding_id,
+                        evidence_id=finding.evidence_id,
+                        finding_type=finding.finding_type,
+                        details=finding.details,
+                    )
+                    for finding in findings
+                ),
+            )
+
+    def list_rotation_cases(
+        self,
+    ) -> tuple[list[RotationCaseApiRecord], list[str]]:
+        with self._session_factory() as session:
+            cases = list(
+                session.scalars(
+                    select(RotationCase).order_by(
+                        RotationCase.updated_at.desc(),
+                        RotationCase.rotation_case_id,
+                    )
+                )
+            )
+            return [_rotation_case_api_record(session, case) for case in cases], []
+
+    def get_rotation_case(
+        self,
+        *,
+        rotation_case_id: str,
+    ) -> RotationCaseApiRecord | None:
+        with self._session_factory() as session:
+            case = session.get(RotationCase, rotation_case_id)
+            return _rotation_case_api_record(session, case) if case is not None else None
+
+    def propose_rotation_case(
+        self,
+        *,
+        actor: ActorContext,
+        command: RotationProposalCommand,
+    ) -> RotationCaseApiRecord:
+        require_permission(actor, Permission.CANDIDATE_WRITE)
+        if ProductRole.KNOWLEDGE_CURATOR not in actor.roles:
+            raise AuthorizationError("rotation proposal requires knowledge_curator role")
+        with self._session_factory.begin() as session:
+            case = session.scalar(
+                select(RotationCase)
+                .where(RotationCase.rotation_case_id == command.rotation_case_id)
+                .with_for_update()
+            )
+            if case is None:
+                raise RotationCaseNotFoundError(command.rotation_case_id)
+            replay = session.scalar(
+                select(RotationCase).where(
+                    RotationCase.proposed_by_actor_id == actor.actor_id,
+                    RotationCase.proposal_idempotency_key == command.idempotency_key,
+                )
+            )
+            if replay is not None:
+                _require_matching_proposal(replay, command)
+                return _rotation_case_api_record(session, replay)
+            _require_case_version(case, command.expected_case_version)
+            if case.status != "open":
+                raise InvalidRotationTransitionError(
+                    "only an open rotation case accepts a proposal"
+                )
+            _require_target_revision(session, command.target_knowledge_revision_id)
+            case.status = "in_review"
+            case.proposed_outcome = command.outcome.value
+            case.proposed_target_knowledge_revision_id = (
+                command.target_knowledge_revision_id
+            )
+            case.proposed_by_actor_id = actor.actor_id
+            case.proposal_idempotency_key = command.idempotency_key
+            case.proposed_rationale = command.rationale
+            case.case_version += 1
+            case.updated_at = datetime.now(timezone.utc)
+            session.add(
+                _rotation_audit_event(
+                    actor_id=actor.actor_id,
+                    action="rotation_case.proposed",
+                    case=case,
+                    correlation_id=command.idempotency_key,
+                    result="in_review",
+                )
+            )
+            session.flush()
+            return _rotation_case_api_record(session, case)
+
+    def decide_rotation_case(
+        self,
+        *,
+        actor: ActorContext,
+        command: RotationDecisionCommand,
+    ) -> tuple[RotationCaseApiRecord, RotationDecisionApiRecord]:
+        require_permission(actor, Permission.REVIEW_DECIDE)
+        if ProductRole.REVIEWER not in actor.roles:
+            raise AuthorizationError("rotation decision requires reviewer role")
+        with self._session_factory.begin() as session:
+            case = session.scalar(
+                select(RotationCase)
+                .where(RotationCase.rotation_case_id == command.rotation_case_id)
+                .with_for_update()
+            )
+            if case is None:
+                raise RotationCaseNotFoundError(command.rotation_case_id)
+            replay = session.scalar(
+                select(RotationDecisionReceipt).where(
+                    RotationDecisionReceipt.actor_id == actor.actor_id,
+                    RotationDecisionReceipt.idempotency_key == command.idempotency_key,
+                )
+            )
+            if replay is not None:
+                _require_matching_decision(replay, command)
+                return (
+                    _rotation_case_api_record(session, case),
+                    _rotation_decision_api_record(replay),
+                )
+            _require_case_version(case, command.expected_case_version)
+            if case.status != "in_review":
+                raise InvalidRotationTransitionError(
+                    "only an in_review rotation case accepts a decision"
+                )
+            if case.proposed_by_actor_id == actor.actor_id:
+                raise AuthorizationError("rotation reviewer must be independent")
+            _require_target_revision(session, command.target_knowledge_revision_id)
+            receipt = RotationDecisionReceipt(
+                rotation_decision_id=(
+                    f"rotation-decision-{uuid5(NAMESPACE_URL, f'{actor.actor_id}:{command.idempotency_key}').hex}"
+                ),
+                rotation_case_id=case.rotation_case_id,
+                outcome=command.outcome.value,
+                expected_case_version=command.expected_case_version,
+                target_knowledge_revision_id=command.target_knowledge_revision_id,
+                actor_id=actor.actor_id,
+                actor_role="reviewer",
+                idempotency_key=command.idempotency_key,
+                rationale=command.rationale,
+            )
+            session.add(receipt)
+            case.status = "decided"
+            case.case_version += 1
+            case.updated_at = datetime.now(timezone.utc)
+            session.add(
+                _rotation_audit_event(
+                    actor_id=actor.actor_id,
+                    action="rotation_case.decided",
+                    case=case,
+                    correlation_id=command.idempotency_key,
+                    result=command.outcome.value,
+                )
+            )
+            session.flush()
+            return (
+                _rotation_case_api_record(session, case),
+                _rotation_decision_api_record(receipt),
+            )
+
+
+def _rotation_case_api_record(
+    session: Session,
+    case: RotationCase,
+) -> RotationCaseApiRecord:
+    change_types = tuple(
+        sorted(
+            set(
+                session.scalars(
+                    select(EvidenceImpact.change_type).where(
+                        EvidenceImpact.assessment_id == case.impact_assessment_id
+                    )
+                )
+            )
+        )
+    )
+    release_ids = tuple(
+        session.scalars(
+            select(ReleaseItem.release_id)
+            .join(Release, Release.release_id == ReleaseItem.release_id)
+            .where(
+                ReleaseItem.knowledge_revision_id == case.knowledge_revision_id,
+                Release.status == "released",
+            )
+            .order_by(ReleaseItem.release_id)
+        )
+    )
+    receipts = tuple(
+        _rotation_decision_api_record(receipt)
+        for receipt in session.scalars(
+            select(RotationDecisionReceipt)
+            .where(RotationDecisionReceipt.rotation_case_id == case.rotation_case_id)
+            .order_by(
+                RotationDecisionReceipt.created_at,
+                RotationDecisionReceipt.rotation_decision_id,
+            )
+        )
+    )
+    return RotationCaseApiRecord(
+        rotation_case_id=case.rotation_case_id,
+        impact_assessment_id=case.impact_assessment_id,
+        knowledge_revision_id=case.knowledge_revision_id,
+        status=case.status,
+        change_types=change_types,
+        proposed_outcome=case.proposed_outcome,
+        proposed_target_knowledge_revision_id=(
+            case.proposed_target_knowledge_revision_id
+        ),
+        proposed_by_actor_id=case.proposed_by_actor_id,
+        proposed_rationale=case.proposed_rationale,
+        case_version=case.case_version,
+        included_release_id=case.included_release_id,
+        released_in_release_ids=release_ids,
+        receipts=receipts,
+        created_at=case.created_at,
+        updated_at=case.updated_at,
+    )
+
+
+def _rotation_decision_api_record(
+    receipt: RotationDecisionReceipt,
+) -> RotationDecisionApiRecord:
+    return RotationDecisionApiRecord(
+        rotation_decision_id=receipt.rotation_decision_id,
+        rotation_case_id=receipt.rotation_case_id,
+        outcome=receipt.outcome,
+        expected_case_version=receipt.expected_case_version,
+        target_knowledge_revision_id=receipt.target_knowledge_revision_id,
+        actor_id=receipt.actor_id,
+        actor_role=receipt.actor_role,
+        idempotency_key=receipt.idempotency_key,
+        rationale=receipt.rationale,
+        created_at=receipt.created_at,
+    )
+
+
+def _require_case_version(case: RotationCase, expected_case_version: int) -> None:
+    if case.case_version != expected_case_version:
+        raise StaleRotationCaseError(
+            rotation_case_id=case.rotation_case_id,
+            expected_case_version=expected_case_version,
+            actual_case_version=case.case_version,
+        )
+
+
+def _require_target_revision(
+    session: Session,
+    target_knowledge_revision_id: str | None,
+) -> None:
+    if target_knowledge_revision_id is None:
+        return
+    if session.get(KnowledgeRevision, target_knowledge_revision_id) is None:
+        raise InvalidRotationTransitionError("target knowledge revision does not exist")
+
+
+def _require_matching_proposal(
+    case: RotationCase,
+    command: RotationProposalCommand,
+) -> None:
+    if (
+        case.rotation_case_id != command.rotation_case_id
+        or case.proposed_outcome != command.outcome.value
+        or case.proposed_target_knowledge_revision_id
+        != command.target_knowledge_revision_id
+        or case.proposed_rationale != command.rationale
+    ):
+        raise InvalidRotationTransitionError(
+            "proposal idempotency key is already bound to different facts"
+        )
+
+
+def _require_matching_decision(
+    receipt: RotationDecisionReceipt,
+    command: RotationDecisionCommand,
+) -> None:
+    if (
+        receipt.rotation_case_id != command.rotation_case_id
+        or receipt.expected_case_version != command.expected_case_version
+        or receipt.outcome != command.outcome.value
+        or receipt.target_knowledge_revision_id != command.target_knowledge_revision_id
+        or receipt.rationale != command.rationale
+    ):
+        raise InvalidRotationTransitionError(
+            "decision idempotency key is already bound to different facts"
+        )
+
+
+def _rotation_audit_event(
+    *,
+    actor_id: str,
+    action: str,
+    case: RotationCase,
+    correlation_id: str,
+    result: str,
+) -> AuditEvent:
+    return AuditEvent(
+        audit_event_id=f"audit-{uuid5(NAMESPACE_URL, f'{action}:{actor_id}:{correlation_id}').hex}",
+        actor_subject=actor_id,
+        action=action,
+        entity_type="rotation_case",
+        entity_id=case.rotation_case_id,
+        run_id=None,
+        details={
+            "case_version": case.case_version,
+            "impact_assessment_id": case.impact_assessment_id,
+            "knowledge_revision_id": case.knowledge_revision_id,
+            "correlation_id": correlation_id,
+            "result": result,
+        },
+    )
 
 
 def _media_type_label(media_type: str, object_key: str) -> str | None:

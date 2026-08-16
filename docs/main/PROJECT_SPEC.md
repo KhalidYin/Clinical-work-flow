@@ -26,6 +26,7 @@
 - Enrichment Worker 已有 fake/replay、direct-model 授权合同及 Candidate 治理闭环；migration `20260805_0009` 增加 `executor_kind`。`opencode-supervised` 已迁移为独立 Supervisor remote provider，普通 Compose 仍默认 replay；显式 `harness` profile 的真实零网络部署 Gate 已通过。
 - `harness-runtime/` 已实现版本化合同、fake/replay adapter、OpenCode `1.18.14` headless adapter、Fake/Docker runtime、staging 扫描、Execution/Validation Receipt、Step-scoped MCP、产品 Pack 编译，以及独立 Supervisor 的机器身份、durable journal、heartbeat/cancel/orphan recovery 和固定容器编译器。
 - 人员密码会话、HttpOnly Cookie、RBAC、Worker 机器身份和中文 React GUI 骨架已存在。
+- P17/P1 已实现版本化 ChunkProfile/RetrievalChunk、七类 SourceVersion Evidence comparison、ImpactAssessment、RotationCase 与不可变 DecisionReceipt 的 migration、确定性领域合同和 prerelease 只读检查/人工决策 API；实际 Chunk 物化接线、检索与 Release 仍未实现。
 - 临床产品已有固定十阶段合同、ActionPolicy、Review Protocol、知识 Release resolve 和若干 POC artifact 流程；十个内部 Stage 对应 Protocol → SAP → SDTM → ADaM → TFL → QC → Submission 七个业务依赖组。
 
 ### 目标能力
@@ -46,6 +47,7 @@
 
 #### 知识生产闭环
 
+- [已实现（P17/P1 合同）] Evidence 保持 canonical；RetrievalChunk 是按不可变 Profile 版本确定性生成的检索投影，只新增 Chunk content hash，并保存有序 Evidence span、data boundary/rights 与可审计 finding。SourceVersion comparison 只使用七类变化并支持多对多 Evidence 映射；轮转由 Curator proposal 与独立 Reviewer DecisionReceipt 驱动，幂等与 stale 事务已在真实 PostgreSQL 验证。
 - [目标] 由版本化 Knowledge Workflow/Step Spec 编译现有 durable DAG，不替换 PostgreSQL ledger。
 - [目标] executor 可声明为 `deterministic_handler | direct_model | harness`；`direct_model` 仅保留给 fake/replay、简单原子调用和回归基线，知识主链使用 Harness。
 - [目标] Harness enrichment 从获批 Evidence 产生 Candidate、relation、duplicate/conflict/gap proposal。
@@ -77,7 +79,7 @@
 - 独立 Supervisor 当前只完成显式本地 Compose 离线部署 Gate，尚未形成面向生产的 socket proxy/rootless runtime、TLS 或集群调度边界；普通 Compose 仍默认 replay。
 - 生产级 Secret/runtime authority、公共研究 recording gateway 与真实供应商 Gate；P16/P2-P3 已完成本地 tmpfs Store、Attempt 临时认证材料和模型 CONNECT gateway，但不是持久 Vault/云 Secret Manager 或生产网络认证。DeepSeek live 仍未启用，真实回归仅使用合成值与本地 Mock/TLS 假 endpoint。
 - 通用 Knowledge Workflow Spec、完整多事件审计和更丰富的确定性 MCP 工具面。
-- 通用 Evaluation、Release Worker、Query Lab 及其完整 GUI。
+- Chunk 物化尚未接入 Document Worker，ICH E9 资产、metadata/FTS 检索、Recall 基线、通用 Evaluation、Release Worker、Query Lab 及其完整 GUI 尚未实现；P17/P1 的只读 inspector/rotation API 不等于这些能力已完成。
 - 临床 Workflow 对 Harness 的生产接线和统一 run ledger。
 
 ### 明确不做

@@ -28,7 +28,10 @@ from service.processing.ledger import PostgresProcessingLedger
 from service.sources import SourceRegistryService, SqlAlchemySourceRegistryRepository
 
 from .app import PlatformApiServices, create_platform_app
-from .repository import SqlAlchemyPlatformRepository
+from .repository import (
+    SqlAlchemyKnowledgeLifecycleRepository,
+    SqlAlchemyPlatformRepository,
+)
 
 
 def _required_environment(name: str) -> str:
@@ -70,6 +73,7 @@ def create_environment_app():
             governance=KnowledgeGovernanceService(
                 repository=SqlAlchemyGovernanceRepository(sessions)
             ),
+            lifecycle=SqlAlchemyKnowledgeLifecycleRepository(sessions),
             object_store=object_store,
             runtime_consumer_credential_sha256=_runtime_consumer_credential_sha256(),
         )

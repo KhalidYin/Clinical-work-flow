@@ -1,5 +1,5 @@
 ---
-updated: 2026-08-12
+updated: 2026-08-16
 ---
 
 # 项目计划
@@ -8,14 +8,17 @@ updated: 2026-08-12
 
 | # | 当前 Gate | 子计划 | 状态 |
 |---|----------|--------|------|
-| P12 | P2-B3 等待用户单独授权 → 单一 live vertical | [P12-knowledge-application-platform.md](plans/ongoing/P12-knowledge-application-platform.md) | P16 本地 Secret/gateway Gate 已完成；下一输入为轮换 key、获批 synthetic Evidence/预算和明确单次调用授权，未调用 |
+| P17 | P2 ICH E9 确定性切块、检索与 Recall 基线 | [P17-knowledge-lifecycle-retrieval-poc.md](plans/ongoing/P17-knowledge-lifecycle-retrieval-poc.md) | P1 done；P2 next，默认离线、不调用模型 |
+| P12 | P2-B3 live vertical 等待外部输入 | [P12-knowledge-application-platform.md](plans/ongoing/P12-knowledge-application-platform.md) | waiting/frozen；P17 执行期间不修改 Evaluation/Release，待后续轮换 key、synthetic Evidence、预算与单次授权 |
 
 ## 待开始
 
 | # | 子计划 | 文件 | 预估轮次 | 依赖 |
 |---|--------|------|----------|------|
 
-P13、H0、P14、P15 与 P16 已关闭。OpenCode `1.18.14` 已完成容器准入；R111-R125 完成 Receipt 落账、独立 Supervisor、产品拥有的 hash-locked Pack、真实 Skill/MCP/internal Mock、PostgreSQL canonical Evidence → Candidate/API 本地 POC、随机空卷双 Worker 正向环路、schema-invalid/timeout 离线失败矩阵、本地 tmpfs Secret 与能力保持型模型 gateway。普通 Compose 仍默认 replay；P12 是唯一产品执行主线。显式 `harness` profile 可加载 DeepSeek runtime binding，但没有 secret/live 产品授权时不会调用。受控作用于 Attempt 外部副作用，不全局阉割 OpenCode 的 Skill/MCP/browser/工具循环；公共研究 recording gateway 仍是明确保留但尚未实现的独立能力。P12 live 下一输入必须由用户另行确认轮换 key、获授权 synthetic Evidence、网络策略、单次预算和明确调用授权。真实供应商调用仍未授权、未发生。
+P17 是当前唯一实施主线，也是 P12 未完成检索、评估与 Release 能力的聚焦实施合同，不建立平行产品权威。P12 live Gate 已冻结等待外部输入；P17 不依赖真实模型 Key，先完成 ICH E9 单文档离线召回基线和合成轮转/Release Gate。
+
+P13、H0、P14、P15 与 P16 已关闭。OpenCode `1.18.14` 已完成容器准入；R111-R125 完成 Receipt 落账、独立 Supervisor、产品拥有的 hash-locked Pack、真实 Skill/MCP/internal Mock、PostgreSQL canonical Evidence → Candidate/API 本地 POC、随机空卷双 Worker正向环路、schema-invalid/timeout 离线失败矩阵、本地 tmpfs Secret 与能力保持型模型 gateway。普通 Compose 仍默认 replay；当前实现由 P17 推进，P12 保持架构权威并冻结 live Gate。显式 `harness` profile 可加载 DeepSeek runtime binding，但没有 secret/live 产品授权时不会调用。受控作用于 Attempt 外部副作用，不全局阉割 OpenCode 的 Skill/MCP/browser/工具循环；公共研究 recording gateway 仍是明确保留但尚未实现的独立能力。P12 live 下一输入必须由用户另行确认轮换 key、获授权 synthetic Evidence、网络策略、单次预算和明确调用授权。真实供应商调用仍未授权、未发生。
 
 P12/P13 共同构成唯一知识产品主线：P12 保持可信知识闭环，P13 收敛人员认证、中文界面和旧 Wiki 迁移退役。产品结果固定为“受控 Source → Evidence → AI Candidate → 作者确认 → 独立审核 → 检索评估 → immutable Release → REST/MCP 消费”。D0 Evidence Ledger HTML 继续作为颜色、排版、布局和核心交互基线。P1 已关闭产品基础 Gate；P2-A 已关闭 Source Registry、对象一致性、确定性解析、Document Worker DAG/fan-in、Evidence lineage、`202 + run_id` API 与 KUI-02/03。P2-B1 已冻结 Candidate eligibility、edge evidence、作者确认、独立审核、stale/idempotency、released immutability 和 worker/admin 越权合同。P2-B2 已用无网络 replay 接通真实 Source → Evidence → Candidate → request-change/revision → 独立批准的可启动前后端闭环，并证明 approved 仍无 Release。Docling/OCR、GraphRAG/Neo4j、Workflow、Agent Runtime 和 Project Memory 均不牵引当前执行。
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from dataclasses import asdict
+from dataclasses import asdict, dataclass, fields, replace
 from datetime import datetime, timezone
 from hashlib import sha256
 from importlib import import_module
@@ -478,6 +478,300 @@ class FakeGovernanceService:
         )
 
 
+@dataclass(frozen=True)
+class FakeRotationDecisionRecord:
+    rotation_decision_id: str
+    rotation_case_id: str
+    outcome: str
+    expected_case_version: int
+    target_knowledge_revision_id: str | None
+    actor_id: str
+    actor_role: str
+    idempotency_key: str
+    rationale: str | None
+    created_at: datetime
+
+
+@dataclass(frozen=True)
+class FakeRotationCaseRecord:
+    rotation_case_id: str
+    impact_assessment_id: str
+    knowledge_revision_id: str
+    status: str
+    change_types: tuple[str, ...]
+    proposed_outcome: str | None
+    proposed_target_knowledge_revision_id: str | None
+    proposed_by_actor_id: str | None
+    proposed_rationale: str | None
+    case_version: int
+    included_release_id: str | None
+    released_in_release_ids: tuple[str, ...]
+    receipts: tuple[FakeRotationDecisionRecord, ...]
+    created_at: datetime
+    updated_at: datetime
+
+
+@dataclass(frozen=True)
+class FakeEvidenceImpactRecord:
+    evidence_impact_id: str
+    change_type: str
+    from_evidence_id: str | None
+    to_evidence_id: str | None
+    mapping_basis: str
+    details: dict[str, object]
+
+
+@dataclass(frozen=True)
+class FakeImpactAssessmentRecord:
+    assessment_id: str
+    from_source_version_id: str
+    to_source_version_id: str
+    comparison_profile_version: str
+    impacts: tuple[FakeEvidenceImpactRecord, ...]
+    created_at: datetime
+
+
+@dataclass(frozen=True)
+class FakeChunkProfileRecord:
+    chunk_profile_id: str
+    version: str
+    tokenizer_id: str
+    target_min_tokens: int
+    target_max_tokens: int
+    hard_max_tokens: int
+    overlap_tokens: int
+    table_hard_max_tokens: int
+    format_rules: dict[str, object]
+
+
+@dataclass(frozen=True)
+class FakeChunkEvidenceRecord:
+    evidence_id: str
+    source_version_id: str
+    source_artifact_id: str
+    evidence_type: str
+    locator: dict[str, object]
+    content: str
+    content_sha256: str
+
+
+@dataclass(frozen=True)
+class FakeChunkSpanRecord:
+    evidence_id: str
+    position: int
+    start_offset: int
+    end_offset: int
+    span_role: str
+
+
+@dataclass(frozen=True)
+class FakeRetrievalChunkRecord:
+    chunk_id: str
+    ordinal: int
+    evidence_type: str
+    content: str
+    content_sha256: str
+    token_count: int
+    locator: dict[str, object]
+    data_boundary: str
+    rights: dict[str, object]
+    spans: tuple[FakeChunkSpanRecord, ...]
+
+
+@dataclass(frozen=True)
+class FakeChunkFindingRecord:
+    finding_id: str
+    evidence_id: str | None
+    finding_type: str
+    details: dict[str, object]
+
+
+@dataclass(frozen=True)
+class FakeChunkProjectionRecord:
+    run_id: str
+    source_version_id: str
+    profile: FakeChunkProfileRecord
+    evidence: tuple[FakeChunkEvidenceRecord, ...]
+    chunks: tuple[FakeRetrievalChunkRecord, ...]
+    findings: tuple[FakeChunkFindingRecord, ...]
+
+
+class FakeLifecycleService:
+    def __init__(self, repository_module: Any) -> None:
+        self._repository_module = repository_module
+        self._now = datetime(2026, 8, 16, 3, 30, tzinfo=timezone.utc)
+        self.proposal_calls: list[dict[str, Any]] = []
+        self.decision_calls: list[dict[str, Any]] = []
+        self._proposal_keys: set[tuple[str, str]] = set()
+        self._decision_receipts: dict[tuple[str, str], Any] = {}
+        self.case = FakeRotationCaseRecord(
+            rotation_case_id="rotation-api-001",
+            impact_assessment_id="impact-api-001",
+            knowledge_revision_id="krev-api-001",
+            status="open",
+            change_types=("modified",),
+            proposed_outcome=None,
+            proposed_target_knowledge_revision_id=None,
+            proposed_by_actor_id=None,
+            proposed_rationale=None,
+            case_version=1,
+            included_release_id=None,
+            released_in_release_ids=("rel-001",),
+            receipts=(),
+            created_at=self._now,
+            updated_at=self._now,
+        )
+        self.assessment = FakeImpactAssessmentRecord(
+            assessment_id="impact-api-001",
+            from_source_version_id="srcv-api-000",
+            to_source_version_id="srcv-api-001",
+            comparison_profile_version="comparison-v1",
+            impacts=(
+                FakeEvidenceImpactRecord(
+                    evidence_impact_id="eimpact-api-001",
+                    change_type="modified",
+                    from_evidence_id="ev-api-000",
+                    to_evidence_id="ev-api-001",
+                    mapping_basis="locator_exact",
+                    details={"section": "6.2 AE"},
+                ),
+            ),
+            created_at=self._now,
+        )
+        self.projection = FakeChunkProjectionRecord(
+            run_id="run-api-001",
+            source_version_id="srcv-api-001",
+            profile=FakeChunkProfileRecord(
+                chunk_profile_id="chunk-profile-v1",
+                version="v1",
+                tokenizer_id="p17-test-tokenizer-v1",
+                target_min_tokens=400,
+                target_max_tokens=700,
+                hard_max_tokens=900,
+                overlap_tokens=80,
+                table_hard_max_tokens=1200,
+                format_rules={"major_section_boundary": True},
+            ),
+            evidence=(
+                FakeChunkEvidenceRecord(
+                    evidence_id="ev-api-001",
+                    source_version_id="srcv-api-001",
+                    source_artifact_id="artifact-api-001",
+                    evidence_type="prose",
+                    locator={"section": "6.2 AE", "paragraph": 1},
+                    content="AESEQ is the sequence identifier.",
+                    content_sha256="a" * 64,
+                ),
+            ),
+            chunks=(
+                FakeRetrievalChunkRecord(
+                    chunk_id="chunk-api-001",
+                    ordinal=0,
+                    evidence_type="prose",
+                    content="AESEQ is the sequence identifier.",
+                    content_sha256="b" * 64,
+                    token_count=5,
+                    locator={"majorSection": "6.2 AE"},
+                    data_boundary="enterprise_provider_only",
+                    rights={"classification": "licensed", "storage_allowed": True},
+                    spans=(
+                        FakeChunkSpanRecord(
+                            evidence_id="ev-api-001",
+                            position=0,
+                            start_offset=0,
+                            end_offset=34,
+                            span_role="primary",
+                        ),
+                    ),
+                ),
+            ),
+            findings=(
+                FakeChunkFindingRecord(
+                    finding_id="finding-api-001",
+                    evidence_id="ev-api-empty",
+                    finding_type="empty",
+                    details={},
+                ),
+            ),
+        )
+
+    def get_impact_assessment(self, *, assessment_id: str):
+        return self.assessment if assessment_id == self.assessment.assessment_id else None
+
+    def get_chunk_projection(self, *, run_id: str):
+        return self.projection if run_id == self.projection.run_id else None
+
+    def list_rotation_cases(self):
+        return [self.case], []
+
+    def get_rotation_case(self, *, rotation_case_id: str):
+        return self.case if rotation_case_id == self.case.rotation_case_id else None
+
+    def propose_rotation_case(self, *, actor: Any, command: Any):
+        from service.knowledge import InvalidRotationTransitionError, StaleRotationCaseError
+
+        self.proposal_calls.append({"actor": actor, "command": command})
+        key = (actor.actor_id, command.idempotency_key)
+        if key in self._proposal_keys:
+            return self.case
+        if command.expected_case_version != self.case.case_version:
+            raise StaleRotationCaseError(
+                rotation_case_id=self.case.rotation_case_id,
+                expected_case_version=command.expected_case_version,
+                actual_case_version=self.case.case_version,
+            )
+        if self.case.status != "open":
+            raise InvalidRotationTransitionError("rotation case is not open")
+        self._proposal_keys.add(key)
+        self.case = replace(
+            self.case,
+            status="in_review",
+            proposed_outcome=command.outcome.value,
+            proposed_target_knowledge_revision_id=command.target_knowledge_revision_id,
+            proposed_by_actor_id=actor.actor_id,
+            proposed_rationale=command.rationale,
+            case_version=self.case.case_version + 1,
+        )
+        return self.case
+
+    def decide_rotation_case(self, *, actor: Any, command: Any):
+        from service.knowledge import InvalidRotationTransitionError, StaleRotationCaseError
+
+        self.decision_calls.append({"actor": actor, "command": command})
+        key = (actor.actor_id, command.idempotency_key)
+        prior = self._decision_receipts.get(key)
+        if prior is not None:
+            return self.case, prior
+        if command.expected_case_version != self.case.case_version:
+            raise StaleRotationCaseError(
+                rotation_case_id=self.case.rotation_case_id,
+                expected_case_version=command.expected_case_version,
+                actual_case_version=self.case.case_version,
+            )
+        if self.case.status != "in_review":
+            raise InvalidRotationTransitionError("rotation case is not in review")
+        receipt = FakeRotationDecisionRecord(
+            rotation_decision_id="rotation-decision-api-001",
+            rotation_case_id=self.case.rotation_case_id,
+            outcome=command.outcome.value,
+            expected_case_version=command.expected_case_version,
+            target_knowledge_revision_id=command.target_knowledge_revision_id,
+            actor_id=actor.actor_id,
+            actor_role="reviewer",
+            idempotency_key=command.idempotency_key,
+            rationale=command.rationale,
+            created_at=self._now,
+        )
+        self._decision_receipts[key] = receipt
+        self.case = replace(
+            self.case,
+            status="decided",
+            case_version=self.case.case_version + 1,
+            receipts=(receipt,),
+        )
+        return self.case, receipt
+
+
 class FakePasswordSessions:
     def __init__(self, principals: dict[str, AuthenticatedPrincipal]) -> None:
         self.principals = principals
@@ -557,6 +851,8 @@ def api_client():
         for token, assertion in assertions.items()
         if token not in {"disabled-token", "unmapped-token"}
     }
+    lifecycle = FakeLifecycleService(repository_module)
+    repository.lifecycle_service = lifecycle
     services = app_module.PlatformApiServices(
         repository=repository,
         password_sessions=FakePasswordSessions(principals),
@@ -568,6 +864,7 @@ def api_client():
         source_registry=FakeSourceRegistry(),
         processing_ledger=FakeProcessingLedger(),
         governance=FakeGovernanceService(),
+        lifecycle=lifecycle,
     )
     return TestClient(app_module.create_platform_app(services)), repository
 
@@ -578,6 +875,12 @@ def _auth(token: str) -> dict[str, str]:
         "Origin": "http://testserver",
         "X-CSRF-Protection": "1",
     }
+
+
+def test_platform_services_has_explicit_lifecycle_port() -> None:
+    app_module, _, _ = _platform_modules()
+
+    assert "lifecycle" in {field.name for field in fields(app_module.PlatformApiServices)}
 
 
 def test_health_is_public_and_reports_unimplemented_capabilities(api_client) -> None:
@@ -1030,6 +1333,183 @@ def test_relation_explorer_is_evidence_bound_limited_and_governance_protected(
     )
 
 
+def test_rotation_case_actions_come_from_backend_role_and_state(api_client) -> None:
+    client, _ = api_client
+
+    curator = client.get(
+        f"{API_PREFIX}/rotation-cases/rotation-api-001",
+        headers=_auth("curator-token"),
+    )
+    reviewer = client.get(
+        f"{API_PREFIX}/rotation-cases/rotation-api-001",
+        headers=_auth("reviewer-token"),
+    )
+
+    assert curator.status_code == 200
+    assert curator.json()["data"]["allowedActions"] == ["propose"]
+    assert curator.json()["data"]["changeTypes"] == ["modified"]
+    assert curator.json()["data"]["releasedInReleaseIds"] == ["rel-001"]
+    assert reviewer.status_code == 200
+    assert reviewer.json()["data"]["allowedActions"] == []
+
+
+def test_source_version_comparison_exposes_counts_and_many_to_many_mapping(api_client) -> None:
+    client, _ = api_client
+
+    response = client.get(
+        f"{API_PREFIX}/impact-assessments/impact-api-001",
+        headers=_auth("curator-token"),
+    )
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["fromSourceVersionId"] == "srcv-api-000"
+    assert data["toSourceVersionId"] == "srcv-api-001"
+    assert data["changeCounts"] == {
+        "unchanged": 0,
+        "moved": 0,
+        "modified": 1,
+        "added": 0,
+        "removed": 0,
+        "rights_changed": 0,
+        "ambiguous": 0,
+    }
+    assert data["impacts"][0]["mappingBasis"] == "locator_exact"
+    assert client.get(
+        f"{API_PREFIX}/impact-assessments/missing",
+        headers=_auth("curator-token"),
+    ).status_code == 404
+
+
+def test_chunk_inspector_exposes_profile_spans_boundaries_and_findings(api_client) -> None:
+    client, _ = api_client
+
+    response = client.get(
+        f"{API_PREFIX}/processing-runs/run-api-001/chunk-projection",
+        headers=_auth("curator-token"),
+    )
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["chunkProfile"]["version"] == "v1"
+    assert data["evidence"][0]["sourceArtifactId"] == "artifact-api-001"
+    assert data["chunks"][0]["contentSha256"] == "b" * 64
+    assert data["chunks"][0]["dataBoundary"] == "enterprise_provider_only"
+    assert data["chunks"][0]["spans"] == [
+        {
+            "evidenceId": "ev-api-001",
+            "position": 0,
+            "startOffset": 0,
+            "endOffset": 34,
+            "spanRole": "primary",
+        }
+    ]
+    assert data["findings"][0]["findingType"] == "empty"
+    assert client.get(
+        f"{API_PREFIX}/processing-runs/missing/chunk-projection",
+        headers=_auth("curator-token"),
+    ).status_code == 404
+
+
+def test_rotation_proposal_is_versioned_idempotent_and_curator_only(api_client) -> None:
+    client, repository = api_client
+    payload = {
+        "expectedCaseVersion": 1,
+        "outcome": "replace",
+        "targetKnowledgeRevisionId": "krev-api-002",
+        "idempotencyKey": "rotation-proposal-api-001",
+        "rationale": "Source evidence changed.",
+    }
+
+    proposed = client.post(
+        f"{API_PREFIX}/rotation-cases/rotation-api-001/proposal",
+        headers=_auth("curator-token"),
+        json=payload,
+    )
+    repeated = client.post(
+        f"{API_PREFIX}/rotation-cases/rotation-api-001/proposal",
+        headers=_auth("curator-token"),
+        json=payload,
+    )
+
+    assert proposed.status_code == 200
+    assert proposed.json()["data"] == repeated.json()["data"]
+    assert proposed.json()["data"]["status"] == "in_review"
+    assert proposed.json()["data"]["caseVersion"] == 2
+    assert proposed.json()["data"]["allowedActions"] == []
+    assert len(repository.lifecycle_service._proposal_keys) == 1
+    assert client.post(
+        f"{API_PREFIX}/rotation-cases/rotation-api-001/proposal",
+        headers=_auth("reviewer-token"),
+        json=payload,
+    ).status_code == 403
+
+
+def test_rotation_decision_replays_receipt_and_rejects_stale_or_non_reviewer(
+    api_client,
+) -> None:
+    client, repository = api_client
+    proposal = {
+        "expectedCaseVersion": 1,
+        "outcome": "replace",
+        "targetKnowledgeRevisionId": "krev-api-002",
+        "idempotencyKey": "rotation-proposal-api-002",
+        "rationale": "Source evidence changed.",
+    }
+    assert client.post(
+        f"{API_PREFIX}/rotation-cases/rotation-api-001/proposal",
+        headers=_auth("curator-token"),
+        json=proposal,
+    ).status_code == 200
+    decision = {
+        "expectedCaseVersion": 2,
+        "outcome": "replace",
+        "targetKnowledgeRevisionId": "krev-api-002",
+        "idempotencyKey": "rotation-decision-api-001",
+        "rationale": "Replacement is supported by the new evidence.",
+    }
+
+    decided = client.post(
+        f"{API_PREFIX}/rotation-cases/rotation-api-001/decision",
+        headers=_auth("reviewer-token"),
+        json=decision,
+    )
+    repeated = client.post(
+        f"{API_PREFIX}/rotation-cases/rotation-api-001/decision",
+        headers=_auth("reviewer-token"),
+        json=decision,
+    )
+
+    assert decided.status_code == 200
+    assert decided.json()["data"] == repeated.json()["data"]
+    assert decided.json()["data"]["case"]["status"] == "decided"
+    assert decided.json()["data"]["case"]["caseVersion"] == 3
+    assert decided.json()["data"]["receipt"]["actorRole"] == "reviewer"
+    assert len(repository.lifecycle_service._decision_receipts) == 1
+
+    stale = client.post(
+        f"{API_PREFIX}/rotation-cases/rotation-api-001/decision",
+        headers=_auth("reviewer-token"),
+        json={**decision, "idempotencyKey": "rotation-decision-api-stale"},
+    )
+    forbidden = client.post(
+        f"{API_PREFIX}/rotation-cases/rotation-api-001/decision",
+        headers=_auth("curator-token"),
+        json={**decision, "idempotencyKey": "rotation-decision-api-forbidden"},
+    )
+    assert stale.status_code == 409
+    assert stale.json()["error"] == {
+        "code": "stale_rotation_case",
+        "message": "The rotation case changed before this command.",
+        "details": {
+            "rotationCaseId": "rotation-api-001",
+            "expectedCaseVersion": 2,
+            "actualCaseVersion": 3,
+        },
+    }
+    assert forbidden.status_code == 403
+
+
 def test_audit_events_are_read_only_filtered_projection_and_permission_protected(
     api_client,
 ) -> None:
@@ -1114,6 +1594,7 @@ def test_checked_in_openapi_matches_runtime_paths_roles_and_responses(api_client
             f"{API_PREFIX}/sources",
             f"{API_PREFIX}/processing-runs",
             f"{API_PREFIX}/processing-runs/{{run_id}}",
+            f"{API_PREFIX}/processing-runs/{{run_id}}/chunk-projection",
             (f"{API_PREFIX}/processing-runs/{{run_id}}/steps/{{step_id}}/retry"),
             f"{API_PREFIX}/processing-runs/{{run_id}}/cancel",
             f"{API_PREFIX}/candidates",
@@ -1121,6 +1602,11 @@ def test_checked_in_openapi_matches_runtime_paths_roles_and_responses(api_client
             f"{API_PREFIX}/candidates/{{candidate_id}}/revisions",
             f"{API_PREFIX}/candidates/{{candidate_id}}/author-confirmation",
             f"{API_PREFIX}/knowledge-revisions/{{revision_id}}/review-decision",
+            f"{API_PREFIX}/rotation-cases",
+            f"{API_PREFIX}/rotation-cases/{{rotation_case_id}}",
+            f"{API_PREFIX}/rotation-cases/{{rotation_case_id}}/proposal",
+            f"{API_PREFIX}/rotation-cases/{{rotation_case_id}}/decision",
+            f"{API_PREFIX}/impact-assessments/{{assessment_id}}",
             f"{API_PREFIX}/relations/query",
             f"{API_PREFIX}/audit-events",
             f"{API_PREFIX}/admin/users",
@@ -1186,6 +1672,34 @@ def test_checked_in_openapi_matches_runtime_paths_roles_and_responses(api_client
             client.get(
                 f"{API_PREFIX}/candidates",
                 headers=_auth("admin-token"),
+            ),
+        ),
+        (
+            "RotationCaseCollectionResponse",
+            client.get(
+                f"{API_PREFIX}/rotation-cases",
+                headers=_auth("curator-token"),
+            ),
+        ),
+        (
+            "RotationCaseResponse",
+            client.get(
+                f"{API_PREFIX}/rotation-cases/rotation-api-001",
+                headers=_auth("curator-token"),
+            ),
+        ),
+        (
+            "ImpactAssessmentResponse",
+            client.get(
+                f"{API_PREFIX}/impact-assessments/impact-api-001",
+                headers=_auth("curator-token"),
+            ),
+        ),
+        (
+            "ChunkProjectionResponse",
+            client.get(
+                f"{API_PREFIX}/processing-runs/run-api-001/chunk-projection",
+                headers=_auth("curator-token"),
             ),
         ),
         (

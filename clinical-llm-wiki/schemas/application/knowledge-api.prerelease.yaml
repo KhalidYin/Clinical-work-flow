@@ -3,8 +3,8 @@ info:
   title: Clinical Knowledge Ledger API
   version: knowledge-api.prerelease.v1
   description: >-
-    P12 P2-B1 prerelease contract for governed Source Registry, deterministic processing
-    runs, evidence-backed candidates, two-person governance and Admin identity mapping.
+    P12/P17 prerelease contract for governed Source Registry, deterministic processing
+    runs, evidence-backed candidates, two-person review, rotation governance and Admin identity mapping.
     This contract does not authorize production data or expose Workflow/Agent/Project Memory fields.
 servers:
   - url: /api/prerelease/v1
@@ -408,6 +408,134 @@ paths:
           $ref: "#/components/responses/ConflictError"
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
+  /processing-runs/{run_id}/chunk-projection:
+    get:
+      operationId: getChunkProjection
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: run_id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Materialized Evidence-to-Chunk projection with profile, spans, boundaries and findings.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ChunkProjectionResponse" }
+        "401": { $ref: "#/components/responses/AuthenticationError" }
+        "403": { $ref: "#/components/responses/AuthorizationError" }
+        "404": { $ref: "#/components/responses/NotFoundError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /rotation-cases:
+    get:
+      operationId: listRotationCases
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Rotation cases with backend-owned allowed actions and receipts.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RotationCaseCollectionResponse" }
+        "401": { $ref: "#/components/responses/AuthenticationError" }
+        "403": { $ref: "#/components/responses/AuthorizationError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /rotation-cases/{rotation_case_id}:
+    get:
+      operationId: getRotationCase
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: rotation_case_id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: One canonical rotation case and its immutable receipts.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RotationCaseResponse" }
+        "401": { $ref: "#/components/responses/AuthenticationError" }
+        "403": { $ref: "#/components/responses/AuthorizationError" }
+        "404": { $ref: "#/components/responses/NotFoundError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /rotation-cases/{rotation_case_id}/proposal:
+    post:
+      operationId: proposeRotationCase
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: rotation_case_id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RotationProposalRequest" }
+      responses:
+        "200":
+          description: Curator proposal recorded with version and idempotency protection.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RotationCaseResponse" }
+        "401": { $ref: "#/components/responses/AuthenticationError" }
+        "403": { $ref: "#/components/responses/AuthorizationError" }
+        "404": { $ref: "#/components/responses/NotFoundError" }
+        "409": { $ref: "#/components/responses/ConflictError" }
+        "422": { $ref: "#/components/responses/InvalidSourceError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /rotation-cases/{rotation_case_id}/decision:
+    post:
+      operationId: decideRotationCase
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: rotation_case_id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RotationDecisionRequest" }
+      responses:
+        "200":
+          description: Independent Reviewer decision and immutable receipt.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RotationDecisionResponse" }
+        "401": { $ref: "#/components/responses/AuthenticationError" }
+        "403": { $ref: "#/components/responses/AuthorizationError" }
+        "404": { $ref: "#/components/responses/NotFoundError" }
+        "409": { $ref: "#/components/responses/ConflictError" }
+        "422": { $ref: "#/components/responses/InvalidSourceError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /impact-assessments/{assessment_id}:
+    get:
+      operationId: getImpactAssessment
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: assessment_id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Immutable SourceVersion comparison with seven-class counts and Evidence mappings.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImpactAssessmentResponse" }
+        "401": { $ref: "#/components/responses/AuthenticationError" }
+        "403": { $ref: "#/components/responses/AuthorizationError" }
+        "404": { $ref: "#/components/responses/NotFoundError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
   /relations/query:
     get:
       operationId: queryRelations
@@ -1314,6 +1442,267 @@ components:
         knowledgeRevisionId: { type: string }
         revisionStatus: { enum: [approved, rejected, changes_requested] }
         decisionId: { type: string }
+    RotationProposalRequest:
+      type: object
+      additionalProperties: false
+      required: [expectedCaseVersion, outcome, idempotencyKey]
+      properties:
+        expectedCaseVersion: { type: integer, minimum: 1 }
+        outcome: { enum: [carry_forward, replace, retire, no_action] }
+        targetKnowledgeRevisionId: { type: [string, "null"], maxLength: 160 }
+        idempotencyKey: { type: string, minLength: 8, maxLength: 160 }
+        rationale: { type: [string, "null"], maxLength: 4000 }
+    RotationDecisionRequest:
+      allOf:
+        - $ref: "#/components/schemas/RotationProposalRequest"
+    RotationDecisionReceipt:
+      type: object
+      additionalProperties: false
+      required:
+        - rotationDecisionId
+        - rotationCaseId
+        - outcome
+        - expectedCaseVersion
+        - targetKnowledgeRevisionId
+        - actorId
+        - actorRole
+        - idempotencyKey
+        - rationale
+        - createdAt
+      properties:
+        rotationDecisionId: { type: string }
+        rotationCaseId: { type: string }
+        outcome: { enum: [carry_forward, replace, retire, no_action] }
+        expectedCaseVersion: { type: integer, minimum: 1 }
+        targetKnowledgeRevisionId: { type: [string, "null"] }
+        actorId: { type: string }
+        actorRole: { const: reviewer }
+        idempotencyKey: { type: string }
+        rationale: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+    RotationCase:
+      type: object
+      additionalProperties: false
+      required:
+        - rotationCaseId
+        - impactAssessmentId
+        - knowledgeRevisionId
+        - status
+        - changeTypes
+        - proposedOutcome
+        - proposedTargetKnowledgeRevisionId
+        - proposedByActorId
+        - proposedRationale
+        - caseVersion
+        - includedReleaseId
+        - releasedInReleaseIds
+        - receipts
+        - allowedActions
+        - createdAt
+        - updatedAt
+      properties:
+        rotationCaseId: { type: string }
+        impactAssessmentId: { type: string }
+        knowledgeRevisionId: { type: string }
+        status: { enum: [open, in_review, decided, included_in_release, closed] }
+        changeTypes:
+          type: array
+          items: { enum: [unchanged, moved, modified, added, removed, rights_changed, ambiguous] }
+        proposedOutcome:
+          type: [string, "null"]
+          enum: [carry_forward, replace, retire, no_action, null]
+        proposedTargetKnowledgeRevisionId: { type: [string, "null"] }
+        proposedByActorId: { type: [string, "null"] }
+        proposedRationale: { type: [string, "null"] }
+        caseVersion: { type: integer, minimum: 1 }
+        includedReleaseId: { type: [string, "null"] }
+        releasedInReleaseIds:
+          type: array
+          items: { type: string }
+        receipts:
+          type: array
+          items: { $ref: "#/components/schemas/RotationDecisionReceipt" }
+        allowedActions:
+          type: array
+          items: { enum: [propose, decide] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    RotationCaseCollection:
+      type: object
+      additionalProperties: false
+      required: [items, total, partial, warnings]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/RotationCase" }
+        total: { type: integer, minimum: 0 }
+        partial: { type: boolean }
+        warnings:
+          type: array
+          items: { type: string }
+    RotationDecision:
+      type: object
+      additionalProperties: false
+      required: [case, receipt]
+      properties:
+        case: { $ref: "#/components/schemas/RotationCase" }
+        receipt: { $ref: "#/components/schemas/RotationDecisionReceipt" }
+    EvidenceChangeCounts:
+      type: object
+      additionalProperties: false
+      required: [unchanged, moved, modified, added, removed, rights_changed, ambiguous]
+      properties:
+        unchanged: { type: integer, minimum: 0 }
+        moved: { type: integer, minimum: 0 }
+        modified: { type: integer, minimum: 0 }
+        added: { type: integer, minimum: 0 }
+        removed: { type: integer, minimum: 0 }
+        rights_changed: { type: integer, minimum: 0 }
+        ambiguous: { type: integer, minimum: 0 }
+    EvidenceImpact:
+      type: object
+      additionalProperties: false
+      required:
+        - evidenceImpactId
+        - changeType
+        - fromEvidenceId
+        - toEvidenceId
+        - mappingBasis
+        - details
+      properties:
+        evidenceImpactId: { type: string }
+        changeType: { enum: [unchanged, moved, modified, added, removed, rights_changed, ambiguous] }
+        fromEvidenceId: { type: [string, "null"] }
+        toEvidenceId: { type: [string, "null"] }
+        mappingBasis: { enum: [content_exact, locator_exact, ordered_alignment, unmatched, ambiguous] }
+        details: { type: object }
+    ImpactAssessment:
+      type: object
+      additionalProperties: false
+      required:
+        - assessmentId
+        - fromSourceVersionId
+        - toSourceVersionId
+        - comparisonProfileVersion
+        - changeCounts
+        - impacts
+        - createdAt
+      properties:
+        assessmentId: { type: string }
+        fromSourceVersionId: { type: string }
+        toSourceVersionId: { type: string }
+        comparisonProfileVersion: { type: string }
+        changeCounts: { $ref: "#/components/schemas/EvidenceChangeCounts" }
+        impacts:
+          type: array
+          items: { $ref: "#/components/schemas/EvidenceImpact" }
+        createdAt: { type: string, format: date-time }
+    ChunkProfile:
+      type: object
+      additionalProperties: false
+      required:
+        - chunkProfileId
+        - version
+        - tokenizerId
+        - targetMinTokens
+        - targetMaxTokens
+        - hardMaxTokens
+        - overlapTokens
+        - tableHardMaxTokens
+        - formatRules
+      properties:
+        chunkProfileId: { type: string }
+        version: { type: string }
+        tokenizerId: { type: string }
+        targetMinTokens: { type: integer, minimum: 1 }
+        targetMaxTokens: { type: integer, minimum: 1 }
+        hardMaxTokens: { type: integer, minimum: 1 }
+        overlapTokens: { type: integer, minimum: 0 }
+        tableHardMaxTokens: { type: integer, minimum: 1 }
+        formatRules: { type: object }
+    ChunkEvidence:
+      type: object
+      additionalProperties: false
+      required:
+        - evidenceId
+        - sourceVersionId
+        - sourceArtifactId
+        - evidenceType
+        - locator
+        - content
+        - contentSha256
+      properties:
+        evidenceId: { type: string }
+        sourceVersionId: { type: string }
+        sourceArtifactId: { type: string }
+        evidenceType: { type: string }
+        locator: { type: object }
+        content: { type: string }
+        contentSha256: { type: string, pattern: "^[0-9a-f]{64}$" }
+    ChunkSpan:
+      type: object
+      additionalProperties: false
+      required: [evidenceId, position, startOffset, endOffset, spanRole]
+      properties:
+        evidenceId: { type: string }
+        position: { type: integer, minimum: 0 }
+        startOffset: { type: integer, minimum: 0 }
+        endOffset: { type: integer, minimum: 1 }
+        spanRole: { enum: [primary, overlap] }
+    RetrievalChunk:
+      type: object
+      additionalProperties: false
+      required:
+        - chunkId
+        - ordinal
+        - evidenceType
+        - content
+        - contentSha256
+        - tokenCount
+        - locator
+        - dataBoundary
+        - rights
+        - spans
+      properties:
+        chunkId: { type: string }
+        ordinal: { type: integer, minimum: 0 }
+        evidenceType: { type: string }
+        content: { type: string }
+        contentSha256: { type: string, pattern: "^[0-9a-f]{64}$" }
+        tokenCount: { type: integer, minimum: 1 }
+        locator: { type: object }
+        dataBoundary: { enum: [local_processing_only, enterprise_provider_only, external_allowed, prohibited] }
+        rights: { type: object }
+        spans:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/ChunkSpan" }
+    ChunkProjectionFinding:
+      type: object
+      additionalProperties: false
+      required: [findingId, evidenceId, findingType, details]
+      properties:
+        findingId: { type: string }
+        evidenceId: { type: [string, "null"] }
+        findingType: { enum: [empty, duplicate, boilerplate, oversize, boundary_violation] }
+        details: { type: object }
+    ChunkProjection:
+      type: object
+      additionalProperties: false
+      required: [runId, sourceVersionId, chunkProfile, evidence, chunks, findings]
+      properties:
+        runId: { type: string }
+        sourceVersionId: { type: string }
+        chunkProfile: { $ref: "#/components/schemas/ChunkProfile" }
+        evidence:
+          type: array
+          items: { $ref: "#/components/schemas/ChunkEvidence" }
+        chunks:
+          type: array
+          items: { $ref: "#/components/schemas/RetrievalChunk" }
+        findings:
+          type: array
+          items: { $ref: "#/components/schemas/ChunkProjectionFinding" }
     Retry:
       type: object
       additionalProperties: false
@@ -1623,6 +2012,36 @@ components:
         - type: object
           properties:
             data: { $ref: "#/components/schemas/ReviewDecision" }
+    RotationCaseResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/RotationCase" }
+    RotationCaseCollectionResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/RotationCaseCollection" }
+    RotationDecisionResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/RotationDecision" }
+    ImpactAssessmentResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/ImpactAssessment" }
+    ChunkProjectionResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/ChunkProjection" }
     RetryResponse:
       allOf:
         - $ref: "#/components/schemas/Envelope"
@@ -1705,9 +2124,13 @@ components:
                 - invalid_governance_transition
                 - stale_revision
                 - duplicate_decision
+                - rotation_case_not_found
+                - stale_rotation_case
+                - invalid_rotation_transition
                 - invalid_request
                 - model_profile_conflict
             message: { type: string }
+            details: { type: object }
         meta: { $ref: "#/components/schemas/ResponseMeta" }
     Envelope:
       type: object

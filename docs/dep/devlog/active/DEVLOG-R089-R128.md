@@ -1888,3 +1888,161 @@ Done — no next steps。
 - `harness-runtime/poc/openai_mock/` 与 Mock tests
 - `clinical-llm-wiki/service/processing/`、`scripts/harness_poc_failure_matrix.py`、Compose 与 tests
 - `USAGE.md`、canonical Test、P12/PLAN/TASK_STATE、DevLog/INDEX（pending phase commit）
+
+---
+
+### R126 [11:22] [P17-knowledge-lifecycle-retrieval-poc] P1-A: Chunk/轮转 schema 与领域合同
+
+#### Done
+
+- 将 P17 从 backlog 移入 ongoing，把 P1 标记为 `in-progress`；P12 P2-B3 live Gate 转为
+  `waiting/frozen`，P17 成为唯一修改检索、Evaluation 与 Release 合同的实施主线。
+- 按 TDD 新增 Alembic `20260816_0011`、八张 P17 最小表及 ORM：ChunkProfile、RetrievalChunk、
+  有序 Chunk↔Evidence 映射、projection finding、ImpactAssessment/EvidenceImpact、RotationCase 和
+  不可变 RotationDecisionReceipt；复用既有 Evidence、KnowledgeRevision 与 Release 外键。
+- 新增严格领域合同：400/700/900/80/1200 token 边界、七类 Evidence 变化、四种轮转结果、精简状态机、
+  Reviewer-only receipt、target shape 和确定性 Chunk ID。新增完整性 hash 仅为 Chunk `content_sha256`，
+  未引入 profile/rule/receipt hash 树。
+- 真实 PostgreSQL 首轮迁移发现新回执约束复用了既有 `actor_idempotency` 名称；先补失败测试，再改为
+  `rotation_actor_idempotency`，确认临时空库迁移闭环通过并自动清理容器。
+
+#### Issues / Risks
+
+- P1 尚未完成：当前只有 schema 与纯领域合同，没有 prerelease API/repository/RBAC/幂等/stale 接线，
+  因此这些对象还不能由产品页面或 Worker 创建、读取或推进。
+- Chunk 不跨边界、权限保守继承与 excluded finding 目前只是 schema 可承载；必须由后续 projection service
+  的正反测试执行，不能把数据库表存在误报为切块能力完成。
+- RotationCase 的 append-only receipt、released immutability 和并发版本检查尚未进入真实 repository 事务；
+  P1-B 必须在 PostgreSQL 下证明重复请求与 stale 请求不会产生第二份决定或回写已发布对象。
+
+#### Validation
+
+- RED：数据库合同先 `4 failed`，领域合同先 `6 failed`；PostgreSQL 命名冲突回归合同先 `1 failed`。
+- GREEN：数据库+领域定向 `18 passed`；修复后的命名回归 `1 passed`；Knowledge 全量
+  `241 passed, 8 skipped`；Ruff 全通过。
+- 临时 `pgvector/pgvector:0.8.1-pg17` 空库执行 `upgrade → alembic check → downgrade → upgrade →
+  alembic check`，`1 passed`；容器已自动移除。未下载 E9、未调用 Harness/模型、未发生供应商出站。
+
+#### Next
+
+1. P1-B 先写 prerelease API/RBAC 失败测试，冻结 SourceVersion comparison、Chunk inspector、
+   RotationCase 与 DecisionReceipt payload 及错误 envelope。
+2. 以 repository 事务实现 `expected_case_version`、Reviewer-only、actor+idempotency key 和单 case 单 receipt；
+   重复请求返回原 receipt，stale 请求返回 409 并附权威 case version。
+3. 风险是把 API 骨架顺手扩成检索排序、E9 下载或 Release 发布；这些均留在 P2/P3，不得进入 P1-B。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/service/db/models.py`、`service/db/migrations/versions/20260816_0011_knowledge_lifecycle_retrieval.py`
+- `clinical-llm-wiki/service/knowledge/lifecycle.py`、`service/knowledge/__init__.py`
+- `clinical-llm-wiki/tests/test_database_contract.py`、`tests/test_knowledge_lifecycle_contract.py`
+- `docs/dep/PLAN.md`、`TASK_STATE.md`、P17、DevLog/INDEX（P1 phase commit pending）
+
+---
+
+### R127 [11:42] [P17-knowledge-lifecycle-retrieval-poc] P1-B: 轮转 API 与事务治理
+
+#### Done
+
+- 扩展 prerelease OpenAPI/FastAPI 合同，新增 RotationCase collection/detail、Curator proposal 和
+  Reviewer decision 四个端点；payload 返回 change types、released membership、case version、不可变
+  receipts 与后端计算的 `allowedActions`，前端无需自行推断权限或状态。
+- 复用现有 `candidate:write` 与 `review:decide`，并在 HTTP dependency 和 PostgreSQL adapter 双层校验
+  Knowledge Curator/Reviewer 角色；proposal 进入 `in_review`，decision 进入 `decided`，两者各自递增
+  `case_version`。
+- 实现 actor+idempotency key 重放：相同事实返回原 case/receipt，不生成第二份记录；同键不同事实拒绝；
+  不同键旧 `expectedCaseVersion` 返回 409，错误详情包含 case ID、期望版本和当前权威版本。
+- 补齐 P1-A 暴露的 proposal 治理证据缺口：RotationCase 持久化 target revision、idempotency key、理由及
+  shape/unique 约束。真实事务只追加 DecisionReceipt/AuditEvent，不回写 released KnowledgeRevision/Release。
+
+#### Issues / Risks
+
+- P1 尚未关闭：SourceVersion comparison、Chunk inspector 与 Evidence→Chunk projection/boundary 执行仍未
+  实现；当前 RotationCase 需由受控 fixture/后续 comparison step 预先创建。
+- `allowedActions` 目前只声明已实现的 `propose/decide`；P3 的 include-in-release/close 不提前暴露，避免
+  出现 UI 可见但后端不存在的动作。
+- 当前幂等唯一约束覆盖单库事务；未来若把 lifecycle 写入拆到远程服务，必须保留数据库唯一性与 case row
+  lock 语义，不能仅依赖 HTTP 重试缓存。
+
+#### Validation
+
+- RED：显式 lifecycle port 先 `1 failed`；三条 rotation HTTP 行为先以 404 `3 failed`；proposal 持久化
+  字段合同先 `1 failed`；真实 PostgreSQL repository 缺失先 `1 failed`；stale 权威版本详情先 `1 failed`。
+- GREEN：Platform API/密码会话 `31 passed`，Ruff 定向全通过；OpenAPI runtime paths 与签入 YAML、
+  RotationCase response JSON Schema 一致。
+- 临时 PostgreSQL 空库同时执行可逆 migration/schema drift 与轮转事务验收，`2 passed`：proposal/decision
+  重放各只保留一份事实，stale 拒绝，DecisionReceipt 1、AuditEvent 2，released Revision/Release 状态不变；
+  容器已自动移除。未下载 E9、未调用 Harness/模型、未发生供应商出站。
+- Knowledge 全量回归 `245 passed, 9 skipped`；`python -m ruff check service tests` 与 `git diff --check`
+  通过，且 P17 临时 PostgreSQL 容器不存在。
+
+#### Next
+
+1. P1-C 先写 SourceVersion comparison 与 Chunk inspector API payload 失败测试。
+2. 实现确定性 Evidence→RetrievalChunk projection：同输入 ID/顺序/hash 一致，不跨 SourceVersion、章节、
+   表格、Evidence type 或权限/数据边界；oversize 保留 parent span，排除项形成 finding。
+3. 风险是为 P1-C 顺手加入 FTS/ranking 或下载 E9；这些属于 P2，必须在 P1 Phase Gate 后开始。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/service/platform_api/`、`schemas/application/knowledge-api.prerelease.yaml`
+- `clinical-llm-wiki/service/db/models.py`、`service/db/migrations/versions/20260816_0011_knowledge_lifecycle_retrieval.py`
+- `clinical-llm-wiki/service/knowledge/lifecycle.py` 与定向/API/PostgreSQL 测试
+- `docs/dep/TASK_STATE.md`、P17、DevLog/INDEX（P1 phase commit pending）
+
+---
+
+### R128 [11:59] [P17-knowledge-lifecycle-retrieval-poc] P1-C: 确定性 Chunk 与 comparison inspector
+
+#### Done
+
+- 以 RED→GREEN 新增纯确定性 Evidence→RetrievalChunk 投影合同：固定 ID、全局顺序、content hash、
+  有序 primary/overlap span，并对 SourceVersion、source artifact、主章节、表格、Evidence type、data
+  boundary 和 rights 分界；输出权限精确继承父 Evidence，满足“等于或更严”。
+- oversize prose 保留父 Evidence ID 和精确字符区间；空白、重复、boilerplate、oversize 及不可拆的
+  超限表格均形成稳定 finding，不静默丢弃。新增数据库字段仅为 Chunk 的 `data_boundary/rights`，新增
+  完整性 hash 仍只有既定 `content_sha256`。
+- 新增确定性 SourceVersion comparison：exact content/locator/rights 生成 unchanged/moved/modified/
+  rights_changed，未匹配项生成 added/removed，多对多 content/locator 对齐生成 ambiguous 映射；不写回
+  SourceVersion、Evidence、KnowledgeRevision 或 Release。
+- 新增只读 `GET /impact-assessments/{assessment_id}` 与
+  `GET /processing-runs/{run_id}/chunk-projection`，冻结 changeCounts、Evidence mapping、Profile、Chunk、
+  span、rights/boundary 与 finding payload；OpenAPI 与 runtime schema 一致。
+- P1 六项完成标准全部关闭，canonical Guide/Spec/Test Guide 已同步；PLAN 转到 P2 next。
+
+#### Issues / Risks
+
+- 当前投影是 P1 纯领域能力，尚未由 Document Worker 物化；inspector 只读取已存在数据库事实。P2 接线
+  前不得把 API 200 或测试 fixture 误报为 E9 已切块。
+- `whitespace-v1` 只用于小型确定性合同测试；P2 必须冻结实际 tokenizer ID/version 并以同一 Profile
+  重放，不能把字符近似或模型估算冒充 token 证据。
+- comparison 当前以 content/locator/rights 事实生成基础分类；真实 comparison materialization 和人工
+  RotationCase 创建仍在后续 Phase，且不能自动批准 carry-forward 或发布。
+- lifecycle 事务与 inspector 查询暂集中在 platform repository adapter，适合最小 POC；若 P2/P3 继续
+  增长，需抽取 application service，避免业务规则向 HTTP adapter 扩散。
+
+#### Validation
+
+- Projection RED：缺少合同先 `3 failed`；五类边界组合先 `5 failed`；数据库 rights/boundary 字段先
+  `1 failed`。API RED：comparison 与 inspector 先以 404 `2 failed`；签入 OpenAPI 路径先 `1 failed`。
+- GREEN：投影/数据库定向 `9 passed`；Platform API `26 passed`；相关汇总 `46 passed, 1 skipped`；
+  Knowledge 全量 `255 passed, 9 skipped`，Ruff 全通过。
+- 临时 `pgvector/pgvector:0.8.1-pg17` 空库执行可逆 migration/schema drift 与 lifecycle repository
+  integration，`2 passed`；真实读取 comparison、Profile/Chunk/span/finding，并复验轮转幂等/stale、
+  append-only receipt 与 released immutability。容器已自动移除。
+- 未下载 E9、未创建 embedding、未调用 Harness/模型、未实现 ranking/Evaluation/Release/frontend，
+  P1 边界无越界。
+
+#### Next
+
+1. 按 P1 Phase Gate 提交并推送远端；确认分支与远端 commit 一致后再创建 P2 TASK_STATE。
+2. P2 先冻结 ICH 官方 E9 下载登记、Git ignore/许可边界和可重复 tokenizer/profile，再以合成 fixture
+   写 Document Worker→Chunk 物化失败测试。
+3. 风险是把 E9 原始 PDF 提交 Git、把单文档 Recall 当临床认证，或在没有 embedding endpoint 时伪造
+   vector score；P2 必须分别以忽略策略、报告声明和 capability degraded Gate 阻断。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/service/knowledge/`、`service/db/`、`service/platform_api/`、签入 OpenAPI 与 tests
+- `docs/main/PROJECT_GUIDE.md`、`PROJECT_SPEC.md`、`TEST_GUIDE.md`
+- P17/PLAN、DevLog/INDEX、TASK_STATE（P1 phase commit pending）

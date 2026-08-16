@@ -40,8 +40,12 @@ def test_canonical_metadata_owns_the_p2a_database_tables() -> None:
         "browser_sessions",
         "candidate_evidence",
         "candidate_relation_proposals",
+        "chunk_profiles",
+        "chunk_projection_findings",
         "evidence",
+        "evidence_impacts",
         "evaluation_runs",
+        "impact_assessments",
         "index_manifests",
         "job_steps",
         "knowledge_candidates",
@@ -57,8 +61,12 @@ def test_canonical_metadata_owns_the_p2a_database_tables() -> None:
         "release_items",
         "releases",
         "relation_proposal_evidence",
+        "retrieval_chunk_evidence",
+        "retrieval_chunks",
         "review_decisions",
         "role_bindings",
+        "rotation_cases",
+        "rotation_decision_receipts",
         "service_accounts",
         "source_artifacts",
         "source_versions",
@@ -150,6 +158,115 @@ def test_p2b1_governance_tables_preserve_revision_and_decision_identity() -> Non
         "proposal_id",
         "evidence_id",
     }
+
+
+def test_p17_lifecycle_tables_keep_chunks_derived_and_decisions_structured() -> None:
+    expected_tables = {
+        "chunk_profiles",
+        "retrieval_chunks",
+        "retrieval_chunk_evidence",
+        "chunk_projection_findings",
+        "impact_assessments",
+        "evidence_impacts",
+        "rotation_cases",
+        "rotation_decision_receipts",
+    }
+    assert expected_tables <= set(Base.metadata.tables)
+
+    assert {
+        "chunk_profile_id",
+        "version",
+        "tokenizer_id",
+        "target_min_tokens",
+        "target_max_tokens",
+        "hard_max_tokens",
+        "overlap_tokens",
+        "table_hard_max_tokens",
+        "format_rules",
+    } <= set(Base.metadata.tables["chunk_profiles"].columns.keys())
+    assert {
+        "chunk_id",
+        "chunk_profile_id",
+        "source_version_id",
+        "evidence_type",
+        "ordinal",
+        "content",
+        "content_sha256",
+        "token_count",
+        "locator",
+        "data_boundary",
+        "rights",
+    } <= set(Base.metadata.tables["retrieval_chunks"].columns.keys())
+    assert {
+        "chunk_id",
+        "position",
+        "evidence_id",
+        "start_offset",
+        "end_offset",
+        "span_role",
+    } == set(Base.metadata.tables["retrieval_chunk_evidence"].columns.keys())
+    assert {
+        "assessment_id",
+        "from_source_version_id",
+        "to_source_version_id",
+        "comparison_profile_version",
+    } <= set(Base.metadata.tables["impact_assessments"].columns.keys())
+    assert {
+        "evidence_impact_id",
+        "assessment_id",
+        "change_type",
+        "from_evidence_id",
+        "to_evidence_id",
+        "mapping_basis",
+        "details",
+    } <= set(Base.metadata.tables["evidence_impacts"].columns.keys())
+    assert {
+        "rotation_case_id",
+        "impact_assessment_id",
+        "knowledge_revision_id",
+        "status",
+        "proposed_outcome",
+        "proposed_target_knowledge_revision_id",
+        "proposed_by_actor_id",
+        "proposal_idempotency_key",
+        "proposed_rationale",
+        "case_version",
+    } <= set(Base.metadata.tables["rotation_cases"].columns.keys())
+    rotation_case_constraint_names = {
+        constraint.name
+        for constraint in Base.metadata.tables["rotation_cases"].constraints
+        if constraint.name is not None
+    }
+    assert "rotation_proposal_actor_idempotency" in rotation_case_constraint_names
+    assert {
+        "rotation_decision_id",
+        "rotation_case_id",
+        "outcome",
+        "expected_case_version",
+        "target_knowledge_revision_id",
+        "actor_id",
+        "actor_role",
+        "idempotency_key",
+        "rationale",
+    } <= set(Base.metadata.tables["rotation_decision_receipts"].columns.keys())
+
+    rotation_constraint_names = {
+        constraint.name
+        for constraint in Base.metadata.tables["rotation_decision_receipts"].constraints
+        if constraint.name is not None
+    }
+    assert "rotation_actor_idempotency" in rotation_constraint_names
+    assert "actor_idempotency" not in rotation_constraint_names
+
+    all_columns = {
+        column.name for table in expected_tables for column in Base.metadata.tables[table].columns
+    }
+    assert {
+        "profile_sha256",
+        "rules_sha256",
+        "locator_sha256",
+        "receipt_sha256",
+    }.isdisjoint(all_columns)
 
 
 def test_canonical_schema_keeps_secrets_paths_and_other_products_out() -> None:
@@ -299,8 +416,8 @@ def test_alembic_has_linear_reviewable_revisions(monkeypatch: pytest.MonkeyPatch
     assert script.get_heads() == [script.get_current_head()]
     head = script.get_revision(script.get_current_head())
     assert head is not None
-    assert head.revision == "20260809_0010"
-    assert head.down_revision == "20260805_0009"
+    assert head.revision == "20260816_0011"
+    assert head.down_revision == "20260809_0010"
     initial = script.get_revision("20260730_0001")
     assert initial is not None
     assert initial.down_revision is None
@@ -336,6 +453,7 @@ def test_linear_revision_columns_match_canonical_metadata(
         "20260801_0008",
         "20260805_0009",
         "20260809_0010",
+        "20260816_0011",
     ]
 
     class MigrationRecorder:
