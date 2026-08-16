@@ -312,3 +312,42 @@
 - demo runtime epoch、README/USAGE、canonical Guide/Spec/Test、P17/PLAN/TASK_STATE、DevLog/INDEX（本阶段提交）
 
 ---
+
+## 2026-08-16
+
+### R137 [22:11] [P17-knowledge-lifecycle-retrieval-poc] P4-C: Chunk Inspector and Rotation Queue
+
+#### Done
+
+- Processing 接入既有 chunk projection API；`run/evidence/chunk` URL 可恢复，Evidence 与 Chunk 双向定位，只读展示 Profile、token、span、overlap、locator、rights/data boundary 与 finding，不产生新的 canonical 状态。
+- Candidates 保留普通候选视图并新增 Rotation Queue；`view/status/case` 可恢复，列表、详情、Author proposal、Reviewer decision 与唯一 DecisionReceipt 均消费服务端权威字段。
+- 可见操作只来自 `allowedActions`，proposal/decision 携带服务端 case version 与唯一幂等键；`stale_rotation_case` 显示冲突并刷新 canonical Case，浏览器不自行推导角色权限或 eligibility。
+- 新增 3 条组件行为测试；同时将 Candidate 默认选择改为 render-time 派生，避免额外请求瀑布，并将异步测试上限收敛为 3 秒以稳定全量并行 MSW 测试。
+
+#### Issues / Risks
+
+- UI-01 的 SourceVersion history、比较启动/list 与 impact summary 仍缺后端 read model；现有领域 comparison 能力不能直接冒充完整页面合同。
+- UI-07 lifecycle lineage projection 尚未实现；UI-08 仍缺 entity/case/release 精确过滤与权威对象跳转。二者不得由前端拼接成第三套状态。
+- 当前 Compose 管理员密码已被人工修改；bootstrap 正确不覆盖。未擅自重置密码，所以认证真实浏览器跨页与 390px 验收仍待有效登录态，P17-UI-02/03 清单保持未勾选。
+- semantic index 未配置，健康接口按合同为 degraded；vector/relation 不伪造可用性。真实模型仍未配置或调用。
+
+#### Validation
+
+- TDD RED：新增 3 条 lifecycle governance 测试初始因缺少 Chunk Inspector 与 Rotation Queue 行为而失败；GREEN 后定向 `3 passed`。
+- 前端全量 `11 passed` files / `45 passed` tests，production build 通过（427 modules）；Knowledge `308 passed, 12 skipped`，Ruff 通过；Clinical Workflow `366 passed, 1 skipped`。
+- 显式 `clinical-knowledge-demo` Compose 因 8788/4173 已由既有默认项目占用而无法并存；只清理本轮新建的 partial project、未删除 volume，随后对实际默认项目执行 rebuild/`--wait` 成功。
+- 默认 Compose 的 API/PostgreSQL/frontend/Document Worker/Enrichment Worker 正常，migration/bootstrap/admin-bootstrap 退出 0；API health 仅因 semantic index disabled 返回预期 degraded，前端入口 HTTP 200。
+- `git diff --check` 通过，仅有仓库既有 Windows 换行提示；原始 E9 PDF 保持 ignored，未配置或调用模型，未发生外部模型请求。
+
+#### Next
+
+1. 从 UI-01 后端合同 RED 开始，补 SourceVersion history、comparison start/list 与 impact summary，再接 Sources 页面 URL/状态。
+2. 实现 lifecycle lineage projection，并补 Audit 的 entity/case/release 过滤和权威对象跳转。
+3. 取得有效人员登录态后关闭真实浏览器/390px Gate；风险是误把组件测试当浏览器验收，或为方便测试覆盖真实管理员密码。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/frontend/src/pages/ProcessingPage.tsx`、`CandidatesPage.tsx`、`RotationQueue.tsx`、contracts/router 与 lifecycle governance tests
+- canonical Guide/Spec/Test、P17/PLAN/TASK_STATE、DevLog/INDEX（P4-C phase commit）
+
+---

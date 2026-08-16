@@ -408,6 +408,14 @@ syncs_to:
 - 既有 Compose demo ledger 的旧四步图与当前五步图不兼容时，ledger 正确拒绝覆盖；本地 demo 通过提升 SourceVersion 到 `1.1.0` 与新幂等键启动新 epoch，保留旧 run 不变。
 - 组件/合同测试已覆盖启动权限、immutable scope、回归分类和候选重放；真实浏览器/390px 仍待有效人员登录态，因此 P17-UI-05 与 P4 Phase 完成项保持未勾选。
 
+### P4-C Lifecycle governance workbenches 结果（2026-08-16）
+
+- Processing 接入既有 chunk projection API，`run/evidence/chunk` 可由 URL 恢复并双向定位；只读 Inspector 原样展示 Profile、target/hard limit、overlap、Evidence/Chunk、token、locator、rights/data boundary、span 与 finding，不提供直接编辑 Chunk 的入口。
+- Candidates 保留普通 Candidate workbench，并增加 Rotation Queue 的 `view/status/case` URL、列表/详情、Author proposal 和 Reviewer decision。可见动作、eligible outcome、case version 与 receipt 均来自服务端；客户端只提交命令，不自行推导权限或轮转 eligibility。
+- proposal/decision 使用唯一幂等键；成功后刷新权威 Case，`stale_rotation_case` 明确提示并重新读取 canonical detail，每个决定展示唯一 DecisionReceipt。
+- 新增 3 条组件行为测试，覆盖 Chunk 双向定位、allowed-action 精确 payload、stale 刷新与 receipt；前端全量 `45 passed`、production build，Knowledge `308 passed, 12 skipped`、Ruff，Workflow `366 passed, 1 skipped` 与默认 Compose rebuild/health Gate 通过，未配置或调用模型。
+- 有效人员登录态尚不可用，未重置现有管理员密码，因此 P17-UI-02/03 的真实浏览器与 390px 验收未关闭，清单保持未勾选。UI-01 SourceVersion 比较及 UI-07/08 生命周期谱系/审计仍缺后端 read model，是下一切片。
+
 ### 边界（本 Phase 明确不做）
 
 - 不新增一级页面或重做设计系统，不引入无关动画、图表或 dashboard。

@@ -13,6 +13,7 @@ export const API_PATHS = {
   sources: "/api/prerelease/v1/sources",
   processingRuns: "/api/prerelease/v1/processing-runs",
   candidates: "/api/prerelease/v1/candidates",
+  rotationCases: "/api/prerelease/v1/rotation-cases",
   knowledgeRevisions: "/api/prerelease/v1/knowledge-revisions",
   relationQuery: "/api/prerelease/v1/relations/query",
   auditEvents: "/api/prerelease/v1/audit-events",
@@ -20,6 +21,22 @@ export const API_PATHS = {
   adminServiceAccounts: "/api/prerelease/v1/admin/service-accounts",
   adminModelProfiles: "/api/prerelease/v1/admin/model-profiles",
 } as const;
+
+export function chunkProjectionPath(runId: string): string {
+  return `${API_PATHS.processingRuns}/${encodeURIComponent(runId)}/chunk-projection`;
+}
+
+export function rotationCasePath(rotationCaseId: string): string {
+  return `${API_PATHS.rotationCases}/${encodeURIComponent(rotationCaseId)}`;
+}
+
+export function rotationProposalPath(rotationCaseId: string): string {
+  return `${rotationCasePath(rotationCaseId)}/proposal`;
+}
+
+export function rotationDecisionPath(rotationCaseId: string): string {
+  return `${rotationCasePath(rotationCaseId)}/decision`;
+}
 
 export function resolveApiPath(path: string): string {
   return new URL(path, window.location.origin).toString();
@@ -491,6 +508,139 @@ export interface ProcessingRunCollection {
   warnings: string[];
 }
 
+export interface ChunkProfile {
+  chunkProfileId: string;
+  version: string;
+  tokenizerId: string;
+  targetMinTokens: number;
+  targetMaxTokens: number;
+  hardMaxTokens: number;
+  overlapTokens: number;
+  tableHardMaxTokens: number;
+  formatRules: Record<string, unknown>;
+}
+
+export interface ChunkEvidence {
+  evidenceId: string;
+  sourceVersionId: string;
+  sourceArtifactId: string;
+  evidenceType: string;
+  locator: Record<string, unknown>;
+  content: string;
+  contentSha256: string;
+}
+
+export interface ChunkSpan {
+  evidenceId: string;
+  position: number;
+  startOffset: number;
+  endOffset: number;
+  spanRole: "primary" | "overlap";
+}
+
+export interface RetrievalChunk {
+  chunkId: string;
+  ordinal: number;
+  evidenceType: string;
+  content: string;
+  contentSha256: string;
+  tokenCount: number;
+  locator: Record<string, unknown>;
+  dataBoundary:
+    | "local_processing_only"
+    | "enterprise_provider_only"
+    | "external_allowed"
+    | "prohibited";
+  rights: Record<string, unknown>;
+  spans: ChunkSpan[];
+}
+
+export interface ChunkProjectionFinding {
+  findingId: string;
+  evidenceId: string | null;
+  findingType:
+    | "empty"
+    | "duplicate"
+    | "boilerplate"
+    | "oversize"
+    | "boundary_violation";
+  details: Record<string, unknown>;
+}
+
+export interface ChunkProjection {
+  runId: string;
+  sourceVersionId: string;
+  chunkProfile: ChunkProfile;
+  evidence: ChunkEvidence[];
+  chunks: RetrievalChunk[];
+  findings: ChunkProjectionFinding[];
+}
+
+export type RotationOutcome = "carry_forward" | "replace" | "retire" | "no_action";
+export type RotationCaseStatus =
+  | "open"
+  | "in_review"
+  | "decided"
+  | "included_in_release"
+  | "closed";
+
+export interface RotationDecisionReceipt {
+  rotationDecisionId: string;
+  rotationCaseId: string;
+  outcome: RotationOutcome;
+  expectedCaseVersion: number;
+  targetKnowledgeRevisionId: string | null;
+  actorId: string;
+  actorRole: "reviewer";
+  idempotencyKey: string;
+  rationale: string | null;
+  createdAt: string;
+}
+
+export interface RotationCase {
+  rotationCaseId: string;
+  impactAssessmentId: string;
+  knowledgeRevisionId: string;
+  status: RotationCaseStatus;
+  changeTypes: Array<
+    "unchanged" | "moved" | "modified" | "added" | "removed" | "rights_changed" | "ambiguous"
+  >;
+  eligibleOutcomes: RotationOutcome[];
+  proposedOutcome: RotationOutcome | null;
+  proposedTargetKnowledgeRevisionId: string | null;
+  proposedByActorId: string | null;
+  proposedRationale: string | null;
+  caseVersion: number;
+  includedReleaseId: string | null;
+  releasedInReleaseIds: string[];
+  receipts: RotationDecisionReceipt[];
+  allowedActions: Array<"propose" | "decide">;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RotationCaseCollection {
+  items: RotationCase[];
+  total: number;
+  partial: boolean;
+  warnings: string[];
+}
+
+export interface RotationProposalRequest {
+  expectedCaseVersion: number;
+  outcome: RotationOutcome;
+  targetKnowledgeRevisionId: string | null;
+  idempotencyKey: string;
+  rationale: string | null;
+}
+
+export type RotationDecisionRequest = RotationProposalRequest;
+
+export interface RotationDecision {
+  case: RotationCase;
+  receipt: RotationDecisionReceipt;
+}
+
 export type CandidateStatus =
   | "author_confirmation_required"
   | "author_confirmed"
@@ -715,11 +865,16 @@ export type ApiErrorCode =
   | "invalid_source"
   | "unsupported_media"
   | "run_not_found"
+  | "chunk_projection_not_found"
   | "retry_not_allowed"
   | "candidate_not_found"
   | "invalid_governance_transition"
   | "stale_revision"
   | "duplicate_decision"
+  | "rotation_case_not_found"
+  | "impact_assessment_not_found"
+  | "stale_rotation_case"
+  | "invalid_rotation_transition"
   | "evaluation_run_not_found"
   | "evaluation_run_invalid"
   | "evaluation_suite_not_found"

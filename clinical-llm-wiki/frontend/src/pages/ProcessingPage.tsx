@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getJson, postAction } from "../api/client";
 import {
   API_PATHS,
+  chunkProjectionPath,
+  type ChunkProjection,
   type CancelReceipt,
   type ProcessingRun,
   type ProcessingRunCollection,
@@ -16,7 +18,19 @@ import styles from "./pages.module.css";
 
 const ACTIVE_STATUSES = new Set(["queued", "processing"]);
 
-export function ProcessingPage() {
+interface ProcessingSearch {
+  run: string;
+  evidence: string;
+  chunk: string;
+}
+
+export function ProcessingPage({
+  search = { run: "", evidence: "", chunk: "" },
+  onSearchChange = () => undefined,
+}: {
+  search?: ProcessingSearch;
+  onSearchChange?: (patch: Partial<ProcessingSearch>) => void;
+}) {
   useDocumentTitle("处理任务");
   const queryClient = useQueryClient();
   const [pendingAction, setPendingAction] = useState<{
@@ -54,6 +68,12 @@ export function ProcessingPage() {
   });
 
   const items = runs.data?.data.items ?? [];
+  const projection = useQuery({
+    queryKey: ["chunk-projection", search.run],
+    queryFn: ({ signal }) =>
+      getJson<ChunkProjection>(chunkProjectionPath(search.run), signal),
+    enabled: Boolean(search.run),
+  });
 
   return (
     <section className={styles.page} aria-labelledby="processing-title">
@@ -114,9 +134,22 @@ export function ProcessingPage() {
               }}
               pendingRunId={pendingAction?.runId ?? null}
               pendingStepId={pendingAction?.stepId ?? null}
+              onInspect={() =>
+                onSearchChange({ run: run.runId, evidence: "", chunk: "" })
+              }
             />
           ))}
         </div>
+      ) : null}
+      {search.run ? (
+        <ChunkInspector
+          projection={projection.data?.data}
+          isPending={projection.isPending}
+          isError={projection.isError}
+          selectedEvidenceId={search.evidence}
+          selectedChunkId={search.chunk}
+          onSearchChange={onSearchChange}
+        />
       ) : null}
     </section>
   );
@@ -128,12 +161,14 @@ function RunCard({
   onCancel,
   pendingRunId,
   pendingStepId,
+  onInspect,
 }: {
   run: ProcessingRun;
   onRetry: (stepId: string) => void;
   onCancel: () => void;
   pendingRunId: string | null;
   pendingStepId: string | null;
+  onInspect: () => void;
 }) {
   return (
     <article className={styles.runCard}>
@@ -210,6 +245,149 @@ function RunCard({
           {pendingRunId === run.runId ? "取消中…" : "取消任务"}
         </button>
       ) : null}
+      <button className={styles.secondaryButton} type="button" onClick={onInspect}>
+        查看 Evidence / Chunk
+      </button>
     </article>
   );
+}
+
+function ChunkInspector({
+  projection,
+  isPending,
+  isError,
+  selectedEvidenceId,
+  selectedChunkId,
+  onSearchChange,
+}: {
+  projection: ChunkProjection | undefined;
+  isPending: boolean;
+  isError: boolean;
+  selectedEvidenceId: string;
+  selectedChunkId: string;
+  onSearchChange: (patch: Partial<ProcessingSearch>) => void;
+}) {
+  const evidence =
+    projection?.evidence.find((item) => item.evidenceId === selectedEvidenceId) ??
+    projection?.evidence[0];
+  const chunk =
+    projection?.chunks.find((item) => item.chunkId === selectedChunkId) ??
+    projection?.chunks.find((item) =>
+      item.spans.some((span) => span.evidenceId === evidence?.evidenceId),
+    ) ??
+    projection?.chunks[0];
+
+  function selectEvidence(evidenceId: string) {
+    const matchingChunk = projection?.chunks.find((item) =>
+      item.spans.some(
+        (span) => span.evidenceId === evidenceId && span.spanRole === "primary",
+      ),
+    );
+    onSearchChange({ evidence: evidenceId, chunk: matchingChunk?.chunkId ?? "" });
+  }
+
+  function selectChunk(chunkId: string) {
+    const matchingChunk = projection?.chunks.find((item) => item.chunkId === chunkId);
+    const primary = matchingChunk?.spans.find((span) => span.spanRole === "primary");
+    onSearchChange({ chunk: chunkId, evidence: primary?.evidenceId ?? "" });
+  }
+
+  return (
+    <section className={styles.runCard} aria-labelledby="chunk-inspector-title">
+      <header className={styles.runHeader}>
+        <div>
+          <span className={styles.secondary}>只读治理投影</span>
+          <h2 className={styles.runTitle} id="chunk-inspector-title">
+            Evidence 与 Chunk Inspector
+          </h2>
+        </div>
+        {projection ? <span className={styles.mono}>{projection.runId}</span> : null}
+      </header>
+      {isPending ? <div className={styles.statePanel}>正在读取 Chunk 投影…</div> : null}
+      {isError ? (
+        <div className={`${styles.statePanel} ${styles.error}`} role="alert">
+          无法读取 Chunk 投影；不会从运行计数猜测分块内容。
+        </div>
+      ) : null}
+      {projection ? (
+        <>
+          <dl className={styles.artifactFacts}>
+            <div><dt>Profile</dt><dd>{projection.chunkProfile.chunkProfileId}</dd></div>
+            <div><dt>目标范围</dt><dd>{projection.chunkProfile.targetMinTokens}–{projection.chunkProfile.targetMaxTokens}</dd></div>
+            <div><dt>硬上限</dt><dd>{projection.chunkProfile.hardMaxTokens}</dd></div>
+            <div><dt>重叠</dt><dd>Overlap {projection.chunkProfile.overlapTokens}</dd></div>
+          </dl>
+          <div className={styles.reviewGrid}>
+            <section className={styles.evidenceColumn} aria-label="Evidence 列表与详情">
+              <div className={styles.buttonRow}>
+                {projection.evidence.map((item) => (
+                  <button
+                    className={styles.secondaryButton}
+                    type="button"
+                    key={item.evidenceId}
+                    aria-pressed={item.evidenceId === evidence?.evidenceId}
+                    onClick={() => selectEvidence(item.evidenceId)}
+                  >
+                    Evidence {item.evidenceId}
+                  </button>
+                ))}
+              </div>
+              {evidence ? (
+                <article className={styles.evidencePaper}>
+                  <strong>{evidence.evidenceId}</strong>
+                  <p>{evidence.content}</p>
+                  <span className={styles.secondary}>{formatRecord(evidence.locator)}</span>
+                  <code className={styles.hashLine}>sha256:{evidence.contentSha256}</code>
+                </article>
+              ) : <p>此投影没有 Evidence。</p>}
+            </section>
+            <section className={styles.governanceColumn} aria-label="Chunk 列表与详情">
+              <div className={styles.buttonRow}>
+                {projection.chunks.map((item) => (
+                  <button
+                    className={styles.secondaryButton}
+                    type="button"
+                    key={item.chunkId}
+                    aria-pressed={item.chunkId === chunk?.chunkId}
+                    onClick={() => selectChunk(item.chunkId)}
+                  >
+                    Chunk {item.chunkId}
+                  </button>
+                ))}
+              </div>
+              {chunk ? (
+                <article className={styles.evidencePaper}>
+                  <strong>{chunk.chunkId}</strong>
+                  <span className={styles.secondary}>{chunk.tokenCount} tokens</span>
+                  <p>{chunk.content}</p>
+                  <span className={styles.secondary}>边界：{chunk.dataBoundary}</span>
+                  <span className={styles.secondary}>定位：{formatRecord(chunk.locator)}</span>
+                  <span className={styles.secondary}>权利：{formatRecord(chunk.rights)}</span>
+                  <ul>
+                    {chunk.spans.map((span) => (
+                      <li key={`${span.evidenceId}:${span.position}`}>
+                        {span.spanRole} · {span.evidenceId} · {span.startOffset}–{span.endOffset}
+                      </li>
+                    ))}
+                  </ul>
+                </article>
+              ) : <p>此投影没有 Chunk。</p>}
+            </section>
+          </div>
+          {projection.findings.length > 0 ? (
+            <div className={styles.notice} role="status">
+              <span>质量发现：</span>
+              {projection.findings.map((item) => (
+                <span key={item.findingId}>{item.findingType}</span>
+              ))}
+            </div>
+          ) : null}
+        </>
+      ) : null}
+    </section>
+  );
+}
+
+function formatRecord(value: Record<string, unknown>): string {
+  return Object.entries(value).map(([key, item]) => `${key}: ${String(item)}`).join(" · ");
 }

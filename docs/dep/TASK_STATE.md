@@ -1,7 +1,7 @@
 ---
 status: in-progress
 created: 2026-08-16 12:08
-updated: 2026-08-16 21:46
+updated: 2026-08-16 22:11
 ---
 
 # Current Task
@@ -31,14 +31,17 @@ P17 P4 — 在现有九项导航内补全 API 权威的知识治理 UI，并关�
 - [x] P4-B5：以服务端登记的 E9 suite 启动 deterministic informational EvaluationRun，浏览器不提交 SourceVersion/ChunkProfile。
 - [x] P4-B6：以 EvaluationRun/Case 身份进行 candidate-scope 失败重放，并由服务端返回同 suite 回归差异。
 - [x] P4-B7：Evaluation/Query Lab 接通启动、重放、baseline URL 与 regression 展示，完成组件行为测试。
+- [x] P4-C1：Processing 接通 Run/Evidence/Chunk URL 与只读 Chunk Inspector，展示 Profile、token、span、overlap、locator 和 finding。
+- [x] P4-C2：Candidates 保留普通候选视图并增加 Rotation Queue，接通筛选、Case、Author proposal、Reviewer decision、receipt 与 409 stale。
+- [x] P4-C3：执行组件行为、全量前后端/Workflow/Compose Gate，记录并阶段提交同步远端。
 - [ ] P4：补全现有治理 UI，并关闭前端、Workflow、浏览器和全链路 POC Gate。
 
 ## Working Context
 
-- **Files being edited**: P4-B Evaluation operations、platform API/OpenAPI、生产 E9 suite、Evaluation/Query Lab 页面及本阶段文档。
-- **Last command run**: Knowledge `308 passed, 12 skipped`、Ruff 通过；前端 `42 passed` 且 production build 通过；Workflow `366 passed, 1 skipped`；Compose API/PostgreSQL 健康、其余服务运行，semantic index 未配置而预期 degraded。
+- **Files being edited**: `frontend/src/pages/ProcessingPage.tsx`、`CandidatesPage.tsx`、`RotationQueue.tsx`、router/contracts 与 `lifecycle-governance.test.tsx`，以及 P17/canonical/DevLog 文档。
+- **Last command run**: Knowledge `308 passed, 12 skipped`、Ruff、Frontend `45 passed`/production build、Workflow `366 passed, 1 skipped` 与默认 Compose rebuild/health Gate 全部通过；semantic index 未配置，健康接口按合同为 degraded。
 - **Key decisions**: 只使用 E9，不使用 E9(R1)；原始 PDF 运行时下载且不提交 Git；测试/CI 使用自有合成 fixture；无 embedding 时 vector 显式 degraded；默认零模型调用。
-- **Blocker**: 功能无 blocker；现有 Compose 管理员密码已被人工修改，bootstrap 不覆盖，因此未取得有效登录态前不能完成需要认证的真实浏览器跨页验收。不得为测试擅自重置密码。
+- **Blocker**: UI-01 SourceVersion history/compare/impact 与 UI-07/08 lifecycle lineage/read model 仍缺合同；认证真实浏览器 Gate 仍需有效人员登录态，不得为测试擅自重置管理员密码。
 
 ## Phase Context
 
@@ -50,4 +53,4 @@ P17 P4 — 在现有九项导航内补全 API 权威的知识治理 UI，并关�
 
 ## Resume From
 
-运行 Knowledge、Ruff、前端、Workflow、Compose 与文档一致性最终 Gate，追加 DevLog 后阶段提交并推送；随后用有效人员登录态完成真实浏览器主流程和 390px 验收。
+从 UI-01 的 SourceVersion history/compare/start/impact summary 后端合同 RED 开始；随后实现 UI-07 lifecycle lineage projection 与 UI-08 entity/case/release 审计过滤和权威对象跳转，最后在取得有效登录态后关闭真实浏览器/390px Gate。

@@ -1,8 +1,12 @@
 import "@testing-library/jest-dom/vitest";
-import { cleanup } from "@testing-library/react";
+import { cleanup, configure } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll } from "vitest";
 
 import { server } from "../mocks/server";
+
+// Parallel CI workers can make an otherwise immediate MSW round-trip exceed the
+// library's one-second default. Keep assertions bounded without making tests flaky.
+configure({ asyncUtilTimeout: 3_000 });
 
 Object.defineProperty(window, "scrollTo", {
   value: () => undefined,

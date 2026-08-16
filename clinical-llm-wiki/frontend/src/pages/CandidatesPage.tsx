@@ -18,6 +18,7 @@ import {
   type Session,
 } from "../contracts/knowledgeApi";
 import styles from "./pages.module.css";
+import { RotationQueue } from "./RotationQueue";
 
 interface ActionNotice {
   kind: "success" | "conflict" | "error";
@@ -33,8 +34,50 @@ interface CandidateDraft {
   exceptions: string;
 }
 
-export function CandidatesPage() {
-  useDocumentTitle("知识候选");
+export interface CandidatesSearch {
+  view: "candidates" | "rotation";
+  status: string;
+  case: string;
+}
+
+export function CandidatesPage({
+  search = { view: "candidates", status: "", case: "" },
+  onSearchChange = () => undefined,
+}: {
+  search?: CandidatesSearch;
+  onSearchChange?: (patch: Partial<CandidatesSearch>) => void;
+}) {
+  useDocumentTitle(search.view === "rotation" ? "知识轮转" : "知识候选");
+  return (
+    <>
+      <nav className={styles.buttonRow} aria-label="知识治理视图">
+        <button
+          className={styles.secondaryButton}
+          type="button"
+          aria-pressed={search.view === "candidates"}
+          onClick={() => onSearchChange({ view: "candidates", status: "", case: "" })}
+        >
+          Candidate 审核
+        </button>
+        <button
+          className={styles.secondaryButton}
+          type="button"
+          aria-pressed={search.view === "rotation"}
+          onClick={() => onSearchChange({ view: "rotation", status: "open", case: "" })}
+        >
+          轮转队列
+        </button>
+      </nav>
+      {search.view === "rotation" ? (
+        <RotationQueue search={search} onSearchChange={onSearchChange} />
+      ) : (
+        <CandidateReviewWorkbench />
+      )}
+    </>
+  );
+}
+
+function CandidateReviewWorkbench() {
   const queryClient = useQueryClient();
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -55,18 +98,19 @@ export function CandidatesPage() {
   const items = candidates.data?.data.items ?? [];
   const sessionData = session.data?.data;
 
-  useEffect(() => {
-    if (selectedCandidateId || items.length === 0 || !sessionData) {
-      return;
-    }
-    setSelectedCandidateId(preferredCandidate(items, sessionData).candidateId);
-  }, [items, selectedCandidateId, sessionData]);
+  const effectiveSelectedCandidateId =
+    selectedCandidateId ??
+    (items.length > 0
+      ? sessionData
+        ? preferredCandidate(items, sessionData).candidateId
+        : items[0].candidateId
+      : null);
 
   const detail = useQuery({
-    queryKey: ["candidate", selectedCandidateId],
+    queryKey: ["candidate", effectiveSelectedCandidateId],
     queryFn: ({ signal }) =>
-      getJson<CandidateDetail>(`${API_PATHS.candidates}/${selectedCandidateId}`, signal),
-    enabled: Boolean(selectedCandidateId),
+      getJson<CandidateDetail>(`${API_PATHS.candidates}/${effectiveSelectedCandidateId}`, signal),
+    enabled: Boolean(effectiveSelectedCandidateId),
   });
   const candidate = detail.data?.data;
 
@@ -259,7 +303,7 @@ export function CandidatesPage() {
               <CandidatePicker
                 candidate={item}
                 key={item.candidateId}
-                selected={selectedCandidateId === item.candidateId}
+                selected={effectiveSelectedCandidateId === item.candidateId}
                 onSelect={() => selectCandidate(item.candidateId)}
               />
             ))}
@@ -291,7 +335,7 @@ export function CandidatesPage() {
               </div>
             ) : null}
 
-            {selectedCandidateId && detail.isPending ? (
+            {effectiveSelectedCandidateId && detail.isPending ? (
               <div
                 className={styles.detailState}
                 aria-label="正在加载 Candidate 详情"
@@ -302,7 +346,7 @@ export function CandidatesPage() {
                 <span className={styles.skeleton} />
               </div>
             ) : null}
-            {selectedCandidateId && detail.isError ? (
+            {effectiveSelectedCandidateId && detail.isError ? (
               <div className={`${styles.detailState} ${styles.error}`} role="alert">
                 无法读取 Candidate 详情；不会显示过期的审核数据。
               </div>

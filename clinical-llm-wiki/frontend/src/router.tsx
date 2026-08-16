@@ -59,8 +59,29 @@ function SourcesRoute() {
 const processingRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/processing",
-  component: ProcessingPage,
+  validateSearch: (search: Record<string, unknown>) => ({
+    run: typeof search.run === "string" ? search.run : "",
+    evidence: typeof search.evidence === "string" ? search.evidence : "",
+    chunk: typeof search.chunk === "string" ? search.chunk : "",
+  }),
+  component: ProcessingRoute,
 });
+
+function ProcessingRoute() {
+  const search = processingRoute.useSearch();
+  const navigate = processingRoute.useNavigate();
+  return (
+    <ProcessingPage
+      search={search}
+      onSearchChange={(patch) => {
+        void navigate({
+          search: (current) => ({ ...current, ...patch }),
+          replace: true,
+        });
+      }}
+    />
+  );
+}
 
 const queryLabRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -160,8 +181,29 @@ function QueryLabRoute() {
 const candidatesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/candidates",
-  component: CandidatesPage,
+  validateSearch: (search: Record<string, unknown>) => ({
+    view: search.view === "rotation" ? ("rotation" as const) : ("candidates" as const),
+    status: typeof search.status === "string" ? search.status : "",
+    case: typeof search.case === "string" ? search.case : "",
+  }),
+  component: CandidatesRoute,
 });
+
+function CandidatesRoute() {
+  const search = candidatesRoute.useSearch();
+  const navigate = candidatesRoute.useNavigate();
+  return (
+    <CandidatesPage
+      search={search}
+      onSearchChange={(patch) => {
+        void navigate({
+          search: (current) => ({ ...current, ...patch }),
+          replace: true,
+        });
+      }}
+    />
+  );
+}
 
 const relationsRoute = createRoute({
   getParentRoute: () => rootRoute,
