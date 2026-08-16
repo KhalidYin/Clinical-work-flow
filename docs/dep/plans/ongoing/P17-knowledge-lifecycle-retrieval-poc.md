@@ -416,6 +416,14 @@ syncs_to:
 - 新增 3 条组件行为测试，覆盖 Chunk 双向定位、allowed-action 精确 payload、stale 刷新与 receipt；前端全量 `45 passed`、production build，Knowledge `308 passed, 12 skipped`、Ruff，Workflow `366 passed, 1 skipped` 与默认 Compose rebuild/health Gate 通过，未配置或调用模型。
 - 有效人员登录态尚不可用，未重置现有管理员密码，因此 P17-UI-02/03 的真实浏览器与 390px 验收未关闭，清单保持未勾选。UI-01 SourceVersion 比较及 UI-07/08 生命周期谱系/审计仍缺后端 read model，是下一切片。
 
+### P4-D Sources 版本与影响结果（2026-08-16）
+
+- 新增 Source history 与 impact materialization prerelease API。history 返回 SourceVersion、rights/data boundary、既有 completed assessment、七类变化计数、受影响 Knowledge/RotationCase 数及服务端 `allowedActions`。
+- 比较命令只接收同一 Source 下不同的 from/to SourceVersion ID；comparison profile 固定为 `evidence-comparison-v1`，客户端不能提交 profile、计数或范围。重复命令复用 immutable assessment，同版本、跨 Source 或不存在输入 fail closed。
+- Sources 页面增加版本治理入口，`source/from/to/assessment/change` 可由 URL 恢复；页面原样展示 API 计数和 impact 明细，`rights_changed` 只作为风险类别展示，不产生自动延续动作。
+- 后端合同 `41 passed`、前端全量 `47 passed` 与 production build、Knowledge `311 passed, 12 skipped`、Ruff、Workflow `366 passed, 1 skipped` 均通过；隔离真实 pgvector materialization `1 passed`，临时容器已清理，未修改运行数据库；修复代码层 build isolation 后默认 Compose rebuild/`--wait` 全部 healthy。
+- 组件与 PostgreSQL 行为已覆盖，但有效人员登录态仍不可用，未重置管理员密码，因此 P17-UI-01 的真实浏览器/390px 总验收仍保持未勾选。下一切片是 UI-07/08 生命周期谱系与审计。
+
 ### 边界（本 Phase 明确不做）
 
 - 不新增一级页面或重做设计系统，不引入无关动画、图表或 dashboard。
@@ -453,6 +461,7 @@ syncs_to:
 | P17-F04 | 首次 released FTS 真实 PostgreSQL Gate 发现既有 Release fixture Evidence 缺少 canonical `source_artifact_id`，导致可发布但无法生成 citation | P4-A | resolved defect | 将 canonical source artifact 纳入 Release build 前置 Gate并补缺失反例；合法 current/历史查询通过 |
 | P17-F05 | 默认 E9 POC 使用临时 PostgreSQL；即使运行中已写 EvaluationRun，容器清理后也不能被 Compose 页面读取 | P4-B | accepted POC boundary | 报告增加 `database_retention=ephemeral`，页面空状态只信当前 API；后续若增加持久环境启动命令，必须同时绑定正确对象存储与数据库，不能导入报告冒充 canonical run |
 | P17-F06 | 已保留数据的 Compose demo ledger 含旧四步 Document 图，当前新增 `project_chunks` 后拒绝用同一事实覆盖为五步图 | P4-B | resolved compatibility defect | 保留旧 run 不变，将 demo SourceVersion 提升到 `1.1.0` 并使用新幂等键创建新 epoch；补合同测试，未删除数据库或重写 ledger |
+| P17-F07 | 后端 Dockerfile 第二次安装本地包仍启用 build isolation，代码层变化后会绕过既有镜像配置访问 PyPI，TLS 抖动导致 Compose rebuild 失败 | P4-D | resolved build defect | 在受控镜像源依赖层显式安装 pyproject 已声明的 setuptools，再让第二次本地代码安装使用 `--no-index --no-build-isolation --no-deps`；不新增来源、业务依赖或代码层出站 |
 
 ## 关键决策记录
 

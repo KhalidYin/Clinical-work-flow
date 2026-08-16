@@ -26,7 +26,10 @@ const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
   beforeLoad: () => {
-    throw redirect({ to: "/sources", search: { q: "" } });
+    throw redirect({
+      to: "/sources",
+      search: { q: "", source: "", from: "", to: "", assessment: "", change: "" },
+    });
   },
 });
 
@@ -35,6 +38,11 @@ const sourcesRoute = createRoute({
   path: "/sources",
   validateSearch: (search: Record<string, unknown>) => ({
     q: typeof search.q === "string" ? search.q : "",
+    source: typeof search.source === "string" ? search.source : "",
+    from: typeof search.from === "string" ? search.from : "",
+    to: typeof search.to === "string" ? search.to : "",
+    assessment: typeof search.assessment === "string" ? search.assessment : "",
+    change: typeof search.change === "string" ? search.change : "",
   }),
   component: SourcesRoute,
 });
@@ -48,7 +56,14 @@ function SourcesRoute() {
       query={search.q}
       onQueryChange={(q) => {
         void navigate({
-          search: { q },
+          search: (current) => ({ ...current, q }),
+          replace: true,
+        });
+      }}
+      search={search}
+      onSearchChange={(patch) => {
+        void navigate({
+          search: (current) => ({ ...current, ...patch }),
           replace: true,
         });
       }}

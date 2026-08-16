@@ -746,7 +746,30 @@ class FakeImpactAssessmentRecord:
     to_source_version_id: str
     comparison_profile_version: str
     impacts: tuple[FakeEvidenceImpactRecord, ...]
+    affected_knowledge_count: int
+    rotation_case_count: int
     created_at: datetime
+
+
+@dataclass(frozen=True)
+class FakeSourceVersionRecord:
+    source_version_id: str
+    version: str
+    status: str
+    rights: dict[str, object]
+    data_boundary: str
+    source_hash: str
+    effective_date: None
+    created_at: datetime
+
+
+@dataclass(frozen=True)
+class FakeSourceHistoryRecord:
+    source_id: str
+    title: str
+    versions: tuple[FakeSourceVersionRecord, ...]
+    comparisons: tuple[FakeImpactAssessmentRecord, ...]
+    warnings: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -820,6 +843,7 @@ class FakeLifecycleService:
         self._now = datetime(2026, 8, 16, 3, 30, tzinfo=timezone.utc)
         self.proposal_calls: list[dict[str, Any]] = []
         self.decision_calls: list[dict[str, Any]] = []
+        self.materialization_calls: list[dict[str, Any]] = []
         self._proposal_keys: set[tuple[str, str]] = set()
         self._decision_receipts: dict[tuple[str, str], Any] = {}
         self.case = FakeRotationCaseRecord(
@@ -844,7 +868,7 @@ class FakeLifecycleService:
             assessment_id="impact-api-001",
             from_source_version_id="srcv-api-000",
             to_source_version_id="srcv-api-001",
-            comparison_profile_version="comparison-v1",
+            comparison_profile_version="evidence-comparison-v1",
             impacts=(
                 FakeEvidenceImpactRecord(
                     evidence_impact_id="eimpact-api-001",
@@ -855,7 +879,36 @@ class FakeLifecycleService:
                     details={"section": "6.2 AE"},
                 ),
             ),
+            affected_knowledge_count=1,
+            rotation_case_count=1,
             created_at=self._now,
+        )
+        self.source_history = FakeSourceHistoryRecord(
+            source_id="src-sdtmig-34",
+            title="Study Data Tabulation Model Implementation Guide",
+            versions=(
+                FakeSourceVersionRecord(
+                    source_version_id="srcv-api-001",
+                    version="3.4",
+                    status="registered",
+                    rights={"classification": "licensed", "storage_allowed": True},
+                    data_boundary="enterprise_provider_only",
+                    source_hash="a" * 64,
+                    effective_date=None,
+                    created_at=self._now,
+                ),
+                FakeSourceVersionRecord(
+                    source_version_id="srcv-api-000",
+                    version="3.3",
+                    status="released",
+                    rights={"classification": "licensed", "storage_allowed": True},
+                    data_boundary="enterprise_provider_only",
+                    source_hash="c" * 64,
+                    effective_date=None,
+                    created_at=datetime(2025, 8, 16, 3, 30, tzinfo=timezone.utc),
+                ),
+            ),
+            comparisons=(self.assessment,),
         )
         self.projection = FakeChunkProjectionRecord(
             run_id="run-api-001",
@@ -916,6 +969,36 @@ class FakeLifecycleService:
 
     def get_impact_assessment(self, *, assessment_id: str):
         return self.assessment if assessment_id == self.assessment.assessment_id else None
+
+    def get_source_history(self, *, source_id: str):
+        return self.source_history if source_id == self.source_history.source_id else None
+
+    def materialize_impact_assessment(
+        self,
+        *,
+        actor: Any,
+        source_id: str,
+        from_source_version_id: str,
+        to_source_version_id: str,
+        comparison_profile_version: str,
+    ):
+        from service.governance import ImpactMaterializationError
+
+        self.materialization_calls.append(
+            {
+                "actorId": actor.actor_id,
+                "sourceId": source_id,
+                "fromSourceVersionId": from_source_version_id,
+                "toSourceVersionId": to_source_version_id,
+                "comparisonProfileVersion": comparison_profile_version,
+            }
+        )
+        if source_id != self.source_history.source_id or {
+            from_source_version_id,
+            to_source_version_id,
+        } != {"srcv-api-000", "srcv-api-001"}:
+            raise ImpactMaterializationError("source versions do not match")
+        return self.assessment
 
     def get_chunk_projection(self, *, run_id: str):
         return self.projection if run_id == self.projection.run_id else None
@@ -2039,6 +2122,99 @@ def test_source_version_comparison_exposes_counts_and_many_to_many_mapping(api_c
     ).status_code == 404
 
 
+def test_source_history_lists_versions_and_server_comparison_summaries(api_client) -> None:
+    client, _ = api_client
+
+    response = client.get(
+        f"{API_PREFIX}/sources/src-sdtmig-34/versions",
+        headers=_auth("curator-token"),
+    )
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["sourceId"] == "src-sdtmig-34"
+    assert [item["sourceVersionId"] for item in data["versions"]] == [
+        "srcv-api-001",
+        "srcv-api-000",
+    ]
+    assert data["versions"][0]["rights"] == {
+        "classification": "licensed",
+        "storageAllowed": True,
+    }
+    assert data["comparisons"][0]["assessmentId"] == "impact-api-001"
+    assert data["comparisons"][0]["changeCounts"]["modified"] == 1
+    assert data["comparisons"][0]["impactSummary"] == {
+        "affectedKnowledgeCount": 1,
+        "rotationCaseCount": 1,
+    }
+    assert data["allowedActions"] == ["compare"]
+    assert data["partial"] is False
+    reviewer = client.get(
+        f"{API_PREFIX}/sources/src-sdtmig-34/versions",
+        headers=_auth("reviewer-token"),
+    )
+    assert reviewer.status_code == 200
+    assert reviewer.json()["data"]["allowedActions"] == []
+    assert client.get(
+        f"{API_PREFIX}/sources/missing/versions",
+        headers=_auth("curator-token"),
+    ).status_code == 404
+
+
+def test_curator_starts_server_profiled_source_comparison_idempotently(api_client) -> None:
+    client, repository = api_client
+    payload = {
+        "fromSourceVersionId": "srcv-api-000",
+        "toSourceVersionId": "srcv-api-001",
+    }
+
+    first = client.post(
+        f"{API_PREFIX}/sources/src-sdtmig-34/impact-assessments",
+        headers=_auth("curator-token"),
+        json=payload,
+    )
+    replay = client.post(
+        f"{API_PREFIX}/sources/src-sdtmig-34/impact-assessments",
+        headers=_auth("curator-token"),
+        json=payload,
+    )
+
+    assert first.status_code == 200
+    assert replay.status_code == 200
+    assert first.json()["data"]["assessmentId"] == "impact-api-001"
+    assert replay.json()["data"] == first.json()["data"]
+    assert first.json()["data"]["comparisonProfileVersion"] == (
+        "evidence-comparison-v1"
+    )
+    assert first.json()["data"]["impactSummary"]["affectedKnowledgeCount"] == 1
+    calls = repository.lifecycle_service.materialization_calls
+    assert len(calls) == 2
+    assert calls[0]["actorId"] == "usr-curator"
+    assert calls[0]["sourceId"] == "src-sdtmig-34"
+    assert calls[0]["comparisonProfileVersion"] == "evidence-comparison-v1"
+    assert client.post(
+        f"{API_PREFIX}/sources/src-sdtmig-34/impact-assessments",
+        headers=_auth("reviewer-token"),
+        json=payload,
+    ).status_code == 403
+
+
+def test_source_comparison_rejects_the_same_version(api_client) -> None:
+    client, repository = api_client
+
+    response = client.post(
+        f"{API_PREFIX}/sources/src-sdtmig-34/impact-assessments",
+        headers=_auth("curator-token"),
+        json={
+            "fromSourceVersionId": "srcv-api-001",
+            "toSourceVersionId": "srcv-api-001",
+        },
+    )
+
+    assert response.status_code == 422
+    assert repository.lifecycle_service.materialization_calls == []
+
+
 def test_chunk_inspector_exposes_profile_spans_boundaries_and_findings(api_client) -> None:
     client, _ = api_client
 
@@ -2264,6 +2440,8 @@ def test_checked_in_openapi_matches_runtime_paths_roles_and_responses(api_client
             f"{API_PREFIX}/runtime-knowledge/version",
             f"{API_PREFIX}/runtime-knowledge/resolve",
             f"{API_PREFIX}/sources",
+            f"{API_PREFIX}/sources/{{source_id}}/versions",
+            f"{API_PREFIX}/sources/{{source_id}}/impact-assessments",
             f"{API_PREFIX}/processing-runs",
             f"{API_PREFIX}/processing-runs/{{run_id}}",
             f"{API_PREFIX}/processing-runs/{{run_id}}/chunk-projection",
@@ -2339,6 +2517,13 @@ def test_checked_in_openapi_matches_runtime_paths_roles_and_responses(api_client
         (
             "SourceCollectionResponse",
             client.get(f"{API_PREFIX}/sources", headers=_auth("admin-token")),
+        ),
+        (
+            "SourceHistoryResponse",
+            client.get(
+                f"{API_PREFIX}/sources/src-sdtmig-34/versions",
+                headers=_auth("admin-token"),
+            ),
         ),
         (
             "ProcessingRunCollectionResponse",

@@ -26,7 +26,7 @@
 - Enrichment Worker 已有 fake/replay、direct-model 授权合同及 Candidate 治理闭环；migration `20260805_0009` 增加 `executor_kind`。`opencode-supervised` 已迁移为独立 Supervisor remote provider，普通 Compose 仍默认 replay；显式 `harness` profile 的真实零网络部署 Gate 已通过。
 - `harness-runtime/` 已实现版本化合同、fake/replay adapter、OpenCode `1.18.14` headless adapter、Fake/Docker runtime、staging 扫描、Execution/Validation Receipt、Step-scoped MCP、产品 Pack 编译，以及独立 Supervisor 的机器身份、durable journal、heartbeat/cancel/orphan recovery 和固定容器编译器。
 - 人员密码会话、HttpOnly Cookie、RBAC、Worker 机器身份和中文 React GUI 骨架已存在。
-- P17/P1-P3 已实现版本化 ChunkProfile/RetrievalChunk、七类 SourceVersion comparison、逐 released revision 轮转物化、Document→Evidence→Chunk、release-candidate metadata+FTS/E9 Recall、合成 immutable EvaluationRun，以及 Worker 构建/人工发布/current pointer/历史重放的 immutable Release 本地 POC；P4 已接 immutable Release Query Lab、Evaluation、Releases、Processing 只读 Chunk Inspector 与 Candidates Rotation Queue。
+- P17/P1-P3 已实现版本化 ChunkProfile/RetrievalChunk、七类 SourceVersion comparison、逐 released revision 轮转物化、Document→Evidence→Chunk、release-candidate metadata+FTS/E9 Recall、合成 immutable EvaluationRun，以及 Worker 构建/人工发布/current pointer/历史重放的 immutable Release 本地 POC；P4 已接 immutable Release Query Lab、Evaluation、Releases、Processing 只读 Chunk Inspector、Candidates Rotation Queue 与 Sources 版本/影响工作台。
 - 临床产品已有固定十阶段合同、ActionPolicy、Review Protocol、知识 Release resolve 和若干 POC artifact 流程；十个内部 Stage 对应 Protocol → SAP → SDTM → ADaM → TFL → QC → Submission 七个业务依赖组。
 
 ### 目标能力
@@ -67,8 +67,8 @@
 
 #### GUI 细化
 
-- [已实现（P17/P4 增量）] 保留九个一级导航和现有视觉语言；Query Lab、Evaluation、Releases、Processing Chunk Inspector 与 Candidates Rotation Queue 均消费 API 权威状态，不建立第二套前端。
-- [目标] 补全 Sources 版本比较、Relations 生命周期谱系、Audit 实体过滤/跳转和可重复浏览器 E2E。
+- [已实现（P17/P4 增量）] 保留九个一级导航和现有视觉语言；Query Lab、Evaluation、Releases、Processing Chunk Inspector、Candidates Rotation Queue 与 Sources 版本/影响工作台均消费 API 权威状态，不建立第二套前端。Sources 只提交 from/to SourceVersion ID，comparison profile、变化/影响计数与允许动作均由服务端返回。
+- [目标] 补全 Relations 生命周期谱系、Audit 实体过滤/跳转和可重复浏览器 E2E。
 - [目标] “处理任务”展示 Workflow/Step/Attempt、executor、Harness/container 状态、tool summary、validator 和恢复操作。
 - [目标] “知识候选”完成 Evidence、Candidate revision、作者确认和独立审核的可追溯详情。
 - [目标] “检索实验室”只展示有来源的 metadata/FTS/vector/relation 路径与 citation。

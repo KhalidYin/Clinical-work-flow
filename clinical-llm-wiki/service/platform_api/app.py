@@ -42,7 +42,7 @@ from service.auth.password_sessions import (
     UserManagementError,
     UserNotFoundError,
 )
-from service.governance import KnowledgeGovernanceService
+from service.governance import ImpactMaterializationError, KnowledgeGovernanceService
 from service.evaluation import (
     EvaluationCaseNotFoundError,
     EvaluationComparisonError,
@@ -140,6 +140,9 @@ from .contracts import (
     EvaluationThresholdCheckData,
     ImpactAssessmentData,
     ImpactAssessmentResponse,
+    ImpactAssessmentSummaryData,
+    ImpactMaterializationRequest,
+    ImpactSummaryData,
     LoginRequest,
     ModelProfileCollectionData,
     ModelProfileCollectionResponse,
@@ -199,9 +202,12 @@ from .contracts import (
     ServiceAccountData,
     SourceCollectionData,
     SourceCollectionResponse,
+    SourceHistoryData,
+    SourceHistoryResponse,
     SourceRegistrationData,
     SourceRegistrationResponse,
     SourceSummaryData,
+    SourceVersionData,
     UserCollectionData,
     UserCollectionResponse,
     UserCreateRequest,
@@ -247,11 +253,13 @@ from .repository import (
     ProcessingRunRecord,
     RotationCaseApiRecord,
     RotationDecisionApiRecord,
+    SourceHistoryApiRecord,
 )
 
 
 API_PREFIX = "/api/prerelease/v1"
 MAX_SOURCE_BYTES = 64 * 1024 * 1024
+DEFAULT_COMPARISON_PROFILE_VERSION = "evidence-comparison-v1"
 _ResponseModel = TypeVar("_ResponseModel", bound=BaseModel)
 SESSION_COOKIE_NAME = "clinical_knowledge_session"
 _session_cookie = APIKeyCookie(
@@ -1236,6 +1244,76 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
             ),
             meta=_meta(),
         )
+
+    @app.get(
+        f"{API_PREFIX}/sources/{{source_id}}/versions",
+        operation_id="getSourceHistory",
+        response_model=SourceHistoryResponse,
+        responses=protected_responses,
+    )
+    def get_source_history(
+        source_id: str,
+        actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.SOURCE_READ)),
+        ],
+    ) -> SourceHistoryResponse:
+        lifecycle = _require_lifecycle(services)
+        try:
+            record = lifecycle.get_source_history(source_id=source_id)
+        except SQLAlchemyError as exc:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="The source lifecycle repository is unavailable.",
+            ) from exc
+        if record is None:
+            raise PlatformApiError(
+                status_code=404,
+                code="source_not_found",
+                message="The source does not exist.",
+            )
+        return SourceHistoryResponse(
+            data=_source_history_data(record, actor),
+            meta=_meta(),
+        )
+
+    @app.post(
+        f"{API_PREFIX}/sources/{{source_id}}/impact-assessments",
+        operation_id="materializeImpactAssessment",
+        response_model=ImpactAssessmentResponse,
+        responses=write_responses,
+    )
+    def materialize_impact_assessment(
+        source_id: str,
+        request: ImpactMaterializationRequest,
+        actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.SOURCE_REGISTER)),
+        ],
+    ) -> ImpactAssessmentResponse:
+        lifecycle = _require_lifecycle(services)
+        try:
+            record = lifecycle.materialize_impact_assessment(
+                actor=actor,
+                source_id=source_id,
+                from_source_version_id=request.from_source_version_id,
+                to_source_version_id=request.to_source_version_id,
+                comparison_profile_version=DEFAULT_COMPARISON_PROFILE_VERSION,
+            )
+        except ImpactMaterializationError as exc:
+            raise PlatformApiError(
+                status_code=422,
+                code="impact_materialization_invalid",
+                message="The source versions cannot be compared.",
+            ) from exc
+        except SQLAlchemyError as exc:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="The impact materialization repository is unavailable.",
+            ) from exc
+        return ImpactAssessmentResponse(data=_impact_assessment_data(record), meta=_meta())
 
     @app.post(
         f"{API_PREFIX}/sources",
@@ -2482,23 +2560,14 @@ def _evaluation_detail(
 
 
 def _impact_assessment_data(record: ImpactAssessmentApiRecord) -> ImpactAssessmentData:
-    counts = {
-        "unchanged": 0,
-        "moved": 0,
-        "modified": 0,
-        "added": 0,
-        "removed": 0,
-        "rights_changed": 0,
-        "ambiguous": 0,
-    }
-    for impact in record.impacts:
-        counts[impact.change_type] += 1
+    counts = _impact_change_counts(record)
     return ImpactAssessmentData(
         assessment_id=record.assessment_id,
         from_source_version_id=record.from_source_version_id,
         to_source_version_id=record.to_source_version_id,
         comparison_profile_version=record.comparison_profile_version,
         change_counts=counts,
+        impact_summary=_impact_summary(record),
         impacts=[
             EvidenceImpactData(
                 evidence_impact_id=impact.evidence_impact_id,
@@ -2512,6 +2581,56 @@ def _impact_assessment_data(record: ImpactAssessmentApiRecord) -> ImpactAssessme
         ],
         created_at=record.created_at,
     )
+
+
+def _source_history_data(
+    record: SourceHistoryApiRecord,
+    actor: ActorContext,
+) -> SourceHistoryData:
+    return SourceHistoryData(
+        source_id=record.source_id,
+        title=record.title,
+        versions=[SourceVersionData(**asdict(version)) for version in record.versions],
+        comparisons=[
+            ImpactAssessmentSummaryData(
+                assessment_id=assessment.assessment_id,
+                from_source_version_id=assessment.from_source_version_id,
+                to_source_version_id=assessment.to_source_version_id,
+                comparison_profile_version=assessment.comparison_profile_version,
+                change_counts=_impact_change_counts(assessment),
+                impact_summary=_impact_summary(assessment),
+                created_at=assessment.created_at,
+            )
+            for assessment in record.comparisons
+        ],
+        allowed_actions=(
+            ["compare"] if Permission.SOURCE_REGISTER in actor.permissions else []
+        ),
+        partial=bool(record.warnings),
+        warnings=list(record.warnings),
+    )
+
+
+def _impact_summary(record: ImpactAssessmentApiRecord) -> ImpactSummaryData:
+    return ImpactSummaryData(
+        affected_knowledge_count=record.affected_knowledge_count,
+        rotation_case_count=record.rotation_case_count,
+    )
+
+
+def _impact_change_counts(record: ImpactAssessmentApiRecord) -> dict[str, int]:
+    counts = {
+        "unchanged": 0,
+        "moved": 0,
+        "modified": 0,
+        "added": 0,
+        "removed": 0,
+        "rights_changed": 0,
+        "ambiguous": 0,
+    }
+    for impact in record.impacts:
+        counts[impact.change_type] += 1
+    return counts
 
 
 def _chunk_projection_data(record: ChunkProjectionApiRecord) -> ChunkProjectionData:

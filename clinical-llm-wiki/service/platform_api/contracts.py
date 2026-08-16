@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, SecretStr
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
 
 from service.auth import IdentitySource, Permission, PrincipalType, ProductRole
 
@@ -103,6 +103,22 @@ class SourceRegistrationData(ApiModel):
     run_id: str
     status: Literal["queued"]
     original_object: ObjectReferenceData
+
+
+class SourceVersionRightsData(ApiModel):
+    classification: Literal["licensed", "internal", "restricted"]
+    storage_allowed: bool
+
+
+class SourceVersionData(ApiModel):
+    source_version_id: str
+    version: str
+    status: str
+    rights: SourceVersionRightsData
+    data_boundary: str
+    source_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    effective_date: date | None
+    created_at: datetime
 
 
 class ProcessingAttemptData(ApiModel):
@@ -478,8 +494,45 @@ class ImpactAssessmentData(ApiModel):
     to_source_version_id: str
     comparison_profile_version: str
     change_counts: dict[EvidenceChangeKey, int]
+    impact_summary: "ImpactSummaryData"
     impacts: list[EvidenceImpactData]
     created_at: datetime
+
+
+class ImpactSummaryData(ApiModel):
+    affected_knowledge_count: int = Field(ge=0)
+    rotation_case_count: int = Field(ge=0)
+
+
+class ImpactAssessmentSummaryData(ApiModel):
+    assessment_id: str
+    from_source_version_id: str
+    to_source_version_id: str
+    comparison_profile_version: str
+    change_counts: dict[EvidenceChangeKey, int]
+    impact_summary: ImpactSummaryData
+    created_at: datetime
+
+
+class SourceHistoryData(ApiModel):
+    source_id: str
+    title: str
+    versions: list[SourceVersionData]
+    comparisons: list[ImpactAssessmentSummaryData]
+    allowed_actions: list[Literal["compare"]]
+    partial: bool
+    warnings: list[str]
+
+
+class ImpactMaterializationRequest(ApiModel):
+    from_source_version_id: str = Field(min_length=1, max_length=160)
+    to_source_version_id: str = Field(min_length=1, max_length=160)
+
+    @model_validator(mode="after")
+    def require_distinct_versions(self) -> ImpactMaterializationRequest:
+        if self.from_source_version_id == self.to_source_version_id:
+            raise ValueError("source version comparison requires distinct versions")
+        return self
 
 
 class ChunkProfileData(ApiModel):
@@ -970,6 +1023,8 @@ class ErrorData(ApiModel):
         "registration_conflict",
         "invalid_source",
         "unsupported_media",
+        "source_not_found",
+        "impact_materialization_invalid",
         "run_not_found",
         "retry_not_allowed",
         "candidate_not_found",
@@ -1118,6 +1173,11 @@ class EvaluationRunCollectionResponse(ApiModel):
 
 class EvaluationRunDetailResponse(ApiModel):
     data: EvaluationRunDetailData
+    meta: ResponseMeta
+
+
+class SourceHistoryResponse(ApiModel):
+    data: SourceHistoryData
     meta: ResponseMeta
 
 

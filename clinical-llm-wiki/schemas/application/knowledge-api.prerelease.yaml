@@ -413,6 +413,51 @@ paths:
           $ref: "#/components/responses/InvalidSourceError"
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
+  /sources/{source_id}/versions:
+    get:
+      operationId: getSourceHistory
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: source_id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Canonical SourceVersion history and server-computed comparison summaries.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SourceHistoryResponse" }
+        "401": { $ref: "#/components/responses/AuthenticationError" }
+        "403": { $ref: "#/components/responses/AuthorizationError" }
+        "404": { $ref: "#/components/responses/NotFoundError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /sources/{source_id}/impact-assessments:
+    post:
+      operationId: materializeImpactAssessment
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: source_id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ImpactMaterializationRequest" }
+      responses:
+        "200":
+          description: Idempotent server-profiled comparison and any resulting RotationCase materialization.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImpactAssessmentResponse" }
+        "401": { $ref: "#/components/responses/AuthenticationError" }
+        "403": { $ref: "#/components/responses/AuthorizationError" }
+        "422": { $ref: "#/components/responses/InvalidSourceError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
   /processing-runs:
     get:
       operationId: listProcessingRuns
@@ -1378,6 +1423,41 @@ components:
         runId: { type: string }
         status: { const: queued }
         originalObject: { $ref: "#/components/schemas/ObjectReference" }
+    SourceVersionRights:
+      type: object
+      additionalProperties: false
+      required: [classification, storageAllowed]
+      properties:
+        classification: { enum: [licensed, internal, restricted] }
+        storageAllowed: { type: boolean }
+    SourceVersion:
+      type: object
+      additionalProperties: false
+      required:
+        - sourceVersionId
+        - version
+        - status
+        - rights
+        - dataBoundary
+        - sourceHash
+        - effectiveDate
+        - createdAt
+      properties:
+        sourceVersionId: { type: string }
+        version: { type: string }
+        status: { type: string }
+        rights: { $ref: "#/components/schemas/SourceVersionRights" }
+        dataBoundary: { type: string }
+        sourceHash: { type: string, pattern: "^[0-9a-f]{64}$" }
+        effectiveDate: { type: [string, "null"], format: date }
+        createdAt: { type: string, format: date-time }
+    ImpactMaterializationRequest:
+      type: object
+      additionalProperties: false
+      required: [fromSourceVersionId, toSourceVersionId]
+      properties:
+        fromSourceVersionId: { type: string, minLength: 1, maxLength: 160 }
+        toSourceVersionId: { type: string, minLength: 1, maxLength: 160 }
     ProcessingAttempt:
       type: object
       additionalProperties: false
@@ -1973,6 +2053,32 @@ components:
         toEvidenceId: { type: [string, "null"] }
         mappingBasis: { enum: [content_exact, locator_exact, ordered_alignment, unmatched, ambiguous] }
         details: { type: object }
+    ImpactSummary:
+      type: object
+      additionalProperties: false
+      required: [affectedKnowledgeCount, rotationCaseCount]
+      properties:
+        affectedKnowledgeCount: { type: integer, minimum: 0 }
+        rotationCaseCount: { type: integer, minimum: 0 }
+    ImpactAssessmentSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - assessmentId
+        - fromSourceVersionId
+        - toSourceVersionId
+        - comparisonProfileVersion
+        - changeCounts
+        - impactSummary
+        - createdAt
+      properties:
+        assessmentId: { type: string }
+        fromSourceVersionId: { type: string }
+        toSourceVersionId: { type: string }
+        comparisonProfileVersion: { type: string }
+        changeCounts: { $ref: "#/components/schemas/EvidenceChangeCounts" }
+        impactSummary: { $ref: "#/components/schemas/ImpactSummary" }
+        createdAt: { type: string, format: date-time }
     ImpactAssessment:
       type: object
       additionalProperties: false
@@ -1982,6 +2088,7 @@ components:
         - toSourceVersionId
         - comparisonProfileVersion
         - changeCounts
+        - impactSummary
         - impacts
         - createdAt
       properties:
@@ -1990,6 +2097,7 @@ components:
         toSourceVersionId: { type: string }
         comparisonProfileVersion: { type: string }
         changeCounts: { $ref: "#/components/schemas/EvidenceChangeCounts" }
+        impactSummary: { $ref: "#/components/schemas/ImpactSummary" }
         impacts:
           type: array
           items: { $ref: "#/components/schemas/EvidenceImpact" }
@@ -2573,6 +2681,27 @@ components:
         warnings:
           type: array
           items: { type: string }
+    SourceHistory:
+      type: object
+      additionalProperties: false
+      required: [sourceId, title, versions, comparisons, allowedActions, partial, warnings]
+      properties:
+        sourceId: { type: string }
+        title: { type: string }
+        versions:
+          type: array
+          items: { $ref: "#/components/schemas/SourceVersion" }
+        comparisons:
+          type: array
+          items: { $ref: "#/components/schemas/ImpactAssessmentSummary" }
+        allowedActions:
+          type: array
+          uniqueItems: true
+          items: { const: compare }
+        partial: { type: boolean }
+        warnings:
+          type: array
+          items: { type: string }
     ServiceAccountCollection:
       type: object
       additionalProperties: false
@@ -2724,6 +2853,12 @@ components:
         - type: object
           properties:
             data: { $ref: "#/components/schemas/SourceCollection" }
+    SourceHistoryResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/SourceHistory" }
     SourceRegistrationResponse:
       allOf:
         - $ref: "#/components/schemas/Envelope"

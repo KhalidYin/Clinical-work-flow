@@ -7,10 +7,10 @@ WORKDIR /app
 
 COPY pyproject.toml alembic.ini ./
 COPY service/__init__.py ./service/__init__.py
-RUN python -m pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn .
+RUN python -m pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn "setuptools>=77" .
 
 COPY service ./service
 COPY schemas ./schemas
-RUN python -m pip install --no-deps .
+RUN python -m pip install --no-index --no-build-isolation --no-deps .
 
 CMD ["python", "-m", "service.platform_api.main"]

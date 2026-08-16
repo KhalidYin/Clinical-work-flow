@@ -253,6 +253,24 @@ def test_postgres_materialization_is_atomic_idempotent_and_release_preserving() 
             "revision-rotation-safe": ("carry_forward",),
         }
         lifecycle = SqlAlchemyKnowledgeLifecycleRepository(sessions)
+        history = lifecycle.get_source_history(source_id="src-rotation-synthetic")
+        assert history is not None
+        assert [version.source_version_id for version in history.versions] == [
+            "srcv-rotation-new",
+            "srcv-rotation-old",
+        ]
+        assert history.comparisons[0].assessment_id == first.assessment.assessment_id
+        assert history.comparisons[0].affected_knowledge_count == 2
+        assert history.comparisons[0].rotation_case_count == 2
+        api_replay = lifecycle.materialize_impact_assessment(
+            actor=_curator(),
+            source_id="src-rotation-synthetic",
+            from_source_version_id="srcv-rotation-old",
+            to_source_version_id="srcv-rotation-new",
+            comparison_profile_version="comparison-synthetic-v1",
+        )
+        assert api_replay.assessment_id == first.assessment.assessment_id
+        assert api_replay.affected_knowledge_count == 2
         cases_by_revision = {
             case.knowledge_revision_id: lifecycle.get_rotation_case(
                 rotation_case_id=case.rotation_case_id

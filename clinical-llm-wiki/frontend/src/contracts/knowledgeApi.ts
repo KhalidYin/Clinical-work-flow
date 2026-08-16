@@ -38,6 +38,18 @@ export function rotationDecisionPath(rotationCaseId: string): string {
   return `${rotationCasePath(rotationCaseId)}/decision`;
 }
 
+export function sourceHistoryPath(sourceId: string): string {
+  return `${API_PATHS.sources}/${encodeURIComponent(sourceId)}/versions`;
+}
+
+export function sourceImpactAssessmentsPath(sourceId: string): string {
+  return `${API_PATHS.sources}/${encodeURIComponent(sourceId)}/impact-assessments`;
+}
+
+export function impactAssessmentPath(assessmentId: string): string {
+  return `/api/prerelease/v1/impact-assessments/${encodeURIComponent(assessmentId)}`;
+}
+
 export function resolveApiPath(path: string): string {
   return new URL(path, window.location.origin).toString();
 }
@@ -508,6 +520,79 @@ export interface ProcessingRunCollection {
   warnings: string[];
 }
 
+export type EvidenceChangeType =
+  | "unchanged"
+  | "moved"
+  | "modified"
+  | "added"
+  | "removed"
+  | "rights_changed"
+  | "ambiguous";
+
+export type EvidenceChangeCounts = Record<EvidenceChangeType, number>;
+
+export interface ImpactSummary {
+  affectedKnowledgeCount: number;
+  rotationCaseCount: number;
+}
+
+export interface SourceVersion {
+  sourceVersionId: string;
+  version: string;
+  status: string;
+  rights: {
+    classification: "licensed" | "internal" | "restricted";
+    storageAllowed: boolean;
+  };
+  dataBoundary: string;
+  sourceHash: string;
+  effectiveDate: string | null;
+  createdAt: string;
+}
+
+export interface EvidenceImpact {
+  evidenceImpactId: string;
+  changeType: EvidenceChangeType;
+  fromEvidenceId: string | null;
+  toEvidenceId: string | null;
+  mappingBasis:
+    | "content_exact"
+    | "locator_exact"
+    | "ordered_alignment"
+    | "unmatched"
+    | "ambiguous";
+  details: Record<string, unknown>;
+}
+
+export interface ImpactAssessmentSummary {
+  assessmentId: string;
+  fromSourceVersionId: string;
+  toSourceVersionId: string;
+  comparisonProfileVersion: string;
+  changeCounts: EvidenceChangeCounts;
+  impactSummary: ImpactSummary;
+  createdAt: string;
+}
+
+export interface ImpactAssessment extends ImpactAssessmentSummary {
+  impacts: EvidenceImpact[];
+}
+
+export interface SourceHistory {
+  sourceId: string;
+  title: string;
+  versions: SourceVersion[];
+  comparisons: ImpactAssessmentSummary[];
+  allowedActions: Array<"compare">;
+  partial: boolean;
+  warnings: string[];
+}
+
+export interface ImpactMaterializationRequest {
+  fromSourceVersionId: string;
+  toSourceVersionId: string;
+}
+
 export interface ChunkProfile {
   chunkProfileId: string;
   version: string;
@@ -602,9 +687,7 @@ export interface RotationCase {
   impactAssessmentId: string;
   knowledgeRevisionId: string;
   status: RotationCaseStatus;
-  changeTypes: Array<
-    "unchanged" | "moved" | "modified" | "added" | "removed" | "rights_changed" | "ambiguous"
-  >;
+  changeTypes: EvidenceChangeType[];
   eligibleOutcomes: RotationOutcome[];
   proposedOutcome: RotationOutcome | null;
   proposedTargetKnowledgeRevisionId: string | null;
@@ -864,6 +947,8 @@ export type ApiErrorCode =
   | "registration_conflict"
   | "invalid_source"
   | "unsupported_media"
+  | "source_not_found"
+  | "impact_materialization_invalid"
   | "run_not_found"
   | "chunk_projection_not_found"
   | "retry_not_allowed"

@@ -17,6 +17,10 @@ import {
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { boundaryLabel, rightsLabel, statusLabel } from "../i18n/labels";
 import { statusClass } from "../i18n/statusClass";
+import {
+  SourceLifecyclePanel,
+  type SourceLifecycleSearch,
+} from "./SourceLifecyclePanel";
 import styles from "./pages.module.css";
 
 const columnHelper = createColumnHelper<SourceSummary>();
@@ -66,9 +70,16 @@ const columns = [
 interface SourcesPageProps {
   query: string;
   onQueryChange: (query: string) => void;
+  search: SourceLifecycleSearch;
+  onSearchChange: (patch: Partial<SourceLifecycleSearch>) => void;
 }
 
-export function SourcesPage({ query, onQueryChange }: SourcesPageProps) {
+export function SourcesPage({
+  query,
+  onQueryChange,
+  search,
+  onSearchChange,
+}: SourcesPageProps) {
   useDocumentTitle("来源管理");
   const queryClient = useQueryClient();
   const [uploadResult, setUploadResult] = useState<SourceRegistration | null>(null);
@@ -286,6 +297,7 @@ export function SourcesPage({ query, onQueryChange }: SourcesPageProps) {
                         {flexRender(header.column.columnDef.header, header.getContext())}
                       </th>
                     ))}
+                    <th>版本治理</th>
                   </tr>
                 ))}
               </thead>
@@ -297,6 +309,21 @@ export function SourcesPage({ query, onQueryChange }: SourcesPageProps) {
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>
                     ))}
+                    <td>
+                      <button
+                        className={styles.secondaryButton}
+                        type="button"
+                        onClick={() => onSearchChange({
+                          source: row.original.sourceId,
+                          from: "",
+                          to: "",
+                          assessment: "",
+                          change: "",
+                        })}
+                      >
+                        查看版本与影响
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -304,6 +331,8 @@ export function SourcesPage({ query, onQueryChange }: SourcesPageProps) {
           </div>
         ) : null}
       </div>
+
+      <SourceLifecyclePanel search={search} onSearchChange={onSearchChange} />
     </section>
   );
 }
@@ -334,7 +363,7 @@ function LoadingTable() {
       <table className={styles.table}>
         <thead>
           <tr>
-            {["已登记来源", "版本", "媒体类型", "权利分类", "生命周期", "来源哈希"].map(
+            {["已登记来源", "版本", "媒体类型", "权利分类", "生命周期", "来源哈希", "版本治理"].map(
               (header) => (
                 <th key={header} scope="col">{header}</th>
               ),
@@ -344,7 +373,7 @@ function LoadingTable() {
         <tbody>
           {[0, 1, 2].map((row) => (
             <tr key={row}>
-              {[0, 1, 2, 3, 4, 5].map((cell) => (
+              {[0, 1, 2, 3, 4, 5, 6].map((cell) => (
                 <td key={cell}>
                   <span className={styles.skeleton} />
                 </td>

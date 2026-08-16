@@ -1,7 +1,7 @@
 ---
 status: in-progress
 created: 2026-08-16 12:08
-updated: 2026-08-16 22:11
+updated: 2026-08-16 22:47
 ---
 
 # Current Task
@@ -34,14 +34,17 @@ P17 P4 — 在现有九项导航内补全 API 权威的知识治理 UI，并关�
 - [x] P4-C1：Processing 接通 Run/Evidence/Chunk URL 与只读 Chunk Inspector，展示 Profile、token、span、overlap、locator 和 finding。
 - [x] P4-C2：Candidates 保留普通候选视图并增加 Rotation Queue，接通筛选、Case、Author proposal、Reviewer decision、receipt 与 409 stale。
 - [x] P4-C3：执行组件行为、全量前后端/Workflow/Compose Gate，记录并阶段提交同步远端。
+- [x] P4-D1：新增 SourceVersion history/list 与服务端固定 comparison profile 的 impact materialization API；权限和计数由后端权威返回。
+- [x] P4-D2：Sources 接入版本/影响工作台，恢复 source/from/to/assessment/change URL，展示七类变化、受影响知识与轮转案例数。
+- [x] P4-D3：完成同版本 422、只读角色无 compare、幂等重放、组件行为与真实 PostgreSQL 隔离 Gate。
 - [ ] P4：补全现有治理 UI，并关闭前端、Workflow、浏览器和全链路 POC Gate。
 
 ## Working Context
 
-- **Files being edited**: `frontend/src/pages/ProcessingPage.tsx`、`CandidatesPage.tsx`、`RotationQueue.tsx`、router/contracts 与 `lifecycle-governance.test.tsx`，以及 P17/canonical/DevLog 文档。
-- **Last command run**: Knowledge `308 passed, 12 skipped`、Ruff、Frontend `45 passed`/production build、Workflow `366 passed, 1 skipped` 与默认 Compose rebuild/health Gate 全部通过；semantic index 未配置，健康接口按合同为 degraded。
+- **Files being edited**: UI-01 的 platform API/OpenAPI/repository、`SourcesPage.tsx`、`SourceLifecyclePanel.tsx`、router/contracts 与 source lifecycle/PostgreSQL tests，以及 P17/canonical/DevLog 文档。
+- **Last command run**: Knowledge `311 passed, 12 skipped`、Ruff、Frontend `47 passed`/production build、Workflow `366 passed, 1 skipped`、一次性真实 pgvector materialization `1 passed`；默认 Compose rebuild/`--wait` 全部 healthy，临时容器已清理。
 - **Key decisions**: 只使用 E9，不使用 E9(R1)；原始 PDF 运行时下载且不提交 Git；测试/CI 使用自有合成 fixture；无 embedding 时 vector 显式 degraded；默认零模型调用。
-- **Blocker**: UI-01 SourceVersion history/compare/impact 与 UI-07/08 lifecycle lineage/read model 仍缺合同；认证真实浏览器 Gate 仍需有效人员登录态，不得为测试擅自重置管理员密码。
+- **Blocker**: UI-07 lifecycle lineage projection 与 UI-08 entity/case/release 精确审计过滤/跳转仍缺合同；认证真实浏览器 Gate 仍需有效人员登录态，不得为测试擅自重置管理员密码。
 
 ## Phase Context
 
@@ -53,4 +56,4 @@ P17 P4 — 在现有九项导航内补全 API 权威的知识治理 UI，并关�
 
 ## Resume From
 
-从 UI-01 的 SourceVersion history/compare/start/impact summary 后端合同 RED 开始；随后实现 UI-07 lifecycle lineage projection 与 UI-08 entity/case/release 审计过滤和权威对象跳转，最后在取得有效登录态后关闭真实浏览器/390px Gate。
+从 UI-07 lifecycle lineage projection 的后端合同 RED 开始；随后补 UI-08 entity/case/release 审计过滤和权威对象跳转，最后在取得有效登录态后关闭真实浏览器/390px Gate。

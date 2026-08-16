@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Protocol, Sequence
 from uuid import NAMESPACE_URL, uuid5
 
@@ -59,7 +59,13 @@ from service.knowledge import (
     RotationProposalCommand,
     StaleRotationCaseError,
 )
-from service.governance.rotation import eligible_rotation_outcomes
+from service.governance.rotation import (
+    ImpactMaterializationCommand,
+    ImpactMaterializationError,
+    RotationImpactMaterializer,
+    eligible_rotation_outcomes,
+)
+from service.governance.rotation_repository import SqlAlchemyRotationRepository
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,6 +89,18 @@ class SourceSummaryRecord:
     status: str
     source_hash: str
     updated_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class SourceVersionApiRecord:
+    source_version_id: str
+    version: str
+    status: str
+    rights: dict[str, object]
+    data_boundary: str
+    source_hash: str
+    effective_date: date | None
+    created_at: datetime
 
 
 @dataclass(frozen=True, slots=True)
@@ -338,7 +356,18 @@ class ImpactAssessmentApiRecord:
     to_source_version_id: str
     comparison_profile_version: str
     impacts: tuple[EvidenceImpactApiRecord, ...]
+    affected_knowledge_count: int
+    rotation_case_count: int
     created_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class SourceHistoryApiRecord:
+    source_id: str
+    title: str
+    versions: tuple[SourceVersionApiRecord, ...]
+    comparisons: tuple[ImpactAssessmentApiRecord, ...]
+    warnings: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -407,6 +436,22 @@ class ChunkProjectionApiRecord:
 
 
 class KnowledgeLifecycleApiPort(Protocol):
+    def get_source_history(
+        self,
+        *,
+        source_id: str,
+    ) -> SourceHistoryApiRecord | None: ...
+
+    def materialize_impact_assessment(
+        self,
+        *,
+        actor: ActorContext,
+        source_id: str,
+        from_source_version_id: str,
+        to_source_version_id: str,
+        comparison_profile_version: str,
+    ) -> ImpactAssessmentApiRecord: ...
+
     def get_impact_assessment(
         self,
         *,
@@ -1377,11 +1422,150 @@ class SqlAlchemyPlatformRepository:
         )
 
 
+def _impact_assessment_record(
+    session: Session,
+    assessment: ImpactAssessment,
+) -> ImpactAssessmentApiRecord:
+    impacts = tuple(
+        EvidenceImpactApiRecord(
+            evidence_impact_id=impact.evidence_impact_id,
+            change_type=impact.change_type,
+            from_evidence_id=impact.from_evidence_id,
+            to_evidence_id=impact.to_evidence_id,
+            mapping_basis=impact.mapping_basis,
+            details=impact.details,
+        )
+        for impact in session.scalars(
+            select(EvidenceImpact)
+            .where(EvidenceImpact.assessment_id == assessment.assessment_id)
+            .order_by(EvidenceImpact.evidence_impact_id)
+        )
+    )
+    rotation_case_count = int(
+        session.scalar(
+            select(func.count(RotationCase.rotation_case_id)).where(
+                RotationCase.impact_assessment_id == assessment.assessment_id
+            )
+        )
+        or 0
+    )
+    affected_knowledge_count = int(
+        session.scalar(
+            select(func.count(func.distinct(RotationCase.knowledge_revision_id))).where(
+                RotationCase.impact_assessment_id == assessment.assessment_id
+            )
+        )
+        or 0
+    )
+    return ImpactAssessmentApiRecord(
+        assessment_id=assessment.assessment_id,
+        from_source_version_id=assessment.from_source_version_id,
+        to_source_version_id=assessment.to_source_version_id,
+        comparison_profile_version=assessment.comparison_profile_version,
+        impacts=impacts,
+        affected_knowledge_count=affected_knowledge_count,
+        rotation_case_count=rotation_case_count,
+        created_at=assessment.created_at,
+    )
+
+
 class SqlAlchemyKnowledgeLifecycleRepository:
     """P17 adapter for lifecycle inspection and atomic two-person decisions."""
 
     def __init__(self, session_factory: sessionmaker[Session]) -> None:
         self._session_factory = session_factory
+        self._rotation_repository = SqlAlchemyRotationRepository(session_factory)
+        self._impact_materializer = RotationImpactMaterializer(
+            repository=self._rotation_repository
+        )
+
+    def get_source_history(
+        self,
+        *,
+        source_id: str,
+    ) -> SourceHistoryApiRecord | None:
+        with self._session_factory() as session:
+            source = session.get(Source, source_id)
+            if source is None:
+                return None
+            versions = tuple(
+                SourceVersionApiRecord(
+                    source_version_id=version.source_version_id,
+                    version=version.version,
+                    status=version.status,
+                    rights=version.rights,
+                    data_boundary=version.data_boundary,
+                    source_hash=version.sha256,
+                    effective_date=version.effective_date,
+                    created_at=version.created_at,
+                )
+                for version in session.scalars(
+                    select(SourceVersion)
+                    .where(SourceVersion.source_id == source_id)
+                    .order_by(
+                        SourceVersion.created_at.desc(),
+                        SourceVersion.source_version_id,
+                    )
+                )
+            )
+            version_ids = tuple(version.source_version_id for version in versions)
+            assessments: tuple[ImpactAssessmentApiRecord, ...] = ()
+            if version_ids:
+                assessments = tuple(
+                    _impact_assessment_record(session, assessment)
+                    for assessment in session.scalars(
+                        select(ImpactAssessment)
+                        .where(
+                            ImpactAssessment.from_source_version_id.in_(version_ids),
+                            ImpactAssessment.to_source_version_id.in_(version_ids),
+                        )
+                        .order_by(
+                            ImpactAssessment.created_at.desc(),
+                            ImpactAssessment.assessment_id,
+                        )
+                    )
+                )
+            return SourceHistoryApiRecord(
+                source_id=source.source_id,
+                title=source.title,
+                versions=versions,
+                comparisons=assessments,
+            )
+
+    def materialize_impact_assessment(
+        self,
+        *,
+        actor: ActorContext,
+        source_id: str,
+        from_source_version_id: str,
+        to_source_version_id: str,
+        comparison_profile_version: str,
+    ) -> ImpactAssessmentApiRecord:
+        if (
+            self._rotation_repository.source_id_for_version(from_source_version_id)
+            != source_id
+            or self._rotation_repository.source_id_for_version(to_source_version_id)
+            != source_id
+        ):
+            raise ImpactMaterializationError(
+                "comparison versions must belong to the requested source"
+            )
+        result = self._impact_materializer.materialize(
+            actor_id=actor.actor_id,
+            command=ImpactMaterializationCommand(
+                from_source_version_id=from_source_version_id,
+                to_source_version_id=to_source_version_id,
+                comparison_profile_version=comparison_profile_version,
+            ),
+        )
+        record = self.get_impact_assessment(
+            assessment_id=result.assessment.assessment_id
+        )
+        if record is None:
+            raise ImpactMaterializationError(
+                "impact assessment disappeared after materialization"
+            )
+        return record
 
     def get_impact_assessment(
         self,
@@ -1392,29 +1576,7 @@ class SqlAlchemyKnowledgeLifecycleRepository:
             assessment = session.get(ImpactAssessment, assessment_id)
             if assessment is None:
                 return None
-            impacts = tuple(
-                EvidenceImpactApiRecord(
-                    evidence_impact_id=impact.evidence_impact_id,
-                    change_type=impact.change_type,
-                    from_evidence_id=impact.from_evidence_id,
-                    to_evidence_id=impact.to_evidence_id,
-                    mapping_basis=impact.mapping_basis,
-                    details=impact.details,
-                )
-                for impact in session.scalars(
-                    select(EvidenceImpact)
-                    .where(EvidenceImpact.assessment_id == assessment_id)
-                    .order_by(EvidenceImpact.evidence_impact_id)
-                )
-            )
-            return ImpactAssessmentApiRecord(
-                assessment_id=assessment.assessment_id,
-                from_source_version_id=assessment.from_source_version_id,
-                to_source_version_id=assessment.to_source_version_id,
-                comparison_profile_version=assessment.comparison_profile_version,
-                impacts=impacts,
-                created_at=assessment.created_at,
-            )
+            return _impact_assessment_record(session, assessment)
 
     def get_chunk_projection(
         self,

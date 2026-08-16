@@ -351,3 +351,42 @@
 - canonical Guide/Spec/Test、P17/PLAN/TASK_STATE、DevLog/INDEX（P4-C phase commit）
 
 ---
+
+## 2026-08-16
+
+### R138 [22:47] [P17-knowledge-lifecycle-retrieval-poc] P4-D: Sources version impact workbench
+
+#### Done
+
+- 新增 Source history 与 impact materialization prerelease API/OpenAPI：版本、rights/data boundary、既有 comparison、七类变化、受影响知识/轮转案例数和可见动作均来自后端。
+- 比较请求只接受同一 Source 下不同的 from/to SourceVersion ID；服务端固定 `evidence-comparison-v1`，同版本在业务执行前返回 422，跨 Source/缺失输入 fail closed，重复请求复用 immutable assessment。
+- Sources 页面增加版本治理入口，`source/from/to/assessment/change` URL 可恢复；展示服务端 summary/impact 明细，浏览器不提交 profile、不重算计数，也不把 `rights_changed` 解释成自动延续。
+- 首次尝试在生产 API 镜像中运行集成测试时发现镜像按最小依赖构建、不含 pytest；隔离测试库已立即删除。随后使用一次性健康 pgvector 容器执行宿主测试，完成后自动移除，未触碰现有 Compose/Harness 数据或容器。
+- Compose rebuild 暴露后端第二次本地包安装启用 build isolation、绕过已配置镜像访问 PyPI 的问题；在受控镜像源依赖层显式安装 pyproject 已声明的 setuptools，再让本地代码层使用 `--no-index --no-build-isolation --no-deps`，不新增依赖源、业务依赖或代码层出站。
+
+#### Issues / Risks
+
+- UI-07 生命周期谱系 projection 与 UI-08 entity/case/release 审计过滤/权威对象跳转仍未实现；前端不得通过串联多个页面响应自行补边。
+- UI-01 的组件与真实 PostgreSQL 行为已通过，但认证真实浏览器和 390px 尚缺有效人员登录态；本轮没有重置管理员密码，因此不把 UI-01 总验收标为完成。
+- semantic index 与真实模型仍未配置；本切片不调用模型，也不改变 immutable Release consumer 边界。
+
+#### Validation
+
+- TDD RED：Source history/materialization 路径初始 404；Sources 版本治理两条组件测试初始失败。GREEN 后 platform API `41 passed`，前端 `47 passed`、production build 通过。
+- 隔离真实 pgvector materialization `1 passed`，验证 history 顺序/计数、服务层幂等重放、RotationCase eligibility 与旧 Release/Revision 不变；临时容器已清理。
+- Knowledge 全量 `311 passed, 12 skipped`、Ruff 通过；Clinical Workflow `366 passed, 1 skipped`；`git diff --check` 在提交前复核。
+- 默认 Compose rebuild/`--wait` 通过：migration/bootstrap/admin-bootstrap 正常退出，API、frontend、PostgreSQL 与两个 Worker healthy；独立 Harness 栈未停止。
+
+#### Next
+
+1. 从 UI-07 lifecycle lineage projection 后端合同 RED 开始，复用 canonical IDs，明确标记 Chunk 为 derived。
+2. 再补 UI-08 entity/case/release 审计过滤、URL 状态和权威对象跳转。
+3. 有效人员登录态到位后统一执行 Sources/Processing/Candidates/Relations/Audit、跨页和 390px 浏览器 Gate；风险是用前端拼接谱系或用组件测试冒充浏览器验收。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/service/platform_api/`、prerelease OpenAPI、platform/PostgreSQL tests
+- `clinical-llm-wiki/frontend/src/pages/SourceLifecyclePanel.tsx`、`SourcesPage.tsx`、contracts/router 与 source lifecycle tests
+- canonical Guide/Spec/Test、P17/PLAN/TASK_STATE、DevLog/INDEX（P4-D phase commit）
+
+---
