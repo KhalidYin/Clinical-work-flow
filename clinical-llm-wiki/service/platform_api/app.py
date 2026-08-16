@@ -1956,6 +1956,7 @@ def _rotation_case_data(
         knowledge_revision_id=record.knowledge_revision_id,
         status=record.status,
         change_types=list(record.change_types),
+        eligible_outcomes=list(record.eligible_outcomes),
         proposed_outcome=record.proposed_outcome,
         proposed_target_knowledge_revision_id=(
             record.proposed_target_knowledge_revision_id

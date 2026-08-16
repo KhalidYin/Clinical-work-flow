@@ -21,6 +21,7 @@ from service.auth import (
 )
 from service.db.models import (
     AuditEvent,
+    CandidateEvidence,
     ChunkProfile,
     ChunkProjectionFinding,
     Evidence,
@@ -171,6 +172,14 @@ def _seed_rotation_case(session) -> None:
             advisory_signals=[],
             content_sha256=_hash("revision-2"),
             author_actor_id="usr-p17-author",
+        )
+    )
+    session.flush()
+    session.add(
+        CandidateEvidence(
+            candidate_id="candidate-p17-1",
+            evidence_id="evidence-p17-1",
+            evidence_role="supports",
         )
     )
     session.add(KnowledgeUnit(knowledge_unit_id="unit-p17-1", stable_key="p17.unit.1", knowledge_type="statistical_principle"))
@@ -414,7 +423,11 @@ def test_postgres_rotation_is_role_scoped_idempotent_stale_safe_and_append_only(
 
         with sessions() as session:
             assert session.scalar(select(func.count()).select_from(RotationDecisionReceipt)) == 1
-            assert session.scalar(select(func.count()).select_from(AuditEvent)) == 2
+            assert session.scalar(
+                select(func.count())
+                .select_from(AuditEvent)
+                .where(AuditEvent.entity_id == "rotation-p17-1")
+            ) == 2
             assert session.get(KnowledgeRevision, "revision-p17-1").status == "released"
             assert session.get(Release, "release-p17-1").status == "released"
     finally:

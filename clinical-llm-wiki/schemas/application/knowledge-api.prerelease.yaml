@@ -1509,6 +1509,7 @@ components:
         - knowledgeRevisionId
         - status
         - changeTypes
+        - eligibleOutcomes
         - proposedOutcome
         - proposedTargetKnowledgeRevisionId
         - proposedByActorId
@@ -1528,6 +1529,11 @@ components:
         changeTypes:
           type: array
           items: { enum: [unchanged, moved, modified, added, removed, rights_changed, ambiguous] }
+        eligibleOutcomes:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { enum: [carry_forward, replace, retire, no_action] }
         proposedOutcome:
           type: [string, "null"]
           enum: [carry_forward, replace, retire, no_action, null]

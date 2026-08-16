@@ -159,7 +159,7 @@ syncs_to:
 |-------|------|----------|------|------|
 | P1 | 冻结 Chunk 与轮转数据库/API 合同 | 3 | P12 已完成非 live 基线 | done |
 | P2 | 用 ICH E9 建立确定性切块、检索与 Recall 基线 | 3-4 | P1 | done |
-| P3 | 接通轮转决策、Evaluation Gate 与 immutable Release | 3-4 | P2 | next |
+| P3 | 接通轮转决策、Evaluation Gate 与 immutable Release | 3-4 | P2 | in-progress（P3-A done；P3-B next） |
 | P4 | 补全现有治理 UI 并关闭全链路 Gate | 3-4 | P3 | pending |
 
 ---
@@ -295,13 +295,20 @@ syncs_to:
 
 ### 完成标准
 
-- [ ] exact unchanged/moved 仅产生 carry-forward 提议，modified/removed/rights_changed/ambiguous 必须人工决定，且任何路径都不能自动发布。
+- [x] exact unchanged/moved 仅允许 carry-forward 提议，modified/removed/rights_changed/ambiguous 必须人工决定，且任何路径都不能自动发布。
 - [ ] Author/Reviewer/Release Manager 职责分离、非法转换、重复请求、stale receipt 和并发 release 正反测试通过。
 - [ ] 合成 EvaluationSuite 可配置 threshold，并能证明评估失败阻断、通过后才允许 Release Manager 发布。
 - [ ] Release manifest 能解析固定 revision、Evidence、Chunk/Profile、index capability 与 evaluation；独立对象 checksum 漂移阻断发布。
 - [ ] 发布新 Release 后 current 原子切换；旧 Release 内容、检索结果和 citation 可重放且未被覆盖。
 - [ ] 紧急退役通过新 Release 完成；不存在 release 外可变 exclusion overlay。
 - [ ] read-only REST/MCP 只消费指定 immutable Release，未发布 revision 和未解决 RotationCase 不可见。
+
+### P3-A 完成结果（2026-08-16）
+
+- 合成 from/to SourceVersion 的 canonical Evidence 以稳定 ID 原子物化 ImpactAssessment/EvidenceImpact；只为实际引用旧 Evidence 且已进入 released Release 的 KnowledgeRevision 创建 open RotationCase，added 不制造无来源案例。
+- case 级 change types 不再错误继承整份 assessment：仅含 unchanged/moved 时 eligible outcome 为 `carry_forward`；含 modified/removed/rights_changed/ambiguous 时只允许人工 `replace/retire/no_action`。
+- materialization 不写 proposal/decision/include/release；重复执行零增量。真实 PostgreSQL 证明旧 Release 与 released Revision 不变，非法 carry-forward/replace 均 fail closed。
+- 本子阶段未新增迁移、hash、模型调用或 E9 新版本；下一步 P3-B 仅以独立合成 suite 验证 Evaluation threshold。
 
 ### 边界（本 Phase 明确不做）
 

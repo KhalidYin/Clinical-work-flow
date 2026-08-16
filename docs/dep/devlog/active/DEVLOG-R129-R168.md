@@ -57,3 +57,39 @@
 - `README.md`、`USAGE.md`、canonical Guide/Spec/Test、P17/PLAN/TASK_STATE、DevLog/INDEX（P2 phase commit）
 
 ---
+
+## 2026-08-16
+
+### R130 [12:59] [P17-knowledge-lifecycle-retrieval-poc] P3-A: 合成轮转影响与案例物化
+
+#### Done
+
+- 新增确定性 RotationImpactMaterializer 与 PostgreSQL adapter：同一 Source 的 from/to canonical Evidence 生成稳定 Assessment/Impact/Case ID，并在锁定版本的一次事务中物化。
+- 只为实际引用旧 Evidence 且已进入 released Release 的 KnowledgeRevision 创建 open Case；added 不创建无来源 Case，每个 Case 的 change types 不再误用整份 assessment 汇总。
+- eligibility 明确进入 API/OpenAPI：仅 unchanged/moved 时只允许 carry-forward；包含 modified/removed/rights_changed/ambiguous 时只允许人工 replace/retire/no_action。
+- proposal/decision 双路径均在数据库层复验 eligibility；carry-forward 必须指向原 released revision，replacement 必须指向另一条 approved revision。materialization 自身不提议、不决定、不发布。
+
+#### Issues / Risks
+
+- 当前 P3-A 是合成轮转，不代表 ICH E9 存在新版本；E9 仍只有 P2 单文档检索基线。
+- eligibility 是确定性候选动作边界，不是自动审核。即使 Evidence 完全一致，仍需 Curator proposal、独立 Reviewer DecisionReceipt 和后续 Release Gate。
+- EvaluationRun threshold、Case included/closed、manifest/current pointer 与 released resolver 尚未实现；不能把 open/in_review Case 当发布完成。
+
+#### Validation
+
+- TDD RED：缺失 materializer 为 `3 failed`；缺失 PostgreSQL adapter 为 `1 failed`；缺少 `eligibleOutcomes` API 为 `1 failed`。
+- 单元合同 `3 passed`；真实临时 pgvector 的 materialization + 既有 rotation transaction `2 passed`，重复执行保持 1 Assessment、2 Impact、2 Case、1 materialization audit，旧 Release/Revision 状态不变。
+- Knowledge 全量 `277 passed, 10 skipped`；Ruff 与 `git diff --check` 通过；未调用模型、未创建 current Release、临时容器已清理。
+
+#### Next
+
+1. P3-B 以独立合成 EvaluationSuite 写 threshold pass/fail、immutable EvaluationRun 与回放失败测试；E9 Recall 不承担自动阈值。
+2. P3-C 再实现 Release manifest/index/object checksum、未决 Case/评估阻断与 base_release 并发发布。
+3. 风险是把 evaluation 文件报告当 canonical run，或让 Release Worker 回写 Evidence/Review；P3-B/P3-C 必须分别以 PostgreSQL authority 和最小权限事务阻断。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/service/governance/rotation*.py`、`service/platform_api/`、OpenAPI 与 synthetic/PostgreSQL tests
+- canonical Guide/Spec/Test、P17/PLAN/TASK_STATE、DevLog/INDEX（P3-A phase commit）
+
+---

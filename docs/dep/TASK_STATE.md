@@ -1,7 +1,7 @@
 ---
 status: in-progress
 created: 2026-08-16 12:08
-updated: 2026-08-16 14:02
+updated: 2026-08-16 14:03
 ---
 
 # Current Task
@@ -19,14 +19,15 @@ P17 P3 — 用合成 SourceVersion 变化接通知识轮转、Evaluation Gate �
 - [x] P2-D：建立 18 条自有 GoldCase、Recall@5/10、逐题结果与失败分类报告。
 - [x] 运行 P2 Phase Gate；Knowledge `274 passed, 9 skipped`、Ruff 通过、真实 E9 POC 连续报告一致。
 - [x] 同步 DevLog/INDEX；P2 阶段提交纳入本次发布并推送远端。
-- [ ] P3-A：以合成 SourceVersion/Evidence 写 impact materialization 与 RotationCase 创建失败测试。
+- [x] P3-A：以合成 SourceVersion/Evidence 完成 impact materialization、逐 revision RotationCase 与 eligibility Gate。
+- [ ] P3-B：以独立合成 EvaluationSuite 实现 immutable EvaluationRun 与可配置 threshold Gate。
 
 ## Working Context
 
-- **Files being edited**: P2 改动已收口；下一步进入 `service/governance/`、`service/releases/` 与对应 tests。
-- **Last command run**: `python -m pytest -q --disable-warnings` 为 `274 passed, 9 skipped`；`python -m ruff check .` 通过；迁移后的单命令 E9 POC 报告 SHA 连续两次均为 `581dc09d...`。
+- **Files being edited**: P3-A 位于 `service/governance/rotation*.py`、lifecycle API/OpenAPI 与合成 PostgreSQL tests；阶段提交后进入 `service/evaluation/`、`service/releases/`。
+- **Last command run**: Knowledge 全量 `277 passed, 10 skipped`、Ruff 通过；临时 PostgreSQL materialization + 既有 rotation transaction `2 passed`。
 - **Key decisions**: 只使用 E9，不使用 E9(R1)；原始 PDF 运行时下载且不提交 Git；测试/CI 使用自有合成 fixture；无 embedding 时 vector 显式 degraded；默认零模型调用。
-- **Blocker**: None；P2 Phase Gate 已关闭，进入 P3。
+- **Blocker**: None；P3-A 子阶段 Gate 已关闭，进入 P3-B。
 
 ## Phase Context
 
@@ -38,4 +39,4 @@ P17 P3 — 用合成 SourceVersion 变化接通知识轮转、Evaluation Gate �
 
 ## Resume From
 
-从 P3-A RED 开始：用完全合成的 from/to SourceVersion 与 Evidence 物化 ImpactAssessment，按七类变化创建 RotationCase；先证明 unchanged/moved 只产生 carry-forward 提议，modified/removed/rights_changed/ambiguous 必须人工处理，任何路径都不自动发布。
+从 P3-B RED 开始：用独立合成 EvaluationSuite 固定 threshold 输入、immutable EvaluationRun 与 pass/fail 原因；E9 Recall 继续只作为基线，不进入自动 Release threshold。

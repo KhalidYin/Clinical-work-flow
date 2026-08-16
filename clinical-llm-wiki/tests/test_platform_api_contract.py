@@ -504,6 +504,7 @@ class FakeRotationCaseRecord:
     knowledge_revision_id: str
     status: str
     change_types: tuple[str, ...]
+    eligible_outcomes: tuple[str, ...]
     proposed_outcome: str | None
     proposed_target_knowledge_revision_id: str | None
     proposed_by_actor_id: str | None
@@ -615,6 +616,7 @@ class FakeLifecycleService:
             knowledge_revision_id="krev-api-001",
             status="open",
             change_types=("modified",),
+            eligible_outcomes=("replace", "retire", "no_action"),
             proposed_outcome=None,
             proposed_target_knowledge_revision_id=None,
             proposed_by_actor_id=None,
@@ -1441,6 +1443,11 @@ def test_rotation_case_actions_come_from_backend_role_and_state(api_client) -> N
     assert curator.status_code == 200
     assert curator.json()["data"]["allowedActions"] == ["propose"]
     assert curator.json()["data"]["changeTypes"] == ["modified"]
+    assert curator.json()["data"]["eligibleOutcomes"] == [
+        "replace",
+        "retire",
+        "no_action",
+    ]
     assert curator.json()["data"]["releasedInReleaseIds"] == ["rel-001"]
     assert reviewer.status_code == 200
     assert reviewer.json()["data"]["allowedActions"] == []

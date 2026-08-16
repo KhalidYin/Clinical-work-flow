@@ -11,6 +11,16 @@ from .service import (
     StaleRevisionError,
 )
 from .repository import SqlAlchemyGovernanceRepository
+from .rotation import (
+    ImpactMaterializationCommand,
+    ImpactMaterializationError,
+    MaterializedRotationCase,
+    ReleasedRevisionEvidence,
+    RotationImpactMaterializer,
+    RotationMaterializationResult,
+    eligible_rotation_outcomes,
+)
+from .rotation_repository import SqlAlchemyRotationRepository
 
 __all__ = [
     "AuthorizationError",
@@ -19,7 +29,15 @@ __all__ = [
     "InMemoryGovernanceRepository",
     "InvalidGovernanceTransitionError",
     "KnowledgeGovernanceService",
+    "ImpactMaterializationCommand",
+    "ImpactMaterializationError",
+    "MaterializedRotationCase",
+    "ReleasedRevisionEvidence",
+    "RotationImpactMaterializer",
+    "RotationMaterializationResult",
     "SeparationOfDutiesError",
     "StaleRevisionError",
     "SqlAlchemyGovernanceRepository",
+    "SqlAlchemyRotationRepository",
+    "eligible_rotation_outcomes",
 ]

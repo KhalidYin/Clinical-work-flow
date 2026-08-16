@@ -412,6 +412,9 @@ class RotationCaseData(ApiModel):
             "ambiguous",
         ]
     ]
+    eligible_outcomes: list[
+        Literal["carry_forward", "replace", "retire", "no_action"]
+    ]
     proposed_outcome: Literal["carry_forward", "replace", "retire", "no_action"] | None
     proposed_target_knowledge_revision_id: str | None
     proposed_by_actor_id: str | None

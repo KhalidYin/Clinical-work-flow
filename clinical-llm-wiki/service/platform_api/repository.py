@@ -51,12 +51,14 @@ from service.db.models import (
     StepAttempt,
 )
 from service.knowledge import (
+    EvidenceChangeType,
     InvalidRotationTransitionError,
     RotationCaseNotFoundError,
     RotationDecisionCommand,
     RotationProposalCommand,
     StaleRotationCaseError,
 )
+from service.governance.rotation import eligible_rotation_outcomes
 
 
 @dataclass(frozen=True, slots=True)
@@ -305,6 +307,7 @@ class RotationCaseApiRecord:
     knowledge_revision_id: str
     status: str
     change_types: tuple[str, ...]
+    eligible_outcomes: tuple[str, ...]
     proposed_outcome: str | None
     proposed_target_knowledge_revision_id: str | None
     proposed_by_actor_id: str | None
@@ -1594,7 +1597,13 @@ class SqlAlchemyKnowledgeLifecycleRepository:
                 raise InvalidRotationTransitionError(
                     "only an open rotation case accepts a proposal"
                 )
-            _require_target_revision(session, command.target_knowledge_revision_id)
+            _require_rotation_outcome_eligible(session, case, command.outcome.value)
+            _require_rotation_outcome_target(
+                session,
+                case,
+                command.outcome.value,
+                command.target_knowledge_revision_id,
+            )
             case.status = "in_review"
             case.proposed_outcome = command.outcome.value
             case.proposed_target_knowledge_revision_id = (
@@ -1653,7 +1662,13 @@ class SqlAlchemyKnowledgeLifecycleRepository:
                 )
             if case.proposed_by_actor_id == actor.actor_id:
                 raise AuthorizationError("rotation reviewer must be independent")
-            _require_target_revision(session, command.target_knowledge_revision_id)
+            _require_rotation_outcome_eligible(session, case, command.outcome.value)
+            _require_rotation_outcome_target(
+                session,
+                case,
+                command.outcome.value,
+                command.target_knowledge_revision_id,
+            )
             receipt = RotationDecisionReceipt(
                 rotation_decision_id=(
                     f"rotation-decision-{uuid5(NAMESPACE_URL, f'{actor.actor_id}:{command.idempotency_key}').hex}"
@@ -1691,15 +1706,11 @@ def _rotation_case_api_record(
     session: Session,
     case: RotationCase,
 ) -> RotationCaseApiRecord:
-    change_types = tuple(
-        sorted(
-            set(
-                session.scalars(
-                    select(EvidenceImpact.change_type).where(
-                        EvidenceImpact.assessment_id == case.impact_assessment_id
-                    )
-                )
-            )
+    change_types = _rotation_case_change_types(session, case)
+    eligible_outcomes = tuple(
+        outcome.value
+        for outcome in eligible_rotation_outcomes(
+            tuple(EvidenceChangeType(value) for value in change_types)
         )
     )
     release_ids = tuple(
@@ -1730,6 +1741,7 @@ def _rotation_case_api_record(
         knowledge_revision_id=case.knowledge_revision_id,
         status=case.status,
         change_types=change_types,
+        eligible_outcomes=eligible_outcomes,
         proposed_outcome=case.proposed_outcome,
         proposed_target_knowledge_revision_id=(
             case.proposed_target_knowledge_revision_id
@@ -1771,14 +1783,84 @@ def _require_case_version(case: RotationCase, expected_case_version: int) -> Non
         )
 
 
-def _require_target_revision(
+def _rotation_case_change_types(
     session: Session,
+    case: RotationCase,
+) -> tuple[str, ...]:
+    revision = session.get(KnowledgeRevision, case.knowledge_revision_id)
+    if revision is None:
+        raise InvalidRotationTransitionError("rotation case revision does not exist")
+    evidence_ids = tuple(
+        session.scalars(
+            select(CandidateEvidence.evidence_id).where(
+                CandidateEvidence.candidate_id == revision.candidate_id
+            )
+        )
+    )
+    if not evidence_ids:
+        raise InvalidRotationTransitionError(
+            "rotation case revision has no canonical Evidence"
+        )
+    present = set(
+        session.scalars(
+            select(EvidenceImpact.change_type).where(
+                EvidenceImpact.assessment_id == case.impact_assessment_id,
+                EvidenceImpact.from_evidence_id.in_(evidence_ids),
+            )
+        )
+    )
+    ordered = tuple(
+        change_type.value
+        for change_type in EvidenceChangeType
+        if change_type.value in present
+    )
+    if not ordered:
+        raise InvalidRotationTransitionError(
+            "rotation case has no Evidence impact for its released revision"
+        )
+    return ordered
+
+
+def _require_rotation_outcome_eligible(
+    session: Session,
+    case: RotationCase,
+    outcome: str,
+) -> None:
+    change_types = tuple(
+        EvidenceChangeType(value)
+        for value in _rotation_case_change_types(session, case)
+    )
+    eligible = eligible_rotation_outcomes(change_types)
+    if outcome not in {item.value for item in eligible}:
+        raise InvalidRotationTransitionError(
+            f"{outcome} is not eligible for this rotation case"
+        )
+
+
+def _require_rotation_outcome_target(
+    session: Session,
+    case: RotationCase,
+    outcome: str,
     target_knowledge_revision_id: str | None,
 ) -> None:
     if target_knowledge_revision_id is None:
         return
-    if session.get(KnowledgeRevision, target_knowledge_revision_id) is None:
+    target = session.get(KnowledgeRevision, target_knowledge_revision_id)
+    if target is None:
         raise InvalidRotationTransitionError("target knowledge revision does not exist")
+    if outcome == "carry_forward" and target.knowledge_revision_id != case.knowledge_revision_id:
+        raise InvalidRotationTransitionError(
+            "carry_forward must target the case's released revision"
+        )
+    if outcome == "replace":
+        if target.knowledge_revision_id == case.knowledge_revision_id:
+            raise InvalidRotationTransitionError(
+                "replacement must target a different knowledge revision"
+            )
+        if target.status != "approved":
+            raise InvalidRotationTransitionError(
+                "replacement target must be an approved knowledge revision"
+            )
 
 
 def _require_matching_proposal(

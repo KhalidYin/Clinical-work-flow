@@ -33,7 +33,7 @@
 
 | 领域 | 当前基线 | 目标状态 |
 |------|----------|----------|
-| 知识控制面 | PostgreSQL durable DAG、Document/Enrichment Worker、ObjectStore、Candidate/Review、React GUI 已有骨架；P17/P1-P2 已接通版本化 Chunk、SourceVersion comparison/人工轮转合同、Document 物化、release-candidate metadata+FTS 与 E9 Recall 基线 | 接通轮转物化、通用 Evaluation/Release 和只读知识 MCP 闭环 |
+| 知识控制面 | PostgreSQL durable DAG、Document/Enrichment Worker、ObjectStore、Candidate/Review、React GUI 已有骨架；P17/P1-P3A 已接通版本化 Chunk、SourceVersion comparison/逐 revision 轮转物化、Document 物化、release-candidate metadata+FTS 与 E9 Recall 基线 | 接通通用 Evaluation/Release 和只读知识 MCP 闭环 |
 | 临床控制面 | 固定十阶段合同、Review Protocol、ActionPolicy、Study 文件状态已有原型；仍存在自建 Agent Loop、多套状态表达和执行入口 | 收敛为唯一 Workflow Orchestrator，由容器化 Harness 执行 Engine 已选定的 Step |
 | Harness | 已有版本化合同、独立 Supervisor 生命周期、staging/MCP、OpenCode digest 准入、P15 PostgreSQL/API 本地 POC 及 P16/P2-P3 本地 tmpfs `secret://`/模型 gateway；普通 Compose 仍默认 replay | 以更收敛的生产 runtime/Secret authority 和分策略出站部署 Harness Attempt，不向业务 Worker 暴露 Docker 控制权 |
 | MCP | Attempt 级 broker 与 OpenCode 标准 stdio shim 已纳入独立 Supervisor 离线部署并实测 `initialize/tools-list/tools/call`、路径拒绝和脱敏审计；知识消费仍主要是 REST | 扩展确定性工具；知识消费 MCP 只从 immutable Release 读取 |
@@ -164,13 +164,18 @@ fixed stages · Study FS/Git                  durable DAG · PostgreSQL/ObjectSt
 - `direct_model` 只保留给既有 fake/replay、简单原子调用和回归基线，不得扩张成第二套 Agent loop，也不是目标知识主链的执行器。
 - 模型或 Harness 只能产生 Candidate/proposal。作者确认、独立审核、Evaluation Gate 和 Release Manager 才能推进发布。
 
-P17/P1-P2 已实现 `ChunkProfile`、`RetrievalChunk`、有序 Evidence span、projection finding、
+P17/P1-P3A 已实现 `ChunkProfile`、`RetrievalChunk`、有序 Evidence span、projection finding、
 `ImpactAssessment/EvidenceImpact`、`RotationCase` 和不可变 `RotationDecisionReceipt` 的数据库/领域合同。
 Document Worker 在 Evidence fan-in 后物化 Chunk，完成后才把 Run 推进到 `evidence_ready`。同一
 Profile+Evidence 的确定性投影会固定 Chunk ID、顺序与 `content_sha256`，不跨 SourceVersion、
 source artifact、主章节、表格、Evidence type、data boundary 或 rights；空白、重复、模板噪声和 oversize
 均产生 finding。prerelease API 只读展示已物化 comparison/projection，并提供 Curator proposal、Reviewer
 decision 的角色分离、幂等和 stale/version conflict。
+
+P3-A 使用完全合成的同 Source 不同版本 Evidence 原子物化 assessment 与 open RotationCase。Case 只关联该
+released revision 实际引用的旧 Evidence：unchanged/moved 仅允许 Curator 提出 carry-forward；含
+modified/removed/rights_changed/ambiguous 时只能人工提出 replace/retire/no-action，再由独立 Reviewer 决定。
+物化本身不写 proposal、receipt、include 或 Release，重放不增量，也不改旧 Release/Revision。
 
 P17/P2 的 Query Lab API 只查询显式 `release_candidate` scope，使用 PostgreSQL metadata+FTS 并返回
 route contribution、Chunk explanation、ContextPackage 与最终 Evidence citation；没有 embedding/relation
