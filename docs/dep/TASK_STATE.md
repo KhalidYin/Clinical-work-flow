@@ -1,7 +1,7 @@
 ---
 status: in-progress
 created: 2026-08-16 12:08
-updated: 2026-08-16 20:58
+updated: 2026-08-16 21:46
 ---
 
 # Current Task
@@ -28,14 +28,17 @@ P17 P4 — 在现有九项导航内补全 API 权威的知识治理 UI，并关�
 - [x] P4-B2：新增 Evaluation 列表/详情 API 与真实质量评估页面，完成 URL、Recall/阈值/逐题结果及默认/空/错/partial 组件测试。
 - [x] P4-B3：新增 Releases candidate/current/history 权威 read model、服务端 diff/Gates/blockers/allowed actions 和显式 `base_release_id` 发布命令。
 - [x] P4-B4：Releases 升级为 API 驱动页面，覆盖 URL 候选选择、发布、409 stale 刷新、空/错/partial 与响应式组件行为。
+- [x] P4-B5：以服务端登记的 E9 suite 启动 deterministic informational EvaluationRun，浏览器不提交 SourceVersion/ChunkProfile。
+- [x] P4-B6：以 EvaluationRun/Case 身份进行 candidate-scope 失败重放，并由服务端返回同 suite 回归差异。
+- [x] P4-B7：Evaluation/Query Lab 接通启动、重放、baseline URL 与 regression 展示，完成组件行为测试。
 - [ ] P4：补全现有治理 UI，并关闭前端、Workflow、浏览器和全链路 POC Gate。
 
 ## Working Context
 
-- **Files being edited**: P4-B Releases 位于 `service/releases/workbench*.py`、release/platform API/OpenAPI，以及 `frontend` Releases 合同、页面和组件测试。
-- **Last command run**: Knowledge `301 passed, 12 skipped`、Ruff 通过；前端 `38 passed`、typecheck/build 通过；Workflow `366 passed, 1 skipped`；真实 PostgreSQL Releases workbench/publish/diff `1 passed`；零模型请求。
+- **Files being edited**: P4-B Evaluation operations、platform API/OpenAPI、生产 E9 suite、Evaluation/Query Lab 页面及本阶段文档。
+- **Last command run**: Knowledge `308 passed, 12 skipped`、Ruff 通过；前端 `42 passed` 且 production build 通过；Workflow `366 passed, 1 skipped`；Compose API/PostgreSQL 健康、其余服务运行，semantic index 未配置而预期 degraded。
 - **Key decisions**: 只使用 E9，不使用 E9(R1)；原始 PDF 运行时下载且不提交 Git；测试/CI 使用自有合成 fixture；无 embedding 时 vector 显式 degraded；默认零模型调用。
-- **Blocker**: None；Query Lab、Evaluation read surface 和 Releases workbench 已齐备。Evaluation 启动/candidate-scope replay/regression diff、真实浏览器/390px 与全量 P4 Gate 仍缺失；默认 E9 数据库为 ephemeral，不会填充 Compose 页面。
+- **Blocker**: 功能无 blocker；现有 Compose 管理员密码已被人工修改，bootstrap 不覆盖，因此未取得有效登录态前不能完成需要认证的真实浏览器跨页验收。不得为测试擅自重置密码。
 
 ## Phase Context
 
@@ -47,4 +50,4 @@ P17 P4 — 在现有九项导航内补全 API 权威的知识治理 UI，并关�
 
 ## Resume From
 
-从 Evaluation 启动 endpoint、candidate-scope 失败重放与 regression diff 的后端合同 RED 开始，再接页面；随后执行真实浏览器/390px 和 P4 汇总 Gate。风险是启动路径把 informational E9 错作 Release threshold，或 candidate 重放越过 immutable Release consumer 边界。
+运行 Knowledge、Ruff、前端、Workflow、Compose 与文档一致性最终 Gate，追加 DevLog 后阶段提交并推送；随后用有效人员登录态完成真实浏览器主流程和 390px 验收。

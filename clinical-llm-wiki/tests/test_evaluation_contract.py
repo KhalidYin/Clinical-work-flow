@@ -158,7 +158,7 @@ def test_evaluation_rejects_scope_that_does_not_match_pinned_suite_inputs() -> N
 
 
 def test_checked_in_ich_e9_gold_suite_is_pinned_and_contains_no_source_excerpts() -> None:
-    path = ROOT / "tests" / "fixtures" / "knowledge" / "ich-e9-retrieval-gold-v1.json"
+    path = ROOT / "service/evaluation/suites/ich-e9-retrieval-gold-v1.json"
     suite = GoldSuite.model_validate_json(path.read_text(encoding="utf-8"))
 
     assert len(suite.cases) == 18

@@ -68,6 +68,9 @@ const queryLabRoute = createRoute({
   validateSearch: (search: Record<string, unknown>) => {
     const parsedTopK = Number(search.top_k);
     return {
+      scope: search.scope === "evaluation" ? ("evaluation" as const) : ("" as const),
+      evaluation: typeof search.evaluation === "string" ? search.evaluation : "",
+      case: typeof search.case === "string" ? search.case : "",
       q: typeof search.q === "string" ? search.q : "",
       release: typeof search.release === "string" ? search.release : "",
       top_k: [5, 10, 20, 50].includes(parsedTopK) ? parsedTopK : 10,
@@ -85,6 +88,7 @@ const evaluationRoute = createRoute({
     outcome: ["informational", "passed", "failed"].includes(String(search.outcome))
       ? (search.outcome as "informational" | "passed" | "failed")
       : "" as const,
+    baseline: typeof search.baseline === "string" ? search.baseline : "",
   }),
   component: EvaluationRoute,
 });
@@ -121,6 +125,19 @@ function EvaluationRoute() {
         void navigate({
           search: (current) => ({ ...current, ...patch }),
           replace: true,
+        });
+      }}
+      onReplay={(replay) => {
+        void navigate({
+          to: "/query-lab",
+          search: {
+            scope: "evaluation",
+            evaluation: replay.evaluationRunId,
+            case: replay.caseId,
+            q: replay.query ?? "",
+            release: "",
+            top_k: replay.topK,
+          },
         });
       }}
     />

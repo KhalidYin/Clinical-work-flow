@@ -271,3 +271,44 @@
 - README/USAGE、canonical Guide/Spec/Test、P17/PLAN/TASK_STATE、DevLog/INDEX（P4-B Releases phase commit）
 
 ---
+
+## 2026-08-16
+
+### R136 [21:46] [P17-knowledge-lifecycle-retrieval-poc] P4-B: Evaluation operations loop
+
+#### Done
+
+- 将 ICH E9 GoldSuite 从测试 fixture 移入生产包内的服务端 registry；Evaluation 启动请求只接受 suite ID/version，SourceVersion、ChunkProfile 和问题集均由后端固定。
+- 新增 deterministic informational EvaluationRun 启动、基于 immutable Run/Case 的 candidate-scope 重放，以及同 suite/purpose 的服务端 regression diff；权限分别收敛到 `EVALUATION_RUN` 与 `CANDIDATE_READ`，E9 不进入 Release threshold。
+- Evaluation 页面接通启动、baseline URL 和回归展示；失败案例进入 Query Lab 时只传 Run/Case/query 身份，浏览器不提交 candidate scope、Release、SourceVersion 或 ChunkProfile。
+- E9 单命令环路增加 operations 证据：registry 1 个 suite、重复启动稳定、案例重放零模型调用、self-regression 18 条 unchanged。GoldSuite 随 Python wheel 打包，报告继续保留在仓库，官方 PDF 继续 ignored。
+- Compose 旧 demo run 的四步图被 ledger 正确拒绝覆盖；将 demo SourceVersion 提升到 `1.1.0` 并使用新幂等键开启五步图 epoch，旧 run 与数据库均未删除或重写。
+
+#### Issues / Risks
+
+- 默认 E9 POC 数据库仍是 ephemeral；Compose 只有在已有匹配 E9 SourceVersion/Chunk 时才能启动该 suite，页面不得用文件报告或空范围生成伪 run。
+- 当前 Compose 管理员密码已被人工修改，bootstrap 按合同不覆盖 `.env` 中的初始化密码。本轮未擅自重置，因此需要认证的真实浏览器跨页与 390px 验收仍待有效登录态。
+- candidate replay 仅是预发布评估能力；Workflow 和生产知识消费者仍只能读取 immutable Release。vector/relation 继续如实 degraded，完整 Knowledge MCP 尚未接通。
+
+#### Validation
+
+- TDD RED/GREEN：operations 初始 import 缺失；POC 初始缺少 `evaluation_operations` 报告字段；随后 domain `4 passed`、POC/operations `7 passed`、platform API/OpenAPI `38 passed`。
+- 全量前端 Gate 首次捕获候选空状态文案使用了错误局部变量名；修正为现有 `evaluationMode` 后重新全量通过，未掩盖失败结果。
+- Knowledge 全量 `308 passed, 12 skipped`，Ruff 通过；前端 `42 passed`，typecheck 与 production build 通过；Clinical Workflow `366 passed, 1 skipped`。
+- 真实 E9 环路：41 Evidence/Chunk、18 GoldCase、Recall@5 `0.888889`、Recall@10 `0.944444`、`external_model_requests=0`。
+- 默认 Compose migration/bootstrap/admin-bootstrap 均退出 0；API、PostgreSQL 健康，Document/Enrichment Worker 与前端运行。健康接口按未配置 semantic index 返回预期 degraded，不代表数据库或 API 故障。
+- `git diff --check` 通过；仅有仓库既有 Windows 换行提示。未配置或调用真实模型，未发生外部模型请求。
+
+#### Next
+
+1. 按本阶段文件范围提交并推送远端，核对本地与远端 commit 一致。
+2. 取得有效人员登录态后，执行 Evaluation 启动 → 失败案例 Query Lab 重放 → regression、Releases 与 390px 真实浏览器验收。
+3. 再补 P17-UI-01..03/07..08 的增量治理页面和完整跨页 P4 Gate；风险是把浏览器验证缺口误报为产品完成，或为方便测试覆盖真实管理员密码。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/service/evaluation/`、platform API/OpenAPI、runtime suite packaging、E9 POC/report 与合同测试
+- `clinical-llm-wiki/frontend/src/pages/EvaluationPage.tsx`、`QueryLabPage.tsx`、contracts/router/MSW/CSS 与组件测试
+- demo runtime epoch、README/USAGE、canonical Guide/Spec/Test、P17/PLAN/TASK_STATE、DevLog/INDEX（本阶段提交）
+
+---

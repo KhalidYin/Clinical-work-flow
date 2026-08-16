@@ -54,6 +54,9 @@ describe("P17 Query Lab", () => {
     });
     await waitFor(() => {
       expect(router.state.location.search).toEqual({
+        scope: "",
+        evaluation: "",
+        case: "",
         q: "randomisation selection bias",
         release: "rel-historical",
         top_k: 5,
@@ -76,5 +79,45 @@ describe("P17 Query Lab", () => {
     expect(screen.getByText("evidence-e9-randomisation")).toBeInTheDocument();
     expect(screen.getAllByText(/第 8 页/)).toHaveLength(2);
     expect(screen.getByText("单文档检索基线，不是临床质量认证")).toBeInTheDocument();
+  });
+
+  it("replays an Evaluation case without accepting candidate scope from the URL", async () => {
+    let calls = 0;
+    server.use(
+      http.post(
+        resolveApiPath(
+          `${API_PATHS.evaluations}/evaluation-e9-api-001/cases/e9-randomisation-bias/replay`,
+        ),
+        () => {
+          calls += 1;
+          return HttpResponse.json({
+            ...releasedQueryFixture,
+            data: {
+              ...releasedQueryFixture.data,
+              releaseId: undefined,
+              releaseVersion: undefined,
+              contextPackage: {
+                sandboxKind: "release_candidate",
+                sandboxId: "sandbox-ich-e9-poc-v1",
+                chunkIds: releasedQueryFixture.data.contextPackage.chunkIds,
+                citations: releasedQueryFixture.data.contextPackage.citations,
+              },
+            },
+          });
+        },
+      ),
+    );
+
+    renderApp(
+      "/query-lab?scope=evaluation&evaluation=evaluation-e9-api-001&case=e9-randomisation-bias&q=How%20does%20randomisation%20reduce%20selection%20bias%3F&release=&top_k=10",
+    );
+
+    await waitFor(() => expect(calls).toBe(1));
+    expect(screen.getAllByText("Evaluation case 重放")).toHaveLength(2);
+    expect(screen.getByText("sandbox-ich-e9-poc-v1")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Release ID（留空使用 current）")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/SourceVersion/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/ChunkProfile/i)).not.toBeInTheDocument();
+    expect(screen.getByText("零外部模型请求")).toBeInTheDocument();
   });
 });

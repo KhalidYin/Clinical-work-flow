@@ -29,6 +29,8 @@ from service.retrieval import (
     CandidateSearchRecord,
     EvidenceCitation,
     ImmutableReleaseRetrievalService,
+    ReleaseCandidateScope,
+    RetrievalQuery,
     RetrievalService,
 )
 from service.sources import SourceRegistrationReceipt
@@ -396,6 +398,78 @@ class FakeEvaluationReadService:
 
     def get_run(self, *, evaluation_run_id: str):
         return self.run if evaluation_run_id == self.run.evaluation_run_id else None
+
+
+class FakeEvaluationOperationsService:
+    def __init__(self, evaluation_module: Any, read_service: FakeEvaluationReadService) -> None:
+        self._evaluation_module = evaluation_module
+        self._read_service = read_service
+        self._retrieval = RetrievalService(repository=FakeCandidateSearchRepository())
+
+    def list_suites(self):
+        return (
+            self._evaluation_module.EvaluationSuiteRecord(
+                suite_id="ich-e9-retrieval-gold",
+                suite_version="1.0.0",
+                document_id="ICH-E9",
+                source_version_id="srcv-e9",
+                chunk_profile_id="ich-e9-poc-v1",
+                case_count=18,
+            ),
+        )
+
+    def start(self, *, actor, command):
+        del actor
+        assert command.suite_id == "ich-e9-retrieval-gold"
+        assert command.suite_version == "1.0.0"
+        return self._read_service.run
+
+    def replay_case(self, *, actor, evaluation_run_id: str, case_id: str):
+        del actor
+        assert evaluation_run_id == "evaluation-e9-api-001"
+        assert case_id == "e9-randomisation-bias"
+        return self._retrieval.query(
+            RetrievalQuery(
+                query="How does randomisation reduce selection bias?",
+                top_k=10,
+                scope=ReleaseCandidateScope(
+                    sandbox_id="sandbox-ich-e9-poc-v1",
+                    source_version_ids=("srcv-e9",),
+                    chunk_profile_id="ich-e9-poc-v1",
+                ),
+            )
+        )
+
+    def compare_runs(self, *, actor, evaluation_run_id: str, baseline_run_id: str):
+        del actor
+        return self._evaluation_module.EvaluationRegressionRecord(
+            evaluation_run_id=evaluation_run_id,
+            baseline_run_id=baseline_run_id,
+            suite_id="ich-e9-retrieval-gold",
+            current_suite_version="1.0.0",
+            baseline_suite_version="1.0.0",
+            metric_deltas=self._evaluation_module.EvaluationMetricDeltas(
+                recall_at_5=0.055556,
+                recall_at_10=0.0,
+            ),
+            counts=self._evaluation_module.EvaluationRegressionCounts(
+                improved=1,
+                regressed=0,
+                unchanged=17,
+                added=0,
+                removed=0,
+            ),
+            case_diffs=(
+                self._evaluation_module.EvaluationCaseDiffRecord(
+                    case_id="e9-randomisation-bias",
+                    change="improved",
+                    baseline_outcome="expected_not_in_top_10",
+                    current_outcome="hit_top_5",
+                    baseline_rank=None,
+                    current_rank=1,
+                ),
+            ),
+        )
 
 
 class FakeReleaseWorkbenchService:
@@ -1047,7 +1121,7 @@ def _grant(subject: str, display_name: str, role: str, *, status: str = "active"
 @pytest.fixture()
 def api_client():
     app_module, _, repository_module = _platform_modules()
-    evaluation_read_module = import_module("service.evaluation.read_model")
+    evaluation_module = import_module("service.evaluation")
     release_module = import_module("service.releases")
     assertions = {
         "admin-token": _identity("admin", "Platform Admin"),
@@ -1091,6 +1165,7 @@ def api_client():
     }
     lifecycle = FakeLifecycleService(repository_module)
     repository.lifecycle_service = lifecycle
+    evaluation_read = FakeEvaluationReadService(evaluation_module)
     services = app_module.PlatformApiServices(
         repository=repository,
         password_sessions=FakePasswordSessions(principals),
@@ -1108,7 +1183,11 @@ def api_client():
             resolver=FakeImmutableReleaseResolver(),
             repository=FakeReleasedSearchRepository(),
         ),
-        evaluation_read=FakeEvaluationReadService(evaluation_read_module),
+        evaluation_read=evaluation_read,
+        evaluation_operations=FakeEvaluationOperationsService(
+            evaluation_module,
+            evaluation_read,
+        ),
         release_workbench=FakeReleaseWorkbenchService(release_module),
         release_publisher=FakeReleasePublisher(release_module),
     )
@@ -1147,6 +1226,14 @@ def test_platform_services_has_explicit_evaluation_read_port() -> None:
     app_module, _, _ = _platform_modules()
 
     assert "evaluation_read" in {
+        field.name for field in fields(app_module.PlatformApiServices)
+    }
+
+
+def test_platform_services_has_explicit_evaluation_operations_port() -> None:
+    app_module, _, _ = _platform_modules()
+
+    assert "evaluation_operations" in {
         field.name for field in fields(app_module.PlatformApiServices)
     }
 
@@ -1245,6 +1332,19 @@ def test_evaluation_api_returns_authoritative_e9_metrics_and_failed_case_replay(
     assert collection["total"] == 1
     assert collection["partial"] is False
     assert collection["warnings"] == []
+    assert collection["availableSuites"] == [
+        {
+            "suiteId": "ich-e9-retrieval-gold",
+            "suiteVersion": "1.0.0",
+            "documentId": "ICH-E9",
+            "sourceVersionId": "srcv-e9",
+            "chunkProfileId": "ich-e9-poc-v1",
+            "caseCount": 18,
+            "sandboxKind": "release_candidate",
+            "externalModelRequests": 0,
+        }
+    ]
+    assert collection["allowedActions"] == []
     summary = collection["items"][0]
     assert summary["evaluationRunId"] == "evaluation-e9-api-001"
     assert summary["purpose"] == "retrieval_baseline"
@@ -1262,6 +1362,8 @@ def test_evaluation_api_returns_authoritative_e9_metrics_and_failed_case_replay(
     assert case["failureCategory"] == "expected_not_retrieved"
     assert case["replay"] == {
         "queryLabPath": "/query-lab",
+        "evaluationRunId": "evaluation-e9-api-001",
+        "caseId": "e9-randomisation-bias",
         "query": "How does randomisation reduce selection bias?",
         "releaseId": None,
         "topK": 10,
@@ -1272,6 +1374,84 @@ def test_evaluation_api_returns_authoritative_e9_metrics_and_failed_case_replay(
         detail.json()["data"]["evaluationNotice"]
         == "single_document_retrieval_baseline_not_clinical_quality_certification"
     )
+
+    manager_detail = client.get(
+        f"{API_PREFIX}/evaluations/evaluation-e9-api-001",
+        headers=_auth("release-manager-token"),
+    )
+    assert manager_detail.status_code == 200
+    assert (
+        manager_detail.json()["data"]["caseResults"][0]["replay"]["availability"]
+        == "available"
+    )
+
+
+def test_evaluation_start_replay_and_regression_keep_scope_on_server(api_client) -> None:
+    client, _ = api_client
+
+    manager_collection = client.get(
+        f"{API_PREFIX}/evaluations",
+        headers=_auth("release-manager-token"),
+    )
+    forbidden_start = client.post(
+        f"{API_PREFIX}/evaluations/runs",
+        headers=_auth("consumer-token"),
+        json={"suiteId": "ich-e9-retrieval-gold", "suiteVersion": "1.0.0"},
+    )
+    started = client.post(
+        f"{API_PREFIX}/evaluations/runs",
+        headers=_auth("release-manager-token"),
+        json={"suiteId": "ich-e9-retrieval-gold", "suiteVersion": "1.0.0"},
+    )
+    forbidden_replay = client.post(
+        (
+            f"{API_PREFIX}/evaluations/evaluation-e9-api-001/cases/"
+            "e9-randomisation-bias/replay"
+        ),
+        headers=_auth("consumer-token"),
+    )
+    replayed = client.post(
+        (
+            f"{API_PREFIX}/evaluations/evaluation-e9-api-001/cases/"
+            "e9-randomisation-bias/replay"
+        ),
+        headers=_auth("release-manager-token"),
+    )
+    regression = client.get(
+        (
+            f"{API_PREFIX}/evaluations/evaluation-e9-api-001/regression"
+            "?baseline_run_id=evaluation-e9-api-000"
+        ),
+        headers=_auth("consumer-token"),
+    )
+
+    assert manager_collection.status_code == 200
+    assert manager_collection.json()["data"]["allowedActions"] == ["start"]
+    assert forbidden_start.status_code == 403
+    assert started.status_code == 200
+    assert started.json()["data"]["evaluationRunId"] == "evaluation-e9-api-001"
+    assert started.json()["data"]["outcome"] == "informational"
+    assert forbidden_replay.status_code == 403
+    assert replayed.status_code == 200
+    replay = replayed.json()["data"]
+    assert replay["contextPackage"]["sandboxId"] == "sandbox-ich-e9-poc-v1"
+    assert replay["hits"][0]["explanation"]["sourceVersionId"] == "srcv-e9"
+    assert replay["hits"][0]["explanation"]["chunkProfileId"] == "ich-e9-poc-v1"
+    assert replay["externalModelRequests"] == 0
+    assert regression.status_code == 200
+    regression_data = regression.json()["data"]
+    assert regression_data["metricDeltas"] == {
+        "recallAt5": 0.055556,
+        "recallAt10": 0.0,
+    }
+    assert regression_data["counts"] == {
+        "improved": 1,
+        "regressed": 0,
+        "unchanged": 17,
+        "added": 0,
+        "removed": 0,
+    }
+    assert regression_data["caseDiffs"][0]["change"] == "improved"
 
 
 def test_evaluation_api_reports_not_found_without_fabricating_metrics(api_client) -> None:
@@ -2074,7 +2254,13 @@ def test_checked_in_openapi_matches_runtime_paths_roles_and_responses(api_client
             f"{API_PREFIX}/query-lab/query",
             f"{API_PREFIX}/query-lab/released-query",
             f"{API_PREFIX}/evaluations",
+            f"{API_PREFIX}/evaluations/runs",
             f"{API_PREFIX}/evaluations/{{evaluation_run_id}}",
+            (
+                f"{API_PREFIX}/evaluations/{{evaluation_run_id}}/cases/"
+                "{case_id}/replay"
+            ),
+            f"{API_PREFIX}/evaluations/{{evaluation_run_id}}/regression",
             f"{API_PREFIX}/runtime-knowledge/version",
             f"{API_PREFIX}/runtime-knowledge/resolve",
             f"{API_PREFIX}/sources",
@@ -2243,6 +2429,37 @@ def test_checked_in_openapi_matches_runtime_paths_roles_and_responses(api_client
             "EvaluationRunDetailResponse",
             client.get(
                 f"{API_PREFIX}/evaluations/evaluation-e9-api-001",
+                headers=_auth("consumer-token"),
+            ),
+        ),
+        (
+            "EvaluationRunDetailResponse",
+            client.post(
+                f"{API_PREFIX}/evaluations/runs",
+                headers=_auth("release-manager-token"),
+                json={
+                    "suiteId": "ich-e9-retrieval-gold",
+                    "suiteVersion": "1.0.0",
+                },
+            ),
+        ),
+        (
+            "QueryLabResponse",
+            client.post(
+                (
+                    f"{API_PREFIX}/evaluations/evaluation-e9-api-001/cases/"
+                    "e9-randomisation-bias/replay"
+                ),
+                headers=_auth("release-manager-token"),
+            ),
+        ),
+        (
+            "EvaluationRegressionResponse",
+            client.get(
+                (
+                    f"{API_PREFIX}/evaluations/evaluation-e9-api-001/regression"
+                    "?baseline_run_id=evaluation-e9-api-000"
+                ),
                 headers=_auth("consumer-token"),
             ),
         ),

@@ -203,6 +203,22 @@ export function releasePublishPath(releaseId: string): string {
   return `/api/prerelease/v1/releases/${encodeURIComponent(releaseId)}/publish`;
 }
 
+export function evaluationRunPath(evaluationRunId: string): string {
+  return `${API_PATHS.evaluations}/${encodeURIComponent(evaluationRunId)}`;
+}
+
+export function evaluationReplayPath(evaluationRunId: string, caseId: string): string {
+  return `${evaluationRunPath(evaluationRunId)}/cases/${encodeURIComponent(caseId)}/replay`;
+}
+
+export function evaluationRegressionPath(
+  evaluationRunId: string,
+  baselineRunId: string,
+): string {
+  const params = new URLSearchParams({ baseline_run_id: baselineRunId });
+  return `${evaluationRunPath(evaluationRunId)}/regression?${params.toString()}`;
+}
+
 export interface RetrievalCapability {
   status: CapabilityState;
   reason: string | null;
@@ -275,6 +291,21 @@ export interface ReleasedQueryLabRequest {
   releaseId: string | null;
 }
 
+export interface CandidateQueryLabResult {
+  queryId: string;
+  fusionVersion: "metadata-fts-weighted-v1";
+  capabilities: RetrievalCapabilities;
+  hits: RetrievalHit[];
+  contextPackage: {
+    sandboxKind: "release_candidate";
+    sandboxId: string;
+    chunkIds: string[];
+    citations: RetrievalCitation[];
+  };
+  externalModelRequests: 0;
+  evaluationNotice: "single_document_retrieval_baseline_not_clinical_quality_certification";
+}
+
 export type EvaluationPurpose = "retrieval_baseline" | "release_gate_synthetic";
 export type EvaluationOutcome = "informational" | "passed" | "failed";
 
@@ -299,6 +330,24 @@ export interface EvaluationRunCollection {
   total: number;
   partial: boolean;
   warnings: string[];
+  availableSuites: EvaluationSuite[];
+  allowedActions: Array<"start">;
+}
+
+export interface EvaluationSuite {
+  suiteId: string;
+  suiteVersion: string;
+  documentId: string;
+  sourceVersionId: string;
+  chunkProfileId: string;
+  caseCount: number;
+  sandboxKind: "release_candidate";
+  externalModelRequests: 0;
+}
+
+export interface EvaluationStartRequest {
+  suiteId: string;
+  suiteVersion: string;
 }
 
 export interface EvaluationCase {
@@ -315,6 +364,8 @@ export interface EvaluationCase {
   retrievedEvidenceIds: string[];
   replay: {
     queryLabPath: "/query-lab";
+    evaluationRunId: string;
+    caseId: string;
     query: string | null;
     releaseId: string | null;
     topK: 10;
@@ -331,6 +382,30 @@ export interface EvaluationRunDetail extends EvaluationRunSummary {
   }>;
   failureReasons: string[];
   caseResults: EvaluationCase[];
+}
+
+export interface EvaluationRegression {
+  evaluationRunId: string;
+  baselineRunId: string;
+  suiteId: string;
+  currentSuiteVersion: string;
+  baselineSuiteVersion: string;
+  metricDeltas: { recallAt5: number; recallAt10: number };
+  counts: {
+    improved: number;
+    regressed: number;
+    unchanged: number;
+    added: number;
+    removed: number;
+  };
+  caseDiffs: Array<{
+    caseId: string;
+    change: "improved" | "regressed" | "unchanged" | "added" | "removed";
+    baselineOutcome: string | null;
+    currentOutcome: string | null;
+    baselineRank: number | null;
+    currentRank: number | null;
+  }>;
 }
 
 export interface SourceSummary {
@@ -645,6 +720,12 @@ export type ApiErrorCode =
   | "invalid_governance_transition"
   | "stale_revision"
   | "duplicate_decision"
+  | "evaluation_run_not_found"
+  | "evaluation_run_invalid"
+  | "evaluation_suite_not_found"
+  | "evaluation_suite_conflict"
+  | "evaluation_case_not_found"
+  | "evaluation_comparison_invalid"
   | "released_knowledge_not_found"
   | "released_knowledge_invalid"
   | "release_candidate_not_found"

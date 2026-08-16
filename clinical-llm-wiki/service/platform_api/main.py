@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from hashlib import sha256
+from importlib.resources import files
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -41,7 +42,25 @@ from .repository import (
     SqlAlchemyKnowledgeLifecycleRepository,
     SqlAlchemyPlatformRepository,
 )
-from service.evaluation import SqlAlchemyEvaluationReadRepository
+from service.evaluation import (
+    EvaluationOperationsService,
+    GoldSuite,
+    RegisteredEvaluationSuite,
+    SqlAlchemyEvaluationReadRepository,
+)
+
+
+def _registered_evaluation_suites() -> tuple[RegisteredEvaluationSuite, ...]:
+    suite_resource = files("service.evaluation").joinpath(
+        "suites/ich-e9-retrieval-gold-v1.json"
+    )
+    suite = GoldSuite.model_validate_json(suite_resource.read_text(encoding="utf-8"))
+    return (
+        RegisteredEvaluationSuite(
+            suite=suite,
+            sandbox_id="sandbox-ich-e9-poc-v1",
+        ),
+    )
 
 
 def _required_environment(name: str) -> str:
@@ -75,6 +94,8 @@ def create_environment_app():
         )
     )
     search_repository = PostgresCandidateSearchRepository(sessions)
+    retrieval = RetrievalService(repository=search_repository)
+    evaluation_read = SqlAlchemyEvaluationReadRepository(sessions)
     return create_platform_app(
         PlatformApiServices(
             repository=repository,
@@ -96,15 +117,18 @@ def create_environment_app():
                 repository=SqlAlchemyGovernanceRepository(sessions)
             ),
             lifecycle=SqlAlchemyKnowledgeLifecycleRepository(sessions),
-            retrieval=RetrievalService(
-                repository=search_repository
-            ),
+            retrieval=retrieval,
             released_retrieval=ImmutableReleaseRetrievalService(
                 resolver=release_resolver,
                 repository=search_repository,
             ),
             release_resolver=release_resolver,
-            evaluation_read=SqlAlchemyEvaluationReadRepository(sessions),
+            evaluation_read=evaluation_read,
+            evaluation_operations=EvaluationOperationsService(
+                suites=_registered_evaluation_suites(),
+                retrieval=retrieval,
+                repository=evaluation_read,
+            ),
             release_workbench=release_workbench,
             release_publisher=ReleasePublisher(
                 repository=release_repository,

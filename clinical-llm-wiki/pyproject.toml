@@ -43,3 +43,6 @@ target-version = "py311"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["service*", "scripts*"]
+
+[tool.setuptools.package-data]
+"service.evaluation" = ["suites/*.json"]

@@ -175,6 +175,27 @@ class SqlAlchemyEvaluationReadRepository:
             row = session.get(EvaluationRun, evaluation_run_id)
             return _read_row(row) if row is not None else None
 
+    def get_retrieval_baseline(
+        self,
+        *,
+        evaluation_run_id: str,
+    ) -> RetrievalBaselineRun | None:
+        with self._sessions() as session:
+            row = session.get(EvaluationRun, evaluation_run_id)
+            if row is None:
+                return None
+            payload = row.metrics
+            if not isinstance(payload, dict) or payload.get("purpose") != "retrieval_baseline":
+                return None
+            try:
+                run = RetrievalBaselineRun.model_validate(payload)
+            except ValueError as exc:
+                raise EvaluationReadIntegrityError(
+                    "immutable EvaluationRun payload drift"
+                ) from exc
+            _require_row_identity(row, run.evaluation_run_id, run.report.suite_version, run.status)
+            return run
+
 
 def _read_row(row: EvaluationRun) -> EvaluationReadRecord:
     payload = row.metrics

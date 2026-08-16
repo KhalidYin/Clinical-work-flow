@@ -14,6 +14,16 @@ def test_demo_replay_profile_never_reuses_worker_machine_credential() -> None:
     assert "WORKER_TOKEN" not in DEMO_REPLAY_SECRET_REF
 
 
+def test_demo_bootstrap_advances_identity_for_the_p17_chunk_graph() -> None:
+    from service.demo_runtime import (
+        DEMO_SOURCE_IDEMPOTENCY_KEY,
+        DEMO_SOURCE_VERSION,
+    )
+
+    assert DEMO_SOURCE_VERSION == "1.1.0"
+    assert DEMO_SOURCE_IDEMPOTENCY_KEY == "p17-demo-aeseq-chunk-v1"
+
+
 def test_demo_replay_output_cites_only_canonical_evidence() -> None:
     from service.demo_runtime import build_demo_replay_output
     from service.knowledge import EvidenceReference

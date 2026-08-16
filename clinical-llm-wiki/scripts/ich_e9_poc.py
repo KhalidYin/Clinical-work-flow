@@ -42,8 +42,10 @@ from service.db.models import (
 )
 from service.db.session import create_database_engine, create_session_factory
 from service.evaluation import (
-    EvaluationService,
+    EvaluationOperationsService,
+    EvaluationStartCommand,
     GoldSuite,
+    RegisteredEvaluationSuite,
     SqlAlchemyEvaluationReadRepository,
 )
 from service.object_store import LocalObjectStore
@@ -77,7 +79,7 @@ from .ich_e9_asset import (
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_GOLD_SUITE = ROOT / "tests/fixtures/knowledge/ich-e9-retrieval-gold-v1.json"
+DEFAULT_GOLD_SUITE = ROOT / "service/evaluation/suites/ich-e9-retrieval-gold-v1.json"
 DEFAULT_REPORT = ROOT / "reports/p17/ich-e9-retrieval-baseline.json"
 SOURCE_ID = "src-ich-e9"
 SOURCE_VERSION = "1998-02-05"
@@ -216,14 +218,48 @@ def run_poc(
             source_version_ids=(receipt.source_version_id,),
             chunk_profile_id=ICH_E9_CHUNK_PROFILE_V1.chunk_profile_id,
         )
-        evaluation = EvaluationService(
-            retrieval=RetrievalService(
-                repository=PostgresCandidateSearchRepository(sessions)
-            )
-        ).run(suite=suite, scope=scope)
-        evaluation_run = SqlAlchemyEvaluationReadRepository(
-            sessions
-        ).record_retrieval_baseline(evaluation)
+        retrieval = RetrievalService(
+            repository=PostgresCandidateSearchRepository(sessions)
+        )
+        evaluation_repository = SqlAlchemyEvaluationReadRepository(sessions)
+        evaluation_operations = EvaluationOperationsService(
+            suites=(
+                RegisteredEvaluationSuite(
+                    suite=suite,
+                    sandbox_id=scope.sandbox_id,
+                ),
+            ),
+            retrieval=retrieval,
+            repository=evaluation_repository,
+        )
+        evaluation_command = EvaluationStartCommand(
+            suite_id=suite.suite_id,
+            suite_version=suite.version,
+        )
+        evaluation_run = evaluation_operations.start(
+            actor=_release_manager(),
+            command=evaluation_command,
+        )
+        repeated_evaluation_run = evaluation_operations.start(
+            actor=_release_manager(),
+            command=evaluation_command,
+        )
+        baseline = evaluation_repository.get_retrieval_baseline(
+            evaluation_run_id=evaluation_run.evaluation_run_id
+        )
+        if baseline is None:
+            raise RuntimeError("E9 EvaluationRun cannot be restored after start")
+        evaluation = baseline.report
+        replay = evaluation_operations.replay_case(
+            actor=_release_manager(),
+            evaluation_run_id=evaluation_run.evaluation_run_id,
+            case_id=suite.cases[0].case_id,
+        )
+        self_regression = evaluation_operations.compare_runs(
+            actor=_release_manager(),
+            evaluation_run_id=evaluation_run.evaluation_run_id,
+            baseline_run_id=evaluation_run.evaluation_run_id,
+        )
 
         with sessions() as session:
             run = session.get(ProcessingRun, receipt.run_id)
@@ -296,6 +332,24 @@ def run_poc(
                 "replay_stable": True,
             },
             "evaluation": evaluation.model_dump(mode="json"),
+            "evaluation_operations": {
+                "registered_suite_count": len(evaluation_operations.list_suites()),
+                "start_replay_stable": (
+                    repeated_evaluation_run.evaluation_run_id
+                    == evaluation_run.evaluation_run_id
+                ),
+                "case_replay_query_id": replay.query_id,
+                "case_replay_external_model_requests": (
+                    replay.external_model_requests
+                ),
+                "self_regression_counts": {
+                    "improved": self_regression.counts.improved,
+                    "regressed": self_regression.counts.regressed,
+                    "unchanged": self_regression.counts.unchanged,
+                    "added": self_regression.counts.added,
+                    "removed": self_regression.counts.removed,
+                },
+            },
             "evaluation_run": {
                 "evaluation_run_id": evaluation_run.evaluation_run_id,
                 "purpose": evaluation_run.purpose,
@@ -329,6 +383,18 @@ def _document_actor() -> ActorContext:
             secret_ref="env://P17_E9_DOCUMENT_WORKER_TOKEN",
             status=GrantStatus.ACTIVE,
         )
+    )
+
+
+def _release_manager() -> ActorContext:
+    role = ProductRole.RELEASE_MANAGER
+    return ActorContext(
+        actor_id="usr-p17-e9-release-manager",
+        display_name="P17 E9 Release Manager",
+        principal_type=PrincipalType.HUMAN,
+        roles=frozenset({role}),
+        permissions=ROLE_PERMISSIONS[role],
+        identity_source=IdentitySource.LOCAL_TEST,
     )
 
 

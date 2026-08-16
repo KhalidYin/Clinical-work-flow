@@ -29,7 +29,7 @@ const summary = {
   completedAt: "2026-08-16T08:01:00Z",
 };
 
-function renderApp(initialEntry = "/evaluation?suite=&run=&outcome=") {
+function renderApp(initialEntry = "/evaluation?suite=&run=&outcome=&baseline=") {
   const history = createMemoryHistory({ initialEntries: [initialEntry] });
   const router = createAppRouter(history);
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -73,6 +73,8 @@ describe("P17 Evaluation governance", () => {
                 retrievedEvidenceIds: [],
                 replay: {
                   queryLabPath: "/query-lab",
+                  evaluationRunId: "evaluation-e9-api-001",
+                  caseId: "e9-randomisation-bias",
                   query: "How does randomisation reduce selection bias?",
                   releaseId: null,
                   topK: 10,
@@ -97,6 +99,181 @@ describe("P17 Evaluation governance", () => {
     expect(screen.getByRole("button", { name: "重放此问题" })).toBeDisabled();
     expect(screen.getByText("需要 release-candidate Query Lab scope")).toBeInTheDocument();
     expect(listUrl).toContain("purpose=retrieval_baseline");
+  });
+
+  it("starts only a server-registered suite and selects the immutable run", async () => {
+    let startBody: Record<string, unknown> | null = null;
+    server.use(
+      http.get(resolveApiPath(API_PATHS.evaluations), () =>
+        HttpResponse.json({
+          data: {
+            items: [summary],
+            total: 1,
+            partial: false,
+            warnings: [],
+            availableSuites: [
+              {
+                suiteId: "ich-e9-retrieval-gold",
+                suiteVersion: "1.0.0",
+                documentId: "ICH-E9-1998",
+                sourceVersionId: "srcv-e9",
+                chunkProfileId: "chunk-profile-ich-e9-poc-v1",
+                caseCount: 18,
+                sandboxKind: "release_candidate",
+                externalModelRequests: 0,
+              },
+            ],
+            allowedActions: ["start"],
+          },
+          meta,
+        }),
+      ),
+      http.post(resolveApiPath(`${API_PATHS.evaluations}/runs`), async ({ request }) => {
+        startBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({
+          data: {
+            ...summary,
+            evaluationRunId: "evaluation-e9-api-002",
+            thresholdChecks: [],
+            failureReasons: [],
+            caseResults: [],
+          },
+          meta,
+        });
+      }),
+    );
+
+    const { router } = renderApp();
+
+    fireEvent.click(await screen.findByRole("button", { name: "运行所选 Suite" }));
+
+    await waitFor(() => {
+      expect(startBody).toEqual({
+        suiteId: "ich-e9-retrieval-gold",
+        suiteVersion: "1.0.0",
+      });
+    });
+    await waitFor(() => {
+      expect(router.state.location.search).toMatchObject({
+        suite: "ich-e9-retrieval-gold",
+        run: "evaluation-e9-api-002",
+      });
+    });
+    expect(screen.queryByLabelText(/SourceVersion/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/ChunkProfile/i)).not.toBeInTheDocument();
+  });
+
+  it("routes an available failed case to server-scoped Query Lab replay", async () => {
+    server.use(
+      http.get(resolveApiPath(`${API_PATHS.evaluations}/:runId`), () =>
+        HttpResponse.json({
+          data: {
+            ...summary,
+            thresholdChecks: [],
+            failureReasons: [],
+            caseResults: [
+              {
+                caseId: "e9-randomisation-bias",
+                topic: "Randomisation",
+                question: "How does randomisation reduce selection bias?",
+                queryId: "query-e9-randomisation",
+                outcome: "expected_not_in_top_10",
+                failureCategory: "expected_not_retrieved",
+                hitAt5: false,
+                hitAt10: false,
+                firstRelevantRank: null,
+                expectedEvidenceIds: ["evidence-e9-randomisation"],
+                retrievedEvidenceIds: [],
+                replay: {
+                  queryLabPath: "/query-lab",
+                  evaluationRunId: "evaluation-e9-api-001",
+                  caseId: "e9-randomisation-bias",
+                  query: "How does randomisation reduce selection bias?",
+                  releaseId: null,
+                  topK: 10,
+                  availability: "available",
+                },
+              },
+            ],
+          },
+          meta,
+        }),
+      ),
+    );
+    const { router } = renderApp();
+
+    fireEvent.click(await screen.findByRole("button", { name: "重放此问题" }));
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/query-lab");
+      expect(router.state.location.search).toMatchObject({
+        scope: "evaluation",
+        evaluation: "evaluation-e9-api-001",
+        case: "e9-randomisation-bias",
+        q: "How does randomisation reduce selection bias?",
+      });
+    });
+  });
+
+  it("renders the server-computed immutable run regression", async () => {
+    server.use(
+      http.get(resolveApiPath(API_PATHS.evaluations), () =>
+        HttpResponse.json({
+          data: {
+            items: [
+              summary,
+              { ...summary, evaluationRunId: "evaluation-e9-api-000" },
+            ],
+            total: 2,
+            partial: false,
+            warnings: [],
+            availableSuites: [],
+            allowedActions: [],
+          },
+          meta,
+        }),
+      ),
+      http.get(
+        resolveApiPath(`${API_PATHS.evaluations}/:runId/regression`),
+        ({ request }) => {
+          expect(new URL(request.url).searchParams.get("baseline_run_id")).toBe(
+            "evaluation-e9-api-000",
+          );
+          return HttpResponse.json({
+            data: {
+              evaluationRunId: "evaluation-e9-api-001",
+              baselineRunId: "evaluation-e9-api-000",
+              suiteId: "ich-e9-retrieval-gold",
+              currentSuiteVersion: "1.0.0",
+              baselineSuiteVersion: "0.9.0",
+              metricDeltas: { recallAt5: 0.055556, recallAt10: 0 },
+              counts: { improved: 1, regressed: 0, unchanged: 17, added: 0, removed: 0 },
+              caseDiffs: [
+                {
+                  caseId: "e9-randomisation-bias",
+                  change: "improved",
+                  baselineOutcome: "expected_not_in_top_10",
+                  currentOutcome: "hit_top_5",
+                  baselineRank: null,
+                  currentRank: 1,
+                },
+              ],
+            },
+            meta,
+          });
+        },
+      ),
+    );
+
+    renderApp(
+      "/evaluation?suite=&run=evaluation-e9-api-001&outcome=&baseline=evaluation-e9-api-000",
+    );
+
+    expect(await screen.findByText("Recall@5 +5.5556%")).toBeInTheDocument();
+    expect(screen.getByText("改进 1 · 退化 0 · 不变 17")).toBeInTheDocument();
+    expect(screen.getByText("e9-randomisation-bias").closest("li")).toHaveTextContent(
+      "improved",
+    );
   });
 
   it("persists suite, run and outcome filters in the URL", async () => {

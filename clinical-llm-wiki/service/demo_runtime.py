@@ -72,6 +72,8 @@ DEMO_PROMPT_PROFILE_ID = "atomic-candidate"
 DEMO_PROMPT_PROFILE_VERSION = "1.1.0"
 DEMO_TARGET_KNOWLEDGE_UNIT_ID = "ku-demo-sdtm-ae"
 DEMO_SOURCE_ID = "src-demo-aeseq"
+DEMO_SOURCE_VERSION = "1.1.0"
+DEMO_SOURCE_IDEMPOTENCY_KEY = "p17-demo-aeseq-chunk-v1"
 DEMO_SOURCE = (
     b"# SDTM AE sequence identifier\n\n"
     b"AESEQ is the sequence identifier used to uniquely identify an adverse-event "
@@ -256,7 +258,7 @@ def bootstrap_demo() -> dict[str, str]:
                 source_id=DEMO_SOURCE_ID,
                 title="P12 Demo — SDTM AE sequence identifier",
                 source_type="clinical_standard",
-                version="1.0.0",
+                version=DEMO_SOURCE_VERSION,
                 rights=RightsPolicy(
                     classification=RightsClassification.INTERNAL,
                     storage_allowed=True,
@@ -265,7 +267,7 @@ def bootstrap_demo() -> dict[str, str]:
                 data_boundary=DataBoundary.ENTERPRISE_PROVIDER_ONLY,
                 media_type="text/markdown",
                 expected_sha256=sha256(DEMO_SOURCE).hexdigest(),
-                idempotency_key="p12-demo-aeseq-v1",
+                idempotency_key=DEMO_SOURCE_IDEMPOTENCY_KEY,
             ),
             content=DEMO_SOURCE,
         )

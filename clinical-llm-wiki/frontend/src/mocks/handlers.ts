@@ -24,6 +24,7 @@ import {
   evaluationDetailFixture,
   releaseWorkbenchFixture,
   publishedReleaseFixture,
+  candidateReplayFixture,
 } from "./fixtures";
 
 export const handlers = [
@@ -43,6 +44,10 @@ export const handlers = [
   ),
   http.get(resolveApiPath(`${API_PATHS.evaluations}/:runId`), () =>
     HttpResponse.json(evaluationDetailFixture),
+  ),
+  http.post(
+    resolveApiPath(`${API_PATHS.evaluations}/:runId/cases/:caseId/replay`),
+    () => HttpResponse.json(candidateReplayFixture),
   ),
   http.get(resolveApiPath(API_PATHS.releaseWorkbench), () =>
     HttpResponse.json(releaseWorkbenchFixture),

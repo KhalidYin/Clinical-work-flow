@@ -13,7 +13,7 @@
 
 其中“异步富化”当前是同一 durable DAG 中的单个 Enrichment step，并非已经形成可编排的富化子图。
 
-P13 已提供一次性 legacy immutable Release 和 Workflow REST 消费适配。H0 已建立 `harness-runtime/`；OpenCode `1.18.14` 的 digest 容器准入、独立 Supervisor、P15 合成 Evidence → PostgreSQL Candidate/API 本地 POC，以及 P16 临时 Secret/模型 gateway/全量 Gate 均已通过本地验证。P17 已增加 Document→Chunk、E9 Recall、immutable Release Query Lab、EvaluationRun 读页面，以及服务端权威的 Releases diff/Gate/publish 工作台。默认 Compose 仍使用 replay，DeepSeek live 未完成且未授权。Evaluation 启动/候选重放与完整只读知识 MCP 仍是目标能力。Document、Enrichment、Release 是独立 Worker pool，通过 PostgreSQL durable DAG 协作，不是流式 pipeline；空卷 Compose 默认没有 current Release、candidate 或 EvaluationRun。临床 Workflow 的固定阶段顺序不变。
+P13 已提供一次性 legacy immutable Release 和 Workflow REST 消费适配。H0 已建立 `harness-runtime/`；OpenCode `1.18.14` 的 digest 容器准入、独立 Supervisor、P15 合成 Evidence → PostgreSQL Candidate/API 本地 POC，以及 P16 临时 Secret/模型 gateway/全量 Gate 均已通过本地验证。P17 已增加 Document→Chunk、E9 Recall、immutable Release Query Lab、EvaluationRun 启动/候选重放/回归，以及服务端权威的 Releases diff/Gate/publish 工作台。默认 Compose 仍使用 replay，DeepSeek live 未完成且未授权；完整只读知识 MCP 仍是目标能力。Document、Enrichment、Release 是独立 Worker pool，通过 PostgreSQL durable DAG 协作，不是流式 pipeline；空卷 Compose 默认没有 current Release、candidate 或 EvaluationRun。临床 Workflow 的固定阶段顺序不变。
 
 ## 2. 启动当前知识产品
 
@@ -39,7 +39,9 @@ docker compose --project-name clinical-knowledge-demo up -d --build --wait
 
 停止服务但保留数据：`docker compose --project-name clinical-knowledge-demo down`。
 
-“质量评估”页面位于 `#/evaluation`，只从当前 PostgreSQL 的 `/evaluations` 列表/详情 API 读取指标、阈值和逐题结果，不从前端 fixture 或 JSON 报告补值。`python -m scripts.ich_e9_poc` 默认使用并删除临时数据库，适合验证完整 E9 环路；报告中的 `database_retention=ephemeral` 表示该次 EvaluationRun 不会出现在已启动的 Compose 页面。当前尚未提供面向 Compose 数据库的启动命令，空页面是正确状态，不代表前端故障。
+“质量评估”页面位于 `#/evaluation`，只从当前 PostgreSQL 的 API 读取指标、阈值和逐题结果，不从前端 fixture 或 JSON 报告补值。Release Manager 可选择后端登记的 E9 suite 启动确定性 informational run；浏览器不会提交 SourceVersion 或 ChunkProfile。失败案例跳转到 Query Lab 时只携带 EvaluationRun/Case，候选范围由服务端恢复；baseline 对比也只允许同 suite/purpose。Compose 数据库必须已经包含该 suite 所需的 E9 SourceVersion/Chunk，否则启动会按缺失数据失败，不能用空范围生成伪基线。
+
+`python -m scripts.ich_e9_poc` 默认使用并删除临时数据库，适合验证完整 E9 环路；报告中的 `database_retention=ephemeral` 表示该次 EvaluationRun 不会出现在已启动的 Compose 页面。空 Compose 页面仍是正确状态，不代表前端故障。
 
 “版本发布”页面位于 `#/releases`，读取 current、最新或 URL 指定 candidate、历史、服务端 diff 和 Gate。只有具备 Release Manager 权限且 API 返回 `publish` allowed action 时才显示可用发布动作；请求会显式携带 `baseReleaseId`，409 后刷新 current/candidate 并展示并发阻断。页面不能创建 candidate；candidate 仍由独立 Release Worker 从已审核事实构建。
 
@@ -197,13 +199,15 @@ python -m scripts.ich_e9_poc
 ```
 
 命令会校验固定官方 URL/SHA，复用或下载到 ignored `.poc-assets/ich-e9/`，启动临时 pgvector PostgreSQL，
-执行 6 步 Document DAG、41 条当前基线 Evidence/Chunk、metadata+FTS 和 18 条原创 GoldCase，随后销毁临时
-容器。机器报告写到 `reports/p17/ich-e9-retrieval-baseline.json`；当前基线 Recall@5 为 `0.888889`、
-Recall@10 为 `0.944444`，且 `external_model_requests=0`。这只是单文档词法检索基线，不是临床质量认证、
+执行 6 步 Document DAG、41 条当前基线 Evidence/Chunk、metadata+FTS 和 18 条原创 GoldCase，并验证服务端
+suite registry、重复启动稳定性、Run/Case 候选重放和 self-regression，随后销毁临时容器。机器报告写到
+`reports/p17/ich-e9-retrieval-baseline.json`；当前基线 Recall@5 为 `0.888889`、Recall@10 为 `0.944444`，
+且 `external_model_requests=0`。这只是单文档词法检索基线，不是临床质量认证、
 embedding/语义检索证明或 current Release。没有 embedding 时 vector 明确 degraded，不会填充假 score。
 
-浏览器 prerelease Query Lab 后端为 `POST /api/prerelease/v1/query-lab/query`，只接受显式
-`release_candidate` scope 和具备 `candidate:read` 的人员会话；生产知识消费者仍只能读取 immutable Release。
+浏览器 prerelease Query Lab 的候选重放后端为
+`POST /api/prerelease/v1/evaluations/{run_id}/cases/{case_id}/replay`，要求具备 `candidate:read` 的人员会话；
+请求体不接受客户端自报 scope。生产知识消费者仍只能读取 immutable Release。
 
 ## 5. API 与健康检查
 

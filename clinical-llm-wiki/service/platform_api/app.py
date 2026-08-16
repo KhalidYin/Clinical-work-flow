@@ -44,11 +44,18 @@ from service.auth.password_sessions import (
 )
 from service.governance import KnowledgeGovernanceService
 from service.evaluation import (
+    EvaluationCaseNotFoundError,
+    EvaluationComparisonError,
+    EvaluationOperationsService,
     EvaluationOutcome,
     EvaluationPurpose,
     EvaluationReadIntegrityError,
     EvaluationReadPort,
     EvaluationReadRecord,
+    EvaluationRunNotFoundError,
+    EvaluationStartCommand,
+    EvaluationSuiteNotFoundError,
+    EvaluationSuiteVersionConflictError,
 )
 from service.governance.service import (
     CandidateNotFoundError,
@@ -121,11 +128,15 @@ from .contracts import (
     EvaluationCaseData,
     EvaluationMetricsData,
     EvaluationReplayData,
+    EvaluationRegressionData,
+    EvaluationRegressionResponse,
     EvaluationRunCollectionData,
     EvaluationRunCollectionResponse,
     EvaluationRunDetailData,
     EvaluationRunDetailResponse,
     EvaluationRunSummaryData,
+    EvaluationStartRequest,
+    EvaluationSuiteData,
     EvaluationThresholdCheckData,
     ImpactAssessmentData,
     ImpactAssessmentResponse,
@@ -269,6 +280,7 @@ class PlatformApiServices:
     released_retrieval: ImmutableReleaseRetrievalService | None = None
     release_resolver: ImmutableReleaseResolver | None = None
     evaluation_read: EvaluationReadPort | None = None
+    evaluation_operations: EvaluationOperationsService | None = None
     release_workbench: ReleaseWorkbenchService | None = None
     release_publisher: ReleasePublisher | None = None
     object_store: ObjectStorePort | None = None
@@ -905,7 +917,7 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
         responses=protected_responses,
     )
     def list_evaluation_runs(
-        _actor: Annotated[
+        actor: Annotated[
             ActorContext,
             Depends(permitted(Permission.QUERY_RELEASED)),
         ],
@@ -937,7 +949,172 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
                 total=len(records),
                 partial=bool(warnings),
                 warnings=list(warnings),
+                available_suites=(
+                    [
+                        EvaluationSuiteData(**asdict(suite))
+                        for suite in services.evaluation_operations.list_suites()
+                    ]
+                    if services.evaluation_operations is not None
+                    else []
+                ),
+                allowed_actions=(
+                    ["start"]
+                    if services.evaluation_operations is not None
+                    and Permission.EVALUATION_RUN in actor.permissions
+                    else []
+                ),
             ),
+            meta=_meta(),
+        )
+
+    @app.post(
+        f"{API_PREFIX}/evaluations/runs",
+        operation_id="startEvaluationRun",
+        response_model=EvaluationRunDetailResponse,
+        responses=evaluation_detail_responses,
+    )
+    def start_evaluation_run(
+        request: EvaluationStartRequest,
+        actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.EVALUATION_RUN)),
+        ],
+    ) -> EvaluationRunDetailResponse:
+        if services.evaluation_operations is None:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="Evaluation operations are unavailable.",
+            )
+        try:
+            record = services.evaluation_operations.start(
+                actor=actor,
+                command=EvaluationStartCommand.model_validate(request.model_dump()),
+            )
+        except EvaluationSuiteNotFoundError as exc:
+            raise PlatformApiError(
+                status_code=404,
+                code="evaluation_suite_not_found",
+                message="The requested server-registered evaluation suite does not exist.",
+            ) from exc
+        except EvaluationSuiteVersionConflictError as exc:
+            raise PlatformApiError(
+                status_code=409,
+                code="evaluation_suite_conflict",
+                message="The registered evaluation suite version changed.",
+            ) from exc
+        except SQLAlchemyError as exc:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="The EvaluationRun repository is unavailable.",
+            ) from exc
+        return EvaluationRunDetailResponse(
+            data=_evaluation_detail(record, replay_available=True),
+            meta=_meta(),
+        )
+
+    @app.post(
+        (
+            f"{API_PREFIX}/evaluations/{{evaluation_run_id}}/cases/"
+            "{case_id}/replay"
+        ),
+        operation_id="replayEvaluationCase",
+        response_model=QueryLabResponse,
+        responses=evaluation_detail_responses,
+    )
+    def replay_evaluation_case(
+        evaluation_run_id: str,
+        case_id: str,
+        actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.CANDIDATE_READ)),
+        ],
+    ) -> QueryLabResponse:
+        if services.evaluation_operations is None:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="Evaluation operations are unavailable.",
+            )
+        try:
+            result = services.evaluation_operations.replay_case(
+                actor=actor,
+                evaluation_run_id=evaluation_run_id,
+                case_id=case_id,
+            )
+        except EvaluationRunNotFoundError as exc:
+            raise PlatformApiError(
+                status_code=404,
+                code="evaluation_run_not_found",
+                message="The requested retrieval EvaluationRun does not exist.",
+            ) from exc
+        except EvaluationCaseNotFoundError as exc:
+            raise PlatformApiError(
+                status_code=404,
+                code="evaluation_case_not_found",
+                message="The requested Evaluation case does not exist.",
+            ) from exc
+        except SQLAlchemyError as exc:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="The EvaluationRun repository is unavailable.",
+            ) from exc
+        except ValueError as exc:
+            raise PlatformApiError(
+                status_code=409,
+                code="evaluation_run_invalid",
+                message="The immutable EvaluationRun scope failed validation.",
+            ) from exc
+        return QueryLabResponse(data=_query_lab_data(result), meta=_meta())
+
+    @app.get(
+        f"{API_PREFIX}/evaluations/{{evaluation_run_id}}/regression",
+        operation_id="compareEvaluationRuns",
+        response_model=EvaluationRegressionResponse,
+        responses=evaluation_detail_responses,
+    )
+    def compare_evaluation_runs(
+        evaluation_run_id: str,
+        baseline_run_id: Annotated[str, Query(min_length=1, max_length=160)],
+        actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.QUERY_RELEASED)),
+        ],
+    ) -> EvaluationRegressionResponse:
+        if services.evaluation_operations is None:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="Evaluation operations are unavailable.",
+            )
+        try:
+            record = services.evaluation_operations.compare_runs(
+                actor=actor,
+                evaluation_run_id=evaluation_run_id,
+                baseline_run_id=baseline_run_id,
+            )
+        except EvaluationRunNotFoundError as exc:
+            raise PlatformApiError(
+                status_code=404,
+                code="evaluation_run_not_found",
+                message="An EvaluationRun selected for comparison does not exist.",
+            ) from exc
+        except EvaluationComparisonError as exc:
+            raise PlatformApiError(
+                status_code=409,
+                code="evaluation_comparison_invalid",
+                message="Only immutable runs from the same suite and purpose can be compared.",
+            ) from exc
+        except SQLAlchemyError as exc:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="The EvaluationRun repository is unavailable.",
+            ) from exc
+        return EvaluationRegressionResponse(
+            data=EvaluationRegressionData.model_validate(asdict(record)),
             meta=_meta(),
         )
 
@@ -949,7 +1126,7 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
     )
     def get_evaluation_run(
         evaluation_run_id: str,
-        _actor: Annotated[
+        actor: Annotated[
             ActorContext,
             Depends(permitted(Permission.QUERY_RELEASED)),
         ],
@@ -981,7 +1158,13 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
                 message="The requested EvaluationRun does not exist.",
             )
         return EvaluationRunDetailResponse(
-            data=_evaluation_detail(record),
+            data=_evaluation_detail(
+                record,
+                replay_available=(
+                    services.evaluation_operations is not None
+                    and Permission.CANDIDATE_READ in actor.permissions
+                ),
+            ),
             meta=_meta(),
         )
 
@@ -2265,7 +2448,11 @@ def _release_workbench_data(record: ReleaseWorkbenchRecord) -> ReleaseWorkbenchD
     )
 
 
-def _evaluation_detail(record: EvaluationReadRecord) -> EvaluationRunDetailData:
+def _evaluation_detail(
+    record: EvaluationReadRecord,
+    *,
+    replay_available: bool,
+) -> EvaluationRunDetailData:
     return EvaluationRunDetailData(
         **_evaluation_summary(record).model_dump(),
         threshold_checks=[
@@ -2276,10 +2463,14 @@ def _evaluation_detail(record: EvaluationReadRecord) -> EvaluationRunDetailData:
             EvaluationCaseData(
                 **asdict(case),
                 replay=EvaluationReplayData(
+                    evaluation_run_id=record.evaluation_run_id,
+                    case_id=case.case_id,
                     query=case.question,
                     release_id=None,
                     availability=(
-                        "candidate_scope_required"
+                        "available"
+                        if case.question is not None and replay_available
+                        else "candidate_scope_required"
                         if case.question is not None
                         else "query_unavailable"
                     ),

@@ -386,7 +386,7 @@ syncs_to:
 - E9 retrieval baseline 现在先形成确定性 `retrieval_baseline/informational` envelope，再写入既有 PostgreSQL `evaluation_runs`；它与 `release_gate_synthetic/passed|failed` 共表但不混用阈值，相同报告重放零增量。
 - 新增 `/evaluations` 列表和 `/evaluations/{id}` 详情：suite/purpose/outcome 筛选、Recall@5/10、threshold checks、逐题 expected/retrieved Evidence、失败类别和 replay availability 均由后端返回；损坏行在列表形成 partial warning，详情 fail closed。
 - Evaluation 从占位页升级为真实 API 页面，`suite/run/outcome` 写入 URL，覆盖默认、loading、empty、error 和 partial 组件状态；E9 明确显示 informational、零模型请求、无发布阈值和“不是临床质量认证”。
-- release-candidate Query Lab scope 尚未进入现有 released-only 页面，因此失败案例按钮按 API `candidate_scope_required` 禁用并解释，未错误地拿 current Release 重放；Evaluation 启动和版本 regression diff 也仍待后续切片。
+- 当时 release-candidate Query Lab scope 尚未进入现有 released-only 页面，因此失败案例按钮按 API `candidate_scope_required` 禁用并解释；该缺口已由后续 Evaluation operations 切片关闭。
 - 单命令 E9 环路已证明 EvaluationRun 在运行数据库内持久化/重放，并在报告声明 `database_retention=ephemeral`；临时数据库清理后不会冒充当前 Compose 数据。
 - 组件测试已覆盖主体状态，但 390px/真实浏览器尚未执行，因此 P17-UI-05 与 P4 Phase 完成项保持未勾选。
 
@@ -398,6 +398,15 @@ syncs_to:
 - Releases 页面从占位升级为 API 驱动工作台，支持 URL candidate、current/candidate 对照、五类服务端 diff、Gate/阻断、历史 Release 和发布。409 后刷新权威状态并禁用失效动作。
 - 真实 PostgreSQL 覆盖初始候选、stale 候选、current-base carry 与 retire diff；组件覆盖发布 payload 和 stale 刷新。Release candidate 仍由独立 Release Worker 构建，浏览器不冒充 Worker 创建候选。
 - 390px/真实浏览器跨页流程尚未执行，因此 P17-UI-06 与 P4 Phase 完成项保持未勾选。
+
+### P4-B Evaluation operations 结果（2026-08-16）
+
+- E9 GoldSuite 从测试 fixture 移入生产包内的服务端 registry；启动 API 只接受 suite ID/version，由后端选择固定 SourceVersion、ChunkProfile 和查询集合，客户端不能扩张评估范围。
+- 新增 `EVALUATION_RUN` 启动、`CANDIDATE_READ` Run/Case 重放和同 suite/purpose regression diff。重放从 immutable EvaluationRun 恢复候选范围；重复启动同一事实保持同一 run，informational E9 不进入 Release threshold。
+- Evaluation 页面可启动登记 suite、选择 baseline 并展示服务端回归分类；失败案例跳转 Query Lab 时 URL 只携带 `evaluation`、`case` 和查询身份。Query Lab 调用专用 replay endpoint，不提交 Release/SourceVersion/ChunkProfile。
+- 单命令真实 E9 环路验证 registry、稳定启动、失败案例重放与 self-regression：Recall@5 `0.888889`、Recall@10 `0.944444`、18 条 unchanged、外部模型请求为 0。
+- 既有 Compose demo ledger 的旧四步图与当前五步图不兼容时，ledger 正确拒绝覆盖；本地 demo 通过提升 SourceVersion 到 `1.1.0` 与新幂等键启动新 epoch，保留旧 run 不变。
+- 组件/合同测试已覆盖启动权限、immutable scope、回归分类和候选重放；真实浏览器/390px 仍待有效人员登录态，因此 P17-UI-05 与 P4 Phase 完成项保持未勾选。
 
 ### 边界（本 Phase 明确不做）
 
@@ -432,9 +441,10 @@ syncs_to:
 |----|------|--------|------|------|
 | P17-F01 | 新轮转回执最初复用了既有 `review_decisions` 的 `actor_idempotency` 唯一约束名；离线 metadata 测试通过，但真实 PostgreSQL 因索引命名空间冲突拒绝迁移 | P1-A | resolved defect | 先补失败合同，再改为 `rotation_actor_idempotency`；空库 upgrade → schema diff → downgrade → reapply 已通过 |
 | P17-F02 | P1-A 的 RotationCase 只有 proposed outcome/actor，缺少 replace/carry-forward 的目标 revision、理由与 proposal 幂等证据，Reviewer 无法审计“具体提议了什么” | P1-B | resolved contract gap | 在未提交的 `0011` migration 内补充 proposal target/idempotency/rationale 与 shape/unique 约束；API/真实 PostgreSQL 重放和 stale Gate 通过 |
-| P17-F03 | P4 输入假设称 UI 所需 API 已稳定，但实际只有 candidate Query Lab 与 released manifest；没有 released query、Evaluation workbench 或 Release diff/gates 命令 API | P4-A | active contract gap | 先补最小后端权威 read model/command，再接页面；禁止以 MSW fixture 充当 production 数据。released query、Evaluation read surface 与 Releases diff/Gate/publish 已关闭；Evaluation 启动/候选重放仍待处理 |
+| P17-F03 | P4 输入假设称 UI 所需 API 已稳定，但实际只有 candidate Query Lab 与 released manifest；没有 released query、Evaluation workbench 或 Release diff/gates 命令 API | P4-A | resolved contract gap | 先补最小后端权威 read model/command，再接页面；released query、Evaluation read/start/replay/regression 与 Releases diff/Gate/publish 已全部接通，未用 fixture 冒充 production 数据 |
 | P17-F04 | 首次 released FTS 真实 PostgreSQL Gate 发现既有 Release fixture Evidence 缺少 canonical `source_artifact_id`，导致可发布但无法生成 citation | P4-A | resolved defect | 将 canonical source artifact 纳入 Release build 前置 Gate并补缺失反例；合法 current/历史查询通过 |
 | P17-F05 | 默认 E9 POC 使用临时 PostgreSQL；即使运行中已写 EvaluationRun，容器清理后也不能被 Compose 页面读取 | P4-B | accepted POC boundary | 报告增加 `database_retention=ephemeral`，页面空状态只信当前 API；后续若增加持久环境启动命令，必须同时绑定正确对象存储与数据库，不能导入报告冒充 canonical run |
+| P17-F06 | 已保留数据的 Compose demo ledger 含旧四步 Document 图，当前新增 `project_chunks` 后拒绝用同一事实覆盖为五步图 | P4-B | resolved compatibility defect | 保留旧 run 不变，将 demo SourceVersion 提升到 `1.1.0` 并使用新幂等键创建新 epoch；补合同测试，未删除数据库或重写 ledger |
 
 ## 关键决策记录
 

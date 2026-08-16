@@ -801,6 +801,19 @@
     "suite_sha256": "10050e715f4c2fa9d78a76a5d31a46c25e818329b22eb3b8ba2cfd4c660e2ca4",
     "suite_version": "1.0.0"
   },
+  "evaluation_operations": {
+    "case_replay_external_model_requests": 0,
+    "case_replay_query_id": "query-48217c5ee223c3e5bc14d44a8dcabad5",
+    "registered_suite_count": 1,
+    "self_regression_counts": {
+      "added": 0,
+      "improved": 0,
+      "regressed": 0,
+      "removed": 0,
+      "unchanged": 18
+    },
+    "start_replay_stable": true
+  },
   "evaluation_run": {
     "database_retention": "ephemeral",
     "evaluation_run_id": "evaluation-1632107162e450ff8eee55e3df3ce9cd",

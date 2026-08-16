@@ -678,6 +678,8 @@ class EvaluationThresholdCheckData(ApiModel):
 
 class EvaluationReplayData(ApiModel):
     query_lab_path: Literal["/query-lab"] = "/query-lab"
+    evaluation_run_id: str
+    case_id: str
     query: str | None
     release_id: str | None
     top_k: Literal[10] = 10
@@ -726,6 +728,57 @@ class EvaluationRunCollectionData(ApiModel):
     total: int = Field(ge=0)
     partial: bool
     warnings: list[str]
+    available_suites: list["EvaluationSuiteData"]
+    allowed_actions: list[Literal["start"]]
+
+
+class EvaluationSuiteData(ApiModel):
+    suite_id: str
+    suite_version: str
+    document_id: str
+    source_version_id: str
+    chunk_profile_id: str
+    case_count: int = Field(ge=1)
+    sandbox_kind: Literal["release_candidate"]
+    external_model_requests: Literal[0]
+
+
+class EvaluationStartRequest(ApiModel):
+    suite_id: str = Field(min_length=3, max_length=160)
+    suite_version: str = Field(min_length=1, max_length=120)
+
+
+class EvaluationMetricDeltasData(ApiModel):
+    recall_at_5: float
+    recall_at_10: float
+
+
+class EvaluationRegressionCountsData(ApiModel):
+    improved: int = Field(ge=0)
+    regressed: int = Field(ge=0)
+    unchanged: int = Field(ge=0)
+    added: int = Field(ge=0)
+    removed: int = Field(ge=0)
+
+
+class EvaluationCaseDiffData(ApiModel):
+    case_id: str
+    change: Literal["improved", "regressed", "unchanged", "added", "removed"]
+    baseline_outcome: str | None
+    current_outcome: str | None
+    baseline_rank: int | None = Field(default=None, ge=1)
+    current_rank: int | None = Field(default=None, ge=1)
+
+
+class EvaluationRegressionData(ApiModel):
+    evaluation_run_id: str
+    baseline_run_id: str
+    suite_id: str
+    current_suite_version: str
+    baseline_suite_version: str
+    metric_deltas: EvaluationMetricDeltasData
+    counts: EvaluationRegressionCountsData
+    case_diffs: list[EvaluationCaseDiffData]
 
 
 class ReleaseSummaryData(ApiModel):
@@ -937,6 +990,10 @@ class ErrorData(ApiModel):
         "released_knowledge_invalid",
         "evaluation_run_not_found",
         "evaluation_run_invalid",
+        "evaluation_suite_not_found",
+        "evaluation_suite_conflict",
+        "evaluation_case_not_found",
+        "evaluation_comparison_invalid",
         "release_candidate_not_found",
         "release_publish_blocked",
         "release_object_integrity_failed",
@@ -1061,6 +1118,11 @@ class EvaluationRunCollectionResponse(ApiModel):
 
 class EvaluationRunDetailResponse(ApiModel):
     data: EvaluationRunDetailData
+    meta: ResponseMeta
+
+
+class EvaluationRegressionResponse(ApiModel):
+    data: EvaluationRegressionData
     meta: ResponseMeta
 
 

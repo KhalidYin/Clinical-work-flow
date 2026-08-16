@@ -20,6 +20,7 @@ import {
   type ReleasedQueryLabResult,
   type EvaluationRunCollection,
   type EvaluationRunDetail,
+  type CandidateQueryLabResult,
   type ReleaseWorkbench,
   type PublishedRelease,
 } from "../contracts/knowledgeApi";
@@ -88,6 +89,8 @@ export const evaluationRunsFixture = response<EvaluationRunCollection>({
   total: 1,
   partial: false,
   warnings: [],
+  availableSuites: [],
+  allowedActions: [],
 });
 
 export const evaluationDetailFixture = response<EvaluationRunDetail>({
@@ -109,6 +112,8 @@ export const evaluationDetailFixture = response<EvaluationRunDetail>({
       retrievedEvidenceIds: [],
       replay: {
         queryLabPath: "/query-lab",
+        evaluationRunId: "evaluation-e9-api-001",
+        caseId: "e9-randomisation-bias",
         query: "How does randomisation reduce selection bias?",
         releaseId: null,
         topK: 10,
@@ -740,6 +745,22 @@ export const releasedQueryFixture = response<ReleasedQueryLabResult>({
         spanRole: "primary",
       },
     ],
+  },
+  externalModelRequests: 0,
+  evaluationNotice:
+    "single_document_retrieval_baseline_not_clinical_quality_certification",
+});
+
+export const candidateReplayFixture = response<CandidateQueryLabResult>({
+  queryId: "query-e9-randomisation",
+  fusionVersion: "metadata-fts-weighted-v1",
+  capabilities: releasedQueryFixture.data.capabilities,
+  hits: releasedQueryFixture.data.hits,
+  contextPackage: {
+    sandboxKind: "release_candidate",
+    sandboxId: "sandbox-ich-e9-poc-v1",
+    chunkIds: releasedQueryFixture.data.contextPackage.chunkIds,
+    citations: releasedQueryFixture.data.contextPackage.citations,
   },
   externalModelRequests: 0,
   evaluationNotice:

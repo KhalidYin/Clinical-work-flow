@@ -53,4 +53,14 @@ def test_checked_in_baseline_report_contains_no_source_text_when_present() -> No
     assert report["evaluation"]["evaluation_notice"] == (
         "single_document_retrieval_baseline_not_clinical_quality_certification"
     )
+    assert report["evaluation_operations"]["registered_suite_count"] == 1
+    assert report["evaluation_operations"]["start_replay_stable"] is True
+    assert report["evaluation_operations"]["case_replay_external_model_requests"] == 0
+    assert report["evaluation_operations"]["self_regression_counts"] == {
+        "improved": 0,
+        "regressed": 0,
+        "unchanged": 18,
+        "added": 0,
+        "removed": 0,
+    }
     assert "content" not in json.dumps(report).lower()

@@ -120,7 +120,7 @@ Attempt 预算内终止 OpenCode 并返回 `timed_out` Receipt。两者均要求
 - Harness：版本化合同、fake/replay/OpenCode adapter、Fake/Docker runtime、staging 安全扫描、Step-scoped MCP、OpenCode 真实容器准入、独立 Supervisor 机器身份/幂等/注入拒绝/durable lifecycle、Knowledge remote provider、产品 Pack 编译，以及 internal Mock 下 PostgreSQL canonical Evidence → Skill/MCP → Candidate/API 成功、幂等与越权拒绝 Attempt；该纵向链路已有随机项目、空卷、双 Worker、Receipt/API/DB 交叉核对和自动清理的单命令 POC Gate。P16/P1 覆盖 unknown/unavailable policy、非法/未知 opaque secret、DeepSeek profile/provider/model/endpoint/data-boundary 漂移的 pre-dispatch 拒绝，`none` Receipt 证据及 capability 分离；P16/P2 覆盖临时 Store、独立 daemon mapper、全终态清理和泄漏拒绝；P16/P3 真实 Docker 覆盖 digest/hash-locked Squid、internal client/public uplink 拓扑、精确 CONNECT allow、其他 hostname/IP/port/直连 deny、Receipt gateway identity，以及固定 OpenCode 经本地 TLS 假端点完成 Pack Skill → MCP → 模型工具循环。
 - Governance：Candidate revision、作者确认、独立审核、relation eligibility 和 released immutability。
 - Knowledge lifecycle（P17/P1-P3A）：确定性 Evidence→Chunk ID/顺序/hash、overlap/oversize span、SourceVersion/artifact/章节/表格/type/data boundary/rights 隔离、excluded finding、七类 comparison 与多对多映射；Document DAG 在 Chunk 物化后进入 `evidence_ready`。合成版本 Gate 覆盖逐 released revision impact/case 物化、安全/风险 eligibility、重复零增量和旧 Release/Revision 不变；RotationCase 角色分离、幂等/stale 与 append-only receipt 已覆盖领域、OpenAPI/FastAPI 和真实 PostgreSQL 事务。
-- ICH E9 retrieval（P17/P2/P4-B）：`python -m scripts.ich_e9_poc` 在临时 pgvector PostgreSQL 中下载/校验或复用本地 ignored E9，执行六步 Document DAG、metadata+FTS、18 条 GoldCase、Recall@5/10 与 informational EvaluationRun 持久化/重放，并销毁容器。报告必须包含逐题 Evidence 命中/失败类别、单文档非认证声明、vector/relation degraded、generation disabled、`external_model_requests=0` 和 `database_retention=ephemeral`；连续全新数据库运行报告必须一致。
+- ICH E9 retrieval（P17/P2/P4-B）：`python -m scripts.ich_e9_poc` 在临时 pgvector PostgreSQL 中下载/校验或复用本地 ignored E9，执行六步 Document DAG、metadata+FTS、18 条 GoldCase、Recall@5/10 与 informational EvaluationRun 持久化/重放，并销毁容器。报告还验证服务端 suite registry、重复启动的同事实稳定性、Run/Case 恢复候选范围及 self-regression；必须包含逐题 Evidence 命中/失败类别、单文档非认证声明、vector/relation degraded、generation disabled、`external_model_requests=0` 和 `database_retention=ephemeral`。
 - Release evaluation（P17/P3-B）：自动 threshold 只使用独立合成 suite；覆盖 pass/fail、逐指标失败原因、重复零增量、payload/列漂移拒绝、`release_id IS NULL` 和零模型请求。E9 Recall 报告不得作为该 Gate 输入。
 - 认证：用户名、Argon2id、HttpOnly/SameSite Cookie、CSRF、会话撤销和 RBAC。
 - 前端：Vitest/Testing Library 已覆盖核心组件行为；真实浏览器与 390px 窄屏是既往手工验收，不是已签入自动化 E2E。
@@ -131,7 +131,7 @@ Attempt 预算内终止 OpenCode 并返回 `timed_out` Receipt。两者均要求
 - 面向生产的 socket proxy/rootless runtime authority、TLS/服务身份轮换与获授权出站网络；当前只覆盖显式本地 Compose 离线信任链。
 - 生产 Secret Manager、生产 socket/rootless runtime authority、真实供应商出站质量与公共研究 recording gateway；P16 只使用合成 secret 和本地 TLS 假 endpoint，未调用 DeepSeek。全仓、Frontend、Workflow、migration 与 Compose 汇总 Gate 已通过。
 - 非 root Supervisor、socket proxy/远程容器运行时、明确 UID/GID 的 volume ownership；P15 为隔离的每 Attempt 临时目录开放宽写权限只服务本地 POC，不能沿用为生产证明。
-- P17/P3 已在真实 PostgreSQL 联合验收 EvaluationRun、Release Worker candidate、人工发布、stale base、current pointer、历史重放、对象漂移与紧急退役；P4-A 继续验收 canonical source citation Gate 及 current/历史 Release 精确 Chunk metadata+FTS；P4-B 验收 E9 informational 与 synthetic Gate EvaluationRun 共存/重放、列表/详情完整性，以及 Releases 初始/stale/current-base/retire diff、对象与 publication snapshot Gate、显式 base 发布和 React stale/空/错状态。标准 MCP 仍只读解析 immutable manifest；Evaluation 启动/候选重放、vector/relation、Attempt 级 MCP broker 和其余增量治理 GUI 尚未实现。E9 文件报告不是 Release Gate 或当前数据库权威。
+- P17/P3 已在真实 PostgreSQL 联合验收 EvaluationRun、Release Worker candidate、人工发布、stale base、current pointer、历史重放、对象漂移与紧急退役；P4-A 继续验收 canonical source citation Gate 及 current/历史 Release 精确 Chunk metadata+FTS；P4-B 验收 E9 informational 与 synthetic Gate EvaluationRun 共存/重放、服务端 suite 启动/权限/幂等、Run/Case 候选重放、同 suite/purpose regression，以及 Releases 初始/stale/current-base/retire diff、对象与 publication snapshot Gate、显式 base 发布和 React stale/空/错状态。标准 MCP 仍只读解析 immutable manifest；vector/relation、Attempt 级 MCP broker 和其余增量治理 GUI 尚未实现。E9 文件报告不是 Release Gate 或当前数据库权威。
 - 临床统一 Runner 与 Harness artifact promotion。
 - 可重复执行的浏览器 E2E 与视觉回归门禁。
 
@@ -174,7 +174,7 @@ Source → Document DAG → Evidence
 - 每个主要页面覆盖默认、加载、空、错误、部分数据和窄屏；不适用时在测试或设计合同中说明原因。
 - 每个数字、分组和状态必须能追溯到 API payload 或静态合同。
 - Processing 页面验证 Attempt、executor、Harness/container、tool summary、validator、retry/cancel 的真实联动。
-- Query Lab 可消费已实现的 current/历史 immutable Release API，candidate sandbox 保留作预发布评估且不得混淆；Evaluation 已消费 PostgreSQL 列表/详情 API，但启动和 candidate-scope 重放必须保持禁用并解释；Releases 已消费后端 workbench/publish API，只展示服务端 diff/Gate/allowed action，409 后刷新并禁用 stale 动作。任何页面不得使用文件报告或 fixture 冒充 production 权威。
+- Query Lab 可消费 current/历史 immutable Release API，也可用 EvaluationRun/Case 身份调用候选重放；候选范围只能由服务端从 immutable run 恢复。Evaluation 消费 PostgreSQL 列表/详情/启动/regression API，启动只提交服务端登记 suite 身份；Releases 消费后端 workbench/publish API，只展示服务端 diff/Gate/allowed action，409 后刷新并禁用 stale 动作。任何页面不得使用文件报告、客户端 scope 或 fixture 冒充 production 权威。
 - MSW 仅在显式测试/开发开关下启用；production build 默认连接真实同源 API。
 
 ## 测试数据与外部调用

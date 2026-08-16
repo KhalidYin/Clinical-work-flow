@@ -242,6 +242,27 @@ paths:
         "401": { $ref: "#/components/responses/AuthenticationError" }
         "403": { $ref: "#/components/responses/AuthorizationError" }
         "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /evaluations/runs:
+    post:
+      operationId: startEvaluationRun
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EvaluationStartRequest" }
+      responses:
+        "200":
+          description: Immutable informational run created from a server-registered suite and server-owned candidate scope.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EvaluationRunDetailResponse" }
+        "401": { $ref: "#/components/responses/AuthenticationError" }
+        "403": { $ref: "#/components/responses/AuthorizationError" }
+        "404": { $ref: "#/components/responses/NotFoundError" }
+        "409": { $ref: "#/components/responses/ConflictError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
   /evaluations/{evaluation_run_id}:
     get:
       operationId: getEvaluationRun
@@ -258,6 +279,56 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/EvaluationRunDetailResponse" }
+        "401": { $ref: "#/components/responses/AuthenticationError" }
+        "403": { $ref: "#/components/responses/AuthorizationError" }
+        "404": { $ref: "#/components/responses/NotFoundError" }
+        "409": { $ref: "#/components/responses/ConflictError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /evaluations/{evaluation_run_id}/cases/{case_id}/replay:
+    post:
+      operationId: replayEvaluationCase
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: evaluation_run_id
+          required: true
+          schema: { type: string }
+        - in: path
+          name: case_id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Candidate retrieval replay with scope restored from the immutable EvaluationRun; no browser-supplied scope is accepted.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/QueryLabResponse" }
+        "401": { $ref: "#/components/responses/AuthenticationError" }
+        "403": { $ref: "#/components/responses/AuthorizationError" }
+        "404": { $ref: "#/components/responses/NotFoundError" }
+        "409": { $ref: "#/components/responses/ConflictError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /evaluations/{evaluation_run_id}/regression:
+    get:
+      operationId: compareEvaluationRuns
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: evaluation_run_id
+          required: true
+          schema: { type: string }
+        - in: query
+          name: baseline_run_id
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 160 }
+      responses:
+        "200":
+          description: Server-computed metric and case-level diff between immutable runs from the same suite and purpose.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EvaluationRegressionResponse" }
         "401": { $ref: "#/components/responses/AuthenticationError" }
         "403": { $ref: "#/components/responses/AuthorizationError" }
         "404": { $ref: "#/components/responses/NotFoundError" }
@@ -2243,9 +2314,11 @@ components:
     EvaluationReplay:
       type: object
       additionalProperties: false
-      required: [queryLabPath, query, releaseId, topK, availability]
+      required: [queryLabPath, evaluationRunId, caseId, query, releaseId, topK, availability]
       properties:
         queryLabPath: { const: /query-lab }
+        evaluationRunId: { type: string }
+        caseId: { type: string }
         query: { type: [string, "null"] }
         releaseId: { type: [string, "null"] }
         topK: { const: 10 }
@@ -2313,7 +2386,7 @@ components:
     EvaluationRunCollection:
       type: object
       additionalProperties: false
-      required: [items, total, partial, warnings]
+      required: [items, total, partial, warnings, availableSuites, allowedActions]
       properties:
         items:
           type: array
@@ -2321,6 +2394,75 @@ components:
         total: { type: integer, minimum: 0 }
         partial: { type: boolean }
         warnings: { type: array, items: { type: string } }
+        availableSuites:
+          type: array
+          items: { $ref: "#/components/schemas/EvaluationSuite" }
+        allowedActions:
+          type: array
+          items: { const: start }
+    EvaluationSuite:
+      type: object
+      additionalProperties: false
+      required: [suiteId, suiteVersion, documentId, sourceVersionId, chunkProfileId, caseCount, sandboxKind, externalModelRequests]
+      properties:
+        suiteId: { type: string }
+        suiteVersion: { type: string }
+        documentId: { type: string }
+        sourceVersionId: { type: string }
+        chunkProfileId: { type: string }
+        caseCount: { type: integer, minimum: 1 }
+        sandboxKind: { const: release_candidate }
+        externalModelRequests: { const: 0 }
+    EvaluationStartRequest:
+      type: object
+      additionalProperties: false
+      required: [suiteId, suiteVersion]
+      properties:
+        suiteId: { type: string, minLength: 3, maxLength: 160 }
+        suiteVersion: { type: string, minLength: 1, maxLength: 120 }
+    EvaluationMetricDeltas:
+      type: object
+      additionalProperties: false
+      required: [recallAt5, recallAt10]
+      properties:
+        recallAt5: { type: number }
+        recallAt10: { type: number }
+    EvaluationRegressionCounts:
+      type: object
+      additionalProperties: false
+      required: [improved, regressed, unchanged, added, removed]
+      properties:
+        improved: { type: integer, minimum: 0 }
+        regressed: { type: integer, minimum: 0 }
+        unchanged: { type: integer, minimum: 0 }
+        added: { type: integer, minimum: 0 }
+        removed: { type: integer, minimum: 0 }
+    EvaluationCaseDiff:
+      type: object
+      additionalProperties: false
+      required: [caseId, change, baselineOutcome, currentOutcome, baselineRank, currentRank]
+      properties:
+        caseId: { type: string }
+        change: { enum: [improved, regressed, unchanged, added, removed] }
+        baselineOutcome: { type: [string, "null"] }
+        currentOutcome: { type: [string, "null"] }
+        baselineRank: { type: [integer, "null"], minimum: 1 }
+        currentRank: { type: [integer, "null"], minimum: 1 }
+    EvaluationRegression:
+      type: object
+      additionalProperties: false
+      required: [evaluationRunId, baselineRunId, suiteId, currentSuiteVersion, baselineSuiteVersion, metricDeltas, counts, caseDiffs]
+      properties:
+        evaluationRunId: { type: string }
+        baselineRunId: { type: string }
+        suiteId: { type: string }
+        currentSuiteVersion: { type: string }
+        baselineSuiteVersion: { type: string }
+        metricDeltas: { $ref: "#/components/schemas/EvaluationMetricDeltas" }
+        counts: { $ref: "#/components/schemas/EvaluationRegressionCounts" }
+        caseDiffs:
+          type: array
+          items: { $ref: "#/components/schemas/EvaluationCaseDiff" }
     Retry:
       type: object
       additionalProperties: false
@@ -2696,6 +2838,12 @@ components:
         - type: object
           properties:
             data: { $ref: "#/components/schemas/EvaluationRunDetail" }
+    EvaluationRegressionResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/EvaluationRegression" }
     RetryResponse:
       allOf:
         - $ref: "#/components/schemas/Envelope"
