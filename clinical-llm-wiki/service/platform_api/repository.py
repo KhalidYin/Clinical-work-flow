@@ -38,6 +38,7 @@ from service.db.models import (
     ProcessingRun,
     Release,
     ReleaseItem,
+    ReleasePointer,
     RelationProposalEvidence,
     RetrievalChunk,
     RetrievalChunkEvidence,
@@ -563,9 +564,14 @@ class SqlAlchemyPlatformRepository:
         with self._session_factory() as session:
             release = session.scalar(
                 select(Release)
-                .where(Release.status == "released")
-                .order_by(Release.published_at.desc().nullslast(), Release.created_at.desc())
-                .limit(1)
+                .join(
+                    ReleasePointer,
+                    ReleasePointer.current_release_id == Release.release_id,
+                )
+                .where(
+                    ReleasePointer.pointer_key == "current",
+                    Release.status == "released",
+                )
             )
         if release is None:
             return None

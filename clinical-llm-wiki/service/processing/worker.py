@@ -30,6 +30,7 @@ from service.db.session import (
     database_url_from_environment,
 )
 from service.object_store import LocalObjectStore
+from service.releases import SqlAlchemyReleaseRepository
 from service.governance import KnowledgeGovernanceService, SqlAlchemyGovernanceRepository
 from service.sources import (
     SourceRegistryService,
@@ -53,6 +54,7 @@ from .enrichment import (
 from .model_profiles import authorized_live_provider_from_environment
 from .model_provider import ModelProfile, ModelProviderError, ModelProviderPort
 from .parsers import ParserRegistry
+from .release_worker import ReleaseWorkerService, release_step_handlers
 
 
 class StepHandler(Protocol):
@@ -445,6 +447,20 @@ def main(argv: Sequence[str] | None = None) -> int:
             harness_provider=harness_provider,
         )
         handlers = enrichment_step_handlers(enrichment_service)
+    elif pool is WorkerPool.RELEASE:
+        object_root = os.environ.get("KNOWLEDGE_OBJECT_STORE_ROOT")
+        if not object_root:
+            raise RuntimeError("KNOWLEDGE_OBJECT_STORE_ROOT is required for the release worker")
+        object_store = LocalObjectStore(root=Path(object_root))
+        release_service = ReleaseWorkerService(
+            actor=actor,
+            repository=SqlAlchemyReleaseRepository(
+                sessions,
+                object_store=object_store,
+            ),
+            object_store=object_store,
+        )
+        handlers = release_step_handlers(release_service)
     runtime = WorkerRuntime(
         ledger=ledger,
         actor=actor,

@@ -19,6 +19,7 @@ import re
 from typing import Any
 
 import yaml
+from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from service.db.models import (
@@ -31,6 +32,7 @@ from service.db.models import (
     ProcessingRun,
     Release,
     ReleaseItem,
+    ReleasePointer,
     ReviewDecision,
     Source,
     SourceArtifact,
@@ -604,6 +606,18 @@ def apply_migration(
                 )
             elif existing.content_sha256 != revision.content_sha256:
                 raise LegacyMigrationError(f"released item collision: {revision_id}")
+
+        pointer = session.scalar(
+            select(ReleasePointer)
+            .where(ReleasePointer.pointer_key == "current")
+            .with_for_update()
+        )
+        if pointer is None:
+            raise LegacyMigrationError("current Release pointer is missing")
+        if pointer.current_release_id is None:
+            pointer.current_release_id = release_id
+            pointer.pointer_version += 1
+            pointer.updated_at = datetime.now(timezone.utc)
 
     return MigrationApplyResult(
         record_count=len(plan.records),

@@ -59,6 +59,7 @@ def test_canonical_metadata_owns_the_p2a_database_tables() -> None:
         "processing_runs",
         "prompt_profiles",
         "release_items",
+        "release_pointers",
         "releases",
         "relation_proposal_evidence",
         "retrieval_chunk_evidence",
@@ -258,6 +259,13 @@ def test_p17_lifecycle_tables_keep_chunks_derived_and_decisions_structured() -> 
     assert "rotation_actor_idempotency" in rotation_constraint_names
     assert "actor_idempotency" not in rotation_constraint_names
 
+    assert set(Base.metadata.tables["release_pointers"].columns.keys()) == {
+        "pointer_key",
+        "current_release_id",
+        "pointer_version",
+        "updated_at",
+    }
+
     all_columns = {
         column.name for table in expected_tables for column in Base.metadata.tables[table].columns
     }
@@ -416,8 +424,8 @@ def test_alembic_has_linear_reviewable_revisions(monkeypatch: pytest.MonkeyPatch
     assert script.get_heads() == [script.get_current_head()]
     head = script.get_revision(script.get_current_head())
     assert head is not None
-    assert head.revision == "20260816_0011"
-    assert head.down_revision == "20260809_0010"
+    assert head.revision == "20260816_0012"
+    assert head.down_revision == "20260816_0011"
     initial = script.get_revision("20260730_0001")
     assert initial is not None
     assert initial.down_revision is None
@@ -454,6 +462,7 @@ def test_linear_revision_columns_match_canonical_metadata(
         "20260805_0009",
         "20260809_0010",
         "20260816_0011",
+        "20260816_0012",
     ]
 
     class MigrationRecorder:

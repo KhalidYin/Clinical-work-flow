@@ -159,7 +159,7 @@ syncs_to:
 |-------|------|----------|------|------|
 | P1 | 冻结 Chunk 与轮转数据库/API 合同 | 3 | P12 已完成非 live 基线 | done |
 | P2 | 用 ICH E9 建立确定性切块、检索与 Recall 基线 | 3-4 | P1 | done |
-| P3 | 接通轮转决策、Evaluation Gate 与 immutable Release | 3-4 | P2 | in-progress（P3-A/P3-B done；P3-C next） |
+| P3 | 接通轮转决策、Evaluation Gate 与 immutable Release | 3-4 | P2 | done |
 | P4 | 补全现有治理 UI 并关闭全链路 Gate | 3-4 | P3 | pending |
 
 ---
@@ -296,12 +296,12 @@ syncs_to:
 ### 完成标准
 
 - [x] exact unchanged/moved 仅允许 carry-forward 提议，modified/removed/rights_changed/ambiguous 必须人工决定，且任何路径都不能自动发布。
-- [ ] Author/Reviewer/Release Manager 职责分离、非法转换、重复请求、stale receipt 和并发 release 正反测试通过。
-- [ ] 合成 EvaluationSuite 可配置 threshold，并能证明评估失败阻断、通过后才允许 Release Manager 发布。
-- [ ] Release manifest 能解析固定 revision、Evidence、Chunk/Profile、index capability 与 evaluation；独立对象 checksum 漂移阻断发布。
-- [ ] 发布新 Release 后 current 原子切换；旧 Release 内容、检索结果和 citation 可重放且未被覆盖。
-- [ ] 紧急退役通过新 Release 完成；不存在 release 外可变 exclusion overlay。
-- [ ] read-only REST/MCP 只消费指定 immutable Release，未发布 revision 和未解决 RotationCase 不可见。
+- [x] Author/Reviewer/Release Manager 职责分离、非法转换、重复请求、stale receipt 和并发 release 正反测试通过。
+- [x] 合成 EvaluationSuite 可配置 threshold，并能证明评估失败阻断、通过后才允许 Release Manager 发布。
+- [x] Release manifest 能解析固定 revision、Evidence、Chunk/Profile、index capability 与 evaluation；独立对象 checksum 漂移阻断发布。
+- [x] 发布新 Release 后 current 原子切换；旧 Release manifest/membership/citation identity 可重放且未被覆盖。
+- [x] 紧急退役通过新 Release 完成；不存在 release 外可变 exclusion overlay。
+- [x] read-only REST/MCP manifest resolver 只消费指定 immutable Release，未发布 revision 和未解决 RotationCase 不可见。
 
 ### P3-A 完成结果（2026-08-16）
 
@@ -315,6 +315,13 @@ syncs_to:
 - 独立合成 EvaluationSuite 固定 case、Recall@5/10 threshold 与目标 ID，生成 completed、passed/failed、逐指标检查和客观失败原因；明确拒绝把 E9 suite 用作自动 Release threshold。
 - EvaluationRun 使用既有 PostgreSQL 表作为权威，完整 payload 不可覆盖；同事实重放零增量，payload/列漂移 fail closed，且本阶段 `release_id` 保持为空、模型请求为 0。
 - `require_passed_evaluation` 已形成 P3-C 的确定性前置 Gate；尚未接入发布事务，因此“失败阻断/通过发布”的联合完成标准仍保持未勾选。
+
+### P3-C 完成结果（2026-08-16）
+
+- 新增 singleton `release_pointers` 与 `base_release_id` 事务检查；Release Worker 只从 hash-addressed command 构建 candidate/index/manifest，只有人工 Release Manager 可发布并原子切换 current。
+- 发布事务重新核验 EvaluationRun、全部 pending RotationCase、Revision/Evidence/Chunk/Profile、rights/data boundary、对象 descriptor/SHA 与 PostgreSQL membership；stale base、未决 case、对象漂移均 fail closed。
+- 真实 PostgreSQL 已证明并发候选仅一个可发布、旧 Release 可重放、游离 released 时间戳不能冒充 current，以及紧急退役必须形成新 Release 并留下 included case。
+- REST 与标准 MCP 使用同一只读 application resolver，当前冻结的是 manifest/membership 解析；完整 released 查询、Attempt 级 MCP broker 接线与 GUI 属于 P4/后续生产收敛，不在文档中夸大。
 
 ### 边界（本 Phase 明确不做）
 

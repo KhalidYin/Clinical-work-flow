@@ -125,3 +125,36 @@
 - canonical Guide/Spec/Test、P17/PLAN/TASK_STATE、DevLog/INDEX（P3-B phase commit）
 
 ---
+
+## 2026-08-16
+
+### R132 [13:32] [P17-knowledge-lifecycle-retrieval-poc] P3-C: immutable Release 与只读解析
+
+#### Done
+
+- 新增 singleton current pointer migration；Release Worker 从 hash-addressed build command 生成 deterministic index/manifest candidate，机器账号不能发布，人工 Release Manager 不能冒充 Worker 构建。
+- 发布事务内复核 passed EvaluationRun、pending RotationCase、Revision/Evidence/Chunk/Profile、rights/data boundary、对象 SHA 与 PostgreSQL membership，再以 `base_release_id` 原子切换 current。
+- 真实 PostgreSQL 证明并发候选 stale 拒绝、时间戳不能越过 pointer、旧 Release 可重放、紧急退役形成新 Release；REST 与标准 MCP 复用同一 manifest resolver，未发布 candidate 不可见。
+- P13 legacy migration 仅在 current 为空时初始化 pointer，不覆盖已有 current；签入 OpenAPI 已同步两个只读 manifest 路径。
+
+#### Issues / Risks
+
+- 当前 REST/MCP 只解析 immutable manifest/membership，不是完整 released FTS/vector/relation 查询；P4 UI 不得将其描述为完整 Knowledge MCP。
+- Release candidate 对象先于数据库事务写入；失败时可能留下不可见、可补偿的孤儿对象，但不会切换 current。生产对象生命周期与 Attempt 级 MCP 认证仍需后续收敛。
+
+#### Validation
+
+- TDD RED：缺失 Release service `2 failed`、缺失 PostgreSQL repository `1 failed`、旧 timestamp current 选择 `1 failed`、缺失 Release Worker `1 failed`。
+- 空 PostgreSQL migration upgrade/downgrade/reapply + Release publish/retire/replay `2 passed`；Knowledge 全量 `288 passed, 12 skipped`；Release service/Worker、OpenAPI 与 Ruff 全绿。
+
+#### Next
+
+1. P4 从前端合同 RED 开始，在现有 Releases/Evaluation/Query Lab 页面展示真实 current/history/Gate/diff/阻断证据。
+2. 风险是前端自行推导 eligibility 或把 candidate/E9 Recall 当 production Release；所有状态和 allowed action 必须来自 API。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/service/releases/`、Release Worker、`0012` pointer migration、platform API/OpenAPI 与 PostgreSQL/unit tests
+- canonical Guide/Spec/Test、P17/PLAN/TASK_STATE、DevLog/INDEX（P3-C phase commit）
+
+---

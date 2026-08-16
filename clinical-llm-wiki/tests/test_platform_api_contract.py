@@ -1689,6 +1689,8 @@ def test_checked_in_openapi_matches_runtime_paths_roles_and_responses(api_client
             f"{API_PREFIX}/auth/password/change",
             f"{API_PREFIX}/health",
             f"{API_PREFIX}/releases/current",
+            f"{API_PREFIX}/releases/current/manifest",
+            f"{API_PREFIX}/releases/{{release_id}}/manifest",
             f"{API_PREFIX}/query-lab/query",
             f"{API_PREFIX}/runtime-knowledge/version",
             f"{API_PREFIX}/runtime-knowledge/resolve",

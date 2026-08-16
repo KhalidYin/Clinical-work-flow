@@ -1,7 +1,7 @@
 ---
 status: in-progress
 created: 2026-08-16 12:08
-updated: 2026-08-16 14:10
+updated: 2026-08-16 14:20
 ---
 
 # Current Task
@@ -21,14 +21,15 @@ P17 P3 — 用合成 SourceVersion 变化接通知识轮转、Evaluation Gate �
 - [x] 同步 DevLog/INDEX；P2 阶段提交纳入本次发布并推送远端。
 - [x] P3-A：以合成 SourceVersion/Evidence 完成 impact materialization、逐 revision RotationCase 与 eligibility Gate。
 - [x] P3-B：以独立合成 EvaluationSuite 实现 immutable EvaluationRun 与可配置 threshold Gate。
-- [ ] P3-C：实现 Release manifest/index/object Gate、`base_release_id` 并发发布和旧 Release 重放。
+- [x] P3-C：实现 Release manifest/index/object Gate、`base_release_id` 并发发布、紧急退役、旧 Release 重放与只读 REST/MCP manifest resolver。
+- [ ] P4：补全现有治理 UI，并关闭前端、Workflow、浏览器和全链路 POC Gate。
 
 ## Working Context
 
-- **Files being edited**: P3-B 位于 `service/evaluation/release_gate.py`、PostgreSQL repository 与合成 tests；阶段提交后进入 `service/releases/`。
-- **Last command run**: Knowledge 全量 `280 passed, 11 skipped`、Ruff 通过；临时 PostgreSQL immutable EvaluationRun `1 passed`。
+- **Files being edited**: P3-C 位于 `service/releases/`、Release Worker、current pointer migration、REST/MCP resolver 与 OpenAPI；阶段提交后进入前端现有 Releases/Evaluation/Query 页面。
+- **Last command run**: Knowledge 全量 `288 passed, 12 skipped`、Ruff 通过；空库 migration 往返与真实 PostgreSQL Release `2 passed`。
 - **Key decisions**: 只使用 E9，不使用 E9(R1)；原始 PDF 运行时下载且不提交 Git；测试/CI 使用自有合成 fixture；无 embedding 时 vector 显式 degraded；默认零模型调用。
-- **Blocker**: None；P3-B 子阶段 Gate 已关闭，进入 P3-C。
+- **Blocker**: None；P3 Phase Gate 已关闭，进入 P4 UI 与全链路 Gate。
 
 ## Phase Context
 
@@ -40,4 +41,4 @@ P17 P3 — 用合成 SourceVersion 变化接通知识轮转、Evaluation Gate �
 
 ## Resume From
 
-从 P3-C RED 开始：冻结最小 Release manifest/index membership 与对象校验，先证明失败 EvaluationRun、未决 RotationCase、citation/object 漂移和 stale `base_release_id` 均阻断发布。
+从 P4 前端合同 RED 开始：在现有 Evaluation/Releases/Query Lab 页面展示真实 Gate、current/history、diff 与阻断原因；不得把 manifest-only MCP resolver 描述为完整 released 检索。

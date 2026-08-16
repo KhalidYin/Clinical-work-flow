@@ -97,6 +97,41 @@ paths:
           $ref: "#/components/responses/AuthorizationError"
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
+  /releases/current/manifest:
+    get:
+      operationId: resolveCurrentReleasedKnowledge
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Hash-verified manifest for the current immutable Release.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReleasedManifestResult" }
+        "401": { $ref: "#/components/responses/AuthenticationError" }
+        "403": { $ref: "#/components/responses/AuthorizationError" }
+        "404": { $ref: "#/components/responses/NotFoundError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /releases/{release_id}/manifest:
+    get:
+      operationId: resolveReleasedKnowledgeById
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: release_id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Hash-verified manifest for one immutable historical Release.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReleasedManifestResult" }
+        "401": { $ref: "#/components/responses/AuthenticationError" }
+        "403": { $ref: "#/components/responses/AuthorizationError" }
+        "404": { $ref: "#/components/responses/NotFoundError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
   /query-lab/query:
     post:
       operationId: queryReleaseCandidateSandbox
@@ -973,6 +1008,71 @@ components:
         status: { enum: [released, not_released] }
         indexVersion: { type: [string, "null"] }
         releasedAt: { type: [string, "null"], format: date-time }
+    ReleaseObjectDescriptor:
+      type: object
+      additionalProperties: false
+      required: [object_key, sha256, media_type, size_bytes]
+      properties:
+        object_key: { type: string, minLength: 1, maxLength: 1024 }
+        sha256: { type: string, pattern: "^[0-9a-f]{64}$" }
+        media_type: { type: string, minLength: 1, maxLength: 255 }
+        size_bytes: { type: integer, minimum: 0 }
+    ReleaseManifestItem:
+      type: object
+      additionalProperties: false
+      required: [knowledge_revision_id, content_sha256, disposition, evidence_ids, chunk_ids]
+      properties:
+        knowledge_revision_id: { type: string }
+        content_sha256: { type: string, pattern: "^[0-9a-f]{64}$" }
+        disposition: { enum: [carry_forward, replace, retire, no_action, add] }
+        evidence_ids: { type: array, items: { type: string } }
+        chunk_ids: { type: array, items: { type: string } }
+    ReleaseManifestPayload:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - release_id
+        - release_version
+        - base_release_id
+        - evaluation_run_id
+        - chunk_profile_id
+        - chunk_profile_version
+        - rotation_case_ids
+        - db_schema_revision
+        - knowledge_contract_version
+        - parser_profile_version
+        - model_profile_version
+        - prompt_profile_version
+        - index_descriptor
+        - items
+      properties:
+        schema_version: { const: p17-release-v1 }
+        release_id: { type: string }
+        release_version: { type: string }
+        base_release_id: { type: [string, "null"] }
+        evaluation_run_id: { type: string }
+        chunk_profile_id: { type: string }
+        chunk_profile_version: { type: string }
+        rotation_case_ids: { type: array, items: { type: string } }
+        db_schema_revision: { type: string }
+        knowledge_contract_version: { type: string }
+        parser_profile_version: { type: string }
+        model_profile_version: { type: string }
+        prompt_profile_version: { type: string }
+        index_descriptor: { $ref: "#/components/schemas/ReleaseObjectDescriptor" }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ReleaseManifestItem" }
+    ReleasedManifestResult:
+      type: object
+      additionalProperties: false
+      required: [release_id, version, manifest_sha256, manifest]
+      properties:
+        release_id: { type: string }
+        version: { type: string }
+        manifest_sha256: { type: string, pattern: "^[0-9a-f]{64}$" }
+        manifest: { $ref: "#/components/schemas/ReleaseManifestPayload" }
     SourceSummary:
       type: object
       additionalProperties: false

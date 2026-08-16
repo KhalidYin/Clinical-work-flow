@@ -8,7 +8,7 @@ updated: 2026-08-16
 
 | # | 当前 Gate | 子计划 | 状态 |
 |---|----------|--------|------|
-| P17 | P3 知识轮转、Evaluation Gate 与 immutable Release | [P17-knowledge-lifecycle-retrieval-poc.md](plans/ongoing/P17-knowledge-lifecycle-retrieval-poc.md) | P1-P2/P3-A/P3-B done；P3-C next，冻结 immutable Release，不调用模型 |
+| P17 | P4 现有治理 UI 与全链路 Gate | [P17-knowledge-lifecycle-retrieval-poc.md](plans/ongoing/P17-knowledge-lifecycle-retrieval-poc.md) | P1-P3 done；P4 next，不调用模型 |
 | P12 | P2-B3 live vertical 等待外部输入 | [P12-knowledge-application-platform.md](plans/ongoing/P12-knowledge-application-platform.md) | waiting/frozen；P17 执行期间不修改 Evaluation/Release，待后续轮换 key、synthetic Evidence、预算与单次授权 |
 
 ## 待开始
@@ -16,7 +16,7 @@ updated: 2026-08-16
 | # | 子计划 | 文件 | 预估轮次 | 依赖 |
 |---|--------|------|----------|------|
 
-P17 是当前唯一实施主线，也是 P12 未完成检索、评估与 Release 能力的聚焦实施合同，不建立平行产品权威。P12 live Gate 已冻结等待外部输入；P17/P2 已完成 ICH E9 单文档离线 Recall 基线，P3-A 已完成合成轮转物化与 eligibility，当前进入合成 Evaluation Gate 与 immutable Release，不依赖真实模型 Key。
+P17 是当前唯一实施主线，也是 P12 未完成检索、评估与 Release 能力的聚焦实施合同，不建立平行产品权威。P12 live Gate 已冻结等待外部输入；P17/P1-P3 已完成 ICH E9 单文档离线 Recall、合成轮转/Evaluation、Release Worker 候选构建、人工发布、原子 current、历史重放和只读 REST/MCP manifest resolver，当前进入 P4 UI 与全链路 Gate，不依赖真实模型 Key。
 
 P13、H0、P14、P15 与 P16 已关闭。OpenCode `1.18.14` 已完成容器准入；R111-R125 完成 Receipt 落账、独立 Supervisor、产品拥有的 hash-locked Pack、真实 Skill/MCP/internal Mock、PostgreSQL canonical Evidence → Candidate/API 本地 POC、随机空卷双 Worker正向环路、schema-invalid/timeout 离线失败矩阵、本地 tmpfs Secret 与能力保持型模型 gateway。普通 Compose 仍默认 replay；当前实现由 P17 推进，P12 保持架构权威并冻结 live Gate。显式 `harness` profile 可加载 DeepSeek runtime binding，但没有 secret/live 产品授权时不会调用。受控作用于 Attempt 外部副作用，不全局阉割 OpenCode 的 Skill/MCP/browser/工具循环；公共研究 recording gateway 仍是明确保留但尚未实现的独立能力。P12 live 下一输入必须由用户另行确认轮换 key、获授权 synthetic Evidence、网络策略、单次预算和明确调用授权。真实供应商调用仍未授权、未发生。
 

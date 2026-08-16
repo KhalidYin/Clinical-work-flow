@@ -9,13 +9,23 @@ from .contracts import (
     StepOutcome,
     StepStatus,
 )
+from .release_worker import (
+    RELEASE_BUILD_STEP_KEY,
+    ReleaseWorkerService,
+    build_release_step_definition,
+    release_step_handlers,
+)
 
 __all__ = [
     "ArtifactManifest",
     "AttemptStatus",
     "ClaimedStepAttempt",
     "RunStatus",
+    "RELEASE_BUILD_STEP_KEY",
+    "ReleaseWorkerService",
     "StepDefinition",
     "StepOutcome",
     "StepStatus",
+    "build_release_step_definition",
+    "release_step_handlers",
 ]

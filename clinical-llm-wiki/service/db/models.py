@@ -1096,6 +1096,29 @@ class Release(Base):
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class ReleasePointer(Base):
+    __tablename__ = "release_pointers"
+    __table_args__ = (
+        CheckConstraint("pointer_key = 'current'", name="singleton_key"),
+        CheckConstraint("pointer_version >= 0", name="pointer_version_nonnegative"),
+    )
+
+    pointer_key: Mapped[str] = mapped_column(String(40), primary_key=True)
+    current_release_id: Mapped[str | None] = mapped_column(
+        ForeignKey("releases.release_id", ondelete="RESTRICT")
+    )
+    pointer_version: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        server_default="0",
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+
+
 class ReleaseItem(Base):
     __tablename__ = "release_items"
     __table_args__ = (PrimaryKeyConstraint("release_id", "knowledge_revision_id"),)

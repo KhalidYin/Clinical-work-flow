@@ -184,6 +184,11 @@ from service.retrieval import (
     RetrievalResult,
     RetrievalService,
 )
+from service.releases import (
+    ImmutableReleaseResolver,
+    ReleasedKnowledgeUnavailableError,
+    ReleasedManifestResult,
+)
 from .repository import (
     KnowledgeLifecycleApiPort,
     ChunkProjectionApiRecord,
@@ -224,6 +229,7 @@ class PlatformApiServices:
     governance: KnowledgeGovernanceService | None = None
     lifecycle: KnowledgeLifecycleApiPort | None = None
     retrieval: RetrievalService | None = None
+    release_resolver: ImmutableReleaseResolver | None = None
     object_store: ObjectStorePort | None = None
     runtime_consumer_credential_sha256: str | None = None
 
@@ -600,6 +606,57 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
             )
         )
         return CurrentReleaseResponse(data=data, meta=_meta())
+
+    def resolve_release_manifest(release_id: str | None) -> ReleasedManifestResult:
+        if services.release_resolver is None:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="The immutable Release resolver is unavailable.",
+            )
+        try:
+            return services.release_resolver.resolve(release_id=release_id)
+        except ReleasedKnowledgeUnavailableError as exc:
+            raise PlatformApiError(
+                status_code=404,
+                code="released_knowledge_not_found",
+                message=str(exc),
+            ) from exc
+        except (ObjectStoreError, ValueError) as exc:
+            raise PlatformApiError(
+                status_code=503,
+                code="published_knowledge_invalid",
+                message="The immutable Release failed integrity validation.",
+            ) from exc
+
+    @app.get(
+        f"{API_PREFIX}/releases/current/manifest",
+        operation_id="resolveCurrentReleasedKnowledge",
+        response_model=ReleasedManifestResult,
+        responses=protected_responses,
+    )
+    def resolve_current_released_knowledge(
+        _actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.QUERY_RELEASED)),
+        ],
+    ) -> ReleasedManifestResult:
+        return resolve_release_manifest(None)
+
+    @app.get(
+        f"{API_PREFIX}/releases/{{release_id}}/manifest",
+        operation_id="resolveReleasedKnowledgeById",
+        response_model=ReleasedManifestResult,
+        responses=protected_responses,
+    )
+    def resolve_released_knowledge_by_id(
+        release_id: str,
+        _actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.QUERY_RELEASED)),
+        ],
+    ) -> ReleasedManifestResult:
+        return resolve_release_manifest(release_id)
 
     @app.post(
         f"{API_PREFIX}/query-lab/query",
