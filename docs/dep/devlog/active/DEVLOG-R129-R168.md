@@ -195,3 +195,42 @@
 - P17/PLAN/TASK_STATE、DevLog/INDEX（P4-A phase commit）
 
 ---
+
+## 2026-08-16
+
+### R134 [20:34] [P17-knowledge-lifecycle-retrieval-poc] P4-B: Evaluation read workbench
+
+#### Done
+
+- 将 ICH E9 retrieval baseline 持久化为 `purpose=retrieval_baseline`、`outcome=informational` 的 immutable EvaluationRun；与 synthetic Release Gate 共用权威表，但 suite、用途、阈值和 outcome 不混用，相同事实重放保持零增量。
+- 新增 Evaluation 列表/详情 prerelease API 与 OpenAPI 合同，返回 suite/version、Recall@5/10、threshold checks、逐题 rank/Evidence、失败分类和完整性 warning；损坏行按 partial 明示，不用文件报告补洞。
+- Evaluation 页面改为 API 驱动的真实工作台：支持 URL 过滤与恢复、默认/空/错/partial 状态，并明确 E9 只是 informational retrieval baseline、不是临床质量认证；candidate replay 因缺少 candidate scope 而禁用并说明原因。
+- E9 单命令报告记录 canonical EvaluationRun ID、运行中已持久化事实与 `database_retention=ephemeral`；因此可以证明 PostgreSQL 写入，但不会误称已填充长期运行的 Compose 数据库。
+
+#### Issues / Risks
+
+- Evaluation 启动端点、candidate-scope Query Lab 失败重放和 regression diff 尚未实现；当前页面不能创建新运行，也不能把 candidate 结果错误地送到 released-only Query Lab。
+- 默认 E9 CLI 使用自动销毁的临时 PostgreSQL；报告可审计，但当前 Compose 页面仍可能为空。后续若需要长期查看，必须通过显式导入/持久运行模式完成，不能让浏览器读取 JSON 作为权威。
+- Releases candidate/current/history、服务端 diff、gates/blockers/allowed actions 和 base-release publish command 仍缺失；前端不得从 manifest 或 metrics 自行推导发布结论。
+- 真实浏览器主流程和 390px 窄屏尚未关闭，所以 P17-UI-05 保持未勾选。
+
+#### Validation
+
+- TDD RED：后端缺少 `evaluation_read` service port；前端 Evaluation 仍为占位页时组件测试 `2 failed`。
+- Knowledge 全量 `296 passed, 12 skipped`，Ruff 通过；前端 `36 passed`、typecheck 与 production build 通过；Clinical Workflow `366 passed, 1 skipped`。
+- 临时真实 pgvector 上验证 E9 informational run 与 synthetic Gate 共存、重放零增量且不关联 Release：`1 passed`。
+- E9 单命令重复运行得到 Recall@5 `0.888889`、Recall@10 `0.944444`；外部模型请求为 0，临时容器自动清理。
+
+#### Next
+
+1. P4-B3 先补 Releases candidate/current/history 后端 read model、服务端 diff、gates/blockers/allowed actions 和带 `base_release_id` 的发布 command。
+2. 再将 Releases 页面接入权威 API；浏览器只展示服务端结论，不重算 Gate 或 eligibility。
+3. 随后补 Evaluation 启动、candidate-scope 失败重放与 regression diff，并完成真实浏览器/390px 和 P4 汇总 Gate。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/service/evaluation/`、platform API/OpenAPI、E9 POC script/report 与 PostgreSQL/API tests
+- `clinical-llm-wiki/frontend/src/pages/EvaluationPage.tsx`、contracts/router/MSW fixtures/CSS 与组件 tests
+- README/USAGE、canonical Guide/Spec/Test、P17/PLAN/TASK_STATE、DevLog/INDEX（P4-B Evaluation read phase commit）
+
+---

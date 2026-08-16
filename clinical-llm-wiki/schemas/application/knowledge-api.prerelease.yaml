@@ -173,6 +173,51 @@ paths:
         "404": { $ref: "#/components/responses/NotFoundError" }
         "409": { $ref: "#/components/responses/ConflictError" }
         "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /evaluations:
+    get:
+      operationId: listEvaluationRuns
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: query
+          name: suite_id
+          schema: { type: string, maxLength: 160 }
+        - in: query
+          name: purpose
+          schema: { enum: [retrieval_baseline, release_gate_synthetic] }
+        - in: query
+          name: outcome
+          schema: { enum: [informational, passed, failed] }
+      responses:
+        "200":
+          description: Immutable EvaluationRun summaries and explicit partial-read warnings.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EvaluationRunCollectionResponse" }
+        "401": { $ref: "#/components/responses/AuthenticationError" }
+        "403": { $ref: "#/components/responses/AuthorizationError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /evaluations/{evaluation_run_id}:
+    get:
+      operationId: getEvaluationRun
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: evaluation_run_id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: One immutable EvaluationRun with threshold and per-case facts.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EvaluationRunDetailResponse" }
+        "401": { $ref: "#/components/responses/AuthenticationError" }
+        "403": { $ref: "#/components/responses/AuthorizationError" }
+        "404": { $ref: "#/components/responses/NotFoundError" }
+        "409": { $ref: "#/components/responses/ConflictError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
   /sources:
     get:
       operationId: listSources
@@ -2045,6 +2090,103 @@ components:
         externalModelRequests: { const: 0 }
         evaluationNotice:
           const: single_document_retrieval_baseline_not_clinical_quality_certification
+    EvaluationMetrics:
+      type: object
+      additionalProperties: false
+      required: [recallAt5, recallAt10]
+      properties:
+        recallAt5: { type: number, minimum: 0, maximum: 1 }
+        recallAt10: { type: number, minimum: 0, maximum: 1 }
+    EvaluationThresholdCheck:
+      type: object
+      additionalProperties: false
+      required: [metric, observed, minimum, passed]
+      properties:
+        metric: { enum: [recall_at_5, recall_at_10] }
+        observed: { type: number, minimum: 0, maximum: 1 }
+        minimum: { type: number, minimum: 0, maximum: 1 }
+        passed: { type: boolean }
+    EvaluationReplay:
+      type: object
+      additionalProperties: false
+      required: [queryLabPath, query, releaseId, topK, availability]
+      properties:
+        queryLabPath: { const: /query-lab }
+        query: { type: [string, "null"] }
+        releaseId: { type: [string, "null"] }
+        topK: { const: 10 }
+        availability: { enum: [available, candidate_scope_required, query_unavailable] }
+    EvaluationCase:
+      type: object
+      additionalProperties: false
+      required: [caseId, topic, question, queryId, outcome, failureCategory, hitAt5, hitAt10, firstRelevantRank, expectedEvidenceIds, retrievedEvidenceIds, replay]
+      properties:
+        caseId: { type: string }
+        topic: { type: [string, "null"] }
+        question: { type: [string, "null"] }
+        queryId: { type: [string, "null"] }
+        outcome: { enum: [hit_top_5, hit_top_10_only, expected_not_in_top_10] }
+        failureCategory: { enum: [none, ranked_below_5, expected_not_retrieved] }
+        hitAt5: { type: boolean }
+        hitAt10: { type: boolean }
+        firstRelevantRank: { type: [integer, "null"], minimum: 1 }
+        expectedEvidenceIds: { type: array, items: { type: string } }
+        retrievedEvidenceIds: { type: array, items: { type: string } }
+        replay: { $ref: "#/components/schemas/EvaluationReplay" }
+    EvaluationRunSummary:
+      type: object
+      additionalProperties: false
+      required: [evaluationRunId, suiteId, suiteVersion, purpose, targetId, status, outcome, caseCount, metrics, externalModelRequests, evaluationNotice, startedAt, completedAt]
+      properties:
+        evaluationRunId: { type: string }
+        suiteId: { type: string }
+        suiteVersion: { type: string }
+        purpose: { enum: [retrieval_baseline, release_gate_synthetic] }
+        targetId: { type: string }
+        status: { type: string }
+        outcome: { enum: [informational, passed, failed] }
+        caseCount: { type: integer, minimum: 0 }
+        metrics: { $ref: "#/components/schemas/EvaluationMetrics" }
+        externalModelRequests: { type: integer, minimum: 0 }
+        evaluationNotice: { type: string }
+        startedAt: { type: string, format: date-time }
+        completedAt: { type: [string, "null"], format: date-time }
+    EvaluationRunDetail:
+      type: object
+      additionalProperties: false
+      required: [evaluationRunId, suiteId, suiteVersion, purpose, targetId, status, outcome, caseCount, metrics, externalModelRequests, evaluationNotice, startedAt, completedAt, thresholdChecks, failureReasons, caseResults]
+      properties:
+        evaluationRunId: { type: string }
+        suiteId: { type: string }
+        suiteVersion: { type: string }
+        purpose: { enum: [retrieval_baseline, release_gate_synthetic] }
+        targetId: { type: string }
+        status: { type: string }
+        outcome: { enum: [informational, passed, failed] }
+        caseCount: { type: integer, minimum: 0 }
+        metrics: { $ref: "#/components/schemas/EvaluationMetrics" }
+        externalModelRequests: { type: integer, minimum: 0 }
+        evaluationNotice: { type: string }
+        startedAt: { type: string, format: date-time }
+        completedAt: { type: [string, "null"], format: date-time }
+        thresholdChecks:
+          type: array
+          items: { $ref: "#/components/schemas/EvaluationThresholdCheck" }
+        failureReasons: { type: array, items: { type: string } }
+        caseResults:
+          type: array
+          items: { $ref: "#/components/schemas/EvaluationCase" }
+    EvaluationRunCollection:
+      type: object
+      additionalProperties: false
+      required: [items, total, partial, warnings]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/EvaluationRunSummary" }
+        total: { type: integer, minimum: 0 }
+        partial: { type: boolean }
+        warnings: { type: array, items: { type: string } }
     Retry:
       type: object
       additionalProperties: false
@@ -2396,6 +2538,18 @@ components:
         - type: object
           properties:
             data: { $ref: "#/components/schemas/ReleasedQueryLab" }
+    EvaluationRunCollectionResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/EvaluationRunCollection" }
+    EvaluationRunDetailResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/EvaluationRunDetail" }
     RetryResponse:
       allOf:
         - $ref: "#/components/schemas/Envelope"

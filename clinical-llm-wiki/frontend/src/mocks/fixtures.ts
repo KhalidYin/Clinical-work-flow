@@ -18,6 +18,8 @@ import {
   type ModelProfileRegistration,
   type ServiceAccountCollection,
   type ReleasedQueryLabResult,
+  type EvaluationRunCollection,
+  type EvaluationRunDetail,
 } from "../contracts/knowledgeApi";
 
 const fixtureTime = "2026-07-29T14:58:00Z";
@@ -61,6 +63,57 @@ export const sessionFixture = response<Session>({
   ],
   mustChangePassword: false,
   sessionExpiresAt: "2026-07-29T22:58:00Z",
+});
+
+const evaluationSummary = {
+  evaluationRunId: "evaluation-e9-api-001",
+  suiteId: "ich-e9-retrieval-gold",
+  suiteVersion: "1.0.0",
+  purpose: "retrieval_baseline" as const,
+  targetId: "srcv-e9",
+  status: "completed",
+  outcome: "informational" as const,
+  caseCount: 18,
+  metrics: { recallAt5: 0.888889, recallAt10: 0.944444 },
+  externalModelRequests: 0,
+  evaluationNotice: "single_document_retrieval_baseline_not_clinical_quality_certification",
+  startedAt: "2026-08-16T08:00:00Z",
+  completedAt: "2026-08-16T08:01:00Z",
+};
+
+export const evaluationRunsFixture = response<EvaluationRunCollection>({
+  items: [evaluationSummary],
+  total: 1,
+  partial: false,
+  warnings: [],
+});
+
+export const evaluationDetailFixture = response<EvaluationRunDetail>({
+  ...evaluationSummary,
+  thresholdChecks: [],
+  failureReasons: [],
+  caseResults: [
+    {
+      caseId: "e9-randomisation-bias",
+      topic: "Randomisation",
+      question: "How does randomisation reduce selection bias?",
+      queryId: "query-e9-randomisation",
+      outcome: "expected_not_in_top_10",
+      failureCategory: "expected_not_retrieved",
+      hitAt5: false,
+      hitAt10: false,
+      firstRelevantRank: null,
+      expectedEvidenceIds: ["evidence-e9-randomisation"],
+      retrievedEvidenceIds: [],
+      replay: {
+        queryLabPath: "/query-lab",
+        query: "How does randomisation reduce selection bias?",
+        releaseId: null,
+        topK: 10,
+        availability: "candidate_scope_required",
+      },
+    },
+  ],
 });
 
 export const sourceRegistrationFixture = response<SourceRegistration>({

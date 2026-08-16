@@ -16,6 +16,7 @@ import { CandidatesPage } from "./pages/CandidatesPage";
 import { RelationsPage } from "./pages/RelationsPage";
 import { AuditPage } from "./pages/AuditPage";
 import { QueryLabPage } from "./pages/QueryLabPage";
+import { EvaluationPage } from "./pages/EvaluationPage";
 
 const rootRoute = createRootRoute({
   component: AppShell,
@@ -57,13 +58,6 @@ function SourcesRoute() {
 
 const scopeRoutes = [
   {
-    path: "/evaluation",
-    eyebrow: "黄金集回归证据",
-    title: "质量评估",
-    description: "指标必须回溯黄金用例、预期证据、版本与失败类别。",
-    phase: "KUI-07 · 计划在 P5 实现",
-  },
-  {
     path: "/releases",
     eyebrow: "不可变发布门禁",
     title: "版本发布",
@@ -91,6 +85,35 @@ const queryLabRoute = createRoute({
   },
   component: QueryLabRoute,
 });
+
+const evaluationRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/evaluation",
+  validateSearch: (search: Record<string, unknown>) => ({
+    suite: typeof search.suite === "string" ? search.suite : "",
+    run: typeof search.run === "string" ? search.run : "",
+    outcome: ["informational", "passed", "failed"].includes(String(search.outcome))
+      ? (search.outcome as "informational" | "passed" | "failed")
+      : "" as const,
+  }),
+  component: EvaluationRoute,
+});
+
+function EvaluationRoute() {
+  const search = evaluationRoute.useSearch();
+  const navigate = evaluationRoute.useNavigate();
+  return (
+    <EvaluationPage
+      search={search}
+      onSearchChange={(patch) => {
+        void navigate({
+          search: (current) => ({ ...current, ...patch }),
+          replace: true,
+        });
+      }}
+    />
+  );
+}
 
 function QueryLabRoute() {
   const search = queryLabRoute.useSearch();
@@ -188,6 +211,7 @@ const routeTree = rootRoute.addChildren([
   sourcesRoute,
   processingRoute,
   queryLabRoute,
+  evaluationRoute,
   candidatesRoute,
   relationsRoute,
   auditRoute,

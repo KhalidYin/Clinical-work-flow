@@ -35,6 +35,7 @@ from .repository import (
     SqlAlchemyKnowledgeLifecycleRepository,
     SqlAlchemyPlatformRepository,
 )
+from service.evaluation import SqlAlchemyEvaluationReadRepository
 
 
 def _required_environment(name: str) -> str:
@@ -91,6 +92,7 @@ def create_environment_app():
                 repository=search_repository,
             ),
             release_resolver=release_resolver,
+            evaluation_read=SqlAlchemyEvaluationReadRepository(sessions),
             object_store=object_store,
             runtime_consumer_credential_sha256=_runtime_consumer_credential_sha256(),
         )

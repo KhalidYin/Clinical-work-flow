@@ -26,7 +26,7 @@
 - Enrichment Worker 已有 fake/replay、direct-model 授权合同及 Candidate 治理闭环；migration `20260805_0009` 增加 `executor_kind`。`opencode-supervised` 已迁移为独立 Supervisor remote provider，普通 Compose 仍默认 replay；显式 `harness` profile 的真实零网络部署 Gate 已通过。
 - `harness-runtime/` 已实现版本化合同、fake/replay adapter、OpenCode `1.18.14` headless adapter、Fake/Docker runtime、staging 扫描、Execution/Validation Receipt、Step-scoped MCP、产品 Pack 编译，以及独立 Supervisor 的机器身份、durable journal、heartbeat/cancel/orphan recovery 和固定容器编译器。
 - 人员密码会话、HttpOnly Cookie、RBAC、Worker 机器身份和中文 React GUI 骨架已存在。
-- P17/P1-P3 已实现版本化 ChunkProfile/RetrievalChunk、七类 SourceVersion comparison、逐 released revision 轮转物化、Document→Evidence→Chunk、release-candidate metadata+FTS/E9 Recall、合成 immutable EvaluationRun，以及 Worker 构建/人工发布/current pointer/历史重放的 immutable Release 本地 POC。
+- P17/P1-P3 已实现版本化 ChunkProfile/RetrievalChunk、七类 SourceVersion comparison、逐 released revision 轮转物化、Document→Evidence→Chunk、release-candidate metadata+FTS/E9 Recall、合成 immutable EvaluationRun，以及 Worker 构建/人工发布/current pointer/历史重放的 immutable Release 本地 POC；P4-A/P4-B 已接 immutable Release Query Lab 和只读 Evaluation workbench。
 - 临床产品已有固定十阶段合同、ActionPolicy、Review Protocol、知识 Release resolve 和若干 POC artifact 流程；十个内部 Stage 对应 Protocol → SAP → SDTM → ADaM → TFL → QC → Submission 七个业务依赖组。
 
 ### 目标能力
@@ -71,7 +71,7 @@
 - [目标] “处理任务”展示 Workflow/Step/Attempt、executor、Harness/container 状态、tool summary、validator 和恢复操作。
 - [目标] “知识候选”完成 Evidence、Candidate revision、作者确认和独立审核的可追溯详情。
 - [目标] “检索实验室”只展示有来源的 metadata/FTS/vector/relation 路径与 citation。
-- [目标] “质量评估”展示用例、期望 Evidence、指标、失败类别和版本对比。
+- [已实现/继续完善] “质量评估”已展示 PostgreSQL EvaluationRun 的用例、期望 Evidence、Recall、阈值与失败类别；启动、candidate-scope 重放和版本对比仍是目标。
 - [目标] “版本发布”展示 eligibility、evaluation Gate、Release manifest、审批和回滚/切换证据。
 - [目标] 所有页面覆盖默认、加载、空、错误、部分数据和窄屏状态；无数据来源时隐藏、禁用或明确占位，不生成伪指标。
 
@@ -80,7 +80,7 @@
 - 独立 Supervisor 当前只完成显式本地 Compose 离线部署 Gate，尚未形成面向生产的 socket proxy/rootless runtime、TLS 或集群调度边界；普通 Compose 仍默认 replay。
 - 生产级 Secret/runtime authority、公共研究 recording gateway 与真实供应商 Gate；P16/P2-P3 已完成本地 tmpfs Store、Attempt 临时认证材料和模型 CONNECT gateway，但不是持久 Vault/云 Secret Manager 或生产网络认证。DeepSeek live 仍未启用，真实回归仅使用合成值与本地 Mock/TLS 假 endpoint。
 - 通用 Knowledge Workflow Spec、完整多事件审计和更丰富的确定性 MCP 工具面。
-- EvaluationRun 已接入 Release 发布事务；Release Worker 只构建候选，人工 Release Manager 发布，current/history 与只读 REST/标准 MCP manifest resolver 已实现。P17/P4-A 已新增 current/历史 immutable Release 的精确 Chunk membership metadata+FTS REST 查询与 Query Lab；vector/relation 仍 degraded，标准 MCP 仍只解析 manifest。Attempt 级 Knowledge MCP broker、生产身份/对象存储及其余治理 GUI 尚未完成；P17/P2 文件报告仍不等于临床质量认证。
+- EvaluationRun 已接入 Release 发布事务；Release Worker 只构建候选，人工 Release Manager 发布，current/history 与只读 REST/标准 MCP manifest resolver 已实现。P17/P4-A 已新增 current/历史 immutable Release 的精确 Chunk membership metadata+FTS REST 查询与 Query Lab；P4-B 已新增 EvaluationRun 列表/详情和 API 驱动页面。默认 E9 命令的数据库是临时的，不冒充 Compose 当前数据；启动、candidate-scope 重放、版本 diff、vector/relation 和完整 Knowledge MCP 仍未完成。
 - 临床 Workflow 对 Harness 的生产接线和统一 run ledger。
 
 ### 明确不做

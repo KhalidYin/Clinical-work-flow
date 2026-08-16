@@ -13,7 +13,7 @@
 
 其中“异步富化”当前是同一 durable DAG 中的单个 Enrichment step，并非已经形成可编排的富化子图。
 
-P13 已提供一次性 legacy immutable Release 和 Workflow REST 消费适配。H0 已建立 `harness-runtime/`；OpenCode `1.18.14` 的 digest 容器准入、独立 Supervisor、P15 合成 Evidence → PostgreSQL Candidate/API 本地 POC，以及 P16 临时 Secret/模型 gateway/全量 Gate 均已通过本地验证。P17/P2 已增加 Document→Chunk 物化、release-candidate metadata+FTS Query API 与 ICH E9 Recall 基线。默认 Compose 仍使用 replay，DeepSeek live 未完成且未授权。通用 Release Builder、Evaluation Gate 与只读知识 MCP 仍是目标能力。Document、Enrichment、Release 是独立 Worker pool，通过 PostgreSQL durable DAG 协作，不是流式 pipeline；当前通用 Release handler 尚未完成。空卷 Compose 默认没有 current Release。临床 Workflow 的固定阶段顺序不变。
+P13 已提供一次性 legacy immutable Release 和 Workflow REST 消费适配。H0 已建立 `harness-runtime/`；OpenCode `1.18.14` 的 digest 容器准入、独立 Supervisor、P15 合成 Evidence → PostgreSQL Candidate/API 本地 POC，以及 P16 临时 Secret/模型 gateway/全量 Gate 均已通过本地验证。P17 已增加 Document→Chunk、E9 Recall、immutable Release Query Lab，以及 EvaluationRun 读 API/质量评估页面。默认 Compose 仍使用 replay，DeepSeek live 未完成且未授权。Evaluation 启动/候选重放、Release 治理页与完整只读知识 MCP 仍是目标能力。Document、Enrichment、Release 是独立 Worker pool，通过 PostgreSQL durable DAG 协作，不是流式 pipeline；空卷 Compose 默认没有 current Release 或 EvaluationRun。临床 Workflow 的固定阶段顺序不变。
 
 ## 2. 启动当前知识产品
 
@@ -38,6 +38,8 @@ docker compose --project-name clinical-knowledge-demo up -d --build --wait
 默认绑定所有宿主网卡。使用宿主机 IP 打开 `http://<宿主机IP>:4173/app.html`；本机也可使用 `http://localhost:4173/app.html`。首次登录必须改密。之后可在“系统管理 → 用户与权限”创建用户、重置密码、启用或禁用账号。仅需本机访问时，在 `.env` 设置 `KNOWLEDGE_BIND_ADDRESS=127.0.0.1` 后重建服务。
 
 停止服务但保留数据：`docker compose --project-name clinical-knowledge-demo down`。
+
+“质量评估”页面位于 `#/evaluation`，只从当前 PostgreSQL 的 `/evaluations` 列表/详情 API 读取指标、阈值和逐题结果，不从前端 fixture 或 JSON 报告补值。`python -m scripts.ich_e9_poc` 默认使用并删除临时数据库，适合验证完整 E9 环路；报告中的 `database_retention=ephemeral` 表示该次 EvaluationRun 不会出现在已启动的 Compose 页面。当前尚未提供面向 Compose 数据库的启动命令，空页面是正确状态，不代表前端故障。
 
 ## 3. 认证与机器身份
 

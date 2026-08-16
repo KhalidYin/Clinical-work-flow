@@ -1871,6 +1871,187 @@
   grid-column: 1 / -1;
 }
 
+.evaluationFilters {
+  display: grid;
+  padding: 14px;
+  border: 1px solid var(--paper-300);
+  margin-bottom: 18px;
+  background: var(--paper-50);
+  gap: 12px;
+  grid-template-columns: 1.2fr 1.4fr 1fr;
+}
+
+.evaluationFilters label {
+  display: grid;
+  gap: 6px;
+}
+
+.evaluationFilters select {
+  width: 100%;
+}
+
+.evaluationWorkbench {
+  display: grid;
+  gap: 22px;
+}
+
+.evaluationWorkbench .baselineNotice code {
+  display: block;
+  margin-top: 5px;
+  font-family: var(--mono);
+  font-size: 9px;
+  overflow-wrap: anywhere;
+}
+
+.evaluationReceipt {
+  display: grid;
+  color: white;
+  background: var(--ink-900);
+  grid-template-columns: 1.5fr repeat(3, minmax(0, 1fr));
+}
+
+.evaluationReceipt > div {
+  display: grid;
+  min-width: 0;
+  padding: 18px;
+  border-right: 1px solid rgba(255, 255, 255, 0.13);
+  gap: 7px;
+}
+
+.evaluationReceipt strong {
+  font-family: var(--display);
+  font-size: clamp(17px, 2vw, 26px);
+  overflow-wrap: anywhere;
+}
+
+.evaluationReceipt code {
+  color: var(--paper-300);
+  font-family: var(--mono);
+  font-size: 9px;
+  overflow-wrap: anywhere;
+}
+
+.partialNotice,
+.naPanel {
+  padding: 14px 16px;
+  border-left: 3px solid var(--amber-700);
+  background: var(--amber-100);
+}
+
+.naPanel {
+  display: grid;
+  gap: 5px;
+}
+
+.naPanel span {
+  color: var(--ink-500);
+  font-size: 12px;
+}
+
+.thresholdList,
+.evaluationCaseList {
+  display: grid;
+  padding: 0;
+  margin: 0;
+  gap: 9px;
+  list-style: none;
+}
+
+.thresholdList li {
+  display: grid;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid var(--paper-300);
+  gap: 12px;
+  grid-template-columns: 160px 1fr auto;
+}
+
+.thresholdList li[data-state="failed"] {
+  border-left: 4px solid var(--red-700);
+}
+
+.evaluationCaseList li {
+  display: grid;
+  border: 1px solid var(--paper-300);
+  background: white;
+  grid-template-columns: 96px 1fr;
+}
+
+.evaluationCaseList li[data-state="failed"] {
+  border-left: 4px solid var(--red-700);
+}
+
+.caseOutcome {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  padding: 14px;
+  border-right: 1px solid var(--paper-300);
+  color: var(--ink-700);
+  background: var(--paper-50);
+  gap: 6px;
+}
+
+.caseOutcome span,
+.caseOutcome code,
+.caseTitle code {
+  font-family: var(--mono);
+  font-size: 9px;
+}
+
+.caseBody {
+  display: grid;
+  padding: 15px 18px;
+  gap: 10px;
+}
+
+.caseBody p {
+  margin: 0;
+}
+
+.caseTitle,
+.caseReplay {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.caseTitle code {
+  padding: 4px 7px;
+  color: var(--red-700);
+  background: var(--red-100);
+}
+
+.caseEvidence {
+  display: grid;
+  color: var(--ink-500);
+  font-family: var(--mono);
+  font-size: 9px;
+  gap: 4px;
+}
+
+.caseReplay {
+  justify-content: flex-start;
+}
+
+.caseReplay button {
+  padding: 7px 10px;
+  border: 1px solid var(--ink-900);
+  background: white;
+  font-weight: 700;
+}
+
+.caseReplay button:disabled {
+  border-color: var(--paper-300);
+  color: var(--ink-500);
+  cursor: not-allowed;
+}
+
+.caseReplay small {
+  color: var(--ink-500);
+}
+
 .skeleton {
   display: block;
   height: 13px;
@@ -1987,6 +2168,29 @@
   .retrievalHit,
   .hitDetails dl {
     grid-template-columns: 1fr;
+  }
+
+  .evaluationFilters,
+  .evaluationReceipt,
+  .thresholdList li,
+  .evaluationCaseList li {
+    grid-template-columns: 1fr;
+  }
+
+  .evaluationReceipt > div,
+  .caseOutcome {
+    border-right: 0;
+    border-bottom: 1px solid var(--paper-300);
+  }
+
+  .caseOutcome {
+    justify-items: start;
+  }
+
+  .caseTitle,
+  .caseReplay {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .queryReceipt > div {

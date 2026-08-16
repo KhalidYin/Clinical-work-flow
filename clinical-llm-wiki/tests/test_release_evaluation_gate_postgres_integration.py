@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
@@ -16,6 +17,7 @@ from service.evaluation.release_gate import (
     ReleaseEvaluationGateService,
     SyntheticEvaluationSuite,
 )
+from service.evaluation import EvaluationReport, SqlAlchemyEvaluationReadRepository
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -54,6 +56,7 @@ def test_postgres_evaluation_runs_are_replayable_immutable_and_release_neutral()
     engine = create_database_engine(TEST_DATABASE_URL)
     sessions = create_session_factory(engine)
     repository = SqlAlchemyEvaluationRunRepository(sessions)
+    read_repository = SqlAlchemyEvaluationReadRepository(sessions)
     service = ReleaseEvaluationGateService(repository=repository)
     try:
         passed = service.evaluate(
@@ -68,12 +71,32 @@ def test_postgres_evaluation_runs_are_replayable_immutable_and_release_neutral()
             suite=_suite(minimum=1.0),
             target_id="candidate-release-db-fail",
         )
+        report_payload = json.loads(
+            (ROOT / "reports/p17/ich-e9-retrieval-baseline.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        baseline_report = EvaluationReport.model_validate(
+            report_payload["evaluation"]
+        )
+        baseline = read_repository.record_retrieval_baseline(baseline_report)
+        baseline_replay = read_repository.record_retrieval_baseline(baseline_report)
 
         assert passed == replay
         assert repository.get(passed.evaluation_run_id) == passed
         assert failed.outcome == "failed"
+        assert baseline == baseline_replay
+        assert baseline.outcome == "informational"
+        assert baseline.threshold_checks == ()
+        baseline_rows, warnings = read_repository.list_runs(
+            suite_id=baseline.suite_id,
+            purpose="retrieval_baseline",
+            outcome="informational",
+        )
+        assert baseline_rows == (baseline,)
+        assert warnings == ()
         with sessions() as session:
-            assert session.scalar(select(func.count()).select_from(EvaluationRun)) == 2
+            assert session.scalar(select(func.count()).select_from(EvaluationRun)) == 3
             rows = tuple(session.scalars(select(EvaluationRun)))
             assert all(row.release_id is None for row in rows)
             assert all(row.completed_at is not None for row in rows)

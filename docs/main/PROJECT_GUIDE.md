@@ -33,7 +33,7 @@
 
 | 领域 | 当前基线 | 目标状态 |
 |------|----------|----------|
-| 知识控制面 | PostgreSQL durable DAG、Document/Enrichment/Release Worker、ObjectStore、Candidate/Review、React GUI 已有骨架；P17/P1-P3 已接通版本化 Chunk、轮转、E9 Recall、Evaluation 与 immutable Release/current/history/manifest resolver，P4-A 已接 current/历史 Release metadata+FTS Query Lab | 补全 Evaluation/Releases 等治理 GUI、vector/relation route 与生产级 Knowledge MCP 接线 |
+| 知识控制面 | PostgreSQL durable DAG、Document/Enrichment/Release Worker、ObjectStore、Candidate/Review、React GUI 已有骨架；P17/P1-P3 已接通版本化 Chunk、轮转、E9 Recall、Evaluation 与 immutable Release/current/history/manifest resolver，P4-A/P4-B 已接 Release Query Lab 与 Evaluation read workbench | 补全 Evaluation 启动/候选重放、Releases 等治理 GUI、vector/relation route 与生产级 Knowledge MCP 接线 |
 | 临床控制面 | 固定十阶段合同、Review Protocol、ActionPolicy、Study 文件状态已有原型；仍存在自建 Agent Loop、多套状态表达和执行入口 | 收敛为唯一 Workflow Orchestrator，由容器化 Harness 执行 Engine 已选定的 Step |
 | Harness | 已有版本化合同、独立 Supervisor 生命周期、staging/MCP、OpenCode digest 准入、P15 PostgreSQL/API 本地 POC 及 P16/P2-P3 本地 tmpfs `secret://`/模型 gateway；普通 Compose 仍默认 replay | 以更收敛的生产 runtime/Secret authority 和分策略出站部署 Harness Attempt，不向业务 Worker 暴露 Docker 控制权 |
 | MCP | Attempt 级 broker 与 OpenCode 标准 stdio shim 已纳入独立 Supervisor 离线部署并实测 `initialize/tools-list/tools/call`、路径拒绝和脱敏审计；知识消费仍主要是 REST | 扩展确定性工具；知识消费 MCP 只从 immutable Release 读取 |
@@ -190,6 +190,12 @@ ignored `.poc-assets/`，18 条原创 GoldCase 基线得到 Recall@5 `0.888889`�
 P17/P4-A 另提供 current/历史 immutable Release 查询：服务端先 hash 校验 manifest，再只允许冻结的
 Chunk ID 与 ChunkProfile 进入 PostgreSQL metadata+FTS；浏览器只能选择 Release ID，不能自行扩张
 SourceVersion/Chunk 范围。该 REST 路径已进入 Query Lab，标准 Knowledge MCP 目前仍只解析 manifest。
+
+P17/P4-B 将 E9 retrieval baseline 以 `informational` immutable EvaluationRun 写入既有 PostgreSQL 表，
+并与 `passed/failed` 的合成 Release Gate 用途严格区分。Evaluation REST/React 页面只展示后端返回的
+suite/version、Recall、阈值检查与逐题事实；损坏记录产生 partial warning 或完整性错误，不回退到报告
+文件。默认 E9 命令使用临时数据库，报告明确 `database_retention=ephemeral`；它证明持久化合同，但不
+会给正在运行的 Compose 数据库留下记录。Evaluation 启动命令和 release-candidate 失败重放仍待接通。
 
 ### 容器化 Harness Runtime
 

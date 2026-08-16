@@ -20,6 +20,8 @@ import {
   modelProfilesFixture,
   modelProfileRegistrationFixture,
   releasedQueryFixture,
+  evaluationRunsFixture,
+  evaluationDetailFixture,
 } from "./fixtures";
 
 export const handlers = [
@@ -33,6 +35,12 @@ export const handlers = [
   http.get(resolveApiPath(API_PATHS.currentRelease), () => HttpResponse.json(releaseFixture)),
   http.post(resolveApiPath(API_PATHS.releasedQuery), () =>
     HttpResponse.json(releasedQueryFixture),
+  ),
+  http.get(resolveApiPath(API_PATHS.evaluations), () =>
+    HttpResponse.json(evaluationRunsFixture),
+  ),
+  http.get(resolveApiPath(`${API_PATHS.evaluations}/:runId`), () =>
+    HttpResponse.json(evaluationDetailFixture),
   ),
   http.get(resolveApiPath(API_PATHS.sources), () => HttpResponse.json(sourcesFixture)),
   http.post(resolveApiPath(API_PATHS.sources), () =>

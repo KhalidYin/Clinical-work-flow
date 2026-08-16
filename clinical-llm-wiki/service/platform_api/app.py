@@ -43,6 +43,13 @@ from service.auth.password_sessions import (
     UserNotFoundError,
 )
 from service.governance import KnowledgeGovernanceService
+from service.evaluation import (
+    EvaluationOutcome,
+    EvaluationPurpose,
+    EvaluationReadIntegrityError,
+    EvaluationReadPort,
+    EvaluationReadRecord,
+)
 from service.governance.service import (
     CandidateNotFoundError,
     DuplicateDecisionError,
@@ -111,6 +118,15 @@ from .contracts import (
     ErrorResponse,
     HealthResponse,
     EvidenceImpactData,
+    EvaluationCaseData,
+    EvaluationMetricsData,
+    EvaluationReplayData,
+    EvaluationRunCollectionData,
+    EvaluationRunCollectionResponse,
+    EvaluationRunDetailData,
+    EvaluationRunDetailResponse,
+    EvaluationRunSummaryData,
+    EvaluationThresholdCheckData,
     ImpactAssessmentData,
     ImpactAssessmentResponse,
     LoginRequest,
@@ -237,6 +253,7 @@ class PlatformApiServices:
     retrieval: RetrievalService | None = None
     released_retrieval: ImmutableReleaseRetrievalService | None = None
     release_resolver: ImmutableReleaseResolver | None = None
+    evaluation_read: EvaluationReadPort | None = None
     object_store: ObjectStorePort | None = None
     runtime_consumer_credential_sha256: str | None = None
 
@@ -427,6 +444,11 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
         409: {"model": ErrorResponse, "description": "A durable state conflict exists."},
         415: {"model": ErrorResponse, "description": "The source media is unsupported."},
         422: {"model": ErrorResponse, "description": "Source facts failed validation."},
+    }
+    evaluation_detail_responses = {
+        **protected_responses,
+        404: {"model": ErrorResponse, "description": "EvaluationRun does not exist."},
+        409: {"model": ErrorResponse, "description": "EvaluationRun integrity failed."},
     }
 
     @app.get(
@@ -757,6 +779,95 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
             ) from exc
         return ReleasedQueryLabResponse(
             data=_released_query_lab_data(result),
+            meta=_meta(),
+        )
+
+    @app.get(
+        f"{API_PREFIX}/evaluations",
+        operation_id="listEvaluationRuns",
+        response_model=EvaluationRunCollectionResponse,
+        responses=protected_responses,
+    )
+    def list_evaluation_runs(
+        _actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.QUERY_RELEASED)),
+        ],
+        suite_id: Annotated[str | None, Query(max_length=160)] = None,
+        purpose: Annotated[EvaluationPurpose | None, Query()] = None,
+        outcome: Annotated[EvaluationOutcome | None, Query()] = None,
+    ) -> EvaluationRunCollectionResponse:
+        if services.evaluation_read is None:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="The EvaluationRun read model is unavailable.",
+            )
+        try:
+            records, warnings = services.evaluation_read.list_runs(
+                suite_id=suite_id,
+                purpose=purpose,
+                outcome=outcome,
+            )
+        except SQLAlchemyError as exc:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="The EvaluationRun repository is unavailable.",
+            ) from exc
+        return EvaluationRunCollectionResponse(
+            data=EvaluationRunCollectionData(
+                items=[_evaluation_summary(record) for record in records],
+                total=len(records),
+                partial=bool(warnings),
+                warnings=list(warnings),
+            ),
+            meta=_meta(),
+        )
+
+    @app.get(
+        f"{API_PREFIX}/evaluations/{{evaluation_run_id}}",
+        operation_id="getEvaluationRun",
+        response_model=EvaluationRunDetailResponse,
+        responses=evaluation_detail_responses,
+    )
+    def get_evaluation_run(
+        evaluation_run_id: str,
+        _actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.QUERY_RELEASED)),
+        ],
+    ) -> EvaluationRunDetailResponse:
+        if services.evaluation_read is None:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="The EvaluationRun read model is unavailable.",
+            )
+        try:
+            record = services.evaluation_read.get_run(
+                evaluation_run_id=evaluation_run_id
+            )
+        except EvaluationReadIntegrityError as exc:
+            raise PlatformApiError(
+                status_code=409,
+                code="evaluation_run_invalid",
+                message="The immutable EvaluationRun failed integrity validation.",
+            ) from exc
+        except SQLAlchemyError as exc:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="The EvaluationRun repository is unavailable.",
+            ) from exc
+        if record is None:
+            raise PlatformApiError(
+                status_code=404,
+                code="evaluation_run_not_found",
+                message="The requested EvaluationRun does not exist.",
+            )
+        return EvaluationRunDetailResponse(
+            data=_evaluation_detail(record),
             meta=_meta(),
         )
 
@@ -1999,6 +2110,53 @@ def _released_query_lab_data(
     result: ReleasedRetrievalResult,
 ) -> ReleasedQueryLabData:
     return ReleasedQueryLabData.model_validate(result.model_dump(mode="json"))
+
+
+def _evaluation_summary(record: EvaluationReadRecord) -> EvaluationRunSummaryData:
+    return EvaluationRunSummaryData(
+        evaluation_run_id=record.evaluation_run_id,
+        suite_id=record.suite_id,
+        suite_version=record.suite_version,
+        purpose=record.purpose,
+        target_id=record.target_id,
+        status=record.status,
+        outcome=record.outcome,
+        case_count=record.case_count,
+        metrics=EvaluationMetricsData(
+            recall_at_5=record.recall_at_5,
+            recall_at_10=record.recall_at_10,
+        ),
+        external_model_requests=record.external_model_requests,
+        evaluation_notice=record.evaluation_notice,
+        started_at=record.started_at,
+        completed_at=record.completed_at,
+    )
+
+
+def _evaluation_detail(record: EvaluationReadRecord) -> EvaluationRunDetailData:
+    return EvaluationRunDetailData(
+        **_evaluation_summary(record).model_dump(),
+        threshold_checks=[
+            EvaluationThresholdCheckData(**asdict(check))
+            for check in record.threshold_checks
+        ],
+        failure_reasons=list(record.failure_reasons),
+        case_results=[
+            EvaluationCaseData(
+                **asdict(case),
+                replay=EvaluationReplayData(
+                    query=case.question,
+                    release_id=None,
+                    availability=(
+                        "candidate_scope_required"
+                        if case.question is not None
+                        else "query_unavailable"
+                    ),
+                ),
+            )
+            for case in record.case_results
+        ],
+    )
 
 
 def _impact_assessment_data(record: ImpactAssessmentApiRecord) -> ImpactAssessmentData:

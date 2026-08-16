@@ -1,7 +1,7 @@
 ---
 status: in-progress
 created: 2026-08-16 12:08
-updated: 2026-08-16 20:04
+updated: 2026-08-16 20:34
 ---
 
 # Current Task
@@ -24,14 +24,16 @@ P17 P4 — 在现有九项导航内补全 API 权威的知识治理 UI，并关�
 - [x] P3-C：实现 Release manifest/index/object Gate、`base_release_id` 并发发布、紧急退役、旧 Release 重放与只读 REST/MCP manifest resolver。
 - [x] P4-A1：新增 current/历史 immutable Release 精确 Chunk 成员检索 API，并将 canonical source artifact 纳入发布前 citation Gate。
 - [x] P4-A2：Query Lab 从占位页升级为真实 API 页面，完成空查询、URL 恢复、rank/route/degraded/citation/零模型请求组件测试。
+- [x] P4-B1：E9 baseline 以 informational immutable EvaluationRun 写入 PostgreSQL；与 synthetic Release Gate 共表但用途、阈值和 outcome 分离。
+- [x] P4-B2：新增 Evaluation 列表/详情 API 与真实质量评估页面，完成 URL、Recall/阈值/逐题结果及默认/空/错/partial 组件测试。
 - [ ] P4：补全现有治理 UI，并关闭前端、Workflow、浏览器和全链路 POC Gate。
 
 ## Working Context
 
-- **Files being edited**: P4-A 位于 `service/retrieval/`、platform API/OpenAPI、Release citation Gate，以及 `frontend` Query Lab 合同、页面、fixture 与组件测试。
-- **Last command run**: Knowledge 全量 `292 passed, 12 skipped`、Ruff 通过；真实 PostgreSQL migration+Release+released FTS `2 passed`；前端 `32 passed`、typecheck/build 通过。
+- **Files being edited**: P4-B 位于 `service/evaluation/read_model.py`、platform API/OpenAPI、E9 POC 报告，以及 `frontend` Evaluation 合同、页面和组件测试。
+- **Last command run**: Knowledge `296 passed, 12 skipped`、Ruff 通过；前端 `36 passed`、typecheck/build 通过；Workflow `366 passed, 1 skipped`；真实 PostgreSQL EvaluationRun 共存/重放 `1 passed`；E9 单命令 Recall@5 `0.888889`、Recall@10 `0.944444`、零模型请求。
 - **Key decisions**: 只使用 E9，不使用 E9(R1)；原始 PDF 运行时下载且不提交 Git；测试/CI 使用自有合成 fixture；无 embedding 时 vector 显式 degraded；默认零模型调用。
-- **Blocker**: None；Evaluation 与 Releases 所需 read model/command API 尚未齐备，必须先补权威后端合同，不能用 MSW fixture 代替生产数据。
+- **Blocker**: None；Evaluation read surface 已齐备，启动/candidate-scope replay/regression diff 与 Releases read model/command 仍缺失。默认 E9 数据库为 ephemeral，不会填充 Compose 页面。
 
 ## Phase Context
 
@@ -43,4 +45,4 @@ P17 P4 — 在现有九项导航内补全 API 权威的知识治理 UI，并关�
 
 ## Resume From
 
-从 P4-A3 后端合同 RED 开始：补 Evaluation run 列表/详情/失败案例重放 read model，再升级 Evaluation 页面；随后补 Releases candidate/diff/gates/allowed actions 与 publish command。风险是浏览器自行重算 Recall/Gate，或用测试 fixture 冒充生产 API。
+从 P4-B3 Releases 后端合同 RED 开始：补 candidate/current/history、服务端 diff、gates/blockers/allowed actions 与 base-release publish command，再升级 Releases 页面。随后再接 Evaluation 启动和 candidate-scope 失败重放。风险是前端从 manifest 自算 diff/Gate，或把 ephemeral E9 报告冒充当前数据库记录。

@@ -8,6 +8,7 @@ export const API_PATHS = {
   health: "/api/prerelease/v1/health",
   currentRelease: "/api/prerelease/v1/releases/current",
   releasedQuery: "/api/prerelease/v1/query-lab/released-query",
+  evaluations: "/api/prerelease/v1/evaluations",
   sources: "/api/prerelease/v1/sources",
   processingRuns: "/api/prerelease/v1/processing-runs",
   candidates: "/api/prerelease/v1/candidates",
@@ -207,6 +208,64 @@ export interface ReleasedQueryLabRequest {
   query: string;
   topK: number;
   releaseId: string | null;
+}
+
+export type EvaluationPurpose = "retrieval_baseline" | "release_gate_synthetic";
+export type EvaluationOutcome = "informational" | "passed" | "failed";
+
+export interface EvaluationRunSummary {
+  evaluationRunId: string;
+  suiteId: string;
+  suiteVersion: string;
+  purpose: EvaluationPurpose;
+  targetId: string;
+  status: string;
+  outcome: EvaluationOutcome;
+  caseCount: number;
+  metrics: { recallAt5: number; recallAt10: number };
+  externalModelRequests: number;
+  evaluationNotice: string;
+  startedAt: string;
+  completedAt: string | null;
+}
+
+export interface EvaluationRunCollection {
+  items: EvaluationRunSummary[];
+  total: number;
+  partial: boolean;
+  warnings: string[];
+}
+
+export interface EvaluationCase {
+  caseId: string;
+  topic: string | null;
+  question: string | null;
+  queryId: string | null;
+  outcome: "hit_top_5" | "hit_top_10_only" | "expected_not_in_top_10";
+  failureCategory: "none" | "ranked_below_5" | "expected_not_retrieved";
+  hitAt5: boolean;
+  hitAt10: boolean;
+  firstRelevantRank: number | null;
+  expectedEvidenceIds: string[];
+  retrievedEvidenceIds: string[];
+  replay: {
+    queryLabPath: "/query-lab";
+    query: string | null;
+    releaseId: string | null;
+    topK: 10;
+    availability: "available" | "candidate_scope_required" | "query_unavailable";
+  };
+}
+
+export interface EvaluationRunDetail extends EvaluationRunSummary {
+  thresholdChecks: Array<{
+    metric: "recall_at_5" | "recall_at_10";
+    observed: number;
+    minimum: number;
+    passed: boolean;
+  }>;
+  failureReasons: string[];
+  caseResults: EvaluationCase[];
 }
 
 export interface SourceSummary {

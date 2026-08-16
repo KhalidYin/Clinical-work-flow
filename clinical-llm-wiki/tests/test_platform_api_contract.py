@@ -135,6 +135,7 @@ class FakePlatformRepository:
                 review_status=None,
             )
         ]
+
         relation_evidence = repository_module.RelationEvidenceRecord(
             evidence_id="ev-api-001",
             source_version_id="srcv-api-001",
@@ -343,6 +344,58 @@ class FakePlatformRepository:
 
     def list_audit_events(self, **_: object):
         return self.audit_page
+
+
+class FakeEvaluationReadService:
+    def __init__(self, evaluation_module: Any) -> None:
+        self.run = evaluation_module.EvaluationReadRecord(
+            evaluation_run_id="evaluation-e9-api-001",
+            suite_id="ich-e9-retrieval-gold",
+            suite_version="1.0.0",
+            purpose="retrieval_baseline",
+            target_id="srcv-e9",
+            status="completed",
+            outcome="informational",
+            case_count=18,
+            recall_at_5=0.888889,
+            recall_at_10=0.944444,
+            threshold_checks=(),
+            failure_reasons=(),
+            case_results=(
+                evaluation_module.EvaluationCaseReadRecord(
+                    case_id="e9-randomisation-bias",
+                    topic="Randomisation",
+                    question="How does randomisation reduce selection bias?",
+                    query_id="query-e9-randomisation",
+                    outcome="expected_not_in_top_10",
+                    failure_category="expected_not_retrieved",
+                    hit_at_5=False,
+                    hit_at_10=False,
+                    first_relevant_rank=None,
+                    expected_evidence_ids=("evidence-e9-randomisation",),
+                    retrieved_evidence_ids=(),
+                ),
+            ),
+            external_model_requests=0,
+            evaluation_notice=(
+                "single_document_retrieval_baseline_not_clinical_quality_certification"
+            ),
+            started_at=datetime(2026, 8, 16, 8, 0, tzinfo=timezone.utc),
+            completed_at=datetime(2026, 8, 16, 8, 1, tzinfo=timezone.utc),
+        )
+
+    def list_runs(self, *, suite_id=None, purpose=None, outcome=None):
+        items = [self.run]
+        if suite_id is not None:
+            items = [item for item in items if item.suite_id == suite_id]
+        if purpose is not None:
+            items = [item for item in items if item.purpose == purpose]
+        if outcome is not None:
+            items = [item for item in items if item.outcome == outcome]
+        return tuple(items), ()
+
+    def get_run(self, *, evaluation_run_id: str):
+        return self.run if evaluation_run_id == self.run.evaluation_run_id else None
 
 
 class FakeSourceRegistry:
@@ -911,6 +964,7 @@ def _grant(subject: str, display_name: str, role: str, *, status: str = "active"
 @pytest.fixture()
 def api_client():
     app_module, _, repository_module = _platform_modules()
+    evaluation_read_module = import_module("service.evaluation.read_model")
     assertions = {
         "admin-token": _identity("admin", "Platform Admin"),
         "curator-token": _identity("curator", "Knowledge Curator"),
@@ -968,6 +1022,7 @@ def api_client():
             resolver=FakeImmutableReleaseResolver(),
             repository=FakeReleasedSearchRepository(),
         ),
+        evaluation_read=FakeEvaluationReadService(evaluation_read_module),
     )
     return TestClient(app_module.create_platform_app(services)), repository
 
@@ -998,6 +1053,70 @@ def test_platform_services_has_explicit_released_retrieval_port() -> None:
     assert "released_retrieval" in {
         field.name for field in fields(app_module.PlatformApiServices)
     }
+
+
+def test_platform_services_has_explicit_evaluation_read_port() -> None:
+    app_module, _, _ = _platform_modules()
+
+    assert "evaluation_read" in {
+        field.name for field in fields(app_module.PlatformApiServices)
+    }
+
+
+def test_evaluation_api_returns_authoritative_e9_metrics_and_failed_case_replay(
+    api_client,
+) -> None:
+    client, _ = api_client
+
+    listed = client.get(
+        f"{API_PREFIX}/evaluations?purpose=retrieval_baseline&outcome=informational",
+        headers=_auth("consumer-token"),
+    )
+
+    assert listed.status_code == 200
+    collection = listed.json()["data"]
+    assert collection["total"] == 1
+    assert collection["partial"] is False
+    assert collection["warnings"] == []
+    summary = collection["items"][0]
+    assert summary["evaluationRunId"] == "evaluation-e9-api-001"
+    assert summary["purpose"] == "retrieval_baseline"
+    assert summary["outcome"] == "informational"
+    assert summary["metrics"] == {"recallAt5": 0.888889, "recallAt10": 0.944444}
+    assert summary["caseCount"] == 18
+    assert summary["externalModelRequests"] == 0
+
+    detail = client.get(
+        f"{API_PREFIX}/evaluations/evaluation-e9-api-001",
+        headers=_auth("consumer-token"),
+    )
+    assert detail.status_code == 200
+    case = detail.json()["data"]["caseResults"][0]
+    assert case["failureCategory"] == "expected_not_retrieved"
+    assert case["replay"] == {
+        "queryLabPath": "/query-lab",
+        "query": "How does randomisation reduce selection bias?",
+        "releaseId": None,
+        "topK": 10,
+        "availability": "candidate_scope_required",
+    }
+    assert detail.json()["data"]["thresholdChecks"] == []
+    assert (
+        detail.json()["data"]["evaluationNotice"]
+        == "single_document_retrieval_baseline_not_clinical_quality_certification"
+    )
+
+
+def test_evaluation_api_reports_not_found_without_fabricating_metrics(api_client) -> None:
+    client, _ = api_client
+
+    response = client.get(
+        f"{API_PREFIX}/evaluations/missing-run",
+        headers=_auth("consumer-token"),
+    )
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "evaluation_run_not_found"
 
 
 def test_consumer_queries_an_explicit_immutable_release_without_model_calls(api_client) -> None:
@@ -1785,6 +1904,8 @@ def test_checked_in_openapi_matches_runtime_paths_roles_and_responses(api_client
             f"{API_PREFIX}/releases/{{release_id}}/manifest",
             f"{API_PREFIX}/query-lab/query",
             f"{API_PREFIX}/query-lab/released-query",
+            f"{API_PREFIX}/evaluations",
+            f"{API_PREFIX}/evaluations/{{evaluation_run_id}}",
             f"{API_PREFIX}/runtime-knowledge/version",
             f"{API_PREFIX}/runtime-knowledge/resolve",
             f"{API_PREFIX}/sources",
@@ -1925,6 +2046,20 @@ def test_checked_in_openapi_matches_runtime_paths_roles_and_responses(api_client
                     "topK": 5,
                     "releaseId": "rel-historical",
                 },
+            ),
+        ),
+        (
+            "EvaluationRunCollectionResponse",
+            client.get(
+                f"{API_PREFIX}/evaluations",
+                headers=_auth("consumer-token"),
+            ),
+        ),
+        (
+            "EvaluationRunDetailResponse",
+            client.get(
+                f"{API_PREFIX}/evaluations/evaluation-e9-api-001",
+                headers=_auth("consumer-token"),
             ),
         ),
         (

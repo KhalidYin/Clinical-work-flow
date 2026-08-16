@@ -22,13 +22,31 @@ from .release_gate import (
     require_passed_evaluation,
 )
 from .repository import EvaluationRunImmutableError, SqlAlchemyEvaluationRunRepository
+from .read_model import (
+    EvaluationCaseReadRecord,
+    EvaluationOutcome,
+    EvaluationPurpose,
+    EvaluationReadIntegrityError,
+    EvaluationReadPort,
+    EvaluationReadRecord,
+    EvaluationThresholdReadRecord,
+    RetrievalBaselineRun,
+    SqlAlchemyEvaluationReadRepository,
+)
 
 __all__ = [
     "EVALUATION_NOTICE",
     "EvaluationReport",
     "EvaluationService",
     "EvaluationGateFailedError",
+    "EvaluationCaseReadRecord",
+    "EvaluationOutcome",
+    "EvaluationPurpose",
+    "EvaluationReadIntegrityError",
+    "EvaluationReadPort",
+    "EvaluationReadRecord",
     "EvaluationRunImmutableError",
+    "EvaluationThresholdReadRecord",
     "EvaluationThresholdCheck",
     "GoldCase",
     "GoldCaseResult",
@@ -38,10 +56,12 @@ __all__ = [
     "ReleaseEvaluationRun",
     "ReleaseGateThresholds",
     "RetrievalQueryPort",
+    "RetrievalBaselineRun",
     "SYNTHETIC_EVALUATION_NOTICE",
     "SyntheticEvaluationCase",
     "SyntheticEvaluationSuite",
     "SqlAlchemyEvaluationRunRepository",
+    "SqlAlchemyEvaluationReadRepository",
     "gold_suite_sha256",
     "require_passed_evaluation",
 ]

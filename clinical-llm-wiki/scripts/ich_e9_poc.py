@@ -41,7 +41,11 @@ from service.db.models import (
     RetrievalChunk,
 )
 from service.db.session import create_database_engine, create_session_factory
-from service.evaluation import EvaluationService, GoldSuite
+from service.evaluation import (
+    EvaluationService,
+    GoldSuite,
+    SqlAlchemyEvaluationReadRepository,
+)
 from service.object_store import LocalObjectStore
 from service.processing.document_worker import (
     DocumentWorkerService,
@@ -97,6 +101,7 @@ def run_poc(
     asset_path: Path,
     gold_suite_path: Path,
     object_store_root: Path,
+    database_retention: str,
 ) -> dict[str, object]:
     asset = download_ich_e9(
         destination=asset_path,
@@ -216,6 +221,9 @@ def run_poc(
                 repository=PostgresCandidateSearchRepository(sessions)
             )
         ).run(suite=suite, scope=scope)
+        evaluation_run = SqlAlchemyEvaluationReadRepository(
+            sessions
+        ).record_retrieval_baseline(evaluation)
 
         with sessions() as session:
             run = session.get(ProcessingRun, receipt.run_id)
@@ -288,6 +296,13 @@ def run_poc(
                 "replay_stable": True,
             },
             "evaluation": evaluation.model_dump(mode="json"),
+            "evaluation_run": {
+                "evaluation_run_id": evaluation_run.evaluation_run_id,
+                "purpose": evaluation_run.purpose,
+                "outcome": evaluation_run.outcome,
+                "persisted_during_run": True,
+                "database_retention": database_retention,
+            },
         }
     finally:
         engine.dispose()
@@ -425,6 +440,7 @@ def main() -> int:
                 asset_path=args.asset.resolve(),
                 gold_suite_path=args.gold_suite.resolve(),
                 object_store_root=Path(temporary_root) / "objects",
+                database_retention="ephemeral",
             )
     _write_report(args.report, report)
     print(

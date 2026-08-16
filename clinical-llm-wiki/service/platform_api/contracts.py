@@ -666,6 +666,70 @@ class ReleasedQueryLabData(ApiModel):
     ]
 
 
+class EvaluationMetricsData(ApiModel):
+    recall_at_5: float = Field(ge=0, le=1)
+    recall_at_10: float = Field(ge=0, le=1)
+
+
+class EvaluationThresholdCheckData(ApiModel):
+    metric: Literal["recall_at_5", "recall_at_10"]
+    observed: float = Field(ge=0, le=1)
+    minimum: float = Field(ge=0, le=1)
+    passed: bool
+
+
+class EvaluationReplayData(ApiModel):
+    query_lab_path: Literal["/query-lab"] = "/query-lab"
+    query: str | None
+    release_id: str | None
+    top_k: Literal[10] = 10
+    availability: Literal["available", "candidate_scope_required", "query_unavailable"]
+
+
+class EvaluationCaseData(ApiModel):
+    case_id: str
+    topic: str | None
+    question: str | None
+    query_id: str | None
+    outcome: Literal["hit_top_5", "hit_top_10_only", "expected_not_in_top_10"]
+    failure_category: Literal["none", "ranked_below_5", "expected_not_retrieved"]
+    hit_at_5: bool
+    hit_at_10: bool
+    first_relevant_rank: int | None = Field(default=None, ge=1)
+    expected_evidence_ids: list[str]
+    retrieved_evidence_ids: list[str]
+    replay: EvaluationReplayData
+
+
+class EvaluationRunSummaryData(ApiModel):
+    evaluation_run_id: str
+    suite_id: str
+    suite_version: str
+    purpose: Literal["retrieval_baseline", "release_gate_synthetic"]
+    target_id: str
+    status: str
+    outcome: Literal["informational", "passed", "failed"]
+    case_count: int = Field(ge=0)
+    metrics: EvaluationMetricsData
+    external_model_requests: int = Field(ge=0)
+    evaluation_notice: str
+    started_at: datetime
+    completed_at: datetime | None
+
+
+class EvaluationRunDetailData(EvaluationRunSummaryData):
+    threshold_checks: list[EvaluationThresholdCheckData]
+    failure_reasons: list[str]
+    case_results: list[EvaluationCaseData]
+
+
+class EvaluationRunCollectionData(ApiModel):
+    items: list[EvaluationRunSummaryData]
+    total: int = Field(ge=0)
+    partial: bool
+    warnings: list[str]
+
+
 class RetryData(ApiModel):
     run_id: str
     step_id: str
@@ -814,6 +878,8 @@ class ErrorData(ApiModel):
         "published_knowledge_invalid",
         "released_knowledge_not_found",
         "released_knowledge_invalid",
+        "evaluation_run_not_found",
+        "evaluation_run_invalid",
         "runtime_knowledge_lock_rejected",
     ]
     message: str
@@ -925,6 +991,16 @@ class QueryLabResponse(ApiModel):
 
 class ReleasedQueryLabResponse(ApiModel):
     data: ReleasedQueryLabData
+    meta: ResponseMeta
+
+
+class EvaluationRunCollectionResponse(ApiModel):
+    data: EvaluationRunCollectionData
+    meta: ResponseMeta
+
+
+class EvaluationRunDetailResponse(ApiModel):
+    data: EvaluationRunDetailData
     meta: ResponseMeta
 
 

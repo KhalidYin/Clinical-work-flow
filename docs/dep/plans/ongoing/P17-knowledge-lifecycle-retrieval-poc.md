@@ -31,7 +31,7 @@ syncs_to:
 
 ## 背景
 
-- 当前状态：P12 已实现 SourceVersion、Evidence、Candidate/Revision、作者确认、独立审核、Relation/Audit 以及 Release/Evaluation 数据骨架；Query Lab、Evaluation、Release Center 仍为占位，通用索引、评估、Release Worker 和知识轮转尚未闭环。
+- 启动基线（2026-08-15）：P12 已实现 SourceVersion、Evidence、Candidate/Revision、作者确认、独立审核、Relation/Audit 以及 Release/Evaluation 数据骨架；当时 Query Lab、Evaluation、Release Center 仍为占位，通用索引、评估、Release Worker 和知识轮转尚未闭环。
 - 当前状态：P15/P16 已完成 OpenCode 本地离线 Harness POC、临时 `secret://` 和能力保持型模型 gateway；真实供应商 live、生产 Secret/runtime authority 和公共研究网关仍未完成。
 - 当前状态：Evidence 是可引用的 canonical 对象；既有设计明确文档 chunk 只是可重建派生物，不是 Knowledge Unit，也不能独立审核或发布。
 - 约束：P17 消费 P12 已完成的 P1、P2-A、P2-B1、P2-B2 和 P2-B3 离线基线，不依赖尚未获授权的 P2-B3 live vertical；P12 仍是产品架构总计划，P17 是其未完成检索/评估/Release 能力的聚焦实施合同，不建立平行产品权威。
@@ -381,6 +381,15 @@ syncs_to:
 - Query Lab 已从占位页升级为真实 API 页面：默认空查询不调用、提交后写入 `q/release/top_k` URL、直接展示 API rank/route/capability/citation，并明确 vector/relation degraded、generation disabled 和零模型请求。
 - 当前尚未执行 390px 真实浏览器验收，也未补 Evaluation/Releases 页面，因此 P17-UI-04 与 P4 Phase 完成项保持未勾选。
 
+### P4-B Evaluation read workbench 结果（2026-08-16）
+
+- E9 retrieval baseline 现在先形成确定性 `retrieval_baseline/informational` envelope，再写入既有 PostgreSQL `evaluation_runs`；它与 `release_gate_synthetic/passed|failed` 共表但不混用阈值，相同报告重放零增量。
+- 新增 `/evaluations` 列表和 `/evaluations/{id}` 详情：suite/purpose/outcome 筛选、Recall@5/10、threshold checks、逐题 expected/retrieved Evidence、失败类别和 replay availability 均由后端返回；损坏行在列表形成 partial warning，详情 fail closed。
+- Evaluation 从占位页升级为真实 API 页面，`suite/run/outcome` 写入 URL，覆盖默认、loading、empty、error 和 partial 组件状态；E9 明确显示 informational、零模型请求、无发布阈值和“不是临床质量认证”。
+- release-candidate Query Lab scope 尚未进入现有 released-only 页面，因此失败案例按钮按 API `candidate_scope_required` 禁用并解释，未错误地拿 current Release 重放；Evaluation 启动和版本 regression diff 也仍待后续切片。
+- 单命令 E9 环路已证明 EvaluationRun 在运行数据库内持久化/重放，并在报告声明 `database_retention=ephemeral`；临时数据库清理后不会冒充当前 Compose 数据。
+- 组件测试已覆盖主体状态，但 390px/真实浏览器尚未执行，因此 P17-UI-05 与 P4 Phase 完成项保持未勾选。
+
 ### 边界（本 Phase 明确不做）
 
 - 不新增一级页面或重做设计系统，不引入无关动画、图表或 dashboard。
@@ -414,8 +423,9 @@ syncs_to:
 |----|------|--------|------|------|
 | P17-F01 | 新轮转回执最初复用了既有 `review_decisions` 的 `actor_idempotency` 唯一约束名；离线 metadata 测试通过，但真实 PostgreSQL 因索引命名空间冲突拒绝迁移 | P1-A | resolved defect | 先补失败合同，再改为 `rotation_actor_idempotency`；空库 upgrade → schema diff → downgrade → reapply 已通过 |
 | P17-F02 | P1-A 的 RotationCase 只有 proposed outcome/actor，缺少 replace/carry-forward 的目标 revision、理由与 proposal 幂等证据，Reviewer 无法审计“具体提议了什么” | P1-B | resolved contract gap | 在未提交的 `0011` migration 内补充 proposal target/idempotency/rationale 与 shape/unique 约束；API/真实 PostgreSQL 重放和 stale Gate 通过 |
-| P17-F03 | P4 输入假设称 UI 所需 API 已稳定，但实际只有 candidate Query Lab 与 released manifest；没有 released query、Evaluation workbench 或 Release diff/gates 命令 API | P4-A | active contract gap | 先补最小后端权威 read model/command，再接页面；禁止以 MSW fixture 充当 production 数据。P4-A 已关闭 released query，Evaluation/Releases 继续处理 |
+| P17-F03 | P4 输入假设称 UI 所需 API 已稳定，但实际只有 candidate Query Lab 与 released manifest；没有 released query、Evaluation workbench 或 Release diff/gates 命令 API | P4-A | active contract gap | 先补最小后端权威 read model/command，再接页面；禁止以 MSW fixture 充当 production 数据。P4-A 已关闭 released query，P4-B 已关闭 Evaluation read surface；Evaluation 启动/候选重放和 Releases 继续处理 |
 | P17-F04 | 首次 released FTS 真实 PostgreSQL Gate 发现既有 Release fixture Evidence 缺少 canonical `source_artifact_id`，导致可发布但无法生成 citation | P4-A | resolved defect | 将 canonical source artifact 纳入 Release build 前置 Gate并补缺失反例；合法 current/历史查询通过 |
+| P17-F05 | 默认 E9 POC 使用临时 PostgreSQL；即使运行中已写 EvaluationRun，容器清理后也不能被 Compose 页面读取 | P4-B | accepted POC boundary | 报告增加 `database_retention=ephemeral`，页面空状态只信当前 API；后续若增加持久环境启动命令，必须同时绑定正确对象存储与数据库，不能导入报告冒充 canonical run |
 
 ## 关键决策记录
 
