@@ -26,7 +26,7 @@
 - Enrichment Worker 已有 fake/replay、direct-model 授权合同及 Candidate 治理闭环；migration `20260805_0009` 增加 `executor_kind`。`opencode-supervised` 已迁移为独立 Supervisor remote provider，普通 Compose 仍默认 replay；显式 `harness` profile 的真实零网络部署 Gate 已通过。
 - `harness-runtime/` 已实现版本化合同、fake/replay adapter、OpenCode `1.18.14` headless adapter、Fake/Docker runtime、staging 扫描、Execution/Validation Receipt、Step-scoped MCP、产品 Pack 编译，以及独立 Supervisor 的机器身份、durable journal、heartbeat/cancel/orphan recovery 和固定容器编译器。
 - 人员密码会话、HttpOnly Cookie、RBAC、Worker 机器身份和中文 React GUI 骨架已存在。
-- P17/P1-P3A 已实现版本化 ChunkProfile/RetrievalChunk、七类 SourceVersion Evidence comparison、逐 released revision 的 ImpactAssessment/RotationCase 物化与 DecisionReceipt 合同，以及 Document→Evidence→Chunk、release-candidate metadata+FTS/引用 API 和 E9 Recall 基线；通用 EvaluationRun 与 Release 发布仍未实现。
+- P17/P1-P3B 已实现版本化 ChunkProfile/RetrievalChunk、七类 SourceVersion comparison、逐 released revision 轮转物化、Document→Evidence→Chunk、release-candidate metadata+FTS/E9 Recall 基线，以及独立合成 suite 的 immutable EvaluationRun/threshold；Release 发布仍未实现。
 - 临床产品已有固定十阶段合同、ActionPolicy、Review Protocol、知识 Release resolve 和若干 POC artifact 流程；十个内部 Stage 对应 Protocol → SAP → SDTM → ADaM → TFL → QC → Submission 七个业务依赖组。
 
 ### 目标能力
@@ -80,7 +80,7 @@
 - 独立 Supervisor 当前只完成显式本地 Compose 离线部署 Gate，尚未形成面向生产的 socket proxy/rootless runtime、TLS 或集群调度边界；普通 Compose 仍默认 replay。
 - 生产级 Secret/runtime authority、公共研究 recording gateway 与真实供应商 Gate；P16/P2-P3 已完成本地 tmpfs Store、Attempt 临时认证材料和模型 CONNECT gateway，但不是持久 Vault/云 Secret Manager 或生产网络认证。DeepSeek live 仍未启用，真实回归仅使用合成值与本地 Mock/TLS 假 endpoint。
 - 通用 Knowledge Workflow Spec、完整多事件审计和更丰富的确定性 MCP 工具面。
-- 通用 EvaluationRun/threshold Gate、Release Worker、immutable current/历史重放、只读 Knowledge MCP 及完整治理 GUI 尚未实现；P17/P2 的 release-candidate Query Lab 与文件报告不等于 production Release 查询或临床质量认证。
+- EvaluationRun 与 threshold 事实已实现，但尚未接入 Release 发布事务；Release Worker、immutable current/历史重放、只读 Knowledge MCP 及完整治理 GUI 尚未实现。P17/P2 的 release-candidate Query Lab 与 E9 文件报告不等于 production Release 查询或临床质量认证。
 - 临床 Workflow 对 Harness 的生产接线和统一 run ledger。
 
 ### 明确不做

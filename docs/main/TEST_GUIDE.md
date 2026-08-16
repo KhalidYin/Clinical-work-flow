@@ -121,6 +121,7 @@ Attempt 预算内终止 OpenCode 并返回 `timed_out` Receipt。两者均要求
 - Governance：Candidate revision、作者确认、独立审核、relation eligibility 和 released immutability。
 - Knowledge lifecycle（P17/P1-P3A）：确定性 Evidence→Chunk ID/顺序/hash、overlap/oversize span、SourceVersion/artifact/章节/表格/type/data boundary/rights 隔离、excluded finding、七类 comparison 与多对多映射；Document DAG 在 Chunk 物化后进入 `evidence_ready`。合成版本 Gate 覆盖逐 released revision impact/case 物化、安全/风险 eligibility、重复零增量和旧 Release/Revision 不变；RotationCase 角色分离、幂等/stale 与 append-only receipt 已覆盖领域、OpenAPI/FastAPI 和真实 PostgreSQL 事务。
 - ICH E9 retrieval（P17/P2）：`python -m scripts.ich_e9_poc` 在临时 pgvector PostgreSQL 中下载/校验或复用本地 ignored E9，执行六步 Document DAG、metadata+FTS、18 条 GoldCase 与 Recall@5/10，并销毁容器。报告必须包含逐题 Evidence 命中/失败类别、单文档非认证声明、vector/relation degraded、generation disabled 和 `external_model_requests=0`；连续全新数据库运行报告必须一致。
+- Release evaluation（P17/P3-B）：自动 threshold 只使用独立合成 suite；覆盖 pass/fail、逐指标失败原因、重复零增量、payload/列漂移拒绝、`release_id IS NULL` 和零模型请求。E9 Recall 报告不得作为该 Gate 输入。
 - 认证：用户名、Argon2id、HttpOnly/SameSite Cookie、CSRF、会话撤销和 RBAC。
 - 前端：Vitest/Testing Library 已覆盖核心组件行为；真实浏览器与 390px 窄屏是既往手工验收，不是已签入自动化 E2E。
 - Workflow：固定阶段合同、ActionPolicy、Review Protocol、知识 Release resolve 和 ADAE fixture；start/resume ledger 只在限定 POC Workbench 中可执行，不是通用 Runtime。
@@ -130,7 +131,7 @@ Attempt 预算内终止 OpenCode 并返回 `timed_out` Receipt。两者均要求
 - 面向生产的 socket proxy/rootless runtime authority、TLS/服务身份轮换与获授权出站网络；当前只覆盖显式本地 Compose 离线信任链。
 - 生产 Secret Manager、生产 socket/rootless runtime authority、真实供应商出站质量与公共研究 recording gateway；P16 只使用合成 secret 和本地 TLS 假 endpoint，未调用 DeepSeek。全仓、Frontend、Workflow、migration 与 Compose 汇总 Gate 已通过。
 - 非 root Supervisor、socket proxy/远程容器运行时、明确 UID/GID 的 volume ownership；P15 为隔离的每 Attempt 临时目录开放宽写权限只服务本地 POC，不能沿用为生产证明。
-- 通用 EvaluationRun/threshold Gate、Release Worker、Knowledge MCP 和对应 GUI；P17/P2 文件报告不是 Release Gate。
+- EvaluationRun 尚未与发布事务联合验收；Release Worker、Knowledge MCP 和对应 GUI仍未实现。P17/P2 文件报告不是 Release Gate。
 - 临床统一 Runner 与 Harness artifact promotion。
 - 可重复执行的浏览器 E2E 与视觉回归门禁。
 

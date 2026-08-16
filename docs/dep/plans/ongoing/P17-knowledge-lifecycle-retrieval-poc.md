@@ -159,7 +159,7 @@ syncs_to:
 |-------|------|----------|------|------|
 | P1 | 冻结 Chunk 与轮转数据库/API 合同 | 3 | P12 已完成非 live 基线 | done |
 | P2 | 用 ICH E9 建立确定性切块、检索与 Recall 基线 | 3-4 | P1 | done |
-| P3 | 接通轮转决策、Evaluation Gate 与 immutable Release | 3-4 | P2 | in-progress（P3-A done；P3-B next） |
+| P3 | 接通轮转决策、Evaluation Gate 与 immutable Release | 3-4 | P2 | in-progress（P3-A/P3-B done；P3-C next） |
 | P4 | 补全现有治理 UI 并关闭全链路 Gate | 3-4 | P3 | pending |
 
 ---
@@ -309,6 +309,12 @@ syncs_to:
 - case 级 change types 不再错误继承整份 assessment：仅含 unchanged/moved 时 eligible outcome 为 `carry_forward`；含 modified/removed/rights_changed/ambiguous 时只允许人工 `replace/retire/no_action`。
 - materialization 不写 proposal/decision/include/release；重复执行零增量。真实 PostgreSQL 证明旧 Release 与 released Revision 不变，非法 carry-forward/replace 均 fail closed。
 - 本子阶段未新增迁移、hash、模型调用或 E9 新版本；下一步 P3-B 仅以独立合成 suite 验证 Evaluation threshold。
+
+### P3-B 完成结果（2026-08-16）
+
+- 独立合成 EvaluationSuite 固定 case、Recall@5/10 threshold 与目标 ID，生成 completed、passed/failed、逐指标检查和客观失败原因；明确拒绝把 E9 suite 用作自动 Release threshold。
+- EvaluationRun 使用既有 PostgreSQL 表作为权威，完整 payload 不可覆盖；同事实重放零增量，payload/列漂移 fail closed，且本阶段 `release_id` 保持为空、模型请求为 0。
+- `require_passed_evaluation` 已形成 P3-C 的确定性前置 Gate；尚未接入发布事务，因此“失败阻断/通过发布”的联合完成标准仍保持未勾选。
 
 ### 边界（本 Phase 明确不做）
 

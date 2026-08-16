@@ -93,3 +93,35 @@
 - canonical Guide/Spec/Test、P17/PLAN/TASK_STATE、DevLog/INDEX（P3-A phase commit）
 
 ---
+
+## 2026-08-16
+
+### R131 [13:06] [P17-knowledge-lifecycle-retrieval-poc] P3-B: 合成 Evaluation threshold
+
+#### Done
+
+- 新增明确拒绝 E9 身份的 SyntheticEvaluationSuite、可配置 Recall@5/10 threshold、逐指标检查、passed/failed 与失败原因；所有运行固定零模型请求和“非临床质量认证”声明。
+- 复用既有 PostgreSQL `evaluation_runs`：完整 Gate payload 作为 immutable canonical metrics，稳定 run ID 支持相同事实零增量重放，payload/列漂移拒绝覆盖。
+- 新增 `require_passed_evaluation` 供 P3-C 发布事务复用；当前 run 的 `release_id` 明确为空，不提前创建或发布 Release。
+
+#### Issues / Risks
+
+- P3-B 只建立 Evaluation 权威事实；尚未与 Release Manager 事务相连，因此不能宣称“通过后已可发布”。
+- 合成 4-case suite 只验证 Gate 机械语义，不代表临床检索质量；E9 Recall 仍是独立单文档基线。
+
+#### Validation
+
+- TDD RED：缺失 release gate 合同 `3 failed`；缺失 PostgreSQL repository `1 failed`。
+- 合成合同 `3 passed`；真实临时 pgvector immutable/replay/tamper Gate `1 passed`；Knowledge 全量 `280 passed, 11 skipped`，Ruff 与 diff check 通过。
+
+#### Next
+
+1. P3-C 写 Release manifest/index/object、未决 Case/失败 evaluation/citation drift/base-release stale 的发布失败测试。
+2. 风险是 Release Worker 回写 Evidence/Review 或用 mutable exclusion 撤回；只允许新 immutable Release 和原子 current 切换。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/service/evaluation/release_gate.py`、`repository.py` 与 synthetic/PostgreSQL tests
+- canonical Guide/Spec/Test、P17/PLAN/TASK_STATE、DevLog/INDEX（P3-B phase commit）
+
+---

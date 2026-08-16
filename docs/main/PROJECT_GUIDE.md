@@ -33,7 +33,7 @@
 
 | 领域 | 当前基线 | 目标状态 |
 |------|----------|----------|
-| 知识控制面 | PostgreSQL durable DAG、Document/Enrichment Worker、ObjectStore、Candidate/Review、React GUI 已有骨架；P17/P1-P3A 已接通版本化 Chunk、SourceVersion comparison/逐 revision 轮转物化、Document 物化、release-candidate metadata+FTS 与 E9 Recall 基线 | 接通通用 Evaluation/Release 和只读知识 MCP 闭环 |
+| 知识控制面 | PostgreSQL durable DAG、Document/Enrichment Worker、ObjectStore、Candidate/Review、React GUI 已有骨架；P17/P1-P3B 已接通版本化 Chunk、轮转物化、release-candidate metadata+FTS、E9 Recall 基线与合成 immutable EvaluationRun | 接通 Release 和只读知识 MCP 闭环 |
 | 临床控制面 | 固定十阶段合同、Review Protocol、ActionPolicy、Study 文件状态已有原型；仍存在自建 Agent Loop、多套状态表达和执行入口 | 收敛为唯一 Workflow Orchestrator，由容器化 Harness 执行 Engine 已选定的 Step |
 | Harness | 已有版本化合同、独立 Supervisor 生命周期、staging/MCP、OpenCode digest 准入、P15 PostgreSQL/API 本地 POC 及 P16/P2-P3 本地 tmpfs `secret://`/模型 gateway；普通 Compose 仍默认 replay | 以更收敛的生产 runtime/Secret authority 和分策略出站部署 Harness Attempt，不向业务 Worker 暴露 Docker 控制权 |
 | MCP | Attempt 级 broker 与 OpenCode 标准 stdio shim 已纳入独立 Supervisor 离线部署并实测 `initialize/tools-list/tools/call`、路径拒绝和脱敏审计；知识消费仍主要是 REST | 扩展确定性工具；知识消费 MCP 只从 immutable Release 读取 |
@@ -176,6 +176,10 @@ P3-A 使用完全合成的同 Source 不同版本 Evidence 原子物化 assessme
 released revision 实际引用的旧 Evidence：unchanged/moved 仅允许 Curator 提出 carry-forward；含
 modified/removed/rights_changed/ambiguous 时只能人工提出 replace/retire/no-action，再由独立 Reviewer 决定。
 物化本身不写 proposal、receipt、include 或 Release，重放不增量，也不改旧 Release/Revision。
+
+P3-B 的自动 threshold 只接受显式合成 suite，不复用 E9 Recall 基线。每次运行把固定目标、阈值、观察值、
+逐指标结果和失败原因写入既有 PostgreSQL EvaluationRun；相同事实可重放，漂移拒绝覆盖。该事实尚未绑定
+Release，只有 P3-C 发布事务核验通过后才能成为 Release Gate 证据。
 
 P17/P2 的 Query Lab API 只查询显式 `release_candidate` scope，使用 PostgreSQL metadata+FTS 并返回
 route contribution、Chunk explanation、ContextPackage 与最终 Evidence citation；没有 embedding/relation

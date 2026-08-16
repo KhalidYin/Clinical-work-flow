@@ -8,7 +8,7 @@ updated: 2026-08-16
 
 | # | 当前 Gate | 子计划 | 状态 |
 |---|----------|--------|------|
-| P17 | P3 知识轮转、Evaluation Gate 与 immutable Release | [P17-knowledge-lifecycle-retrieval-poc.md](plans/ongoing/P17-knowledge-lifecycle-retrieval-poc.md) | P1-P2/P3-A done；P3-B next，使用合成 EvaluationSuite，不调用模型 |
+| P17 | P3 知识轮转、Evaluation Gate 与 immutable Release | [P17-knowledge-lifecycle-retrieval-poc.md](plans/ongoing/P17-knowledge-lifecycle-retrieval-poc.md) | P1-P2/P3-A/P3-B done；P3-C next，冻结 immutable Release，不调用模型 |
 | P12 | P2-B3 live vertical 等待外部输入 | [P12-knowledge-application-platform.md](plans/ongoing/P12-knowledge-application-platform.md) | waiting/frozen；P17 执行期间不修改 Evaluation/Release，待后续轮换 key、synthetic Evidence、预算与单次授权 |
 
 ## 待开始
