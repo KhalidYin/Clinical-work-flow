@@ -133,6 +133,9 @@ from .contracts import (
     QueryLabData,
     QueryLabRequest,
     QueryLabResponse,
+    ReleasedQueryLabData,
+    ReleasedQueryLabRequest,
+    ReleasedQueryLabResponse,
     RelationEdgeData,
     RelationEvidenceData,
     RelationNodeData,
@@ -179,7 +182,10 @@ from service.published_knowledge import (
     resolve_published_runtime_context,
 )
 from service.retrieval import (
+    ImmutableReleaseRetrievalService,
     ReleaseCandidateScope,
+    ReleasedRetrievalRequest,
+    ReleasedRetrievalResult,
     RetrievalQuery as CandidateRetrievalQuery,
     RetrievalResult,
     RetrievalService,
@@ -229,6 +235,7 @@ class PlatformApiServices:
     governance: KnowledgeGovernanceService | None = None
     lifecycle: KnowledgeLifecycleApiPort | None = None
     retrieval: RetrievalService | None = None
+    released_retrieval: ImmutableReleaseRetrievalService | None = None
     release_resolver: ImmutableReleaseResolver | None = None
     object_store: ObjectStorePort | None = None
     runtime_consumer_credential_sha256: str | None = None
@@ -702,6 +709,56 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
                 message="The release-candidate retrieval result failed validation.",
             ) from exc
         return QueryLabResponse(data=_query_lab_data(result), meta=_meta())
+
+    @app.post(
+        f"{API_PREFIX}/query-lab/released-query",
+        operation_id="queryImmutableRelease",
+        response_model=ReleasedQueryLabResponse,
+        responses=protected_responses,
+    )
+    def query_immutable_release(
+        request: ReleasedQueryLabRequest,
+        _actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.QUERY_RELEASED)),
+        ],
+    ) -> ReleasedQueryLabResponse:
+        if services.released_retrieval is None:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="The immutable Release retrieval service is unavailable.",
+            )
+        try:
+            result = services.released_retrieval.query(
+                ReleasedRetrievalRequest(
+                    query=request.query,
+                    top_k=request.top_k,
+                    release_id=request.release_id,
+                )
+            )
+        except ReleasedKnowledgeUnavailableError as exc:
+            raise PlatformApiError(
+                status_code=404,
+                code="released_knowledge_not_found",
+                message="The requested immutable Release is unavailable.",
+            ) from exc
+        except SQLAlchemyError as exc:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="The immutable Release retrieval repository is unavailable.",
+            ) from exc
+        except (ValueError, ObjectStoreError) as exc:
+            raise PlatformApiError(
+                status_code=409,
+                code="released_knowledge_invalid",
+                message="The immutable Release retrieval result failed validation.",
+            ) from exc
+        return ReleasedQueryLabResponse(
+            data=_released_query_lab_data(result),
+            meta=_meta(),
+        )
 
     @app.get(
         f"{API_PREFIX}/runtime-knowledge/version",
@@ -1936,6 +1993,12 @@ def _rotation_decision_data(
 
 def _query_lab_data(result: RetrievalResult) -> QueryLabData:
     return QueryLabData.model_validate(result.model_dump(mode="json"))
+
+
+def _released_query_lab_data(
+    result: ReleasedRetrievalResult,
+) -> ReleasedQueryLabData:
+    return ReleasedQueryLabData.model_validate(result.model_dump(mode="json"))
 
 
 def _impact_assessment_data(record: ImpactAssessmentApiRecord) -> ImpactAssessmentData:

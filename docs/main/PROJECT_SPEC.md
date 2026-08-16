@@ -80,7 +80,7 @@
 - 独立 Supervisor 当前只完成显式本地 Compose 离线部署 Gate，尚未形成面向生产的 socket proxy/rootless runtime、TLS 或集群调度边界；普通 Compose 仍默认 replay。
 - 生产级 Secret/runtime authority、公共研究 recording gateway 与真实供应商 Gate；P16/P2-P3 已完成本地 tmpfs Store、Attempt 临时认证材料和模型 CONNECT gateway，但不是持久 Vault/云 Secret Manager 或生产网络认证。DeepSeek live 仍未启用，真实回归仅使用合成值与本地 Mock/TLS 假 endpoint。
 - 通用 Knowledge Workflow Spec、完整多事件审计和更丰富的确定性 MCP 工具面。
-- EvaluationRun 已接入 Release 发布事务；Release Worker 只构建候选，人工 Release Manager 发布，current/history 与只读 REST/标准 MCP manifest resolver 已实现。完整 released 检索、Attempt 级 Knowledge MCP broker 接线、生产身份/对象存储及治理 GUI 尚未完成；P17/P2 文件报告仍不等于临床质量认证。
+- EvaluationRun 已接入 Release 发布事务；Release Worker 只构建候选，人工 Release Manager 发布，current/history 与只读 REST/标准 MCP manifest resolver 已实现。P17/P4-A 已新增 current/历史 immutable Release 的精确 Chunk membership metadata+FTS REST 查询与 Query Lab；vector/relation 仍 degraded，标准 MCP 仍只解析 manifest。Attempt 级 Knowledge MCP broker、生产身份/对象存储及其余治理 GUI 尚未完成；P17/P2 文件报告仍不等于临床质量认证。
 - 临床 Workflow 对 Harness 的生产接线和统一 run ledger。
 
 ### 明确不做

@@ -158,3 +158,40 @@
 - canonical Guide/Spec/Test、P17/PLAN/TASK_STATE、DevLog/INDEX（P3-C phase commit）
 
 ---
+
+## 2026-08-16
+
+### R133 [20:04] [P17-knowledge-lifecycle-retrieval-poc] P4-A: released Query Lab
+
+#### Done
+
+- 新增 immutable Release retrieval service 与 PostgreSQL exact Chunk membership 查询；current/历史 Release 均先通过 hash-verified manifest resolver，客户端不能自报 SourceVersion、Profile 或 Chunk 范围。
+- 新增 `/query-lab/released-query`、prerelease OpenAPI、QUERY_RELEASED RBAC 与明确的 not-found/integrity error envelope；candidate sandbox 仍保留且不冒充发布查询。
+- 真实 PostgreSQL Gate 暴露并修复 Release Evidence 缺少 canonical `source_artifact_id` 仍可发布的问题；build 现在在 current 切换前 fail closed。
+- Query Lab 升级为现有导航内的真实 React 页面：URL 可恢复、空查询不运行、API rank/route/capability/citation 原样展示，vector/relation 显式 degraded，generation 与外部模型请求为零。
+
+#### Issues / Risks
+
+- P4 计划的输入条件高估了 API 完整度：Evaluation 与 Releases 的 UI read model/command 仍缺失，不能先画页面再用 fixture 填充。
+- Query Lab 组件/production build 已通过，但 390px 与完整真实浏览器流程尚未验证，因此不勾选 P17-UI-04。
+- 当前 released retrieval 仍只有 metadata+FTS；vector/relation 不伪造贡献。标准 MCP 当前仍是 manifest resolver，尚未接入完整 released query tool。
+
+#### Validation
+
+- TDD RED：released retrieval import 缺失；PlatformApiServices/endpoint 缺失；Query Lab 仍为占位页，组件 2 failed。
+- released/candidate retrieval unit `5 passed`；platform API/OpenAPI `30 passed`；空库 migration + Release publish/current/history FTS `2 passed`。
+- Knowledge 全量 `292 passed, 12 skipped`、Ruff 通过；前端 `32 passed`、typecheck 与 production build 通过。未配置或调用模型，未发生外部模型请求。
+
+#### Next
+
+1. P4-A3 先补 Evaluation run 列表/详情、指标/逐题结果/失败重放 URL 的后端 read model，再升级 Evaluation 页面。
+2. 之后补 Releases workbench 的 candidate/current/diff/gates/allowed actions 与 base-release publish command；前端不得重算 Gate。
+3. 风险是 UI 从 Evaluation metrics 推断 pass、或从 manifest 自算 Release diff；后端必须返回声明结果与阻断原因。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/service/retrieval/`、Release citation Gate、platform API/OpenAPI 与 PostgreSQL/contract tests
+- `clinical-llm-wiki/frontend/src/pages/QueryLabPage.tsx`、contracts/router/MSW test fixture、CSS 与组件测试
+- P17/PLAN/TASK_STATE、DevLog/INDEX（P4-A phase commit）
+
+---

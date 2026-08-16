@@ -19,6 +19,7 @@ import {
   usersFixture,
   modelProfilesFixture,
   modelProfileRegistrationFixture,
+  releasedQueryFixture,
 } from "./fixtures";
 
 export const handlers = [
@@ -30,6 +31,9 @@ export const handlers = [
   http.get(resolveApiPath(API_PATHS.session), () => HttpResponse.json(sessionFixture)),
   http.get(resolveApiPath(API_PATHS.health), () => HttpResponse.json(healthFixture)),
   http.get(resolveApiPath(API_PATHS.currentRelease), () => HttpResponse.json(releaseFixture)),
+  http.post(resolveApiPath(API_PATHS.releasedQuery), () =>
+    HttpResponse.json(releasedQueryFixture),
+  ),
   http.get(resolveApiPath(API_PATHS.sources), () => HttpResponse.json(sourcesFixture)),
   http.post(resolveApiPath(API_PATHS.sources), () =>
     HttpResponse.json(sourceRegistrationFixture, { status: 202 }),

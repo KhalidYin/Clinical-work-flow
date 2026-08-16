@@ -639,6 +639,33 @@ class QueryLabData(ApiModel):
     ]
 
 
+class ReleasedQueryLabRequest(ApiModel):
+    query: str = Field(min_length=1, max_length=500)
+    top_k: int = Field(default=10, ge=1, le=50)
+    release_id: str | None = Field(default=None, min_length=1, max_length=160)
+
+
+class ReleasedRetrievalContextPackageData(ApiModel):
+    scope_kind: Literal["immutable_release"] = "immutable_release"
+    release_id: str
+    chunk_ids: list[str]
+    citations: list[RetrievalCitationData]
+
+
+class ReleasedQueryLabData(ApiModel):
+    query_id: str
+    release_id: str
+    release_version: str
+    fusion_version: Literal["metadata-fts-weighted-v1"]
+    capabilities: RetrievalCapabilitiesData
+    hits: list[RetrievalHitData]
+    context_package: ReleasedRetrievalContextPackageData
+    external_model_requests: Literal[0]
+    evaluation_notice: Literal[
+        "single_document_retrieval_baseline_not_clinical_quality_certification"
+    ]
+
+
 class RetryData(ApiModel):
     run_id: str
     step_id: str
@@ -785,6 +812,8 @@ class ErrorData(ApiModel):
         "machine_authentication_required",
         "published_knowledge_unavailable",
         "published_knowledge_invalid",
+        "released_knowledge_not_found",
+        "released_knowledge_invalid",
         "runtime_knowledge_lock_rejected",
     ]
     message: str
@@ -891,6 +920,11 @@ class ChunkProjectionResponse(ApiModel):
 
 class QueryLabResponse(ApiModel):
     data: QueryLabData
+    meta: ResponseMeta
+
+
+class ReleasedQueryLabResponse(ApiModel):
+    data: ReleasedQueryLabData
     meta: ResponseMeta
 
 

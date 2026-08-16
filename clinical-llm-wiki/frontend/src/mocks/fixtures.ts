@@ -17,6 +17,7 @@ import {
   type ModelProfileCollection,
   type ModelProfileRegistration,
   type ServiceAccountCollection,
+  type ReleasedQueryLabResult,
 } from "../contracts/knowledgeApi";
 
 const fixtureTime = "2026-07-29T14:58:00Z";
@@ -582,6 +583,83 @@ export const usersFixture = response<UserCollection>({
       lastActiveAt: null,
     },
   ],
+});
+
+export const releasedQueryFixture = response<ReleasedQueryLabResult>({
+  queryId: "query-e9-randomisation",
+  releaseId: "rel-historical",
+  releaseVersion: "2026.08-p17",
+  fusionVersion: "metadata-fts-weighted-v1",
+  capabilities: {
+    metadata: { status: "available", reason: null },
+    fullText: { status: "available", reason: null },
+    vector: { status: "degraded", reason: "embedding_profile_not_configured" },
+    relation: {
+      status: "degraded",
+      reason: "relation_route_not_enabled_for_e9_poc",
+    },
+    generation: {
+      status: "disabled",
+      reason: "retrieval_baseline_makes_no_model_requests",
+    },
+  },
+  hits: [
+    {
+      rank: 7,
+      chunkId: "chunk-e9-randomisation",
+      content: "Randomisation protects against selection bias in treatment allocation.",
+      contentSha256: fixtureHash("7e9a"),
+      fusionScore: 0.68,
+      routeContributions: {
+        metadata: 0.2,
+        fullText: 0.8,
+        vector: null,
+        relation: null,
+      },
+      explanation: {
+        sourceVersionId: "srcv-e9-1998",
+        sourceTitle: "ICH E9 Statistical Principles for Clinical Trials",
+        sourceVersion: "1998",
+        chunkProfileId: "chunk-profile-e9-v1",
+        ordinal: 6,
+        evidenceType: "prose",
+        locator: { kind: "page", page: 8 },
+        tokenCount: 10,
+      },
+      citations: [
+        {
+          evidenceId: "evidence-e9-randomisation",
+          sourceVersionId: "srcv-e9-1998",
+          sourceArtifactId: "artifact-e9-original",
+          locator: { kind: "page", page: 8 },
+          contentSha256: fixtureHash("9e9a"),
+          startOffset: 0,
+          endOffset: 68,
+          spanRole: "primary",
+        },
+      ],
+    },
+  ],
+  contextPackage: {
+    scopeKind: "immutable_release",
+    releaseId: "rel-historical",
+    chunkIds: ["chunk-e9-randomisation"],
+    citations: [
+      {
+        evidenceId: "evidence-e9-randomisation",
+        sourceVersionId: "srcv-e9-1998",
+        sourceArtifactId: "artifact-e9-original",
+        locator: { kind: "page", page: 8 },
+        contentSha256: fixtureHash("9e9a"),
+        startOffset: 0,
+        endOffset: 68,
+        spanRole: "primary",
+      },
+    ],
+  },
+  externalModelRequests: 0,
+  evaluationNotice:
+    "single_document_retrieval_baseline_not_clinical_quality_certification",
 });
 
 export const serviceAccountsFixture = response<ServiceAccountCollection>({

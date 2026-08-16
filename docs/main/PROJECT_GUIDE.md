@@ -33,7 +33,7 @@
 
 | 领域 | 当前基线 | 目标状态 |
 |------|----------|----------|
-| 知识控制面 | PostgreSQL durable DAG、Document/Enrichment/Release Worker、ObjectStore、Candidate/Review、React GUI 已有骨架；P17/P1-P3 已接通版本化 Chunk、轮转、E9 Recall、Evaluation 与 immutable Release/current/history/manifest resolver | 补全治理 GUI、released 查询与生产级 Knowledge MCP 接线 |
+| 知识控制面 | PostgreSQL durable DAG、Document/Enrichment/Release Worker、ObjectStore、Candidate/Review、React GUI 已有骨架；P17/P1-P3 已接通版本化 Chunk、轮转、E9 Recall、Evaluation 与 immutable Release/current/history/manifest resolver，P4-A 已接 current/历史 Release metadata+FTS Query Lab | 补全 Evaluation/Releases 等治理 GUI、vector/relation route 与生产级 Knowledge MCP 接线 |
 | 临床控制面 | 固定十阶段合同、Review Protocol、ActionPolicy、Study 文件状态已有原型；仍存在自建 Agent Loop、多套状态表达和执行入口 | 收敛为唯一 Workflow Orchestrator，由容器化 Harness 执行 Engine 已选定的 Step |
 | Harness | 已有版本化合同、独立 Supervisor 生命周期、staging/MCP、OpenCode digest 准入、P15 PostgreSQL/API 本地 POC 及 P16/P2-P3 本地 tmpfs `secret://`/模型 gateway；普通 Compose 仍默认 replay | 以更收敛的生产 runtime/Secret authority 和分策略出站部署 Harness Attempt，不向业务 Worker 暴露 Docker 控制权 |
 | MCP | Attempt 级 broker 与 OpenCode 标准 stdio shim 已纳入独立 Supervisor 离线部署并实测 `initialize/tools-list/tools/call`、路径拒绝和脱敏审计；知识消费仍主要是 REST | 扩展确定性工具；知识消费 MCP 只从 immutable Release 读取 |
@@ -186,6 +186,10 @@ route contribution、Chunk explanation、ContextPackage 与最终 Evidence citat
 index 时相应 capability 明确 degraded，generation disabled，且不填充假的 score。官方 E9 仅保存在本地
 ignored `.poc-assets/`，18 条原创 GoldCase 基线得到 Recall@5 `0.888889`、Recall@10 `0.944444`，报告明确
 不是临床质量认证。该 POC 未创建 Candidate 或 current Release；Chunk 仍是可重建投影，不是第三套权威。
+
+P17/P4-A 另提供 current/历史 immutable Release 查询：服务端先 hash 校验 manifest，再只允许冻结的
+Chunk ID 与 ChunkProfile 进入 PostgreSQL metadata+FTS；浏览器只能选择 Release ID，不能自行扩张
+SourceVersion/Chunk 范围。该 REST 路径已进入 Query Lab，标准 Knowledge MCP 目前仍只解析 manifest。
 
 ### 容器化 Harness Runtime
 

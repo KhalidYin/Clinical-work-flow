@@ -25,7 +25,7 @@ from service.governance import (
 )
 from service.object_store import LocalObjectStore
 from service.processing.ledger import PostgresProcessingLedger
-from service.retrieval import RetrievalService
+from service.retrieval import ImmutableReleaseRetrievalService, RetrievalService
 from service.retrieval.postgres import PostgresCandidateSearchRepository
 from service.releases import ImmutableReleaseResolver, SqlAlchemyReleaseRepository
 from service.sources import SourceRegistryService, SqlAlchemySourceRegistryRepository
@@ -60,6 +60,8 @@ def create_environment_app():
         object_store=object_store,
     )
     ledger = PostgresProcessingLedger(sessions)
+    release_resolver = ImmutableReleaseResolver(repository=release_repository)
+    search_repository = PostgresCandidateSearchRepository(sessions)
     return create_platform_app(
         PlatformApiServices(
             repository=repository,
@@ -82,9 +84,13 @@ def create_environment_app():
             ),
             lifecycle=SqlAlchemyKnowledgeLifecycleRepository(sessions),
             retrieval=RetrievalService(
-                repository=PostgresCandidateSearchRepository(sessions)
+                repository=search_repository
             ),
-            release_resolver=ImmutableReleaseResolver(repository=release_repository),
+            released_retrieval=ImmutableReleaseRetrievalService(
+                resolver=release_resolver,
+                repository=search_repository,
+            ),
+            release_resolver=release_resolver,
             object_store=object_store,
             runtime_consumer_credential_sha256=_runtime_consumer_credential_sha256(),
         )

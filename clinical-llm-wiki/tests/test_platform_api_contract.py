@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from hashlib import sha256
 from importlib import import_module
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 from fastapi.testclient import TestClient
@@ -27,6 +28,7 @@ from service.object_store import ObjectDescriptor
 from service.retrieval import (
     CandidateSearchRecord,
     EvidenceCitation,
+    ImmutableReleaseRetrievalService,
     RetrievalService,
 )
 from service.sources import SourceRegistrationReceipt
@@ -813,6 +815,61 @@ class FakeCandidateSearchRepository:
         ]
 
 
+class FakeReleasedSearchRepository:
+    def search_released_metadata_fts(
+        self,
+        *,
+        query,
+        chunk_ids,
+        chunk_profile_id,
+        limit,
+    ):
+        del query, limit
+        assert chunk_ids == ("chunk-api-e9-001",)
+        return [
+            CandidateSearchRecord(
+                chunk_id="chunk-api-e9-001",
+                chunk_profile_id=chunk_profile_id,
+                source_version_id="srcv-api-e9",
+                source_title="ICH E9 Statistical Principles for Clinical Trials",
+                source_version="1998",
+                ordinal=0,
+                evidence_type="text",
+                content="Randomisation protects against bias in treatment comparisons.",
+                content_sha256="d" * 64,
+                token_count=9,
+                locator={"kind": "page", "page": 8},
+                metadata_score=0.2,
+                full_text_score=0.8,
+                citations=(
+                    EvidenceCitation(
+                        evidence_id="evidence-api-e9-001",
+                        source_version_id="srcv-api-e9",
+                        source_artifact_id="artifact-api-e9-original",
+                        locator={"kind": "page", "page": 8},
+                        content_sha256="e" * 64,
+                        start_offset=0,
+                        end_offset=59,
+                        span_role="primary",
+                    ),
+                ),
+            )
+        ]
+
+
+class FakeImmutableReleaseResolver:
+    def resolve(self, *, release_id=None):
+        resolved_id = release_id or "rel-current"
+        return SimpleNamespace(
+            release_id=resolved_id,
+            version="2026.08-p17",
+            manifest=SimpleNamespace(
+                chunk_profile_id="chunk-profile-e9-v1",
+                items=(SimpleNamespace(chunk_ids=("chunk-api-e9-001",)),),
+            ),
+        )
+
+
 class FakePasswordSessions:
     def __init__(self, principals: dict[str, AuthenticatedPrincipal]) -> None:
         self.principals = principals
@@ -907,6 +964,10 @@ def api_client():
         governance=FakeGovernanceService(),
         lifecycle=lifecycle,
         retrieval=RetrievalService(repository=FakeCandidateSearchRepository()),
+        released_retrieval=ImmutableReleaseRetrievalService(
+            resolver=FakeImmutableReleaseResolver(),
+            repository=FakeReleasedSearchRepository(),
+        ),
     )
     return TestClient(app_module.create_platform_app(services)), repository
 
@@ -929,6 +990,37 @@ def test_platform_services_has_explicit_retrieval_port() -> None:
     app_module, _, _ = _platform_modules()
 
     assert "retrieval" in {field.name for field in fields(app_module.PlatformApiServices)}
+
+
+def test_platform_services_has_explicit_released_retrieval_port() -> None:
+    app_module, _, _ = _platform_modules()
+
+    assert "released_retrieval" in {
+        field.name for field in fields(app_module.PlatformApiServices)
+    }
+
+
+def test_consumer_queries_an_explicit_immutable_release_without_model_calls(api_client) -> None:
+    client, _ = api_client
+
+    response = client.post(
+        f"{API_PREFIX}/query-lab/released-query",
+        headers=_auth("consumer-token"),
+        json={
+            "query": "randomisation selection bias",
+            "topK": 5,
+            "releaseId": "rel-historical",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["releaseId"] == "rel-historical"
+    assert data["releaseVersion"] == "2026.08-p17"
+    assert data["contextPackage"]["scopeKind"] == "immutable_release"
+    assert data["hits"][0]["chunkId"] == "chunk-api-e9-001"
+    assert data["hits"][0]["citations"][0]["evidenceId"] == "evidence-api-e9-001"
+    assert data["externalModelRequests"] == 0
 
 
 def test_health_is_public_and_reports_unimplemented_capabilities(api_client) -> None:
@@ -1692,6 +1784,7 @@ def test_checked_in_openapi_matches_runtime_paths_roles_and_responses(api_client
             f"{API_PREFIX}/releases/current/manifest",
             f"{API_PREFIX}/releases/{{release_id}}/manifest",
             f"{API_PREFIX}/query-lab/query",
+            f"{API_PREFIX}/query-lab/released-query",
             f"{API_PREFIX}/runtime-knowledge/version",
             f"{API_PREFIX}/runtime-knowledge/resolve",
             f"{API_PREFIX}/sources",
@@ -1819,6 +1912,18 @@ def test_checked_in_openapi_matches_runtime_paths_roles_and_responses(api_client
                         "sourceVersionIds": ["srcv-e9"],
                         "chunkProfileId": "chunk-profile-e9-v1",
                     },
+                },
+            ),
+        ),
+        (
+            "ReleasedQueryLabResponse",
+            client.post(
+                f"{API_PREFIX}/query-lab/released-query",
+                headers=_auth("consumer-token"),
+                json={
+                    "query": "randomisation bias",
+                    "topK": 5,
+                    "releaseId": "rel-historical",
                 },
             ),
         ),

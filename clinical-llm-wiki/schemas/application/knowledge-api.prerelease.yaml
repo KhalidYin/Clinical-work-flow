@@ -152,6 +152,27 @@ paths:
         "403": { $ref: "#/components/responses/AuthorizationError" }
         "409": { $ref: "#/components/responses/ConflictError" }
         "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /query-lab/released-query:
+    post:
+      operationId: queryImmutableRelease
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReleasedQueryLabRequest" }
+      responses:
+        "200":
+          description: Cited metadata and FTS results restricted to one immutable Release manifest.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReleasedQueryLabResponse" }
+        "401": { $ref: "#/components/responses/AuthenticationError" }
+        "403": { $ref: "#/components/responses/AuthorizationError" }
+        "404": { $ref: "#/components/responses/NotFoundError" }
+        "409": { $ref: "#/components/responses/ConflictError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
   /sources:
     get:
       operationId: listSources
@@ -1977,6 +1998,53 @@ components:
         externalModelRequests: { const: 0 }
         evaluationNotice:
           const: single_document_retrieval_baseline_not_clinical_quality_certification
+    ReleasedQueryLabRequest:
+      type: object
+      additionalProperties: false
+      required: [query]
+      properties:
+        query: { type: string, minLength: 1, maxLength: 500 }
+        topK: { type: integer, minimum: 1, maximum: 50, default: 10 }
+        releaseId: { type: [string, "null"], minLength: 1, maxLength: 160 }
+    ReleasedRetrievalContextPackage:
+      type: object
+      additionalProperties: false
+      required: [scopeKind, releaseId, chunkIds, citations]
+      properties:
+        scopeKind: { const: immutable_release }
+        releaseId: { type: string }
+        chunkIds:
+          type: array
+          items: { type: string }
+        citations:
+          type: array
+          items: { $ref: "#/components/schemas/RetrievalCitation" }
+    ReleasedQueryLab:
+      type: object
+      additionalProperties: false
+      required:
+        - queryId
+        - releaseId
+        - releaseVersion
+        - fusionVersion
+        - capabilities
+        - hits
+        - contextPackage
+        - externalModelRequests
+        - evaluationNotice
+      properties:
+        queryId: { type: string }
+        releaseId: { type: string }
+        releaseVersion: { type: string }
+        fusionVersion: { const: metadata-fts-weighted-v1 }
+        capabilities: { $ref: "#/components/schemas/RetrievalCapabilities" }
+        hits:
+          type: array
+          items: { $ref: "#/components/schemas/RetrievalHit" }
+        contextPackage: { $ref: "#/components/schemas/ReleasedRetrievalContextPackage" }
+        externalModelRequests: { const: 0 }
+        evaluationNotice:
+          const: single_document_retrieval_baseline_not_clinical_quality_certification
     Retry:
       type: object
       additionalProperties: false
@@ -2322,6 +2390,12 @@ components:
         - type: object
           properties:
             data: { $ref: "#/components/schemas/QueryLab" }
+    ReleasedQueryLabResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/ReleasedQueryLab" }
     RetryResponse:
       allOf:
         - $ref: "#/components/schemas/Envelope"

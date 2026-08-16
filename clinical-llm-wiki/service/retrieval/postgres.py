@@ -108,6 +108,96 @@ class PostgresCandidateSearchRepository:
             ) in rows
         ]
 
+    def search_released_metadata_fts(
+        self,
+        *,
+        query: str,
+        chunk_ids: tuple[str, ...],
+        chunk_profile_id: str,
+        limit: int,
+    ) -> list[CandidateSearchRecord]:
+        """Search only the exact Chunk membership frozen by a resolved Release."""
+
+        if not chunk_ids:
+            return []
+        search_query = _websearch_or_query(query)
+        with self._sessions() as session:
+            query_expression = func.websearch_to_tsquery("english", search_query)
+            content_vector = func.to_tsvector("english", RetrievalChunk.content)
+            metadata_text = func.concat_ws(
+                " ",
+                Source.title,
+                Source.source_type,
+                SourceVersion.version,
+                RetrievalChunk.evidence_type,
+                cast(RetrievalChunk.locator, Text),
+            )
+            metadata_vector = func.to_tsvector("english", metadata_text)
+            full_text_score = func.ts_rank_cd(content_vector, query_expression)
+            metadata_score = func.ts_rank_cd(metadata_vector, query_expression)
+            statement = (
+                select(
+                    RetrievalChunk,
+                    Source.title,
+                    SourceVersion.version,
+                    metadata_score.label("metadata_score"),
+                    full_text_score.label("full_text_score"),
+                )
+                .join(
+                    SourceVersion,
+                    SourceVersion.source_version_id == RetrievalChunk.source_version_id,
+                )
+                .join(Source, Source.source_id == SourceVersion.source_id)
+                .where(
+                    RetrievalChunk.chunk_id.in_(chunk_ids),
+                    RetrievalChunk.chunk_profile_id == chunk_profile_id,
+                    RetrievalChunk.data_boundary != "prohibited",
+                    RetrievalChunk.rights["storage_allowed"].as_boolean().is_(True),
+                    or_(
+                        content_vector.op("@@")(query_expression),
+                        metadata_vector.op("@@")(query_expression),
+                    ),
+                )
+                .order_by(
+                    (full_text_score + metadata_score).desc(),
+                    full_text_score.desc(),
+                    metadata_score.desc(),
+                    RetrievalChunk.ordinal,
+                    RetrievalChunk.chunk_id,
+                )
+                .limit(limit)
+            )
+            rows = list(session.execute(statement))
+            citations = _citations_by_chunk(
+                session,
+                [row[0].chunk_id for row in rows],
+            )
+        return [
+            CandidateSearchRecord(
+                chunk_id=chunk.chunk_id,
+                chunk_profile_id=chunk.chunk_profile_id,
+                source_version_id=chunk.source_version_id,
+                source_title=source_title,
+                source_version=source_version,
+                ordinal=chunk.ordinal,
+                evidence_type=chunk.evidence_type,
+                content=chunk.content,
+                content_sha256=chunk.content_sha256,
+                token_count=chunk.token_count,
+                locator=chunk.locator,
+                metadata_score=float(metadata_score_value),
+                full_text_score=float(full_text_score_value),
+                citations=tuple(citations[chunk.chunk_id]),
+            )
+            for (
+                chunk,
+                source_title,
+                source_version,
+                metadata_score_value,
+                full_text_score_value,
+            ) in rows
+        ]
+
 
 def _websearch_or_query(value: str) -> str:
     tokens: list[str] = []

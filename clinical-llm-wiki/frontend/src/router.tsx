@@ -15,6 +15,7 @@ import { ProcessingPage } from "./pages/ProcessingPage";
 import { CandidatesPage } from "./pages/CandidatesPage";
 import { RelationsPage } from "./pages/RelationsPage";
 import { AuditPage } from "./pages/AuditPage";
+import { QueryLabPage } from "./pages/QueryLabPage";
 
 const rootRoute = createRootRoute({
   component: AppShell,
@@ -56,13 +57,6 @@ function SourcesRoute() {
 
 const scopeRoutes = [
   {
-    path: "/query-lab",
-    eyebrow: "可解释混合检索",
-    title: "检索实验室",
-    description: "元数据、全文检索、向量检索与有界关系扩展均提供可解释路径。",
-    phase: "KUI-06 · 计划在 P4 实现",
-  },
-  {
     path: "/evaluation",
     eyebrow: "黄金集回归证据",
     title: "质量评估",
@@ -83,6 +77,33 @@ const processingRoute = createRoute({
   path: "/processing",
   component: ProcessingPage,
 });
+
+const queryLabRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/query-lab",
+  validateSearch: (search: Record<string, unknown>) => {
+    const parsedTopK = Number(search.top_k);
+    return {
+      q: typeof search.q === "string" ? search.q : "",
+      release: typeof search.release === "string" ? search.release : "",
+      top_k: [5, 10, 20, 50].includes(parsedTopK) ? parsedTopK : 10,
+    };
+  },
+  component: QueryLabRoute,
+});
+
+function QueryLabRoute() {
+  const search = queryLabRoute.useSearch();
+  const navigate = queryLabRoute.useNavigate();
+  return (
+    <QueryLabPage
+      search={search}
+      onSearchChange={(next) => {
+        void navigate({ search: next, replace: true });
+      }}
+    />
+  );
+}
 
 const candidatesRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -166,6 +187,7 @@ const routeTree = rootRoute.addChildren([
   indexRoute,
   sourcesRoute,
   processingRoute,
+  queryLabRoute,
   candidatesRoute,
   relationsRoute,
   auditRoute,

@@ -1,14 +1,14 @@
 ---
 status: in-progress
 created: 2026-08-16 12:08
-updated: 2026-08-16 14:20
+updated: 2026-08-16 20:04
 ---
 
 # Current Task
 
 ## Goal
 
-P17 P3 — 用合成 SourceVersion 变化接通知识轮转、Evaluation Gate 与 immutable Release（子计划：`docs/dep/plans/ongoing/P17-knowledge-lifecycle-retrieval-poc.md`）。
+P17 P4 — 在现有九项导航内补全 API 权威的知识治理 UI，并关闭完整离线 POC Gate（子计划：`docs/dep/plans/ongoing/P17-knowledge-lifecycle-retrieval-poc.md`）。
 
 ## Progress
 
@@ -22,23 +22,25 @@ P17 P3 — 用合成 SourceVersion 变化接通知识轮转、Evaluation Gate �
 - [x] P3-A：以合成 SourceVersion/Evidence 完成 impact materialization、逐 revision RotationCase 与 eligibility Gate。
 - [x] P3-B：以独立合成 EvaluationSuite 实现 immutable EvaluationRun 与可配置 threshold Gate。
 - [x] P3-C：实现 Release manifest/index/object Gate、`base_release_id` 并发发布、紧急退役、旧 Release 重放与只读 REST/MCP manifest resolver。
+- [x] P4-A1：新增 current/历史 immutable Release 精确 Chunk 成员检索 API，并将 canonical source artifact 纳入发布前 citation Gate。
+- [x] P4-A2：Query Lab 从占位页升级为真实 API 页面，完成空查询、URL 恢复、rank/route/degraded/citation/零模型请求组件测试。
 - [ ] P4：补全现有治理 UI，并关闭前端、Workflow、浏览器和全链路 POC Gate。
 
 ## Working Context
 
-- **Files being edited**: P3-C 位于 `service/releases/`、Release Worker、current pointer migration、REST/MCP resolver 与 OpenAPI；阶段提交后进入前端现有 Releases/Evaluation/Query 页面。
-- **Last command run**: Knowledge 全量 `288 passed, 12 skipped`、Ruff 通过；空库 migration 往返与真实 PostgreSQL Release `2 passed`。
+- **Files being edited**: P4-A 位于 `service/retrieval/`、platform API/OpenAPI、Release citation Gate，以及 `frontend` Query Lab 合同、页面、fixture 与组件测试。
+- **Last command run**: Knowledge 全量 `292 passed, 12 skipped`、Ruff 通过；真实 PostgreSQL migration+Release+released FTS `2 passed`；前端 `32 passed`、typecheck/build 通过。
 - **Key decisions**: 只使用 E9，不使用 E9(R1)；原始 PDF 运行时下载且不提交 Git；测试/CI 使用自有合成 fixture；无 embedding 时 vector 显式 degraded；默认零模型调用。
-- **Blocker**: None；P3 Phase Gate 已关闭，进入 P4 UI 与全链路 Gate。
+- **Blocker**: None；Evaluation 与 Releases 所需 read model/command API 尚未齐备，必须先补权威后端合同，不能用 MSW fixture 代替生产数据。
 
 ## Phase Context
 
 - **Sub-plan**: `docs/dep/plans/ongoing/P17-knowledge-lifecycle-retrieval-poc.md`
-- **Phase**: P3 - 知识轮转、Evaluation Gate 与 immutable Release
-- **Input conditions**: P2 metadata+FTS、Evidence citation、18 条 GoldCase 与可重复报告已通过；轮转使用合成版本变化。
-- **Completion criteria**: impact/case/receipt 状态闭环、合成 threshold Gate、manifest/index 固定、并发 current 切换、旧 Release 重放、只读 REST/MCP。
+- **Phase**: P4 - 现有前端治理入口与完整 POC Gate
+- **Input conditions**: P1-P3 后端、合成 full-stack fixture 与本地 E9 POC 已通过；D-P17-01 已批准。
+- **Completion criteria**: P17-UI-01..08、API 权威状态、默认/异常/窄屏、真实浏览器主流程、前后端/Workflow/Compose/零出站汇总 Gate。
 - **Boundaries**: 不伪造 ICH 新版本；不调用真实模型；不让 Release Worker 回写 Evidence/Review；不删除或覆盖旧 Release；Workflow 不直连知识数据库。
 
 ## Resume From
 
-从 P4 前端合同 RED 开始：在现有 Evaluation/Releases/Query Lab 页面展示真实 Gate、current/history、diff 与阻断原因；不得把 manifest-only MCP resolver 描述为完整 released 检索。
+从 P4-A3 后端合同 RED 开始：补 Evaluation run 列表/详情/失败案例重放 read model，再升级 Evaluation 页面；随后补 Releases candidate/diff/gates/allowed actions 与 publish command。风险是浏览器自行重算 Recall/Gate，或用测试 fixture 冒充生产 API。

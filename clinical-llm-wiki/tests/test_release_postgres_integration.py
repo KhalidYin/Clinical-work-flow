@@ -48,7 +48,13 @@ from service.evaluation import (
 )
 from service.object_store import InMemoryObjectStore
 from service.platform_api.repository import SqlAlchemyPlatformRepository
+from service.retrieval import (
+    ImmutableReleaseRetrievalService,
+    ReleasedRetrievalRequest,
+)
+from service.retrieval.postgres import PostgresCandidateSearchRepository
 from service.releases import (
+    ImmutableReleaseResolver,
     ReleaseBuildCommand,
     ReleaseBuilder,
     ReleasePublishCommand,
@@ -150,6 +156,7 @@ def _seed_approved_revision(session) -> None:
         Evidence(
             evidence_id="evidence-release-p17",
             source_version_id="srcv-release-p17",
+            source_artifact_id="artifact-release-p17",
             derived_artifact_id="artifact-release-p17",
             source_sha256=_hash("source-release-p17"),
             parser_profile_version="parser-p17-v1",
@@ -358,6 +365,26 @@ def test_postgres_release_publish_is_atomic_stale_safe_and_replayable() -> None:
         builder = ReleaseBuilder(repository=repository, object_store=objects)
         publisher = ReleasePublisher(repository=repository, object_store=objects)
 
+        with sessions.begin() as session:
+            evidence = session.get(Evidence, "evidence-release-p17")
+            assert evidence is not None
+            evidence.source_artifact_id = None
+        uncited_evaluation = _evaluation(evaluations, "release-candidate-p17-uncited")
+        with pytest.raises(ReleaseMembershipError, match="canonical source artifact"):
+            builder.build(
+                actor=_worker(),
+                command=_build_command(
+                    release_id="release-candidate-p17-uncited",
+                    version="p17.uncited",
+                    base_release_id=None,
+                    evaluation_run_id=uncited_evaluation.evaluation_run_id,
+                ),
+            )
+        with sessions.begin() as session:
+            evidence = session.get(Evidence, "evidence-release-p17")
+            assert evidence is not None
+            evidence.source_artifact_id = "artifact-release-p17"
+
         first_evaluation = _evaluation(evaluations, "release-candidate-p17-a")
         stale_evaluation = _evaluation(evaluations, "release-candidate-p17-stale")
         first = builder.build(
@@ -382,6 +409,16 @@ def test_postgres_release_publish_is_atomic_stale_safe_and_replayable() -> None:
             actor=_manager(),
             command=ReleasePublishCommand(release_id=first.release_id, base_release_id=None),
         )
+        released_retrieval = ImmutableReleaseRetrievalService(
+            resolver=ImmutableReleaseResolver(repository=repository),
+            repository=PostgresCandidateSearchRepository(sessions),
+        )
+        current_query = released_retrieval.query(
+            ReleasedRetrievalRequest(query="Release evidence", top_k=5)
+        )
+        assert current_query.release_id == first.release_id
+        assert [hit.chunk_id for hit in current_query.hits] == ["chunk-release-p17"]
+        assert current_query.hits[0].citations[0].evidence_id == "evidence-release-p17"
         with pytest.raises(ReleaseStateError, match="current Release"):
             publisher.publish(
                 actor=_manager(),
@@ -405,6 +442,14 @@ def test_postgres_release_publish_is_atomic_stale_safe_and_replayable() -> None:
                 base_release_id=first.release_id,
             ),
         )
+        historical_query = released_retrieval.query(
+            ReleasedRetrievalRequest(
+                query="Release evidence",
+                top_k=5,
+                release_id=first.release_id,
+            )
+        )
+        assert historical_query.release_id == first.release_id
 
         with sessions.begin() as session:
             session.add(

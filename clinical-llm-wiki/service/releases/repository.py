@@ -465,6 +465,10 @@ def _resolve_item(
     )
     if len(evidence_rows) != len(evidence_ids):
         raise ReleaseMembershipError(f"Release Evidence is missing: {revision_id}")
+    if any(evidence.source_artifact_id is None for evidence in evidence_rows):
+        raise ReleaseMembershipError(
+            f"Release Evidence has no canonical source artifact: {revision_id}"
+        )
     if any(
         chunk.data_boundary == "prohibited"
         or chunk.rights.get("storage_allowed") is not True

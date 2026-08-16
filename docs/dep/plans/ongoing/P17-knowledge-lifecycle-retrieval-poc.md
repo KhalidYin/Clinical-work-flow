@@ -160,7 +160,7 @@ syncs_to:
 | P1 | 冻结 Chunk 与轮转数据库/API 合同 | 3 | P12 已完成非 live 基线 | done |
 | P2 | 用 ICH E9 建立确定性切块、检索与 Recall 基线 | 3-4 | P1 | done |
 | P3 | 接通轮转决策、Evaluation Gate 与 immutable Release | 3-4 | P2 | done |
-| P4 | 补全现有治理 UI 并关闭全链路 Gate | 3-4 | P3 | pending |
+| P4 | 补全现有治理 UI 并关闭全链路 Gate | 3-4 | P3 | in_progress |
 
 ---
 
@@ -374,6 +374,13 @@ syncs_to:
 - [ ] 官方 E9 下载来源、checksum、忽略策略和非再分发风险在使用文档中明确；原始 PDF 不在提交中。
 - [ ] P17 结果同步主文档；P12 P3 对应范围更新为已由 P17 交付，避免两个计划继续重复声明待实现。
 
+### P4-A 完成结果（2026-08-16）
+
+- 新增 server-resolved current/历史 Release 检索：客户端只能选择 Release ID，后端先验证 immutable manifest，再以冻结 Chunk ID + ChunkProfile 精确白名单执行 PostgreSQL metadata+FTS；未发布 Chunk 不能靠 SourceVersion 范围混入。
+- Release build 新增 canonical `source_artifact_id` citation Gate；真实 PostgreSQL 证明缺失来源对象时发布前失败，合法 current 与历史 Release 均可返回相同 Evidence identity。
+- Query Lab 已从占位页升级为真实 API 页面：默认空查询不调用、提交后写入 `q/release/top_k` URL、直接展示 API rank/route/capability/citation，并明确 vector/relation degraded、generation disabled 和零模型请求。
+- 当前尚未执行 390px 真实浏览器验收，也未补 Evaluation/Releases 页面，因此 P17-UI-04 与 P4 Phase 完成项保持未勾选。
+
 ### 边界（本 Phase 明确不做）
 
 - 不新增一级页面或重做设计系统，不引入无关动画、图表或 dashboard。
@@ -407,6 +414,8 @@ syncs_to:
 |----|------|--------|------|------|
 | P17-F01 | 新轮转回执最初复用了既有 `review_decisions` 的 `actor_idempotency` 唯一约束名；离线 metadata 测试通过，但真实 PostgreSQL 因索引命名空间冲突拒绝迁移 | P1-A | resolved defect | 先补失败合同，再改为 `rotation_actor_idempotency`；空库 upgrade → schema diff → downgrade → reapply 已通过 |
 | P17-F02 | P1-A 的 RotationCase 只有 proposed outcome/actor，缺少 replace/carry-forward 的目标 revision、理由与 proposal 幂等证据，Reviewer 无法审计“具体提议了什么” | P1-B | resolved contract gap | 在未提交的 `0011` migration 内补充 proposal target/idempotency/rationale 与 shape/unique 约束；API/真实 PostgreSQL 重放和 stale Gate 通过 |
+| P17-F03 | P4 输入假设称 UI 所需 API 已稳定，但实际只有 candidate Query Lab 与 released manifest；没有 released query、Evaluation workbench 或 Release diff/gates 命令 API | P4-A | active contract gap | 先补最小后端权威 read model/command，再接页面；禁止以 MSW fixture 充当 production 数据。P4-A 已关闭 released query，Evaluation/Releases 继续处理 |
+| P17-F04 | 首次 released FTS 真实 PostgreSQL Gate 发现既有 Release fixture Evidence 缺少 canonical `source_artifact_id`，导致可发布但无法生成 citation | P4-A | resolved defect | 将 canonical source artifact 纳入 Release build 前置 Gate并补缺失反例；合法 current/历史查询通过 |
 
 ## 关键决策记录
 

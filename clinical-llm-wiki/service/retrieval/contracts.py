@@ -44,6 +44,22 @@ class RetrievalQuery(StrictRetrievalModel):
         return normalized
 
 
+class ReleasedRetrievalRequest(StrictRetrievalModel):
+    """A read-only query against current or explicitly selected immutable Release."""
+
+    query: str = Field(min_length=1, max_length=500)
+    top_k: int = Field(default=10, ge=1, le=50)
+    release_id: str | None = Field(default=None, min_length=1, max_length=160)
+
+    @field_validator("query")
+    @classmethod
+    def normalize_query(cls, value: str) -> str:
+        normalized = " ".join(value.split())
+        if not normalized:
+            raise ValueError("query must contain searchable text")
+        return normalized
+
+
 class EvidenceCitation(StrictRetrievalModel):
     evidence_id: str
     source_version_id: str
@@ -135,9 +151,48 @@ class RetrievalResult(StrictRetrievalModel):
     ] = "single_document_retrieval_baseline_not_clinical_quality_certification"
 
 
+class ReleasedContextPackage(StrictRetrievalModel):
+    scope_kind: Literal["immutable_release"] = "immutable_release"
+    release_id: str
+    chunk_ids: tuple[str, ...]
+    citations: tuple[EvidenceCitation, ...]
+
+
+class ReleasedRetrievalResult(StrictRetrievalModel):
+    query_id: str
+    release_id: str
+    release_version: str
+    fusion_version: Literal["metadata-fts-weighted-v1"] = "metadata-fts-weighted-v1"
+    capabilities: RetrievalCapabilities
+    hits: tuple[RetrievalHit, ...]
+    context_package: ReleasedContextPackage
+    external_model_requests: Literal[0] = 0
+    evaluation_notice: Literal[
+        "single_document_retrieval_baseline_not_clinical_quality_certification"
+    ] = "single_document_retrieval_baseline_not_clinical_quality_certification"
+
+
 def retrieval_query_identity(query: RetrievalQuery) -> str:
     payload = json.dumps(
         query.model_dump(mode="json"),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return f"query-{sha256(payload).hexdigest()[:32]}"
+
+
+def released_retrieval_query_identity(
+    query: ReleasedRetrievalRequest,
+    *,
+    resolved_release_id: str,
+) -> str:
+    payload = json.dumps(
+        {
+            "query": query.query,
+            "top_k": query.top_k,
+            "release_id": resolved_release_id,
+        },
         ensure_ascii=False,
         sort_keys=True,
         separators=(",", ":"),
@@ -152,10 +207,14 @@ __all__ = [
     "ContextPackage",
     "EvidenceCitation",
     "ReleaseCandidateScope",
+    "ReleasedContextPackage",
+    "ReleasedRetrievalRequest",
+    "ReleasedRetrievalResult",
     "RetrievalCapabilities",
     "RetrievalHit",
     "RetrievalQuery",
     "RetrievalResult",
     "RouteContributions",
     "retrieval_query_identity",
+    "released_retrieval_query_identity",
 ]

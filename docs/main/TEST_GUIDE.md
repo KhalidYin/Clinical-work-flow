@@ -131,7 +131,7 @@ Attempt 预算内终止 OpenCode 并返回 `timed_out` Receipt。两者均要求
 - 面向生产的 socket proxy/rootless runtime authority、TLS/服务身份轮换与获授权出站网络；当前只覆盖显式本地 Compose 离线信任链。
 - 生产 Secret Manager、生产 socket/rootless runtime authority、真实供应商出站质量与公共研究 recording gateway；P16 只使用合成 secret 和本地 TLS 假 endpoint，未调用 DeepSeek。全仓、Frontend、Workflow、migration 与 Compose 汇总 Gate 已通过。
 - 非 root Supervisor、socket proxy/远程容器运行时、明确 UID/GID 的 volume ownership；P15 为隔离的每 Attempt 临时目录开放宽写权限只服务本地 POC，不能沿用为生产证明。
-- P17/P3 已在真实 PostgreSQL 联合验收 EvaluationRun、Release Worker candidate、人工发布、stale base、current pointer、历史重放、对象漂移与紧急退役；REST/MCP 当前只读解析 immutable manifest。完整 released 检索、Attempt 级 MCP broker 接线和对应 GUI 尚未实现；P17/P2 文件报告不是 Release Gate。
+- P17/P3 已在真实 PostgreSQL 联合验收 EvaluationRun、Release Worker candidate、人工发布、stale base、current pointer、历史重放、对象漂移与紧急退役；P4-A 继续验收 canonical source citation Gate 及 current/历史 Release 精确 Chunk metadata+FTS。REST Query Lab 已接通，标准 MCP 仍只读解析 immutable manifest；vector/relation、Attempt 级 MCP broker 和其余治理 GUI 尚未实现。P17/P2 文件报告不是 Release Gate。
 - 临床统一 Runner 与 Harness artifact promotion。
 - 可重复执行的浏览器 E2E 与视觉回归门禁。
 
@@ -174,7 +174,7 @@ Source → Document DAG → Evidence
 - 每个主要页面覆盖默认、加载、空、错误、部分数据和窄屏；不适用时在测试或设计合同中说明原因。
 - 每个数字、分组和状态必须能追溯到 API payload 或静态合同。
 - Processing 页面验证 Attempt、executor、Harness/container、tool summary、validator、retry/cancel 的真实联动。
-- Query Lab 可消费已实现的 prerelease candidate API；Evaluation/Release 页面在对应 API 未实现前必须保持明确占位，不使用文件报告或 fixture 冒充 production Release 能力。
+- Query Lab 可消费已实现的 current/历史 immutable Release API，candidate sandbox 保留作预发布评估且不得混淆；Evaluation/Release 页面在对应 API 未实现前必须保持明确占位，不使用文件报告或 fixture 冒充 production Release 能力。
 - MSW 仅在显式测试/开发开关下启用；production build 默认连接真实同源 API。
 
 ## 测试数据与外部调用

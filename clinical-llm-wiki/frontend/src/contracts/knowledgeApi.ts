@@ -7,6 +7,7 @@ export const API_PATHS = {
   session: "/api/prerelease/v1/session",
   health: "/api/prerelease/v1/health",
   currentRelease: "/api/prerelease/v1/releases/current",
+  releasedQuery: "/api/prerelease/v1/query-lab/released-query",
   sources: "/api/prerelease/v1/sources",
   processingRuns: "/api/prerelease/v1/processing-runs",
   candidates: "/api/prerelease/v1/candidates",
@@ -134,6 +135,78 @@ export interface CurrentRelease {
   status: "released" | "not_released";
   indexVersion: string | null;
   releasedAt: string | null;
+}
+
+export interface RetrievalCapability {
+  status: CapabilityState;
+  reason: string | null;
+}
+
+export interface RetrievalCapabilities {
+  metadata: RetrievalCapability;
+  fullText: RetrievalCapability;
+  vector: RetrievalCapability;
+  relation: RetrievalCapability;
+  generation: RetrievalCapability;
+}
+
+export interface RetrievalCitation {
+  evidenceId: string;
+  sourceVersionId: string;
+  sourceArtifactId: string;
+  locator: Record<string, unknown>;
+  contentSha256: string;
+  startOffset: number;
+  endOffset: number;
+  spanRole: "primary" | "overlap";
+}
+
+export interface RetrievalHit {
+  rank: number;
+  chunkId: string;
+  content: string;
+  contentSha256: string;
+  fusionScore: number;
+  routeContributions: {
+    metadata: number;
+    fullText: number;
+    vector: null;
+    relation: null;
+  };
+  explanation: {
+    sourceVersionId: string;
+    sourceTitle: string;
+    sourceVersion: string;
+    chunkProfileId: string;
+    ordinal: number;
+    evidenceType: string;
+    locator: Record<string, unknown>;
+    tokenCount: number;
+  };
+  citations: RetrievalCitation[];
+}
+
+export interface ReleasedQueryLabResult {
+  queryId: string;
+  releaseId: string;
+  releaseVersion: string;
+  fusionVersion: "metadata-fts-weighted-v1";
+  capabilities: RetrievalCapabilities;
+  hits: RetrievalHit[];
+  contextPackage: {
+    scopeKind: "immutable_release";
+    releaseId: string;
+    chunkIds: string[];
+    citations: RetrievalCitation[];
+  };
+  externalModelRequests: 0;
+  evaluationNotice: "single_document_retrieval_baseline_not_clinical_quality_certification";
+}
+
+export interface ReleasedQueryLabRequest {
+  query: string;
+  topK: number;
+  releaseId: string | null;
 }
 
 export interface SourceSummary {
@@ -447,7 +520,9 @@ export type ApiErrorCode =
   | "candidate_not_found"
   | "invalid_governance_transition"
   | "stale_revision"
-  | "duplicate_decision";
+  | "duplicate_decision"
+  | "released_knowledge_not_found"
+  | "released_knowledge_invalid";
 
 export interface ErrorResponse {
   error: {

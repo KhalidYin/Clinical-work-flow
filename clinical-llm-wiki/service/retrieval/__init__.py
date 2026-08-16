@@ -7,14 +7,24 @@ from .contracts import (
     ContextPackage,
     EvidenceCitation,
     ReleaseCandidateScope,
+    ReleasedContextPackage,
+    ReleasedRetrievalRequest,
+    ReleasedRetrievalResult,
     RetrievalCapabilities,
     RetrievalHit,
     RetrievalQuery,
     RetrievalResult,
     RouteContributions,
     retrieval_query_identity,
+    released_retrieval_query_identity,
 )
-from .service import CandidateSearchRepositoryPort, FUSION_VERSION, RetrievalService
+from .service import (
+    CandidateSearchRepositoryPort,
+    FUSION_VERSION,
+    ImmutableReleaseRetrievalService,
+    ReleasedSearchRepositoryPort,
+    RetrievalService,
+)
 
 __all__ = [
     "CandidateSearchRecord",
@@ -24,7 +34,12 @@ __all__ = [
     "ContextPackage",
     "EvidenceCitation",
     "FUSION_VERSION",
+    "ImmutableReleaseRetrievalService",
     "ReleaseCandidateScope",
+    "ReleasedContextPackage",
+    "ReleasedRetrievalRequest",
+    "ReleasedRetrievalResult",
+    "ReleasedSearchRepositoryPort",
     "RetrievalCapabilities",
     "RetrievalHit",
     "RetrievalQuery",
@@ -32,4 +47,5 @@ __all__ = [
     "RetrievalService",
     "RouteContributions",
     "retrieval_query_identity",
+    "released_retrieval_query_identity",
 ]
