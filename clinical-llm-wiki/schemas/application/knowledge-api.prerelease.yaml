@@ -97,6 +97,26 @@ paths:
           $ref: "#/components/responses/AuthorizationError"
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
+  /query-lab/query:
+    post:
+      operationId: queryReleaseCandidateSandbox
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/QueryLabRequest" }
+      responses:
+        "200":
+          description: Cited metadata and FTS results from an explicit release-candidate sandbox.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/QueryLabResponse" }
+        "401": { $ref: "#/components/responses/AuthenticationError" }
+        "403": { $ref: "#/components/responses/AuthorizationError" }
+        "409": { $ref: "#/components/responses/ConflictError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
   /sources:
     get:
       operationId: listSources
@@ -1703,6 +1723,154 @@ components:
         findings:
           type: array
           items: { $ref: "#/components/schemas/ChunkProjectionFinding" }
+    QueryLabScopeRequest:
+      type: object
+      additionalProperties: false
+      required: [sandboxKind, sandboxId, sourceVersionIds, chunkProfileId]
+      properties:
+        sandboxKind: { const: release_candidate }
+        sandboxId: { type: string, minLength: 3, maxLength: 160 }
+        sourceVersionIds:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items: { type: string }
+        chunkProfileId: { type: string, minLength: 3, maxLength: 160 }
+    QueryLabRequest:
+      type: object
+      additionalProperties: false
+      required: [query, topK, scope]
+      properties:
+        query: { type: string, minLength: 1, maxLength: 500 }
+        topK: { type: integer, minimum: 1, maximum: 50, default: 10 }
+        scope: { $ref: "#/components/schemas/QueryLabScopeRequest" }
+    RetrievalCapability:
+      type: object
+      additionalProperties: false
+      required: [status, reason]
+      properties:
+        status: { enum: [available, degraded, disabled] }
+        reason: { type: [string, "null"] }
+    RetrievalCapabilities:
+      type: object
+      additionalProperties: false
+      required: [metadata, fullText, vector, relation, generation]
+      properties:
+        metadata: { $ref: "#/components/schemas/RetrievalCapability" }
+        fullText: { $ref: "#/components/schemas/RetrievalCapability" }
+        vector: { $ref: "#/components/schemas/RetrievalCapability" }
+        relation: { $ref: "#/components/schemas/RetrievalCapability" }
+        generation: { $ref: "#/components/schemas/RetrievalCapability" }
+    RetrievalRouteContributions:
+      type: object
+      additionalProperties: false
+      required: [metadata, fullText, vector, relation]
+      properties:
+        metadata: { type: number, minimum: 0 }
+        fullText: { type: number, minimum: 0 }
+        vector: { type: "null" }
+        relation: { type: "null" }
+    RetrievalCitation:
+      type: object
+      additionalProperties: false
+      required:
+        - evidenceId
+        - sourceVersionId
+        - sourceArtifactId
+        - locator
+        - contentSha256
+        - startOffset
+        - endOffset
+        - spanRole
+      properties:
+        evidenceId: { type: string }
+        sourceVersionId: { type: string }
+        sourceArtifactId: { type: string }
+        locator: { type: object }
+        contentSha256: { type: string, pattern: "^[0-9a-f]{64}$" }
+        startOffset: { type: integer, minimum: 0 }
+        endOffset: { type: integer, minimum: 1 }
+        spanRole: { enum: [primary, overlap] }
+    RetrievalExplanation:
+      type: object
+      additionalProperties: false
+      required:
+        - sourceVersionId
+        - sourceTitle
+        - sourceVersion
+        - chunkProfileId
+        - ordinal
+        - evidenceType
+        - locator
+        - tokenCount
+      properties:
+        sourceVersionId: { type: string }
+        sourceTitle: { type: string }
+        sourceVersion: { type: string }
+        chunkProfileId: { type: string }
+        ordinal: { type: integer, minimum: 0 }
+        evidenceType: { type: string }
+        locator: { type: object }
+        tokenCount: { type: integer, minimum: 1 }
+    RetrievalHit:
+      type: object
+      additionalProperties: false
+      required:
+        - rank
+        - chunkId
+        - content
+        - contentSha256
+        - fusionScore
+        - routeContributions
+        - explanation
+        - citations
+      properties:
+        rank: { type: integer, minimum: 1 }
+        chunkId: { type: string }
+        content: { type: string }
+        contentSha256: { type: string, pattern: "^[0-9a-f]{64}$" }
+        fusionScore: { type: number, minimum: 0 }
+        routeContributions: { $ref: "#/components/schemas/RetrievalRouteContributions" }
+        explanation: { $ref: "#/components/schemas/RetrievalExplanation" }
+        citations:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/RetrievalCitation" }
+    RetrievalContextPackage:
+      type: object
+      additionalProperties: false
+      required: [sandboxKind, sandboxId, chunkIds, citations]
+      properties:
+        sandboxKind: { const: release_candidate }
+        sandboxId: { type: string }
+        chunkIds:
+          type: array
+          items: { type: string }
+        citations:
+          type: array
+          items: { $ref: "#/components/schemas/RetrievalCitation" }
+    QueryLab:
+      type: object
+      additionalProperties: false
+      required:
+        - queryId
+        - fusionVersion
+        - capabilities
+        - hits
+        - contextPackage
+        - externalModelRequests
+        - evaluationNotice
+      properties:
+        queryId: { type: string }
+        fusionVersion: { const: metadata-fts-weighted-v1 }
+        capabilities: { $ref: "#/components/schemas/RetrievalCapabilities" }
+        hits:
+          type: array
+          items: { $ref: "#/components/schemas/RetrievalHit" }
+        contextPackage: { $ref: "#/components/schemas/RetrievalContextPackage" }
+        externalModelRequests: { const: 0 }
+        evaluationNotice:
+          const: single_document_retrieval_baseline_not_clinical_quality_certification
     Retry:
       type: object
       additionalProperties: false
@@ -2042,6 +2210,12 @@ components:
         - type: object
           properties:
             data: { $ref: "#/components/schemas/ChunkProjection" }
+    QueryLabResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/QueryLab" }
     RetryResponse:
       allOf:
         - $ref: "#/components/schemas/Envelope"

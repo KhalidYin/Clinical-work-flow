@@ -25,6 +25,8 @@ from service.governance import (
 )
 from service.object_store import LocalObjectStore
 from service.processing.ledger import PostgresProcessingLedger
+from service.retrieval import RetrievalService
+from service.retrieval.postgres import PostgresCandidateSearchRepository
 from service.sources import SourceRegistryService, SqlAlchemySourceRegistryRepository
 
 from .app import PlatformApiServices, create_platform_app
@@ -74,6 +76,9 @@ def create_environment_app():
                 repository=SqlAlchemyGovernanceRepository(sessions)
             ),
             lifecycle=SqlAlchemyKnowledgeLifecycleRepository(sessions),
+            retrieval=RetrievalService(
+                repository=PostgresCandidateSearchRepository(sessions)
+            ),
             object_store=object_store,
             runtime_consumer_credential_sha256=_runtime_consumer_credential_sha256(),
         )

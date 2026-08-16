@@ -13,7 +13,7 @@
 
 其中“异步富化”当前是同一 durable DAG 中的单个 Enrichment step，并非已经形成可编排的富化子图。
 
-P13 已提供一次性 legacy immutable Release 和 Workflow REST 消费适配。H0 已建立 `harness-runtime/`；OpenCode `1.18.14` 的 digest 容器准入、独立 Supervisor、P15 合成 Evidence → PostgreSQL Candidate/API 本地 POC，以及 P16 临时 Secret/模型 gateway/全量 Gate 均已通过本地验证。Receipt migration 为 `20260809_0010`。默认 Compose 仍使用 replay，DeepSeek live 未完成且未授权。通用 Release Builder、检索评估闭环与只读知识 MCP 仍是目标能力。Document、Enrichment、Release 是独立 Worker pool，通过 PostgreSQL durable DAG 协作，不是流式 pipeline；当前通用 Release handler 尚未完成。空卷 Compose 默认没有 current Release。临床 Workflow 的固定阶段顺序不变。
+P13 已提供一次性 legacy immutable Release 和 Workflow REST 消费适配。H0 已建立 `harness-runtime/`；OpenCode `1.18.14` 的 digest 容器准入、独立 Supervisor、P15 合成 Evidence → PostgreSQL Candidate/API 本地 POC，以及 P16 临时 Secret/模型 gateway/全量 Gate 均已通过本地验证。P17/P2 已增加 Document→Chunk 物化、release-candidate metadata+FTS Query API 与 ICH E9 Recall 基线。默认 Compose 仍使用 replay，DeepSeek live 未完成且未授权。通用 Release Builder、Evaluation Gate 与只读知识 MCP 仍是目标能力。Document、Enrichment、Release 是独立 Worker pool，通过 PostgreSQL durable DAG 协作，不是流式 pipeline；当前通用 Release handler 尚未完成。空卷 Compose 默认没有 current Release。临床 Workflow 的固定阶段顺序不变。
 
 ## 2. 启动当前知识产品
 
@@ -182,6 +182,24 @@ docker compose --project-name clinical-harness-p15-db-poc `
   -f compose.yaml -f compose.harness.yaml -f compose.harness.poc.yaml `
   --profile harness down --volumes --remove-orphans
 ```
+
+### 4.4 运行 ICH E9 离线检索/Recall POC
+
+前提只有 Python 项目依赖、Docker daemon 和网络首次下载官方 E9；不需要模型 Key：
+
+```powershell
+Set-Location clinical-llm-wiki
+python -m scripts.ich_e9_poc
+```
+
+命令会校验固定官方 URL/SHA，复用或下载到 ignored `.poc-assets/ich-e9/`，启动临时 pgvector PostgreSQL，
+执行 6 步 Document DAG、41 条当前基线 Evidence/Chunk、metadata+FTS 和 18 条原创 GoldCase，随后销毁临时
+容器。机器报告写到 `reports/p17/ich-e9-retrieval-baseline.json`；当前基线 Recall@5 为 `0.888889`、
+Recall@10 为 `0.944444`，且 `external_model_requests=0`。这只是单文档词法检索基线，不是临床质量认证、
+embedding/语义检索证明或 current Release。没有 embedding 时 vector 明确 degraded，不会填充假 score。
+
+浏览器 prerelease Query Lab 后端为 `POST /api/prerelease/v1/query-lab/query`，只接受显式
+`release_candidate` scope 和具备 `candidate:read` 的人员会话；生产知识消费者仍只能读取 immutable Release。
 
 ## 5. API 与健康检查
 

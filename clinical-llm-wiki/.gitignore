@@ -20,8 +20,7 @@ tmp/
 .demo-runtime/
 sources/**/original/
 !sources/**/original/.gitkeep
-sources/accessions/*.pdf
-sources/accessions/*.xlsx
+.poc-assets/
 
 # Obsidian local session state is not shared; stable settings live in vault/.obsidian.
 vault/.obsidian/workspace*.json

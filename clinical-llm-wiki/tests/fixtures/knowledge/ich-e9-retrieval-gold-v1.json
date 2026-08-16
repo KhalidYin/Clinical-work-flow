@@ -1,0 +1,139 @@
+{
+  "suite_id": "ich-e9-retrieval-gold",
+  "version": "1.0.0",
+  "document_id": "ICH-E9-1998",
+  "source_version_id": "srcv-af08bc3a1bf2569fa608724c63f9c5fc",
+  "source_sha256": "0c0ddc93cb427a70265dbcb0e7c25bfc9a3f7b52e178212b3630ea2408ad9c7e",
+  "chunk_profile_id": "chunk-profile-ich-e9-poc-v1",
+  "chunk_profile_version": "ich-e9-poc-v1",
+  "evaluation_notice": "single_document_retrieval_baseline_not_clinical_quality_certification",
+  "cases": [
+    {
+      "case_id": "e9-gold-01",
+      "topic": "bias",
+      "question": "How can trial design, conduct, analysis, and subject exclusions introduce or control bias?",
+      "expected_evidence_ids": ["evidence-2c0699aac5a65241900675ebe2ef8735"]
+    },
+    {
+      "case_id": "e9-gold-02",
+      "topic": "confirmatory_trials",
+      "question": "What distinguishes a confirmatory trial with hypotheses stated in advance from exploratory work?",
+      "expected_evidence_ids": ["evidence-c1788a4cc87054fb8164c73d105b4175"]
+    },
+    {
+      "case_id": "e9-gold-03",
+      "topic": "primary_secondary_variables",
+      "question": "How should primary and secondary variables be pre-defined and interpreted against trial objectives?",
+      "expected_evidence_ids": ["evidence-387dc79eb5335ba9a23ba549ba580b19"]
+    },
+    {
+      "case_id": "e9-gold-04",
+      "topic": "surrogate_variables",
+      "question": "Under what conditions is a surrogate variable suitable as a primary efficacy variable?",
+      "expected_evidence_ids": [
+        "evidence-387dc79eb5335ba9a23ba549ba580b19",
+        "evidence-ab069147daa051e1abad37ecc4a0800a"
+      ]
+    },
+    {
+      "case_id": "e9-gold-05",
+      "topic": "randomisation",
+      "question": "What should a randomisation schedule specify to assign treatments without selection bias?",
+      "expected_evidence_ids": ["evidence-b1d252e477ac553ebf6537aaec981dde"]
+    },
+    {
+      "case_id": "e9-gold-06",
+      "topic": "central_randomisation",
+      "question": "What practical advantages can central randomisation provide in a multicentre trial?",
+      "expected_evidence_ids": ["evidence-0bcaaebb268c5edd994c27fdb184ddf6"]
+    },
+    {
+      "case_id": "e9-gold-07",
+      "topic": "crossover_design",
+      "question": "When is a crossover design appropriate, and why do subject losses matter?",
+      "expected_evidence_ids": ["evidence-54ab79901e4b5ab3915fe77da92a8397"]
+    },
+    {
+      "case_id": "e9-gold-08",
+      "topic": "multicentre_trials",
+      "question": "How should centre effects and treatment-by-centre interactions be considered in multicentre trials?",
+      "expected_evidence_ids": [
+        "evidence-d1676b71cc5656da8facd92999596c3a",
+        "evidence-293dff7e676f51189cf2711a6a010f9f"
+      ]
+    },
+    {
+      "case_id": "e9-gold-09",
+      "topic": "noninferiority_equivalence",
+      "question": "How are equivalence or non-inferiority margins assessed using confidence intervals?",
+      "expected_evidence_ids": [
+        "evidence-b6140531095e502ab7bca4a40fea7195",
+        "evidence-b756aeb8acad559eaa90085ce50bf1d2"
+      ]
+    },
+    {
+      "case_id": "e9-gold-10",
+      "topic": "sample_size",
+      "question": "What assumptions and objectives should justify the planned sample size?",
+      "expected_evidence_ids": ["evidence-127f98ae978f5038b14302129692388b"]
+    },
+    {
+      "case_id": "e9-gold-11",
+      "topic": "group_sequential_designs",
+      "question": "Why is the exact sample size not fixed in a group sequential trial?",
+      "expected_evidence_ids": ["evidence-2b160a37cc6c51e0aad37fe06ca14471"]
+    },
+    {
+      "case_id": "e9-gold-12",
+      "topic": "interim_analysis",
+      "question": "What planning, access controls, and stopping guidance are required for interim analyses?",
+      "expected_evidence_ids": [
+        "evidence-e6873ae516125094beaa7aa49abe4279",
+        "evidence-8481a06ebcdc5938ae4ead2183044b84",
+        "evidence-ed15dc13161855858be9112642b6ef55"
+      ]
+    },
+    {
+      "case_id": "e9-gold-13",
+      "topic": "full_analysis_set",
+      "question": "How does the full analysis set relate to the intention-to-treat principle and eligibility exclusions?",
+      "expected_evidence_ids": [
+        "evidence-4cf08e6d4467533f81d0ffe31c9f193d",
+        "evidence-e893a568c2905be7ad423f7d9fb1e391"
+      ]
+    },
+    {
+      "case_id": "e9-gold-14",
+      "topic": "per_protocol_set",
+      "question": "Which criteria and documentation define exclusions from the per protocol set?",
+      "expected_evidence_ids": ["evidence-8d40787d0ec159cbad15129fd5d7ec5a"]
+    },
+    {
+      "case_id": "e9-gold-15",
+      "topic": "missing_values_outliers",
+      "question": "How should sensitivity to missing values and outliers be investigated?",
+      "expected_evidence_ids": ["evidence-0f8e59907ad15199ae73a93bfe4c3a84"]
+    },
+    {
+      "case_id": "e9-gold-16",
+      "topic": "covariate_adjustment",
+      "question": "Why should main analyses avoid adjustment for covariates measured after randomisation?",
+      "expected_evidence_ids": ["evidence-22cd5b80dc43597f9b2f9a82834905fe"]
+    },
+    {
+      "case_id": "e9-gold-17",
+      "topic": "safety_tolerability",
+      "question": "How should adverse events, treatment discontinuations, safety, and tolerability be evaluated?",
+      "expected_evidence_ids": [
+        "evidence-730465dadbbd5c25891a65e8a06a41a4",
+        "evidence-fb8af5be8bb0512682ef73da45290725"
+      ]
+    },
+    {
+      "case_id": "e9-gold-18",
+      "topic": "blind_review",
+      "question": "What is the purpose of a blind review before finalising the statistical analysis plan?",
+      "expected_evidence_ids": ["evidence-e1a46b42b4ea58adb104b0ae4e8ea7a8"]
+    }
+  ]
+}

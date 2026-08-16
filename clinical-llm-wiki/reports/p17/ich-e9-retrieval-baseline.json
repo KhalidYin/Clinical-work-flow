@@ -1,0 +1,823 @@
+{
+  "asset": {
+    "document_id": "ICH-E9-1998",
+    "page_count": 39,
+    "redistribution": "not_committed_to_git",
+    "sha256": "0c0ddc93cb427a70265dbcb0e7c25bfc9a3f7b52e178212b3630ea2408ad9c7e",
+    "size_bytes": 291493,
+    "source_url": "https://database.ich.org/sites/default/files/E9_Guideline.pdf",
+    "text_extractable": true
+  },
+  "evaluation": {
+    "capabilities": {
+      "full_text": {
+        "reason": null,
+        "status": "available"
+      },
+      "generation": {
+        "reason": "retrieval_baseline_makes_no_model_requests",
+        "status": "disabled"
+      },
+      "metadata": {
+        "reason": null,
+        "status": "available"
+      },
+      "relation": {
+        "reason": "relation_route_not_enabled_for_e9_poc",
+        "status": "degraded"
+      },
+      "vector": {
+        "reason": "embedding_profile_not_configured",
+        "status": "degraded"
+      }
+    },
+    "case_count": 18,
+    "case_results": [
+      {
+        "case_id": "e9-gold-01",
+        "expected_evidence_ids": [
+          "evidence-2c0699aac5a65241900675ebe2ef8735"
+        ],
+        "failure_category": "ranked_below_5",
+        "first_relevant_rank": 9,
+        "hit_at_10": true,
+        "hit_at_5": false,
+        "matched_expected_evidence_ids": [
+          "evidence-2c0699aac5a65241900675ebe2ef8735"
+        ],
+        "outcome": "hit_top_10_only",
+        "query_id": "query-48217c5ee223c3e5bc14d44a8dcabad5",
+        "question": "How can trial design, conduct, analysis, and subject exclusions introduce or control bias?",
+        "retrieved_chunk_ids": [
+          "chunk-f3352f2867705502a6cd762ac486e2df",
+          "chunk-56a83beae2f95bd1bf08974992c6b775",
+          "chunk-3bfa049da6c8578995a9910105fd8720",
+          "chunk-57eaff7feb095af3b0ad9723e4206d49",
+          "chunk-39fd134e5aff5986809797178f1ea803",
+          "chunk-6a709a70ac8856bea6cc194f30b30662",
+          "chunk-431f18d5b24c5f38815d476569c1c9e6",
+          "chunk-c0e87ac877e45b3d83b92a9da10ca4d3",
+          "chunk-abcb13b4a9f15a8483e3e2c4aabcfd35",
+          "chunk-7879d0f203e95244a908961b39325cba"
+        ],
+        "retrieved_evidence_ids": [
+          "evidence-7c3df31b721957b9899132bab2190770",
+          "evidence-0bcaaebb268c5edd994c27fdb184ddf6",
+          "evidence-b6140531095e502ab7bca4a40fea7195",
+          "evidence-4cf08e6d4467533f81d0ffe31c9f193d",
+          "evidence-c1788a4cc87054fb8164c73d105b4175",
+          "evidence-e1a46b42b4ea58adb104b0ae4e8ea7a8",
+          "evidence-4e21386194455758abbd7a5b239e9a14",
+          "evidence-8d40787d0ec159cbad15129fd5d7ec5a",
+          "evidence-2c0699aac5a65241900675ebe2ef8735",
+          "evidence-293dff7e676f51189cf2711a6a010f9f"
+        ],
+        "topic": "bias"
+      },
+      {
+        "case_id": "e9-gold-02",
+        "expected_evidence_ids": [
+          "evidence-c1788a4cc87054fb8164c73d105b4175"
+        ],
+        "failure_category": "none",
+        "first_relevant_rank": 1,
+        "hit_at_10": true,
+        "hit_at_5": true,
+        "matched_expected_evidence_ids": [
+          "evidence-c1788a4cc87054fb8164c73d105b4175"
+        ],
+        "outcome": "hit_top_5",
+        "query_id": "query-8dd4f9f24d8e3955e677d304a5c9294c",
+        "question": "What distinguishes a confirmatory trial with hypotheses stated in advance from exploratory work?",
+        "retrieved_chunk_ids": [
+          "chunk-39fd134e5aff5986809797178f1ea803",
+          "chunk-431f18d5b24c5f38815d476569c1c9e6",
+          "chunk-3bfa049da6c8578995a9910105fd8720",
+          "chunk-7879d0f203e95244a908961b39325cba",
+          "chunk-03dac1f278685e50aa96ecb919b97f8b",
+          "chunk-f3352f2867705502a6cd762ac486e2df",
+          "chunk-e56f1038cfb654078cd1ca874110f737",
+          "chunk-abcb13b4a9f15a8483e3e2c4aabcfd35",
+          "chunk-6ece337709125d598e228540e3e983ce",
+          "chunk-8242646ab10c53c5a48d2bd177c9dda2"
+        ],
+        "retrieved_evidence_ids": [
+          "evidence-c1788a4cc87054fb8164c73d105b4175",
+          "evidence-4e21386194455758abbd7a5b239e9a14",
+          "evidence-b6140531095e502ab7bca4a40fea7195",
+          "evidence-293dff7e676f51189cf2711a6a010f9f",
+          "evidence-2b160a37cc6c51e0aad37fe06ca14471",
+          "evidence-7c3df31b721957b9899132bab2190770",
+          "evidence-ed15dc13161855858be9112642b6ef55",
+          "evidence-2c0699aac5a65241900675ebe2ef8735",
+          "evidence-b1d252e477ac553ebf6537aaec981dde",
+          "evidence-d1676b71cc5656da8facd92999596c3a"
+        ],
+        "topic": "confirmatory_trials"
+      },
+      {
+        "case_id": "e9-gold-03",
+        "expected_evidence_ids": [
+          "evidence-387dc79eb5335ba9a23ba549ba580b19"
+        ],
+        "failure_category": "none",
+        "first_relevant_rank": 2,
+        "hit_at_10": true,
+        "hit_at_5": true,
+        "matched_expected_evidence_ids": [
+          "evidence-387dc79eb5335ba9a23ba549ba580b19"
+        ],
+        "outcome": "hit_top_5",
+        "query_id": "query-317a4e50f8cefd01dc4ca4f693096509",
+        "question": "How should primary and secondary variables be pre-defined and interpreted against trial objectives?",
+        "retrieved_chunk_ids": [
+          "chunk-7be51a03fea15efb8e0441f667e5d461",
+          "chunk-453ebe1a0a9b57879c2ec08e8531b8b8",
+          "chunk-39fd134e5aff5986809797178f1ea803",
+          "chunk-c21447c52e365d5384b51824d1806aab",
+          "chunk-431f18d5b24c5f38815d476569c1c9e6",
+          "chunk-7879d0f203e95244a908961b39325cba",
+          "chunk-d570bac99d985474a5b4a52b00054fcf",
+          "chunk-3bfa049da6c8578995a9910105fd8720",
+          "chunk-d757a92ab0625a0f8e686a1d2196af62",
+          "chunk-3979a38363f35c389cfa1650915dc6a7"
+        ],
+        "retrieved_evidence_ids": [
+          "evidence-3998d25954c45d34b626993e58ebd6df",
+          "evidence-387dc79eb5335ba9a23ba549ba580b19",
+          "evidence-c1788a4cc87054fb8164c73d105b4175",
+          "evidence-ab069147daa051e1abad37ecc4a0800a",
+          "evidence-4e21386194455758abbd7a5b239e9a14",
+          "evidence-293dff7e676f51189cf2711a6a010f9f",
+          "evidence-860ed6d4f9fb5baebbf917e5a151b4c6",
+          "evidence-b6140531095e502ab7bca4a40fea7195",
+          "evidence-1b05dc5241b35ebc96fda97d8dd9d001",
+          "evidence-127f98ae978f5038b14302129692388b"
+        ],
+        "topic": "primary_secondary_variables"
+      },
+      {
+        "case_id": "e9-gold-04",
+        "expected_evidence_ids": [
+          "evidence-387dc79eb5335ba9a23ba549ba580b19",
+          "evidence-ab069147daa051e1abad37ecc4a0800a"
+        ],
+        "failure_category": "none",
+        "first_relevant_rank": 1,
+        "hit_at_10": true,
+        "hit_at_5": true,
+        "matched_expected_evidence_ids": [
+          "evidence-387dc79eb5335ba9a23ba549ba580b19",
+          "evidence-ab069147daa051e1abad37ecc4a0800a"
+        ],
+        "outcome": "hit_top_5",
+        "query_id": "query-f7402d320c6ee21f2dd3a4a036926a2d",
+        "question": "Under what conditions is a surrogate variable suitable as a primary efficacy variable?",
+        "retrieved_chunk_ids": [
+          "chunk-c21447c52e365d5384b51824d1806aab",
+          "chunk-7be51a03fea15efb8e0441f667e5d461",
+          "chunk-453ebe1a0a9b57879c2ec08e8531b8b8",
+          "chunk-d570bac99d985474a5b4a52b00054fcf",
+          "chunk-7badb709de1851e0aa4f3918a18bf9ff",
+          "chunk-431f18d5b24c5f38815d476569c1c9e6",
+          "chunk-a9d4d59247c851d9a68a0df286a777a5",
+          "chunk-6c22eb32221d5589ab7e4c41a3fc6c6f",
+          "chunk-3bfa049da6c8578995a9910105fd8720",
+          "chunk-3979a38363f35c389cfa1650915dc6a7"
+        ],
+        "retrieved_evidence_ids": [
+          "evidence-ab069147daa051e1abad37ecc4a0800a",
+          "evidence-3998d25954c45d34b626993e58ebd6df",
+          "evidence-387dc79eb5335ba9a23ba549ba580b19",
+          "evidence-860ed6d4f9fb5baebbf917e5a151b4c6",
+          "evidence-0f8e59907ad15199ae73a93bfe4c3a84",
+          "evidence-4e21386194455758abbd7a5b239e9a14",
+          "evidence-cb4f517bd20c5862a3756bfefffaa533",
+          "evidence-54ab79901e4b5ab3915fe77da92a8397",
+          "evidence-b6140531095e502ab7bca4a40fea7195",
+          "evidence-127f98ae978f5038b14302129692388b"
+        ],
+        "topic": "surrogate_variables"
+      },
+      {
+        "case_id": "e9-gold-05",
+        "expected_evidence_ids": [
+          "evidence-b1d252e477ac553ebf6537aaec981dde"
+        ],
+        "failure_category": "none",
+        "first_relevant_rank": 2,
+        "hit_at_10": true,
+        "hit_at_5": true,
+        "matched_expected_evidence_ids": [
+          "evidence-b1d252e477ac553ebf6537aaec981dde"
+        ],
+        "outcome": "hit_top_5",
+        "query_id": "query-65e897e3d503d44d743069fcbcb7d3ba",
+        "question": "What should a randomisation schedule specify to assign treatments without selection bias?",
+        "retrieved_chunk_ids": [
+          "chunk-532df70359695a6f94b13977bdb35c57",
+          "chunk-6ece337709125d598e228540e3e983ce",
+          "chunk-f3352f2867705502a6cd762ac486e2df",
+          "chunk-56a83beae2f95bd1bf08974992c6b775",
+          "chunk-7be51a03fea15efb8e0441f667e5d461",
+          "chunk-7879d0f203e95244a908961b39325cba",
+          "chunk-db623d2f2266554b87e3a02cb1bd7877",
+          "chunk-abcb13b4a9f15a8483e3e2c4aabcfd35",
+          "chunk-57eaff7feb095af3b0ad9723e4206d49",
+          "chunk-8242646ab10c53c5a48d2bd177c9dda2"
+        ],
+        "retrieved_evidence_ids": [
+          "evidence-406a37658b335d34bb49baa8e968a957",
+          "evidence-b1d252e477ac553ebf6537aaec981dde",
+          "evidence-7c3df31b721957b9899132bab2190770",
+          "evidence-0bcaaebb268c5edd994c27fdb184ddf6",
+          "evidence-3998d25954c45d34b626993e58ebd6df",
+          "evidence-293dff7e676f51189cf2711a6a010f9f",
+          "evidence-e893a568c2905be7ad423f7d9fb1e391",
+          "evidence-2c0699aac5a65241900675ebe2ef8735",
+          "evidence-4cf08e6d4467533f81d0ffe31c9f193d",
+          "evidence-d1676b71cc5656da8facd92999596c3a"
+        ],
+        "topic": "randomisation"
+      },
+      {
+        "case_id": "e9-gold-06",
+        "expected_evidence_ids": [
+          "evidence-0bcaaebb268c5edd994c27fdb184ddf6"
+        ],
+        "failure_category": "expected_not_retrieved",
+        "first_relevant_rank": null,
+        "hit_at_10": false,
+        "hit_at_5": false,
+        "matched_expected_evidence_ids": [],
+        "outcome": "expected_not_in_top_10",
+        "query_id": "query-575ce89a5d99182606a9c6535bc05b41",
+        "question": "What practical advantages can central randomisation provide in a multicentre trial?",
+        "retrieved_chunk_ids": [
+          "chunk-6ece337709125d598e228540e3e983ce",
+          "chunk-39fd134e5aff5986809797178f1ea803",
+          "chunk-532df70359695a6f94b13977bdb35c57",
+          "chunk-57eaff7feb095af3b0ad9723e4206d49",
+          "chunk-431f18d5b24c5f38815d476569c1c9e6",
+          "chunk-7879d0f203e95244a908961b39325cba",
+          "chunk-3bfa049da6c8578995a9910105fd8720",
+          "chunk-6c22eb32221d5589ab7e4c41a3fc6c6f",
+          "chunk-8242646ab10c53c5a48d2bd177c9dda2",
+          "chunk-f3352f2867705502a6cd762ac486e2df"
+        ],
+        "retrieved_evidence_ids": [
+          "evidence-b1d252e477ac553ebf6537aaec981dde",
+          "evidence-c1788a4cc87054fb8164c73d105b4175",
+          "evidence-406a37658b335d34bb49baa8e968a957",
+          "evidence-4cf08e6d4467533f81d0ffe31c9f193d",
+          "evidence-4e21386194455758abbd7a5b239e9a14",
+          "evidence-293dff7e676f51189cf2711a6a010f9f",
+          "evidence-b6140531095e502ab7bca4a40fea7195",
+          "evidence-54ab79901e4b5ab3915fe77da92a8397",
+          "evidence-d1676b71cc5656da8facd92999596c3a",
+          "evidence-7c3df31b721957b9899132bab2190770"
+        ],
+        "topic": "central_randomisation"
+      },
+      {
+        "case_id": "e9-gold-07",
+        "expected_evidence_ids": [
+          "evidence-54ab79901e4b5ab3915fe77da92a8397"
+        ],
+        "failure_category": "none",
+        "first_relevant_rank": 2,
+        "hit_at_10": true,
+        "hit_at_5": true,
+        "matched_expected_evidence_ids": [
+          "evidence-54ab79901e4b5ab3915fe77da92a8397"
+        ],
+        "outcome": "hit_top_5",
+        "query_id": "query-497737c6f40e9ce0e629785173cd7801",
+        "question": "When is a crossover design appropriate, and why do subject losses matter?",
+        "retrieved_chunk_ids": [
+          "chunk-56a83beae2f95bd1bf08974992c6b775",
+          "chunk-6c22eb32221d5589ab7e4c41a3fc6c6f",
+          "chunk-6ece337709125d598e228540e3e983ce",
+          "chunk-db623d2f2266554b87e3a02cb1bd7877",
+          "chunk-f3352f2867705502a6cd762ac486e2df",
+          "chunk-532df70359695a6f94b13977bdb35c57",
+          "chunk-0f04484a065d5cf3a821487ffa03e531",
+          "chunk-57eaff7feb095af3b0ad9723e4206d49",
+          "chunk-3bfa049da6c8578995a9910105fd8720",
+          "chunk-6a709a70ac8856bea6cc194f30b30662"
+        ],
+        "retrieved_evidence_ids": [
+          "evidence-0bcaaebb268c5edd994c27fdb184ddf6",
+          "evidence-54ab79901e4b5ab3915fe77da92a8397",
+          "evidence-b1d252e477ac553ebf6537aaec981dde",
+          "evidence-e893a568c2905be7ad423f7d9fb1e391",
+          "evidence-7c3df31b721957b9899132bab2190770",
+          "evidence-406a37658b335d34bb49baa8e968a957",
+          "evidence-b756aeb8acad559eaa90085ce50bf1d2",
+          "evidence-4cf08e6d4467533f81d0ffe31c9f193d",
+          "evidence-b6140531095e502ab7bca4a40fea7195",
+          "evidence-e1a46b42b4ea58adb104b0ae4e8ea7a8"
+        ],
+        "topic": "crossover_design"
+      },
+      {
+        "case_id": "e9-gold-08",
+        "expected_evidence_ids": [
+          "evidence-d1676b71cc5656da8facd92999596c3a",
+          "evidence-293dff7e676f51189cf2711a6a010f9f"
+        ],
+        "failure_category": "none",
+        "first_relevant_rank": 1,
+        "hit_at_10": true,
+        "hit_at_5": true,
+        "matched_expected_evidence_ids": [
+          "evidence-d1676b71cc5656da8facd92999596c3a",
+          "evidence-293dff7e676f51189cf2711a6a010f9f"
+        ],
+        "outcome": "hit_top_5",
+        "query_id": "query-37c5b2b1d24ff9548ff2fa5873f92061",
+        "question": "How should centre effects and treatment-by-centre interactions be considered in multicentre trials?",
+        "retrieved_chunk_ids": [
+          "chunk-7879d0f203e95244a908961b39325cba",
+          "chunk-8242646ab10c53c5a48d2bd177c9dda2",
+          "chunk-6c22eb32221d5589ab7e4c41a3fc6c6f",
+          "chunk-532df70359695a6f94b13977bdb35c57",
+          "chunk-56a83beae2f95bd1bf08974992c6b775",
+          "chunk-39fd134e5aff5986809797178f1ea803",
+          "chunk-f3352f2867705502a6cd762ac486e2df",
+          "chunk-6ece337709125d598e228540e3e983ce",
+          "chunk-abcb13b4a9f15a8483e3e2c4aabcfd35",
+          "chunk-431f18d5b24c5f38815d476569c1c9e6"
+        ],
+        "retrieved_evidence_ids": [
+          "evidence-293dff7e676f51189cf2711a6a010f9f",
+          "evidence-d1676b71cc5656da8facd92999596c3a",
+          "evidence-54ab79901e4b5ab3915fe77da92a8397",
+          "evidence-406a37658b335d34bb49baa8e968a957",
+          "evidence-0bcaaebb268c5edd994c27fdb184ddf6",
+          "evidence-c1788a4cc87054fb8164c73d105b4175",
+          "evidence-7c3df31b721957b9899132bab2190770",
+          "evidence-b1d252e477ac553ebf6537aaec981dde",
+          "evidence-2c0699aac5a65241900675ebe2ef8735",
+          "evidence-4e21386194455758abbd7a5b239e9a14"
+        ],
+        "topic": "multicentre_trials"
+      },
+      {
+        "case_id": "e9-gold-09",
+        "expected_evidence_ids": [
+          "evidence-b6140531095e502ab7bca4a40fea7195",
+          "evidence-b756aeb8acad559eaa90085ce50bf1d2"
+        ],
+        "failure_category": "none",
+        "first_relevant_rank": 1,
+        "hit_at_10": true,
+        "hit_at_5": true,
+        "matched_expected_evidence_ids": [
+          "evidence-b6140531095e502ab7bca4a40fea7195",
+          "evidence-b756aeb8acad559eaa90085ce50bf1d2"
+        ],
+        "outcome": "hit_top_5",
+        "query_id": "query-f3f1769467c640972bff606280ea3496",
+        "question": "How are equivalence or non-inferiority margins assessed using confidence intervals?",
+        "retrieved_chunk_ids": [
+          "chunk-3bfa049da6c8578995a9910105fd8720",
+          "chunk-0f04484a065d5cf3a821487ffa03e531",
+          "chunk-453ebe1a0a9b57879c2ec08e8531b8b8",
+          "chunk-7bf124a4c5fc5120a765efe1e0255ad5",
+          "chunk-7badb709de1851e0aa4f3918a18bf9ff",
+          "chunk-7be51a03fea15efb8e0441f667e5d461",
+          "chunk-c0e87ac877e45b3d83b92a9da10ca4d3",
+          "chunk-3979a38363f35c389cfa1650915dc6a7",
+          "chunk-6c22eb32221d5589ab7e4c41a3fc6c6f",
+          "chunk-abcb13b4a9f15a8483e3e2c4aabcfd35"
+        ],
+        "retrieved_evidence_ids": [
+          "evidence-b6140531095e502ab7bca4a40fea7195",
+          "evidence-b756aeb8acad559eaa90085ce50bf1d2",
+          "evidence-387dc79eb5335ba9a23ba549ba580b19",
+          "evidence-fb8af5be8bb0512682ef73da45290725",
+          "evidence-0f8e59907ad15199ae73a93bfe4c3a84",
+          "evidence-3998d25954c45d34b626993e58ebd6df",
+          "evidence-8d40787d0ec159cbad15129fd5d7ec5a",
+          "evidence-127f98ae978f5038b14302129692388b",
+          "evidence-54ab79901e4b5ab3915fe77da92a8397",
+          "evidence-2c0699aac5a65241900675ebe2ef8735"
+        ],
+        "topic": "noninferiority_equivalence"
+      },
+      {
+        "case_id": "e9-gold-10",
+        "expected_evidence_ids": [
+          "evidence-127f98ae978f5038b14302129692388b"
+        ],
+        "failure_category": "none",
+        "first_relevant_rank": 1,
+        "hit_at_10": true,
+        "hit_at_5": true,
+        "matched_expected_evidence_ids": [
+          "evidence-127f98ae978f5038b14302129692388b"
+        ],
+        "outcome": "hit_top_5",
+        "query_id": "query-06396e55c19c2bb0555084ffc3c69a1f",
+        "question": "What assumptions and objectives should justify the planned sample size?",
+        "retrieved_chunk_ids": [
+          "chunk-3979a38363f35c389cfa1650915dc6a7",
+          "chunk-9a906f9124d55e25b2ff157193b7c5d2",
+          "chunk-03dac1f278685e50aa96ecb919b97f8b",
+          "chunk-6a709a70ac8856bea6cc194f30b30662",
+          "chunk-abcb13b4a9f15a8483e3e2c4aabcfd35",
+          "chunk-453ebe1a0a9b57879c2ec08e8531b8b8",
+          "chunk-eb93719cad705ae698df7b9880a38c75",
+          "chunk-7be51a03fea15efb8e0441f667e5d461",
+          "chunk-0f04484a065d5cf3a821487ffa03e531",
+          "chunk-7badb709de1851e0aa4f3918a18bf9ff"
+        ],
+        "retrieved_evidence_ids": [
+          "evidence-127f98ae978f5038b14302129692388b",
+          "evidence-e6873ae516125094beaa7aa49abe4279",
+          "evidence-2b160a37cc6c51e0aad37fe06ca14471",
+          "evidence-e1a46b42b4ea58adb104b0ae4e8ea7a8",
+          "evidence-2c0699aac5a65241900675ebe2ef8735",
+          "evidence-387dc79eb5335ba9a23ba549ba580b19",
+          "evidence-8481a06ebcdc5938ae4ead2183044b84",
+          "evidence-3998d25954c45d34b626993e58ebd6df",
+          "evidence-b756aeb8acad559eaa90085ce50bf1d2",
+          "evidence-0f8e59907ad15199ae73a93bfe4c3a84"
+        ],
+        "topic": "sample_size"
+      },
+      {
+        "case_id": "e9-gold-11",
+        "expected_evidence_ids": [
+          "evidence-2b160a37cc6c51e0aad37fe06ca14471"
+        ],
+        "failure_category": "none",
+        "first_relevant_rank": 3,
+        "hit_at_10": true,
+        "hit_at_5": true,
+        "matched_expected_evidence_ids": [
+          "evidence-2b160a37cc6c51e0aad37fe06ca14471"
+        ],
+        "outcome": "hit_top_5",
+        "query_id": "query-79594280ddbc811cac4073978771e132",
+        "question": "Why is the exact sample size not fixed in a group sequential trial?",
+        "retrieved_chunk_ids": [
+          "chunk-3979a38363f35c389cfa1650915dc6a7",
+          "chunk-39fd134e5aff5986809797178f1ea803",
+          "chunk-03dac1f278685e50aa96ecb919b97f8b",
+          "chunk-9a906f9124d55e25b2ff157193b7c5d2",
+          "chunk-431f18d5b24c5f38815d476569c1c9e6",
+          "chunk-7879d0f203e95244a908961b39325cba",
+          "chunk-3bfa049da6c8578995a9910105fd8720",
+          "chunk-0f04484a065d5cf3a821487ffa03e531",
+          "chunk-eb93719cad705ae698df7b9880a38c75",
+          "chunk-6ece337709125d598e228540e3e983ce"
+        ],
+        "retrieved_evidence_ids": [
+          "evidence-127f98ae978f5038b14302129692388b",
+          "evidence-c1788a4cc87054fb8164c73d105b4175",
+          "evidence-2b160a37cc6c51e0aad37fe06ca14471",
+          "evidence-e6873ae516125094beaa7aa49abe4279",
+          "evidence-4e21386194455758abbd7a5b239e9a14",
+          "evidence-293dff7e676f51189cf2711a6a010f9f",
+          "evidence-b6140531095e502ab7bca4a40fea7195",
+          "evidence-b756aeb8acad559eaa90085ce50bf1d2",
+          "evidence-8481a06ebcdc5938ae4ead2183044b84",
+          "evidence-b1d252e477ac553ebf6537aaec981dde"
+        ],
+        "topic": "group_sequential_designs"
+      },
+      {
+        "case_id": "e9-gold-12",
+        "expected_evidence_ids": [
+          "evidence-e6873ae516125094beaa7aa49abe4279",
+          "evidence-8481a06ebcdc5938ae4ead2183044b84",
+          "evidence-ed15dc13161855858be9112642b6ef55"
+        ],
+        "failure_category": "none",
+        "first_relevant_rank": 1,
+        "hit_at_10": true,
+        "hit_at_5": true,
+        "matched_expected_evidence_ids": [
+          "evidence-e6873ae516125094beaa7aa49abe4279",
+          "evidence-8481a06ebcdc5938ae4ead2183044b84",
+          "evidence-ed15dc13161855858be9112642b6ef55"
+        ],
+        "outcome": "hit_top_5",
+        "query_id": "query-f23badfd6b4b58171f06f3da2f8fe614",
+        "question": "What planning, access controls, and stopping guidance are required for interim analyses?",
+        "retrieved_chunk_ids": [
+          "chunk-9a906f9124d55e25b2ff157193b7c5d2",
+          "chunk-eb93719cad705ae698df7b9880a38c75",
+          "chunk-e56f1038cfb654078cd1ca874110f737",
+          "chunk-03dac1f278685e50aa96ecb919b97f8b",
+          "chunk-6a709a70ac8856bea6cc194f30b30662",
+          "chunk-431f18d5b24c5f38815d476569c1c9e6",
+          "chunk-abcb13b4a9f15a8483e3e2c4aabcfd35",
+          "chunk-3bfa049da6c8578995a9910105fd8720",
+          "chunk-7879d0f203e95244a908961b39325cba",
+          "chunk-d570bac99d985474a5b4a52b00054fcf"
+        ],
+        "retrieved_evidence_ids": [
+          "evidence-e6873ae516125094beaa7aa49abe4279",
+          "evidence-8481a06ebcdc5938ae4ead2183044b84",
+          "evidence-ed15dc13161855858be9112642b6ef55",
+          "evidence-2b160a37cc6c51e0aad37fe06ca14471",
+          "evidence-e1a46b42b4ea58adb104b0ae4e8ea7a8",
+          "evidence-4e21386194455758abbd7a5b239e9a14",
+          "evidence-2c0699aac5a65241900675ebe2ef8735",
+          "evidence-b6140531095e502ab7bca4a40fea7195",
+          "evidence-293dff7e676f51189cf2711a6a010f9f",
+          "evidence-860ed6d4f9fb5baebbf917e5a151b4c6"
+        ],
+        "topic": "interim_analysis"
+      },
+      {
+        "case_id": "e9-gold-13",
+        "expected_evidence_ids": [
+          "evidence-4cf08e6d4467533f81d0ffe31c9f193d",
+          "evidence-e893a568c2905be7ad423f7d9fb1e391"
+        ],
+        "failure_category": "none",
+        "first_relevant_rank": 1,
+        "hit_at_10": true,
+        "hit_at_5": true,
+        "matched_expected_evidence_ids": [
+          "evidence-4cf08e6d4467533f81d0ffe31c9f193d",
+          "evidence-e893a568c2905be7ad423f7d9fb1e391"
+        ],
+        "outcome": "hit_top_5",
+        "query_id": "query-f2e1a852453d07355f39eef74d876f20",
+        "question": "How does the full analysis set relate to the intention-to-treat principle and eligibility exclusions?",
+        "retrieved_chunk_ids": [
+          "chunk-57eaff7feb095af3b0ad9723e4206d49",
+          "chunk-c0e87ac877e45b3d83b92a9da10ca4d3",
+          "chunk-db623d2f2266554b87e3a02cb1bd7877",
+          "chunk-6a709a70ac8856bea6cc194f30b30662",
+          "chunk-d570bac99d985474a5b4a52b00054fcf",
+          "chunk-230aa0ab485654aeb83b872c8fae3f2c",
+          "chunk-e5304c10770a58f1b04c58a1f8c246bc",
+          "chunk-431f18d5b24c5f38815d476569c1c9e6",
+          "chunk-9a906f9124d55e25b2ff157193b7c5d2",
+          "chunk-7badb709de1851e0aa4f3918a18bf9ff"
+        ],
+        "retrieved_evidence_ids": [
+          "evidence-4cf08e6d4467533f81d0ffe31c9f193d",
+          "evidence-8d40787d0ec159cbad15129fd5d7ec5a",
+          "evidence-e893a568c2905be7ad423f7d9fb1e391",
+          "evidence-e1a46b42b4ea58adb104b0ae4e8ea7a8",
+          "evidence-860ed6d4f9fb5baebbf917e5a151b4c6",
+          "evidence-f519f19d609156838b3864eacd758d4c",
+          "evidence-b69040c293c05727aee974f952a4c509",
+          "evidence-4e21386194455758abbd7a5b239e9a14",
+          "evidence-e6873ae516125094beaa7aa49abe4279",
+          "evidence-0f8e59907ad15199ae73a93bfe4c3a84"
+        ],
+        "topic": "full_analysis_set"
+      },
+      {
+        "case_id": "e9-gold-14",
+        "expected_evidence_ids": [
+          "evidence-8d40787d0ec159cbad15129fd5d7ec5a"
+        ],
+        "failure_category": "none",
+        "first_relevant_rank": 1,
+        "hit_at_10": true,
+        "hit_at_5": true,
+        "matched_expected_evidence_ids": [
+          "evidence-8d40787d0ec159cbad15129fd5d7ec5a"
+        ],
+        "outcome": "hit_top_5",
+        "query_id": "query-e792552811db1108e1a35dd1dd59c279",
+        "question": "Which criteria and documentation define exclusions from the per protocol set?",
+        "retrieved_chunk_ids": [
+          "chunk-c0e87ac877e45b3d83b92a9da10ca4d3",
+          "chunk-57eaff7feb095af3b0ad9723e4206d49",
+          "chunk-db623d2f2266554b87e3a02cb1bd7877",
+          "chunk-6a709a70ac8856bea6cc194f30b30662",
+          "chunk-9a906f9124d55e25b2ff157193b7c5d2",
+          "chunk-7be51a03fea15efb8e0441f667e5d461",
+          "chunk-8242646ab10c53c5a48d2bd177c9dda2",
+          "chunk-e56f1038cfb654078cd1ca874110f737",
+          "chunk-e5304c10770a58f1b04c58a1f8c246bc",
+          "chunk-f3352f2867705502a6cd762ac486e2df"
+        ],
+        "retrieved_evidence_ids": [
+          "evidence-8d40787d0ec159cbad15129fd5d7ec5a",
+          "evidence-4cf08e6d4467533f81d0ffe31c9f193d",
+          "evidence-e893a568c2905be7ad423f7d9fb1e391",
+          "evidence-e1a46b42b4ea58adb104b0ae4e8ea7a8",
+          "evidence-e6873ae516125094beaa7aa49abe4279",
+          "evidence-3998d25954c45d34b626993e58ebd6df",
+          "evidence-d1676b71cc5656da8facd92999596c3a",
+          "evidence-ed15dc13161855858be9112642b6ef55",
+          "evidence-b69040c293c05727aee974f952a4c509",
+          "evidence-7c3df31b721957b9899132bab2190770"
+        ],
+        "topic": "per_protocol_set"
+      },
+      {
+        "case_id": "e9-gold-15",
+        "expected_evidence_ids": [
+          "evidence-0f8e59907ad15199ae73a93bfe4c3a84"
+        ],
+        "failure_category": "none",
+        "first_relevant_rank": 3,
+        "hit_at_10": true,
+        "hit_at_5": true,
+        "matched_expected_evidence_ids": [
+          "evidence-0f8e59907ad15199ae73a93bfe4c3a84"
+        ],
+        "outcome": "hit_top_5",
+        "query_id": "query-1106b9587058a17a36fb2438301b505b",
+        "question": "How should sensitivity to missing values and outliers be investigated?",
+        "retrieved_chunk_ids": [
+          "chunk-c0e87ac877e45b3d83b92a9da10ca4d3",
+          "chunk-8242646ab10c53c5a48d2bd177c9dda2",
+          "chunk-7badb709de1851e0aa4f3918a18bf9ff",
+          "chunk-3bfa049da6c8578995a9910105fd8720",
+          "chunk-0f04484a065d5cf3a821487ffa03e531",
+          "chunk-3979a38363f35c389cfa1650915dc6a7",
+          "chunk-5054f83185795b22a3bbba424c747e47",
+          "chunk-f3352f2867705502a6cd762ac486e2df",
+          "chunk-03dac1f278685e50aa96ecb919b97f8b",
+          "chunk-eb93719cad705ae698df7b9880a38c75"
+        ],
+        "retrieved_evidence_ids": [
+          "evidence-8d40787d0ec159cbad15129fd5d7ec5a",
+          "evidence-d1676b71cc5656da8facd92999596c3a",
+          "evidence-0f8e59907ad15199ae73a93bfe4c3a84",
+          "evidence-b6140531095e502ab7bca4a40fea7195",
+          "evidence-b756aeb8acad559eaa90085ce50bf1d2",
+          "evidence-127f98ae978f5038b14302129692388b",
+          "evidence-f6a383028e955850bf010244ef9aa7ec",
+          "evidence-7c3df31b721957b9899132bab2190770",
+          "evidence-2b160a37cc6c51e0aad37fe06ca14471",
+          "evidence-8481a06ebcdc5938ae4ead2183044b84"
+        ],
+        "topic": "missing_values_outliers"
+      },
+      {
+        "case_id": "e9-gold-16",
+        "expected_evidence_ids": [
+          "evidence-22cd5b80dc43597f9b2f9a82834905fe"
+        ],
+        "failure_category": "none",
+        "first_relevant_rank": 3,
+        "hit_at_10": true,
+        "hit_at_5": true,
+        "matched_expected_evidence_ids": [
+          "evidence-22cd5b80dc43597f9b2f9a82834905fe"
+        ],
+        "outcome": "hit_top_5",
+        "query_id": "query-07482fd059a8d5a8d8a5bf940b0a42cb",
+        "question": "Why should main analyses avoid adjustment for covariates measured after randomisation?",
+        "retrieved_chunk_ids": [
+          "chunk-d570bac99d985474a5b4a52b00054fcf",
+          "chunk-6ece337709125d598e228540e3e983ce",
+          "chunk-29b3609b2d7e5bbe813619ec11b51416",
+          "chunk-57eaff7feb095af3b0ad9723e4206d49",
+          "chunk-532df70359695a6f94b13977bdb35c57",
+          "chunk-453ebe1a0a9b57879c2ec08e8531b8b8",
+          "chunk-d757a92ab0625a0f8e686a1d2196af62",
+          "chunk-7be51a03fea15efb8e0441f667e5d461",
+          "chunk-6a709a70ac8856bea6cc194f30b30662",
+          "chunk-abcb13b4a9f15a8483e3e2c4aabcfd35"
+        ],
+        "retrieved_evidence_ids": [
+          "evidence-860ed6d4f9fb5baebbf917e5a151b4c6",
+          "evidence-b1d252e477ac553ebf6537aaec981dde",
+          "evidence-22cd5b80dc43597f9b2f9a82834905fe",
+          "evidence-4cf08e6d4467533f81d0ffe31c9f193d",
+          "evidence-406a37658b335d34bb49baa8e968a957",
+          "evidence-387dc79eb5335ba9a23ba549ba580b19",
+          "evidence-1b05dc5241b35ebc96fda97d8dd9d001",
+          "evidence-3998d25954c45d34b626993e58ebd6df",
+          "evidence-e1a46b42b4ea58adb104b0ae4e8ea7a8",
+          "evidence-2c0699aac5a65241900675ebe2ef8735"
+        ],
+        "topic": "covariate_adjustment"
+      },
+      {
+        "case_id": "e9-gold-17",
+        "expected_evidence_ids": [
+          "evidence-730465dadbbd5c25891a65e8a06a41a4",
+          "evidence-fb8af5be8bb0512682ef73da45290725"
+        ],
+        "failure_category": "none",
+        "first_relevant_rank": 1,
+        "hit_at_10": true,
+        "hit_at_5": true,
+        "matched_expected_evidence_ids": [
+          "evidence-730465dadbbd5c25891a65e8a06a41a4",
+          "evidence-fb8af5be8bb0512682ef73da45290725"
+        ],
+        "outcome": "hit_top_5",
+        "query_id": "query-22105b2f3a1225de5e4b342cab8230a0",
+        "question": "How should adverse events, treatment discontinuations, safety, and tolerability be evaluated?",
+        "retrieved_chunk_ids": [
+          "chunk-cf285eea053055b48f7c3333462342d8",
+          "chunk-7bf124a4c5fc5120a765efe1e0255ad5",
+          "chunk-29b3609b2d7e5bbe813619ec11b51416",
+          "chunk-56a83beae2f95bd1bf08974992c6b775",
+          "chunk-f3352f2867705502a6cd762ac486e2df",
+          "chunk-532df70359695a6f94b13977bdb35c57",
+          "chunk-c31b504e358f5350aff7e0e43e1ef1b8",
+          "chunk-7879d0f203e95244a908961b39325cba",
+          "chunk-230aa0ab485654aeb83b872c8fae3f2c",
+          "chunk-6c22eb32221d5589ab7e4c41a3fc6c6f"
+        ],
+        "retrieved_evidence_ids": [
+          "evidence-730465dadbbd5c25891a65e8a06a41a4",
+          "evidence-fb8af5be8bb0512682ef73da45290725",
+          "evidence-22cd5b80dc43597f9b2f9a82834905fe",
+          "evidence-0bcaaebb268c5edd994c27fdb184ddf6",
+          "evidence-7c3df31b721957b9899132bab2190770",
+          "evidence-406a37658b335d34bb49baa8e968a957",
+          "evidence-b26e369479615d6cb506896e5da08343",
+          "evidence-293dff7e676f51189cf2711a6a010f9f",
+          "evidence-f519f19d609156838b3864eacd758d4c",
+          "evidence-54ab79901e4b5ab3915fe77da92a8397"
+        ],
+        "topic": "safety_tolerability"
+      },
+      {
+        "case_id": "e9-gold-18",
+        "expected_evidence_ids": [
+          "evidence-e1a46b42b4ea58adb104b0ae4e8ea7a8"
+        ],
+        "failure_category": "none",
+        "first_relevant_rank": 1,
+        "hit_at_10": true,
+        "hit_at_5": true,
+        "matched_expected_evidence_ids": [
+          "evidence-e1a46b42b4ea58adb104b0ae4e8ea7a8"
+        ],
+        "outcome": "hit_top_5",
+        "query_id": "query-7be60cbd0b4abb00b58eb1906341c38b",
+        "question": "What is the purpose of a blind review before finalising the statistical analysis plan?",
+        "retrieved_chunk_ids": [
+          "chunk-6a709a70ac8856bea6cc194f30b30662",
+          "chunk-e56f1038cfb654078cd1ca874110f737",
+          "chunk-7badb709de1851e0aa4f3918a18bf9ff",
+          "chunk-d570bac99d985474a5b4a52b00054fcf",
+          "chunk-9a906f9124d55e25b2ff157193b7c5d2",
+          "chunk-57eaff7feb095af3b0ad9723e4206d49",
+          "chunk-c0e87ac877e45b3d83b92a9da10ca4d3",
+          "chunk-532df70359695a6f94b13977bdb35c57",
+          "chunk-abcb13b4a9f15a8483e3e2c4aabcfd35",
+          "chunk-eb93719cad705ae698df7b9880a38c75"
+        ],
+        "retrieved_evidence_ids": [
+          "evidence-e1a46b42b4ea58adb104b0ae4e8ea7a8",
+          "evidence-ed15dc13161855858be9112642b6ef55",
+          "evidence-0f8e59907ad15199ae73a93bfe4c3a84",
+          "evidence-860ed6d4f9fb5baebbf917e5a151b4c6",
+          "evidence-e6873ae516125094beaa7aa49abe4279",
+          "evidence-4cf08e6d4467533f81d0ffe31c9f193d",
+          "evidence-8d40787d0ec159cbad15129fd5d7ec5a",
+          "evidence-406a37658b335d34bb49baa8e968a957",
+          "evidence-2c0699aac5a65241900675ebe2ef8735",
+          "evidence-8481a06ebcdc5938ae4ead2183044b84"
+        ],
+        "topic": "blind_review"
+      }
+    ],
+    "chunk_profile_id": "chunk-profile-ich-e9-poc-v1",
+    "chunk_profile_version": "ich-e9-poc-v1",
+    "document_id": "ICH-E9-1998",
+    "evaluation_notice": "single_document_retrieval_baseline_not_clinical_quality_certification",
+    "external_model_requests": 0,
+    "fusion_version": "metadata-fts-weighted-v1",
+    "metrics": {
+      "recall_at_10": 0.944444,
+      "recall_at_5": 0.888889
+    },
+    "sandbox_id": "sandbox-ich-e9-poc-v1",
+    "source_sha256": "0c0ddc93cb427a70265dbcb0e7c25bfc9a3f7b52e178212b3630ea2408ad9c7e",
+    "source_version_id": "srcv-af08bc3a1bf2569fa608724c63f9c5fc",
+    "suite_id": "ich-e9-retrieval-gold",
+    "suite_sha256": "10050e715f4c2fa9d78a76a5d31a46c25e818329b22eb3b8ba2cfd4c660e2ca4",
+    "suite_version": "1.0.0"
+  },
+  "poc_version": "p17-ich-e9-retrieval-poc-v1",
+  "processing": {
+    "chunk_count": 41,
+    "evidence_count": 41,
+    "executed_steps": 6,
+    "finding_count": 0,
+    "projection_sha256": "0f43b114b67f07f95a69f0cda2e3fdf40de6c9ef84c17c1ee4dd13c8b26b66a2",
+    "replay_stable": true,
+    "run_id": "run-af08bc3a1bf2569fa608724c63f9c5fc",
+    "status": "evidence_ready"
+  },
+  "sandbox": {
+    "chunk_profile_id": "chunk-profile-ich-e9-poc-v1",
+    "kind": "release_candidate",
+    "knowledge_candidate_created": false,
+    "published_release_created": false,
+    "sandbox_id": "sandbox-ich-e9-poc-v1",
+    "source_version_id": "srcv-af08bc3a1bf2569fa608724c63f9c5fc"
+  }
+}

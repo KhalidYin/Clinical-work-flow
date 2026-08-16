@@ -442,7 +442,7 @@ def build_enrichment_step_definition(*, input_sha256: str) -> StepDefinition:
         step_key=ENRICHMENT_STEP_KEY,
         pool=WorkerPool.ENRICHMENT,
         input_sha256=input_sha256,
-        depends_on=("document.persist_evidence",),
+        depends_on=("document.project_chunks",),
         executor_kind=ExecutorKind.DIRECT_MODEL.value,
     )
 

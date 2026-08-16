@@ -130,6 +130,9 @@ from .contracts import (
     ProcessingRunData,
     ProcessingRunResponse,
     ProcessingStepData,
+    QueryLabData,
+    QueryLabRequest,
+    QueryLabResponse,
     RelationEdgeData,
     RelationEvidenceData,
     RelationNodeData,
@@ -175,6 +178,12 @@ from service.published_knowledge import (
     published_version,
     resolve_published_runtime_context,
 )
+from service.retrieval import (
+    ReleaseCandidateScope,
+    RetrievalQuery as CandidateRetrievalQuery,
+    RetrievalResult,
+    RetrievalService,
+)
 from .repository import (
     KnowledgeLifecycleApiPort,
     ChunkProjectionApiRecord,
@@ -214,6 +223,7 @@ class PlatformApiServices:
     processing_ledger: ProcessingLedgerPort | None = None
     governance: KnowledgeGovernanceService | None = None
     lifecycle: KnowledgeLifecycleApiPort | None = None
+    retrieval: RetrievalService | None = None
     object_store: ObjectStorePort | None = None
     runtime_consumer_credential_sha256: str | None = None
 
@@ -590,6 +600,51 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
             )
         )
         return CurrentReleaseResponse(data=data, meta=_meta())
+
+    @app.post(
+        f"{API_PREFIX}/query-lab/query",
+        operation_id="queryReleaseCandidateSandbox",
+        response_model=QueryLabResponse,
+        responses=protected_responses,
+    )
+    def query_release_candidate_sandbox(
+        request: QueryLabRequest,
+        _actor: Annotated[
+            ActorContext,
+            Depends(permitted(Permission.CANDIDATE_READ)),
+        ],
+    ) -> QueryLabResponse:
+        if services.retrieval is None:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="The release-candidate retrieval service is unavailable.",
+            )
+        try:
+            result = services.retrieval.query(
+                CandidateRetrievalQuery(
+                    query=request.query,
+                    top_k=request.top_k,
+                    scope=ReleaseCandidateScope(
+                        sandbox_id=request.scope.sandbox_id,
+                        source_version_ids=tuple(request.scope.source_version_ids),
+                        chunk_profile_id=request.scope.chunk_profile_id,
+                    ),
+                )
+            )
+        except SQLAlchemyError as exc:
+            raise PlatformApiError(
+                status_code=503,
+                code="service_unavailable",
+                message="The release-candidate retrieval repository is unavailable.",
+            ) from exc
+        except ValueError as exc:
+            raise PlatformApiError(
+                status_code=409,
+                code="invalid_request",
+                message="The release-candidate retrieval result failed validation.",
+            ) from exc
+        return QueryLabResponse(data=_query_lab_data(result), meta=_meta())
 
     @app.get(
         f"{API_PREFIX}/runtime-knowledge/version",
@@ -1820,6 +1875,10 @@ def _rotation_decision_data(
         rationale=record.rationale,
         created_at=record.created_at,
     )
+
+
+def _query_lab_data(result: RetrievalResult) -> QueryLabData:
+    return QueryLabData.model_validate(result.model_dump(mode="json"))
 
 
 def _impact_assessment_data(record: ImpactAssessmentApiRecord) -> ImpactAssessmentData:

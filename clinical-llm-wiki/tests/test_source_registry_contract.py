@@ -137,7 +137,7 @@ def test_register_is_idempotent_and_new_version_is_distinct() -> None:
         steps = invocation["steps"]  # type: ignore[index]
         assert [step.step_key for step in steps][-1] == "enrichment.extract_candidate"
         assert steps[-1].pool is WorkerPool.ENRICHMENT
-        assert steps[-1].depends_on == ("document.persist_evidence",)
+        assert steps[-1].depends_on == ("document.project_chunks",)
 
 
 def test_registered_source_replay_repairs_a_transient_run_creation_failure() -> None:

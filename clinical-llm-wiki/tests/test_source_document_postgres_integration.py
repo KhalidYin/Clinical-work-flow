@@ -25,11 +25,15 @@ from service.auth import (
 )
 from service.db.models import (
     AuditEvent,
+    ChunkProfile,
+    ChunkProjectionFinding,
     Evidence,
     KnowledgeCandidate,
     ObjectWriteIntent,
     ProcessingRun,
     Release,
+    RetrievalChunk,
+    RetrievalChunkEvidence,
     Source,
     SourceArtifact,
     SourceVersion,
@@ -39,12 +43,15 @@ from service.object_store import LocalObjectStore
 from service.platform_api.repository import SqlAlchemyPlatformRepository
 from service.processing.document_worker import (
     DocumentWorkerService,
+    ICH_E9_CHUNK_PROFILE_V1,
     SqlAlchemyDocumentRepository,
     document_step_handlers,
 )
 from service.processing.ledger import PostgresProcessingLedger
 from service.processing.parsers import ParserRegistry
 from service.processing.worker import WorkerRuntime
+from service.retrieval import ReleaseCandidateScope, RetrievalQuery, RetrievalService
+from service.retrieval.postgres import PostgresCandidateSearchRepository
 from service.sources import (
     DataBoundary,
     RightsClassification,
@@ -154,8 +161,44 @@ def test_postgres_source_registration_and_document_fan_in_are_idempotent(
         executed = 0
         while runtime.run_once():
             executed += 1
-            assert executed <= 3
-        assert executed == 3
+            assert executed <= 4
+        assert executed == 4
+        first_projection_hash = document_repository.materialize_chunks(
+            run_id=receipt.run_id,
+            profile=ICH_E9_CHUNK_PROFILE_V1,
+        )
+        replayed_projection_hash = document_repository.materialize_chunks(
+            run_id=receipt.run_id,
+            profile=ICH_E9_CHUNK_PROFILE_V1,
+        )
+        assert first_projection_hash == replayed_projection_hash
+
+        retrieval = RetrievalService(
+            repository=PostgresCandidateSearchRepository(sessions)
+        )
+        retrieval_scope = ReleaseCandidateScope(
+            sandbox_id="sandbox-p2a-integration",
+            source_version_ids=(receipt.source_version_id,),
+            chunk_profile_id=ICH_E9_CHUNK_PROFILE_V1.chunk_profile_id,
+        )
+        content_result = retrieval.query(
+            RetrievalQuery(
+                query="treated subjects",
+                top_k=5,
+                scope=retrieval_scope,
+            )
+        )
+        metadata_result = retrieval.query(
+            RetrievalQuery(
+                query="integration markdown",
+                top_k=5,
+                scope=retrieval_scope,
+            )
+        )
+        assert content_result.hits[0].route_contributions.full_text > 0
+        assert content_result.hits[0].citations[0].evidence_id
+        assert metadata_result.hits[0].route_contributions.metadata > 0
+        assert metadata_result.hits[0].route_contributions.full_text == 0
 
         with sessions() as session:
             run = session.get(ProcessingRun, receipt.run_id)
@@ -178,6 +221,13 @@ def test_postgres_source_registration_and_document_fan_in_are_idempotent(
                     )
                 )
             )
+            chunks = list(
+                session.scalars(
+                    select(RetrievalChunk).where(
+                        RetrievalChunk.source_version_id == receipt.source_version_id
+                    )
+                )
+            )
             assert run is not None
             assert run.status == "evidence_ready"
             assert {artifact.artifact_kind for artifact in artifacts} == {
@@ -188,6 +238,34 @@ def test_postgres_source_registration_and_document_fan_in_are_idempotent(
             assert evidence[0].source_sha256 == command_model.expected_sha256
             assert evidence[0].derived_artifact_id
             assert {intent.status for intent in intents} == {"committed"}
+            assert len(chunks) == 1
+            assert chunks[0].content_sha256
+            assert chunks[0].data_boundary == "local_processing_only"
+            assert chunks[0].rights == {
+                "classification": "internal",
+                "storage_allowed": True,
+                "citation_required": True,
+            }
+            assert session.scalar(
+                select(RetrievalChunkEvidence).where(
+                    RetrievalChunkEvidence.chunk_id == chunks[0].chunk_id
+                )
+            ).evidence_id == evidence[0].evidence_id
+            assert session.scalar(
+                select(ChunkProfile).where(
+                    ChunkProfile.chunk_profile_id == "chunk-profile-ich-e9-poc-v1"
+                )
+            ).version == "ich-e9-poc-v1"
+            assert len(
+                list(
+                    session.scalars(
+                        select(AuditEvent).where(
+                            AuditEvent.action == "retrieval_chunks.materialized",
+                            AuditEvent.run_id == receipt.run_id,
+                        )
+                    )
+                )
+            ) == 1
             assert (
                 session.scalar(
                     select(KnowledgeCandidate)
@@ -218,6 +296,37 @@ def test_postgres_source_registration_and_document_fan_in_are_idempotent(
                 delete(AuditEvent).where(
                     (AuditEvent.entity_id.in_(run_ids))
                     | (AuditEvent.actor_subject.in_(["usr-p2a-curator", "svc-p2a-document"]))
+                )
+            )
+            session.execute(
+                delete(RetrievalChunkEvidence).where(
+                    RetrievalChunkEvidence.chunk_id.in_(
+                        select(RetrievalChunk.chunk_id).where(
+                            RetrievalChunk.source_version_id.in_(
+                                select(SourceVersion.source_version_id).where(
+                                    SourceVersion.source_id == "src-p2a-integration"
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+            session.execute(
+                delete(ChunkProjectionFinding).where(
+                    ChunkProjectionFinding.source_version_id.in_(
+                        select(SourceVersion.source_version_id).where(
+                            SourceVersion.source_id == "src-p2a-integration"
+                        )
+                    )
+                )
+            )
+            session.execute(
+                delete(RetrievalChunk).where(
+                    RetrievalChunk.source_version_id.in_(
+                        select(SourceVersion.source_version_id).where(
+                            SourceVersion.source_id == "src-p2a-integration"
+                        )
+                    )
                 )
             )
             session.execute(
@@ -256,4 +365,9 @@ def test_postgres_source_registration_and_document_fan_in_are_idempotent(
                 delete(SourceVersion).where(SourceVersion.source_id == "src-p2a-integration")
             )
             session.execute(delete(Source).where(Source.source_id == "src-p2a-integration"))
+            session.execute(
+                delete(ChunkProfile).where(
+                    ChunkProfile.chunk_profile_id == "chunk-profile-ich-e9-poc-v1"
+                )
+            )
         engine.dispose()

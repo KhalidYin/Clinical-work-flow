@@ -158,8 +158,8 @@ syncs_to:
 | Phase | 目标 | 预估轮次 | 依赖 | 状态 |
 |-------|------|----------|------|------|
 | P1 | 冻结 Chunk 与轮转数据库/API 合同 | 3 | P12 已完成非 live 基线 | done |
-| P2 | 用 ICH E9 建立确定性切块、检索与 Recall 基线 | 3-4 | P1 | next |
-| P3 | 接通轮转决策、Evaluation Gate 与 immutable Release | 3-4 | P2 | pending |
+| P2 | 用 ICH E9 建立确定性切块、检索与 Recall 基线 | 3-4 | P1 | done |
+| P3 | 接通轮转决策、Evaluation Gate 与 immutable Release | 3-4 | P2 | next |
 | P4 | 补全现有治理 UI 并关闭全链路 Gate | 3-4 | P3 | pending |
 
 ---
@@ -231,13 +231,26 @@ syncs_to:
 
 ### 完成标准
 
-- [ ] 官方 E9 可在本地登记和重复处理；相同输入/Profile 的 Evidence→Chunk 顺序、内容和 locator 映射一致。
-- [ ] prose/table/figure/formula/oversize/exclusion 的正反测试覆盖已批准 Chunk 合同，跨边界输入 fail closed。
-- [ ] Query hit 同时返回 route contribution、Chunk explanation 和最终 Evidence citation；未发布知识不进入生产查询。
-- [ ] 至少 15 条 GoldCase 均有 ExpectedEvidence；Recall@5/10、逐题命中与失败分类可重复生成，前端无需重算。
-- [ ] E9 报告明确是单文档基线而非临床认证；不设置主观临床通过阈值。
-- [ ] 无 embedding 时 vector 显示 degraded；任何测试或页面不得填充假的 vector score。
-- [ ] 原始 E9 PDF 未进入 Git，日志/报告不复制大段受版权保护原文。
+- [x] 官方 E9 可在本地登记和重复处理；相同输入/Profile 的 Evidence→Chunk 顺序、内容和 locator 映射一致。
+- [x] prose/table/figure/formula/oversize/exclusion 的正反测试覆盖已批准 Chunk 合同，跨边界输入 fail closed。
+- [x] Query hit 同时返回 route contribution、Chunk explanation 和最终 Evidence citation；未发布知识不进入生产查询。
+- [x] 至少 15 条 GoldCase 均有 ExpectedEvidence；Recall@5/10、逐题命中与失败分类可重复生成，前端无需重算。
+- [x] E9 报告明确是单文档基线而非临床认证；不设置主观临床通过阈值。
+- [x] 无 embedding 时 vector 显示 degraded；任何测试或页面不得填充假的 vector score。
+- [x] 原始 E9 PDF 未进入 Git，日志/报告不复制大段受版权保护原文。
+
+### 完成结果（2026-08-16）
+
+- `python -m scripts.ich_e9_poc` 使用临时 `pgvector/pgvector:0.8.1-pg17` 完成迁移、E9 登记、六步
+  Document DAG、Evidence/Chunk 物化、18 条 GoldCase 检索与容器自动清理；没有模型 Key 或模型请求。
+- 固定 E9 SHA-256 为 `0c0ddc93...9c7e`，39 页生成 41 条 Evidence 和 41 个 Chunk；同库重放及两个全新
+  数据库运行的规范 projection/report 均一致。随机数据库 surrogate ID 不进入 projection hash。
+- PostgreSQL metadata+FTS 基线 Recall@5=`0.888889`、Recall@10=`0.944444`；16/18 在 Top-5，1 条排到
+  第 9 位，1 条未进 Top-10。报告只作单文档词法检索基线，不是临床质量或语义检索认证。
+- Query Lab prerelease API 仅接受 `release_candidate` scope，返回 route contribution、Chunk explanation、
+  Evidence citation 与 ContextPackage；vector/relation 为 degraded，generation disabled，score 不伪造。
+- 原始 PDF/本地 receipt 仅位于被忽略的 `.poc-assets/ich-e9/`；签入内容只有原创问题、Evidence ID、
+  逐题结果和汇总指标，不复制原文。
 
 ### 边界（本 Phase 明确不做）
 

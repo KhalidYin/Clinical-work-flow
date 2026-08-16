@@ -24,6 +24,11 @@ from service.auth.password_sessions import (
     SessionAuthenticationError,
 )
 from service.object_store import ObjectDescriptor
+from service.retrieval import (
+    CandidateSearchRecord,
+    EvidenceCitation,
+    RetrievalService,
+)
 from service.sources import SourceRegistrationReceipt
 
 
@@ -772,6 +777,40 @@ class FakeLifecycleService:
         return self.case, receipt
 
 
+class FakeCandidateSearchRepository:
+    def search_metadata_fts(self, *, query, scope, limit):
+        del query, limit
+        return [
+            CandidateSearchRecord(
+                chunk_id="chunk-api-e9-001",
+                chunk_profile_id=scope.chunk_profile_id,
+                source_version_id=scope.source_version_ids[0],
+                source_title="ICH E9 Statistical Principles for Clinical Trials",
+                source_version="1998",
+                ordinal=0,
+                evidence_type="text",
+                content="Randomisation protects against bias in treatment comparisons.",
+                content_sha256="d" * 64,
+                token_count=9,
+                locator={"kind": "page", "page": 8},
+                metadata_score=0.2,
+                full_text_score=0.8,
+                citations=(
+                    EvidenceCitation(
+                        evidence_id="evidence-api-e9-001",
+                        source_version_id=scope.source_version_ids[0],
+                        source_artifact_id="artifact-api-e9-original",
+                        locator={"kind": "page", "page": 8},
+                        content_sha256="e" * 64,
+                        start_offset=0,
+                        end_offset=59,
+                        span_role="primary",
+                    ),
+                ),
+            )
+        ]
+
+
 class FakePasswordSessions:
     def __init__(self, principals: dict[str, AuthenticatedPrincipal]) -> None:
         self.principals = principals
@@ -865,6 +904,7 @@ def api_client():
         processing_ledger=FakeProcessingLedger(),
         governance=FakeGovernanceService(),
         lifecycle=lifecycle,
+        retrieval=RetrievalService(repository=FakeCandidateSearchRepository()),
     )
     return TestClient(app_module.create_platform_app(services)), repository
 
@@ -881,6 +921,12 @@ def test_platform_services_has_explicit_lifecycle_port() -> None:
     app_module, _, _ = _platform_modules()
 
     assert "lifecycle" in {field.name for field in fields(app_module.PlatformApiServices)}
+
+
+def test_platform_services_has_explicit_retrieval_port() -> None:
+    app_module, _, _ = _platform_modules()
+
+    assert "retrieval" in {field.name for field in fields(app_module.PlatformApiServices)}
 
 
 def test_health_is_public_and_reports_unimplemented_capabilities(api_client) -> None:
@@ -971,6 +1017,53 @@ def test_backend_permissions_protect_sources_release_and_admin(api_client) -> No
         ).status_code
         == 403
     )
+
+
+def test_query_lab_returns_cited_candidate_results_and_degraded_routes(api_client) -> None:
+    client, _ = api_client
+    payload = {
+        "query": "randomisation bias",
+        "topK": 5,
+        "scope": {
+            "sandboxKind": "release_candidate",
+            "sandboxId": "sandbox-e9-poc",
+            "sourceVersionIds": ["srcv-e9"],
+            "chunkProfileId": "chunk-profile-e9-v1",
+        },
+    }
+
+    response = client.post(
+        f"{API_PREFIX}/query-lab/query",
+        headers=_auth("curator-token"),
+        json=payload,
+    )
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["fusionVersion"] == "metadata-fts-weighted-v1"
+    assert data["capabilities"]["vector"] == {
+        "status": "degraded",
+        "reason": "embedding_profile_not_configured",
+    }
+    assert data["hits"][0]["routeContributions"]["vector"] is None
+    assert data["hits"][0]["citations"][0]["evidenceId"] == "evidence-api-e9-001"
+    assert data["contextPackage"]["sandboxKind"] == "release_candidate"
+    assert data["externalModelRequests"] == 0
+
+    forbidden = client.post(
+        f"{API_PREFIX}/query-lab/query",
+        headers=_auth("consumer-token"),
+        json=payload,
+    )
+    assert forbidden.status_code == 403
+
+    payload["scope"]["sandboxKind"] = "current_release"
+    invalid = client.post(
+        f"{API_PREFIX}/query-lab/query",
+        headers=_auth("curator-token"),
+        json=payload,
+    )
+    assert invalid.status_code == 422
 
 
 def test_admin_registers_immutable_model_profile_reference_without_live_call(api_client) -> None:
@@ -1589,6 +1682,7 @@ def test_checked_in_openapi_matches_runtime_paths_roles_and_responses(api_client
             f"{API_PREFIX}/auth/password/change",
             f"{API_PREFIX}/health",
             f"{API_PREFIX}/releases/current",
+            f"{API_PREFIX}/query-lab/query",
             f"{API_PREFIX}/runtime-knowledge/version",
             f"{API_PREFIX}/runtime-knowledge/resolve",
             f"{API_PREFIX}/sources",
@@ -1700,6 +1794,23 @@ def test_checked_in_openapi_matches_runtime_paths_roles_and_responses(api_client
             client.get(
                 f"{API_PREFIX}/processing-runs/run-api-001/chunk-projection",
                 headers=_auth("curator-token"),
+            ),
+        ),
+        (
+            "QueryLabResponse",
+            client.post(
+                f"{API_PREFIX}/query-lab/query",
+                headers=_auth("curator-token"),
+                json={
+                    "query": "randomisation bias",
+                    "topK": 5,
+                    "scope": {
+                        "sandboxKind": "release_candidate",
+                        "sandboxId": "sandbox-e9-poc",
+                        "sourceVersionIds": ["srcv-e9"],
+                        "chunkProfileId": "chunk-profile-e9-v1",
+                    },
+                },
             ),
         ),
         (

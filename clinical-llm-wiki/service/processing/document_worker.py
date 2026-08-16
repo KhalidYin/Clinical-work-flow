@@ -16,14 +16,24 @@ from sqlalchemy.orm import Session, sessionmaker
 from service.auth import WorkerPool
 from service.db.models import (
     AuditEvent,
+    ChunkProfile,
+    ChunkProjectionFinding,
     Evidence,
     JobStep,
     ObjectWriteIntent,
     ProcessingRun,
+    RetrievalChunk,
+    RetrievalChunkEvidence,
     Source,
     SourceArtifact,
     SourceVersion,
     StepAttempt,
+)
+from service.knowledge import (
+    ChunkProfileContract,
+    ChunkProjectionResult,
+    ProjectionEvidence,
+    project_retrieval_chunks,
 )
 from service.object_store import ObjectDescriptor, ObjectStorePort
 
@@ -97,6 +107,31 @@ class DocumentRepositoryPort(Protocol):
         parsed_results: Sequence[tuple[ObjectDescriptor, ParserResult]],
     ) -> str: ...
 
+    def materialize_chunks(
+        self,
+        *,
+        run_id: str,
+        profile: ChunkProfileContract,
+    ) -> str: ...
+
+
+ICH_E9_CHUNK_PROFILE_V1 = ChunkProfileContract(
+    chunk_profile_id="chunk-profile-ich-e9-poc-v1",
+    version="ich-e9-poc-v1",
+    tokenizer_id="unicode-whitespace-v1",
+    target_min_tokens=400,
+    target_max_tokens=700,
+    hard_max_tokens=900,
+    overlap_tokens=80,
+    table_hard_max_tokens=1200,
+    format_rules={
+        "major_section_boundary": True,
+        "table_row_atomic": True,
+        "figure_formula_atomic": True,
+        "unknown_section_boundary": "page",
+    },
+)
+
 
 class InMemoryDocumentRepository:
     """Deterministic unit-test repository; PostgreSQL owns production state."""
@@ -106,6 +141,8 @@ class InMemoryDocumentRepository:
         self.derived: dict[str, dict[str, Any]] = {}
         self.manifests: dict[tuple[str, str], ArtifactManifest] = {}
         self.evidence: list[dict[str, Any]] = []
+        self.chunks: list[dict[str, Any]] = []
+        self.chunk_findings: list[dict[str, Any]] = []
         self.run_status = "processing"
         self.candidates: list[object] = []
         self.releases: list[object] = []
@@ -197,7 +234,9 @@ class InMemoryDocumentRepository:
             for fragment in result.fragments:
                 self.evidence.append(
                     {
+                        "evidence_id": f"evidence-memory-{len(self.evidence) + 1}",
                         "source_version_id": source.source_version_id,
+                        "source_artifact_id": f"artifact-original-{source.source_version_id}",
                         "source_sha256": source.source_sha256,
                         "source_artifact_kind": "original",
                         "derived_artifact_kind": "parser_output",
@@ -213,8 +252,31 @@ class InMemoryDocumentRepository:
                 hashes.append(fragment.content_sha256)
         if not hashes:
             raise ValueError("fan-in produced no evidence")
-        self.run_status = "evidence_ready"
         return sha256("\n".join(sorted(hashes)).encode("utf-8")).hexdigest()
+
+    def materialize_chunks(
+        self,
+        *,
+        run_id: str,
+        profile: ChunkProfileContract,
+    ) -> str:
+        del run_id
+        result = _project_evidence_rows(
+            profile=profile,
+            evidence_rows=self.evidence,
+            data_boundary=self.source.data_boundary,
+            rights=self.source.rights,
+        )
+        chunks = [chunk.model_dump(mode="json") for chunk in result.chunks]
+        findings = [finding.model_dump(mode="json") for finding in result.findings]
+        if self.chunks and self.chunks != chunks:
+            raise ValueError("existing in-memory chunk projection drift")
+        if self.chunk_findings and self.chunk_findings != findings:
+            raise ValueError("existing in-memory chunk finding drift")
+        self.chunks = chunks
+        self.chunk_findings = findings
+        self.run_status = "evidence_ready"
+        return _projection_output_sha256(result)
 
 
 class DocumentWorkerService:
@@ -225,11 +287,13 @@ class DocumentWorkerService:
         object_store: ObjectStorePort,
         parsers: ParserRegistry,
         actor_id: str = "svc-document",
+        chunk_profile: ChunkProfileContract = ICH_E9_CHUNK_PROFILE_V1,
     ) -> None:
         self._repository = repository
         self._objects = object_store
         self._parsers = parsers
         self._actor_id = actor_id
+        self._chunk_profile = chunk_profile
 
     def validate(self, context: DocumentStepContext) -> StepOutcome:
         source = self._repository.load_source_for_run(run_id=context.claim.run_id)
@@ -388,6 +452,23 @@ class DocumentWorkerService:
             artifact_manifest=ArtifactManifest(
                 artifacts=tuple(descriptor for descriptor, _ in results)
             ),
+        )
+
+    def project_chunks(self, context: DocumentStepContext) -> StepOutcome:
+        output_hash = self._repository.materialize_chunks(
+            run_id=context.claim.run_id,
+            profile=self._chunk_profile,
+        )
+        context.checkpoint(
+            {
+                "chunk_output_sha256": output_hash,
+                "chunk_profile_id": self._chunk_profile.chunk_profile_id,
+                "chunk_profile_version": self._chunk_profile.version,
+            }
+        )
+        return StepOutcome(
+            output_sha256=output_hash,
+            artifact_manifest=ArtifactManifest(),
         )
 
 
@@ -720,8 +801,6 @@ class SqlAlchemyDocumentRepository:
                     hashes.append(fragment.content_sha256)
             if not hashes:
                 raise ValueError("fan-in produced no evidence")
-            run.status = "evidence_ready"
-            run.updated_at = _utcnow()
             session.add(
                 AuditEvent(
                     audit_event_id=f"audit-{uuid4()}",
@@ -737,6 +816,326 @@ class SqlAlchemyDocumentRepository:
                 )
             )
         return sha256("\n".join(sorted(hashes)).encode("utf-8")).hexdigest()
+
+    def materialize_chunks(
+        self,
+        *,
+        run_id: str,
+        profile: ChunkProfileContract,
+    ) -> str:
+        with self._sessions.begin() as session:
+            run = session.scalar(
+                select(ProcessingRun).where(ProcessingRun.run_id == run_id).with_for_update()
+            )
+            if run is None:
+                raise ValueError("processing run does not exist")
+            version = session.get(SourceVersion, run.source_version_id)
+            if version is None:
+                raise ValueError("processing run source version does not exist")
+            evidence_rows = list(
+                session.scalars(
+                    select(Evidence).where(
+                        Evidence.source_version_id == run.source_version_id
+                    )
+                )
+            )
+            if not evidence_rows:
+                raise ValueError("chunk projection requires canonical Evidence")
+            profile_row = session.get(ChunkProfile, profile.chunk_profile_id)
+            if profile_row is None:
+                profile_row = ChunkProfile(**profile.model_dump())
+                session.add(profile_row)
+                session.flush()
+            else:
+                _require_matching_chunk_profile(profile_row, profile)
+            result = _project_evidence_rows(
+                profile=profile,
+                evidence_rows=evidence_rows,
+                data_boundary=version.data_boundary,
+                rights=version.rights,
+            )
+            existing_chunks = list(
+                session.scalars(
+                    select(RetrievalChunk)
+                    .where(
+                        RetrievalChunk.source_version_id == run.source_version_id,
+                        RetrievalChunk.chunk_profile_id == profile.chunk_profile_id,
+                    )
+                    .order_by(RetrievalChunk.ordinal)
+                )
+            )
+            existing_findings = list(
+                session.scalars(
+                    select(ChunkProjectionFinding).where(
+                        ChunkProjectionFinding.source_version_id == run.source_version_id,
+                        ChunkProjectionFinding.chunk_profile_id == profile.chunk_profile_id,
+                    )
+                )
+            )
+            if existing_chunks or existing_findings:
+                _require_matching_projection(
+                    session,
+                    result,
+                    existing_chunks,
+                    existing_findings,
+                )
+                run.status = "evidence_ready"
+                run.updated_at = _utcnow()
+                return _projection_output_sha256(result)
+            for chunk in result.chunks:
+                session.add(
+                    RetrievalChunk(
+                        chunk_id=chunk.chunk_id,
+                        chunk_profile_id=chunk.chunk_profile_id,
+                        source_version_id=chunk.source_version_id,
+                        evidence_type=chunk.evidence_type,
+                        ordinal=chunk.ordinal,
+                        content=chunk.content,
+                        content_sha256=chunk.content_sha256,
+                        token_count=chunk.token_count,
+                        locator=chunk.locator,
+                        data_boundary=chunk.data_boundary,
+                        rights=chunk.rights,
+                    )
+                )
+                for position, span in enumerate(chunk.spans):
+                    session.add(
+                        RetrievalChunkEvidence(
+                            chunk_id=chunk.chunk_id,
+                            position=position,
+                            evidence_id=span.evidence_id,
+                            start_offset=span.start_offset,
+                            end_offset=span.end_offset,
+                            span_role=span.span_role,
+                        )
+                    )
+            for finding in result.findings:
+                session.add(
+                    ChunkProjectionFinding(
+                        finding_id=finding.finding_id,
+                        chunk_profile_id=profile.chunk_profile_id,
+                        source_version_id=run.source_version_id,
+                        evidence_id=finding.evidence_id,
+                        finding_type=finding.finding_type,
+                        details=finding.details,
+                    )
+                )
+            run.status = "evidence_ready"
+            run.updated_at = _utcnow()
+            session.add(
+                AuditEvent(
+                    audit_event_id=f"audit-{uuid4()}",
+                    actor_subject="svc-document",
+                    action="retrieval_chunks.materialized",
+                    entity_type="processing_run",
+                    entity_id=run_id,
+                    run_id=run_id,
+                    details={
+                        "chunk_profile_id": profile.chunk_profile_id,
+                        "chunk_profile_version": profile.version,
+                        "chunk_count": len(result.chunks),
+                        "finding_count": len(result.findings),
+                    },
+                )
+            )
+            return _projection_output_sha256(result)
+
+
+def _project_evidence_rows(
+    *,
+    profile: ChunkProfileContract,
+    evidence_rows: Sequence[Any],
+    data_boundary: str,
+    rights: dict[str, Any],
+) -> ChunkProjectionResult:
+    ordered = sorted(evidence_rows, key=_evidence_sort_key)
+    projected = tuple(
+        ProjectionEvidence(
+            evidence_id=_row_value(row, "evidence_id"),
+            source_version_id=_row_value(row, "source_version_id"),
+            source_artifact_id=(
+                _row_value(row, "source_artifact_id", None)
+                or _row_value(row, "derived_artifact_id", None)
+                or f"derived:{_row_value(row, 'source_version_id')}"
+            ),
+            evidence_type=_row_value(row, "evidence_type"),
+            document_order=order,
+            major_section=_major_section(_row_value(row, "locator")),
+            table_id=_table_id(
+                _row_value(row, "evidence_type"),
+                _row_value(row, "locator"),
+            ),
+            locator=_row_value(row, "locator"),
+            content=_row_value(row, "content"),
+            data_boundary=data_boundary,
+            rights=rights,
+        )
+        for order, row in enumerate(ordered)
+    )
+    return project_retrieval_chunks(profile=profile, evidence=projected)
+
+
+def _row_value(row: Any, name: str, default: Any = ...) -> Any:
+    if isinstance(row, dict):
+        if default is ...:
+            return row[name]
+        return row.get(name, default)
+    if default is ...:
+        return getattr(row, name)
+    return getattr(row, name, default)
+
+
+def _evidence_sort_key(row: Any) -> tuple[int, int, int, int, str, str]:
+    locator = _row_value(row, "locator")
+    return (
+        _locator_integer(locator, "page"),
+        _locator_integer(locator, "paragraph", "index"),
+        _locator_integer(locator, "table"),
+        _locator_integer(locator, "row"),
+        json.dumps(locator, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+        _row_value(row, "evidence_id"),
+    )
+
+
+def _locator_integer(locator: dict[str, Any], *names: str) -> int:
+    for name in names:
+        value = locator.get(name)
+        if isinstance(value, int):
+            return value
+    return 2**31 - 1
+
+
+def _major_section(locator: dict[str, Any]) -> str:
+    section = locator.get("section")
+    if isinstance(section, str) and section.strip():
+        return section.strip()
+    page = locator.get("page")
+    if isinstance(page, int):
+        return f"page:{page}"
+    sheet = locator.get("sheet")
+    if isinstance(sheet, str) and sheet:
+        return f"sheet:{sheet}"
+    return f"locator:{locator.get('kind', 'unknown')}"
+
+
+def _table_id(evidence_type: str, locator: dict[str, Any]) -> str | None:
+    if evidence_type != "table":
+        return None
+    identity = {
+        key: locator[key]
+        for key in ("page", "sheet", "table")
+        if key in locator
+    }
+    return json.dumps(identity or locator, ensure_ascii=False, sort_keys=True)
+
+
+def _projection_output_sha256(result: ChunkProjectionResult) -> str:
+    canonical = result.model_dump(mode="json")
+    for chunk in canonical["chunks"]:
+        # The original SourceArtifact primary key is a database surrogate. The
+        # canonical source version and ordered Evidence spans already bind the
+        # projection, so including that random row ID would make clean replays
+        # hash differently without changing any retrievable fact.
+        chunk.pop("source_artifact_id", None)
+    payload = json.dumps(
+        canonical,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _require_matching_chunk_profile(
+    row: ChunkProfile,
+    profile: ChunkProfileContract,
+) -> None:
+    expected = profile.model_dump()
+    actual = {name: getattr(row, name) for name in expected}
+    if actual != expected:
+        raise ValueError("chunk profile ID is already bound to different facts")
+
+
+def _require_matching_projection(
+    session: Session,
+    result: ChunkProjectionResult,
+    chunks: Sequence[RetrievalChunk],
+    findings: Sequence[ChunkProjectionFinding],
+) -> None:
+    expected_chunks = [
+        {
+            "chunk_id": chunk.chunk_id,
+            "ordinal": chunk.ordinal,
+            "evidence_type": chunk.evidence_type,
+            "content": chunk.content,
+            "content_sha256": chunk.content_sha256,
+            "token_count": chunk.token_count,
+            "locator": chunk.locator,
+            "data_boundary": chunk.data_boundary,
+            "rights": chunk.rights,
+            "spans": [
+                {
+                    "evidence_id": span.evidence_id,
+                    "start_offset": span.start_offset,
+                    "end_offset": span.end_offset,
+                    "span_role": span.span_role,
+                }
+                for span in chunk.spans
+            ],
+        }
+        for chunk in result.chunks
+    ]
+    actual_chunks = []
+    for chunk in chunks:
+        spans = list(
+            session.scalars(
+                select(RetrievalChunkEvidence)
+                .where(RetrievalChunkEvidence.chunk_id == chunk.chunk_id)
+                .order_by(RetrievalChunkEvidence.position)
+            )
+        )
+        actual_chunks.append(
+            {
+                "chunk_id": chunk.chunk_id,
+                "ordinal": chunk.ordinal,
+                "evidence_type": chunk.evidence_type,
+                "content": chunk.content,
+                "content_sha256": chunk.content_sha256,
+                "token_count": chunk.token_count,
+                "locator": chunk.locator,
+                "data_boundary": chunk.data_boundary,
+                "rights": chunk.rights,
+                "spans": [
+                    {
+                        "evidence_id": span.evidence_id,
+                        "start_offset": span.start_offset,
+                        "end_offset": span.end_offset,
+                        "span_role": span.span_role,
+                    }
+                    for span in spans
+                ],
+            }
+        )
+    expected_findings = sorted(
+        (
+            finding.finding_id,
+            finding.evidence_id,
+            finding.finding_type,
+            finding.details,
+        )
+        for finding in result.findings
+    )
+    actual_findings = sorted(
+        (
+            finding.finding_id,
+            finding.evidence_id,
+            finding.finding_type,
+            finding.details,
+        )
+        for finding in findings
+    )
+    if actual_chunks != expected_chunks or actual_findings != expected_findings:
+        raise ValueError("existing chunk projection drift")
 
 
 def build_document_step_definitions(
@@ -777,6 +1176,12 @@ def build_document_step_definitions(
             input_sha256=input_sha256,
             depends_on=parse_keys,
         ),
+        StepDefinition(
+            step_key="document.project_chunks",
+            pool=WorkerPool.DOCUMENT,
+            input_sha256=input_sha256,
+            depends_on=("document.persist_evidence",),
+        ),
     ]
 
 
@@ -789,6 +1194,7 @@ def document_step_handlers(
         "document.parse_tables": lambda context: service.parse(context, branch="tables"),
         "document.parse_images": lambda context: service.parse(context, branch="images"),
         "document.persist_evidence": service.persist_evidence,
+        "document.project_chunks": service.project_chunks,
     }
 
 
@@ -798,6 +1204,7 @@ def _utcnow() -> datetime:
 
 __all__ = [
     "DOCUMENT_PARSER_PROFILE_VERSION",
+    "ICH_E9_CHUNK_PROFILE_V1",
     "DocumentRepositoryPort",
     "DocumentWorkerService",
     "InMemoryDocumentRepository",

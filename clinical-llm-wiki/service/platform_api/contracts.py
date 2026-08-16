@@ -551,6 +551,91 @@ class ChunkProjectionData(ApiModel):
     findings: list[ChunkProjectionFindingData]
 
 
+class QueryLabScopeRequest(ApiModel):
+    sandbox_kind: Literal["release_candidate"] = "release_candidate"
+    sandbox_id: str = Field(min_length=3, max_length=160)
+    source_version_ids: list[str] = Field(min_length=1, max_length=50)
+    chunk_profile_id: str = Field(min_length=3, max_length=160)
+
+
+class QueryLabRequest(ApiModel):
+    query: str = Field(min_length=1, max_length=500)
+    top_k: int = Field(default=10, ge=1, le=50)
+    scope: QueryLabScopeRequest
+
+
+class RetrievalCapabilityData(ApiModel):
+    status: Literal["available", "degraded", "disabled"]
+    reason: str | None = None
+
+
+class RetrievalCapabilitiesData(ApiModel):
+    metadata: RetrievalCapabilityData
+    full_text: RetrievalCapabilityData
+    vector: RetrievalCapabilityData
+    relation: RetrievalCapabilityData
+    generation: RetrievalCapabilityData
+
+
+class RetrievalRouteContributionsData(ApiModel):
+    metadata: float = Field(ge=0)
+    full_text: float = Field(ge=0)
+    vector: None = None
+    relation: None = None
+
+
+class RetrievalCitationData(ApiModel):
+    evidence_id: str
+    source_version_id: str
+    source_artifact_id: str
+    locator: dict[str, Any]
+    content_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    start_offset: int = Field(ge=0)
+    end_offset: int = Field(gt=0)
+    span_role: Literal["primary", "overlap"]
+
+
+class RetrievalExplanationData(ApiModel):
+    source_version_id: str
+    source_title: str
+    source_version: str
+    chunk_profile_id: str
+    ordinal: int = Field(ge=0)
+    evidence_type: str
+    locator: dict[str, Any]
+    token_count: int = Field(gt=0)
+
+
+class RetrievalHitData(ApiModel):
+    rank: int = Field(gt=0)
+    chunk_id: str
+    content: str
+    content_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    fusion_score: float = Field(ge=0)
+    route_contributions: RetrievalRouteContributionsData
+    explanation: RetrievalExplanationData
+    citations: list[RetrievalCitationData] = Field(min_length=1)
+
+
+class RetrievalContextPackageData(ApiModel):
+    sandbox_kind: Literal["release_candidate"] = "release_candidate"
+    sandbox_id: str
+    chunk_ids: list[str]
+    citations: list[RetrievalCitationData]
+
+
+class QueryLabData(ApiModel):
+    query_id: str
+    fusion_version: Literal["metadata-fts-weighted-v1"]
+    capabilities: RetrievalCapabilitiesData
+    hits: list[RetrievalHitData]
+    context_package: RetrievalContextPackageData
+    external_model_requests: Literal[0]
+    evaluation_notice: Literal[
+        "single_document_retrieval_baseline_not_clinical_quality_certification"
+    ]
+
+
 class RetryData(ApiModel):
     run_id: str
     step_id: str
@@ -798,6 +883,11 @@ class ImpactAssessmentResponse(ApiModel):
 
 class ChunkProjectionResponse(ApiModel):
     data: ChunkProjectionData
+    meta: ResponseMeta
+
+
+class QueryLabResponse(ApiModel):
+    data: QueryLabData
     meta: ResponseMeta
 
 

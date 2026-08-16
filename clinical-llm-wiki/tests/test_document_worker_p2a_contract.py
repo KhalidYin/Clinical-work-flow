@@ -20,6 +20,7 @@ from service.processing import ArtifactManifest, ClaimedStepAttempt
 from service.processing.document_worker import (
     DOCUMENT_PARSER_PROFILE_VERSION,
     DocumentWorkerService,
+    ICH_E9_CHUNK_PROFILE_V1,
     InMemoryDocumentRepository,
     build_document_step_definitions,
     document_step_handlers,
@@ -204,16 +205,19 @@ def test_document_dag_declares_conditional_branches_and_fan_in() -> None:
         "document.parse_tables",
         "document.parse_images",
         "document.persist_evidence",
+        "document.project_chunks",
     ]
-    assert pdf_steps[-1].depends_on == (
+    assert pdf_steps[-2].depends_on == (
         "document.parse_text",
         "document.parse_tables",
         "document.parse_images",
     )
+    assert pdf_steps[-1].depends_on == ("document.persist_evidence",)
     assert [step.step_key for step in markdown_steps] == [
         "document.validate",
         "document.parse_text",
         "document.persist_evidence",
+        "document.project_chunks",
     ]
 
 
@@ -266,9 +270,99 @@ def test_document_handlers_write_derived_artifact_then_evidence_only_at_fan_in()
     assert evidence["source_artifact_kind"] == "original"
     assert evidence["derived_artifact_kind"] == "parser_output"
     assert evidence["parser_profile_version"] == DOCUMENT_PARSER_PROFILE_VERSION
-    assert repository.run_status == "evidence_ready"
+    assert repository.run_status == "processing"
     assert repository.candidates == []
     assert repository.releases == []
+
+    projected = handlers["document.project_chunks"](
+        _context("document.project_chunks", 4)
+    )
+    replayed = handlers["document.project_chunks"](
+        _context("document.project_chunks", 5)
+    )
+
+    assert projected.output_sha256 == replayed.output_sha256
+    assert repository.run_status == "evidence_ready"
+    assert len(repository.chunks) == 1
+    assert repository.chunks[0]["source_version_id"] == "srcv-test"
+    assert repository.chunks[0]["profile_version"] == "ich-e9-poc-v1"
+
+
+def test_chunk_projection_order_is_stable_when_evidence_locators_match() -> None:
+    source = SourceDocument(
+        source_id="src-order",
+        source_version_id="srcv-order",
+        source_sha256="a" * 64,
+        media_type="application/pdf",
+        object_key="sources/src-order/srcv-order/original.pdf",
+        data_boundary="local_processing_only",
+        rights={"classification": "public", "storage_allowed": True},
+    )
+    evidence = [
+        {
+            "evidence_id": evidence_id,
+            "source_version_id": source.source_version_id,
+            "source_artifact_id": "artifact-original-srcv-order",
+            "evidence_type": "text",
+            "locator": {"kind": "page", "page": 7},
+            "content": content,
+        }
+        for evidence_id, content in (
+            ("evidence-b", "Second fragment."),
+            ("evidence-a", "First fragment."),
+        )
+    ]
+    first = InMemoryDocumentRepository(source=source)
+    second = InMemoryDocumentRepository(source=source)
+    first.evidence = evidence
+    second.evidence = list(reversed(evidence))
+
+    first_hash = first.materialize_chunks(
+        run_id="run-first",
+        profile=ICH_E9_CHUNK_PROFILE_V1,
+    )
+    second_hash = second.materialize_chunks(
+        run_id="run-second",
+        profile=ICH_E9_CHUNK_PROFILE_V1,
+    )
+
+    assert first_hash == second_hash
+    assert first.chunks == second.chunks
+
+
+def test_projection_hash_ignores_database_surrogate_source_artifact_id() -> None:
+    source = SourceDocument(
+        source_id="src-surrogate",
+        source_version_id="srcv-surrogate",
+        source_sha256="f" * 64,
+        media_type="application/pdf",
+        object_key="sources/src-surrogate/srcv-surrogate/original.pdf",
+        data_boundary="local_processing_only",
+        rights={"classification": "public", "storage_allowed": True},
+    )
+    evidence = {
+        "evidence_id": "evidence-surrogate",
+        "source_version_id": source.source_version_id,
+        "evidence_type": "text",
+        "locator": {"kind": "page", "page": 1},
+        "content": "Same source bytes and canonical Evidence.",
+    }
+    first = InMemoryDocumentRepository(source=source)
+    second = InMemoryDocumentRepository(source=source)
+    first.evidence = [{**evidence, "source_artifact_id": "artifact-random-a"}]
+    second.evidence = [{**evidence, "source_artifact_id": "artifact-random-b"}]
+
+    first_hash = first.materialize_chunks(
+        run_id="run-first",
+        profile=ICH_E9_CHUNK_PROFILE_V1,
+    )
+    second_hash = second.materialize_chunks(
+        run_id="run-second",
+        profile=ICH_E9_CHUNK_PROFILE_V1,
+    )
+
+    assert first_hash == second_hash
+    assert first.chunks[0]["chunk_id"] == second.chunks[0]["chunk_id"]
 
 
 def test_parse_retry_reuses_committed_derived_object_without_deleting_it() -> None:
