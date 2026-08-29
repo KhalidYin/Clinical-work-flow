@@ -36,8 +36,10 @@ from service.db.models import (
     ChunkProjectionFinding,
     Evidence,
     KnowledgeCandidate,
+    KnowledgeRevision,
     ProcessingRun,
     Release,
+    ReleaseItem,
     RetrievalChunk,
 )
 from service.db.session import create_database_engine, create_session_factory
@@ -95,6 +97,31 @@ def expected_source_version_id() -> str:
         f"clinical-source:{REGISTRATION_ACTOR_ID}:{REGISTRATION_IDEMPOTENCY_KEY}",
     ).hex
     return f"srcv-{stable}"
+
+
+def _poc_scope_counts(session, source_version_id: str) -> tuple[int, int]:
+    """Count only candidate/release facts derived from the selected source version."""
+
+    candidate_count = session.scalar(
+        select(func.count(KnowledgeCandidate.candidate_id))
+        .join(ProcessingRun, ProcessingRun.run_id == KnowledgeCandidate.run_id)
+        .where(ProcessingRun.source_version_id == source_version_id)
+    )
+    release_count = session.scalar(
+        select(func.count(Release.release_id.distinct()))
+        .join(ReleaseItem, ReleaseItem.release_id == Release.release_id)
+        .join(
+            KnowledgeRevision,
+            KnowledgeRevision.knowledge_revision_id == ReleaseItem.knowledge_revision_id,
+        )
+        .join(
+            KnowledgeCandidate,
+            KnowledgeCandidate.candidate_id == KnowledgeRevision.candidate_id,
+        )
+        .join(ProcessingRun, ProcessingRun.run_id == KnowledgeCandidate.run_id)
+        .where(ProcessingRun.source_version_id == source_version_id)
+    )
+    return int(candidate_count or 0), int(release_count or 0)
 
 
 def run_poc(
@@ -287,8 +314,10 @@ def run_poc(
                     )
                 ),
             }
-            candidate_count = session.scalar(select(func.count(KnowledgeCandidate.candidate_id)))
-            release_count = session.scalar(select(func.count(Release.release_id)))
+            candidate_count, release_count = _poc_scope_counts(
+                session,
+                receipt.source_version_id,
+            )
         expected_ids = {
             evidence_id
             for case in suite.cases
