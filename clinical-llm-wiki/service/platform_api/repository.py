@@ -2502,7 +2502,11 @@ def _audit_authoritative_target(
     elif resource_type == "evaluation_run":
         path = "/evaluation?" + urlencode({"run": resource_id})
     elif resource_type == "release":
-        path = "/releases?" + urlencode({"candidate": resource_id})
+        release = session.get(Release, resource_id)
+        if release is None or release.status not in {"candidate", "released"}:
+            return None
+        selector = "release" if release.status == "released" else "candidate"
+        path = "/releases?" + urlencode({selector: resource_id})
     elif resource_type == "processing_run":
         path = "/processing?" + urlencode({"run": resource_id})
     else:

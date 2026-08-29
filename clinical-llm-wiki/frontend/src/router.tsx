@@ -134,6 +134,7 @@ const releasesRoute = createRoute({
   path: "/releases",
   validateSearch: (search: Record<string, unknown>) => ({
     candidate: typeof search.candidate === "string" ? search.candidate : "",
+    release: typeof search.release === "string" ? search.release : "",
   }),
   component: ReleasesRoute,
 });
@@ -144,8 +145,12 @@ function ReleasesRoute() {
   return (
     <ReleasesPage
       candidateId={search.candidate}
+      releaseId={search.release}
       onCandidateChange={(candidate) => {
-        void navigate({ search: { candidate }, replace: true });
+        void navigate({ search: (current) => ({ ...current, candidate }), replace: true });
+      }}
+      onReleaseChange={(release) => {
+        void navigate({ search: (current) => ({ ...current, release }), replace: true });
       }}
     />
   );

@@ -2251,8 +2251,84 @@
   border-right: 1px solid var(--paper-300);
   border-bottom: 1px solid var(--paper-300);
   border-left: 1px solid var(--paper-300);
-  grid-template-columns: minmax(120px, 0.7fr) minmax(0, 1.5fr) auto;
+  grid-template-columns: minmax(120px, 0.7fr) minmax(0, 1.5fr) auto auto;
   gap: 14px;
+}
+
+.releaseHistory li[data-selected="true"] {
+  background: var(--blue-100);
+}
+
+.releaseHistory button {
+  justify-self: end;
+}
+
+.releaseDetail {
+  display: grid;
+  gap: 16px;
+}
+
+.releaseSnapshot {
+  display: grid;
+  gap: 18px;
+}
+
+.releaseSnapshot dl {
+  display: grid;
+  margin: 0;
+  border-top: 1px solid var(--paper-300);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.releaseSnapshot dl > div {
+  display: grid;
+  min-width: 0;
+  padding: 12px 14px;
+  border-right: 1px solid var(--paper-300);
+  border-bottom: 1px solid var(--paper-300);
+  border-left: 1px solid var(--paper-300);
+  gap: 5px;
+}
+
+.releaseSnapshot dt {
+  color: var(--ink-500);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.releaseSnapshot dd {
+  min-width: 0;
+  margin: 0;
+}
+
+.releaseSnapshot dd code {
+  overflow-wrap: anywhere;
+}
+
+.releaseManifestItems {
+  display: grid;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  gap: 10px;
+}
+
+.releaseManifestItems li {
+  padding: 14px;
+  border: 1px solid var(--paper-300);
+}
+
+.releaseManifestItems li > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.releaseManifestItems p {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 8px 0 0;
+  gap: 6px;
 }
 
 .skeleton {
@@ -2389,6 +2465,14 @@
   .releaseGateList li,
   .releaseHistory li {
     grid-template-columns: 1fr;
+  }
+
+  .releaseSnapshot dl {
+    grid-template-columns: 1fr;
+  }
+
+  .releaseHistory button {
+    justify-self: stretch;
   }
 
   .releasePair > span {

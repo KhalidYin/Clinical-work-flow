@@ -101,6 +101,22 @@ async function requestJson<T>(path: string, init: RequestInit): Promise<ApiRespo
   return (await response.json()) as ApiResponse<T>;
 }
 
+export async function getRawJson<T>(path: string, signal?: AbortSignal): Promise<T> {
+  const requestUrl = resolveApiPath(path);
+  const headers: Record<string, string> = { Accept: "application/json" };
+  const requestInit: RequestInit = { headers, credentials: "same-origin" };
+
+  if (signal && acceptsAbortSignal(requestUrl, signal)) {
+    requestInit.signal = signal;
+  }
+
+  const response = await fetch(requestUrl, requestInit);
+  if (!response.ok) {
+    throw await apiError(response);
+  }
+  return (await response.json()) as T;
+}
+
 async function apiError(response: Response): Promise<ApiRequestError> {
   try {
     const payload = (await response.clone().json()) as Partial<ErrorResponse>;

@@ -228,8 +228,50 @@ export interface PublishedRelease {
   publishedAt: string;
 }
 
+export interface ReleaseManifestItem {
+  knowledgeRevisionId: string;
+  contentSha256: string;
+  disposition: string;
+  evidenceIds: string[];
+  chunkIds: string[];
+}
+
+export interface ReleaseManifest {
+  schemaVersion: "p17-release-v1";
+  releaseId: string;
+  releaseVersion: string;
+  baseReleaseId: string | null;
+  evaluationRunId: string;
+  chunkProfileId: string;
+  chunkProfileVersion: string;
+  rotationCaseIds: string[];
+  dbSchemaRevision: string;
+  knowledgeContractVersion: string;
+  parserProfileVersion: string;
+  modelProfileVersion: string;
+  promptProfileVersion: string;
+  indexDescriptor: {
+    objectKey: string;
+    sha256: string;
+    mediaType: string;
+    sizeBytes: number;
+  };
+  items: ReleaseManifestItem[];
+}
+
+export interface ReleasedManifest {
+  releaseId: string;
+  version: string;
+  manifestSha256: string;
+  manifest: ReleaseManifest;
+}
+
 export function releasePublishPath(releaseId: string): string {
   return `/api/prerelease/v1/releases/${encodeURIComponent(releaseId)}/publish`;
+}
+
+export function releaseManifestPath(releaseId: string): string {
+  return `/api/prerelease/v1/releases/${encodeURIComponent(releaseId)}/manifest`;
 }
 
 export function evaluationRunPath(evaluationRunId: string): string {

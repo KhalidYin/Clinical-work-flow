@@ -67,7 +67,7 @@ function workbench(blocked = false) {
   };
 }
 
-function renderApp(initialEntry = "/releases?candidate=release-candidate-ui") {
+function renderApp(initialEntry = "/releases?candidate=release-candidate-ui&release=") {
   const history = createMemoryHistory({ initialEntries: [initialEntry] });
   const router = createAppRouter(history);
   const queryClient = new QueryClient({
@@ -132,5 +132,93 @@ describe("P17 Release governance workbench", () => {
     expect((await screen.findAllByText("base_release_is_stale")).length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "发布候选版本" })).toBeDisabled();
     expect(publishedBody).toEqual({ baseReleaseId: "release-current-ui" });
+  });
+
+  it("opens an immutable historical Release from URL even when no candidate exists", async () => {
+    let requestedRelease = "";
+    server.use(
+      http.get(resolveApiPath(workbenchPath), () =>
+        HttpResponse.json({
+          ...workbench(),
+          data: {
+            ...workbench().data,
+            candidate: null,
+            diff: null,
+            gates: [],
+            blockers: [],
+            allowedActions: [],
+            history: [
+              {
+                releaseId: "release-historical-ui",
+                version: "2026.07.9",
+                status: "released",
+                baseReleaseId: "release-earlier-ui",
+                itemCount: 1,
+                isCurrent: false,
+                createdAt: "2026-07-31T08:00:00Z",
+                publishedAt: "2026-07-31T08:05:00Z",
+              },
+            ],
+          },
+        }),
+      ),
+      http.get(
+        resolveApiPath(
+          "/api/prerelease/v1/releases/release-historical-ui/manifest",
+        ),
+        ({ params }) => {
+          requestedRelease = String(params.releaseId ?? "release-historical-ui");
+          return HttpResponse.json({
+            releaseId: "release-historical-ui",
+            version: "2026.07.9",
+            manifestSha256: "a".repeat(64),
+            manifest: {
+              schemaVersion: "p17-release-v1",
+              releaseId: "release-historical-ui",
+              releaseVersion: "2026.07.9",
+              baseReleaseId: "release-earlier-ui",
+              evaluationRunId: "evaluation-historical-ui",
+              chunkProfileId: "chunk-profile-p17",
+              chunkProfileVersion: "v1",
+              rotationCaseIds: [],
+              dbSchemaRevision: "20260816_0012",
+              knowledgeContractVersion: "p17-v1",
+              parserProfileVersion: "parser-v1",
+              modelProfileVersion: "replay-v1",
+              promptProfileVersion: "prompt-v1",
+              indexDescriptor: {
+                objectKey: "releases/release-historical-ui/index.json",
+                sha256: "b".repeat(64),
+                mediaType: "application/json",
+                sizeBytes: 128,
+              },
+              items: [
+                {
+                  knowledgeRevisionId: "revision-historical-ui",
+                  contentSha256: "c".repeat(64),
+                  disposition: "carry_forward",
+                  evidenceIds: ["evidence-historical-ui"],
+                  chunkIds: ["chunk-historical-ui"],
+                },
+              ],
+            },
+          });
+        },
+      ),
+    );
+
+    const { router } = renderApp(
+      "/releases?candidate=&release=release-historical-ui",
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "历史 Release 详情" }),
+    ).toBeInTheDocument();
+    expect(await screen.findByText("revision-historical-ui")).toBeInTheDocument();
+    expect(screen.getAllByText("release-historical-ui").length).toBeGreaterThan(0);
+    expect(screen.getByText("evidence-historical-ui")).toBeInTheDocument();
+    expect(screen.getByText("chunk-historical-ui")).toBeInTheDocument();
+    expect(requestedRelease).toBe("release-historical-ui");
+    expect(router.state.location.search.release).toBe("release-historical-ui");
   });
 });

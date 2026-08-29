@@ -201,6 +201,19 @@ def test_real_postgres_repository_serves_authorized_read_routes(
                     release_manager_subject="usr-release-manager",
                     published_at=now,
                 ),
+                Release(
+                    release_id="rel-p1d-candidate-integration",
+                    version="2026.07-p1d-candidate-integration",
+                    status="candidate",
+                    manifest_object_key="release/p1d/candidate-manifest.json",
+                    manifest_sha256="c" * 64,
+                    db_schema_revision="20260730_0002",
+                    knowledge_contract_version="prerelease-v1",
+                    parser_profile_version="parser-none",
+                    model_profile_version="model-none",
+                    prompt_profile_version="prompt-none",
+                    index_manifest_version="idx-p1d-candidate-integration",
+                ),
             ]
         )
         session.flush()
@@ -377,6 +390,18 @@ def test_real_postgres_repository_serves_authorized_read_routes(
                         "correlation_id": "integration-release-001",
                     },
                 ),
+                AuditEvent(
+                    audit_event_id="audit-p1d-release-candidate-integration",
+                    actor_subject="usr-p1d-integration",
+                    action="release.candidate_built",
+                    entity_type="release",
+                    entity_id="rel-p1d-candidate-integration",
+                    run_id=None,
+                    details={
+                        "result": "candidate",
+                        "correlation_id": "integration-release-candidate-001",
+                    },
+                ),
             ]
         )
         session.flush()
@@ -482,6 +507,10 @@ def test_real_postgres_repository_serves_authorized_read_routes(
             "/api/prerelease/v1/audit-events",
             params={"release_id": "rel-p1d-integration"},
         )
+        candidate_release_audit = client.get(
+            "/api/prerelease/v1/audit-events",
+            params={"release_id": "rel-p1d-candidate-integration"},
+        )
         entity_audit = client.get(
             "/api/prerelease/v1/audit-events",
             params={"entity_id": "krev-p1d-integration"},
@@ -490,6 +519,7 @@ def test_real_postgres_repository_serves_authorized_read_routes(
         assert session.status_code == sources.status_code == users.status_code == 200
         assert release.status_code == relations.status_code == audit.status_code == 200
         assert case_audit.status_code == release_audit.status_code == 200
+        assert candidate_release_audit.status_code == 200
         assert entity_audit.status_code == 200
         assert session.json()["data"]["roles"] == ["platform_admin"]
         assert any(
@@ -557,7 +587,14 @@ def test_real_postgres_repository_serves_authorized_read_routes(
         ] == {
             "resourceType": "release",
             "resourceId": "rel-p1d-integration",
-            "path": "/releases?candidate=rel-p1d-integration",
+            "path": "/releases?release=rel-p1d-integration",
+        }
+        assert candidate_release_audit.json()["data"]["items"][0][
+            "authoritativeTarget"
+        ] == {
+            "resourceType": "release",
+            "resourceId": "rel-p1d-candidate-integration",
+            "path": "/releases?candidate=rel-p1d-candidate-integration",
         }
         assert entity_audit.json()["data"]["items"][0]["objectId"] == (
             "krev-p1d-integration"
@@ -606,6 +643,7 @@ def test_real_postgres_repository_serves_authorized_read_routes(
                             "audit-p1d-integration",
                             "audit-p1d-rotation-integration",
                             "audit-p1d-release-integration",
+                            "audit-p1d-release-candidate-integration",
                         )
                     )
                 )
@@ -667,6 +705,13 @@ def test_real_postgres_repository_serves_authorized_read_routes(
                 delete(PlatformUser).where(PlatformUser.user_id == "usr-p1d-integration")
             )
             database_session.execute(
-                delete(Release).where(Release.release_id == "rel-p1d-integration")
+                delete(Release).where(
+                    Release.release_id.in_(
+                        (
+                            "rel-p1d-integration",
+                            "rel-p1d-candidate-integration",
+                        )
+                    )
+                )
             )
         engine.dispose()
