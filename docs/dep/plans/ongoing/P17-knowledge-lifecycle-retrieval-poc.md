@@ -441,6 +441,15 @@ syncs_to:
 - 本地 `.venv` 曾漂移到不符合 `pyproject.toml` 的 MCP 2.0；已按声明恢复 `mcp>=1,<2` 并通过 `pip check`。一次诊断堆栈意外回显本地开发数据库凭据，未记录或复用该值；应在本轮后轮换本地密码。
 - `browser-use connect` 已确认现有 Chrome 未开启远程调试。浏览器规范要求用户选择启用真实 Chrome 调试或受管 profile；在选择与有效登录态到位前，P17-UI-01..08 的桌面/390px 总验收仍不能关闭。
 
+### P4-H full-stack fixture 预检结果（2026-08-29）
+
+- 只读核对当前 Compose 后确认：demo 只有 SourceVersion/Evidence/Chunk/单个 Candidate，不含 EvaluationRun、RotationCase、Release candidate 或历史 Release，不能支撑 P4 浏览器闭环；P4 输入条件中的“可重复合成 full-stack fixture 可用”属于尚未实现的假设。
+- E9 POC 原先以数据库全局 Candidate/Release 计数证明“未产生知识/发布”；在非空数据库会把无关对象误算为 E9 输出。TDD 新增真实 PostgreSQL合同后，检查改为只统计目标 SourceVersion 派生的 Candidate/Release；无关已发布对象不再造成误报。
+- 官方 E9 隔离环路再次通过：Recall@5 `0.888889`、Recall@10 `0.944444`、18 case、外部模型请求 `0`；原始 PDF 与本轮报告均留在 ignored `.poc-assets/`，不提交源文档。
+- 一次显式持久 Compose 预检证明 E9 的 6 个 Document 步骤全部成功并物化 41 Evidence/41 Chunk，但 `SourceRegistryService` 默认还创建第 7 个 Enrichment 步骤，常驻 Worker 随后因 `DataBoundaryViolation` 将 run 置为 failed。试验性的通用 persistent CLI 开关已撤回，避免把不安全入口留成正式能力。
+- 完整回归通过：Knowledge `311 passed, 13 skipped`、Workflow `366 passed, 1 skipped`、前端 `50 passed` 与 production build、Ruff 均成功。前端首次与两套 Python 全量并行时出现单条 5 秒资源争用超时；同文件 `6 passed`、随后前端全量独占 `50 passed`，未通过提高 timeout 掩盖。
+- 结论：E9 是 document-only retrieval baseline；轮转/Evaluation threshold/Release 仍使用合成事实。下一切片须建立独立、可重复的最小 full-stack fixture 或显式冻结 document-only processing plan，不能修改默认完整 Pipeline 语义，也不能用 MSW 冒充 production API。
+
 ### 边界（本 Phase 明确不做）
 
 - 不新增一级页面或重做设计系统，不引入无关动画、图表或 dashboard。
@@ -479,6 +488,7 @@ syncs_to:
 | P17-F05 | 默认 E9 POC 使用临时 PostgreSQL；即使运行中已写 EvaluationRun，容器清理后也不能被 Compose 页面读取 | P4-B | accepted POC boundary | 报告增加 `database_retention=ephemeral`，页面空状态只信当前 API；后续若增加持久环境启动命令，必须同时绑定正确对象存储与数据库，不能导入报告冒充 canonical run |
 | P17-F06 | 已保留数据的 Compose demo ledger 含旧四步 Document 图，当前新增 `project_chunks` 后拒绝用同一事实覆盖为五步图 | P4-B | resolved compatibility defect | 保留旧 run 不变，将 demo SourceVersion 提升到 `1.1.0` 并使用新幂等键创建新 epoch；补合同测试，未删除数据库或重写 ledger |
 | P17-F07 | 后端 Dockerfile 第二次安装本地包仍启用 build isolation，代码层变化后会绕过既有镜像配置访问 PyPI，TLS 抖动导致 Compose rebuild 失败 | P4-D | resolved build defect | 在受控镜像源依赖层显式安装 pyproject 已声明的 setuptools，再让第二次本地代码安装使用 `--no-index --no-build-isolation --no-deps`；不新增来源、业务依赖或代码层出站 |
+| P17-F08 | P4 输入假设“合成 full-stack fixture 可用”，但默认 Compose 既缺 Evaluation/Rotation/Release，又会让 retrieval-only E9 进入完整 Enrichment 图 | P4-H | open contract gap | 已撤回不安全的 persistent 开关并保留失败 run 审计；E9 scope-neutrality 已修复、隔离 Recall 已重验。下一步冻结 document-only baseline 与合成治理事实的独立可重复测试环境，完成前不得关闭浏览器 Gate |
 
 ## 关键决策记录
 

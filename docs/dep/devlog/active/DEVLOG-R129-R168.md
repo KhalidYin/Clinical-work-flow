@@ -469,3 +469,40 @@
 - canonical Guide/Spec/Test、P17/PLAN/TASK_STATE、DevLog/INDEX — `(P4-G docs phase commit)`
 
 ---
+
+### R141 [14:20] [P17-knowledge-lifecycle-retrieval-poc] P4-H: E9 scope gate and full-stack fixture preflight
+
+#### Done
+
+- 只读盘点当前 Compose canonical 数据，确认 demo 只有 Source/Evidence/Chunk/单个 Candidate，没有 EvaluationRun、RotationCase、Release candidate/current/history，不能满足 P17 浏览器全流程输入。
+- TDD 复现 E9 POC 在非空数据库把无关 Candidate/Release 误判为 E9 输出的问题；改为沿 ProcessingRun→Candidate→Revision→ReleaseItem 只统计目标 SourceVersion 派生对象。
+- 新增隔离真实 PostgreSQL合同，证明目标 E9 scope 保持 `0 Candidate/0 Release` 时，无关 scope 可同时存在 `1 Candidate/1 Release`；真实数据库 `1 passed`。
+- 重新执行官方 E9 隔离环路：39 页、41 Evidence/41 Chunk，Recall@5 `0.888889`、Recall@10 `0.944444`、外部模型请求 `0`；PDF/临时报告继续 ignored。
+- 持久 Compose 试验发现 E9 Document 六步已全部成功，但默认完整图还包含 Enrichment；常驻 Worker 因 E9 数据边界拒绝第七步。试验性 persistent CLI 已在提交前撤回，不把不安全入口保留为产品能力。
+
+#### Issues / Risks
+
+- P4 的 full-stack fixture 输入条件此前被过早标为满足。E9 retrieval baseline 与默认 Candidate enrichment 是不同处理计划；若不显式分离，常驻 Worker 会把基线 run 置为 failed。
+- 本轮在当前 Compose 留下一个可审计的失败 E9 run；没有删除数据库行、对象或覆盖管理员身份。是否清理需用户确认，不能用清库掩盖处理图冲突。
+- Chrome 远程调试/受管 profile 选择与有效登录态仍待用户确认；即使浏览器接入解决，full-stack fixture 未就绪前也不能关闭 P17-UI-01..08 总 Gate。
+- 真实模型、DeepSeek 与公共研究 gateway 未配置或调用；本轮唯一外部访问是已批准的官方 E9 资产校验，固定 SHA-256 通过。
+
+#### Validation
+
+- TDD RED：新 PostgreSQL测试因 `_poc_scope_counts` 不存在而 collection error；GREEN 后定向 `3 passed, 1 skipped`，隔离真实 PostgreSQL `1 passed`。
+- 官方 E9 ephemeral POC 成功：Recall@5 `0.888889`、Recall@10 `0.944444`、`externalModelRequests=0`。
+- 持久预检只用于暴露合同缺口；6 个 Document step succeeded、41 Evidence、41 Chunk，第 7 个 Enrichment 明确 `DataBoundaryViolation`，未生成 E9 Candidate/Release。
+- Knowledge 全量 `311 passed, 13 skipped`、Workflow `366 passed, 1 skipped`、Ruff 与前端 production build 通过。前端与两套 Python 全量并行时一条既有测试在 5 秒超时；同文件 `6 passed`、独占前端全量 `50 passed`，未修改 timeout 或产品代码。
+
+#### Next
+
+1. 以最小范围冻结独立 full-stack fixture：E9 仅 document-only retrieval baseline；Rotation/Evaluation Gate/Release 使用合成事实并复用生产服务/Worker，不导入测试模块到产品代码。
+2. fixture 具备重复创建/检查且不修改管理员密码后，再等待用户选择真实 Chrome 或受管 profile，执行桌面与 390px Gate。
+3. 风险：为追求“一套数据库全覆盖”而混淆两种 processing plan，或直接删除失败 run/用 MSW 掩盖真实后端缺口。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/scripts/ich_e9_poc.py`、`tests/test_ich_e9_poc_postgres_integration.py`
+- P17/PLAN/TASK_STATE、DevLog/INDEX（P4-H phase commit pending）
+
+---

@@ -1,7 +1,7 @@
 ---
 status: in-progress
 created: 2026-08-16 12:08
-updated: 2026-08-29 14:02
+updated: 2026-08-29 14:20
 ---
 
 # Current Task
@@ -41,14 +41,16 @@ P17 P4 — 在现有九项导航内补全 API 权威的知识治理 UI，并关�
 - [x] P4-E2：Relations 接入 lifecycle/release URL、只读谱系与缺边 partial 状态，Chunk 明确标记 derived，且不伪造 Chunk→Revision 权威边。
 - [x] P4-F：补 Audit entity/case/release 精确过滤、URL 状态与服务端权威对象跳转。
 - [x] P4-G：补历史 immutable Release 的 `release` URL、hash-verified manifest/membership 详情，以及 candidate/released 状态感知的 Audit 权威跳转。
+- [x] P4-H1：复核当前 Compose/browser fixture，确认默认 demo 不具备 Evaluation/Rotation/Release 完整浏览器事实；E9 直接接入常驻 Worker 又会错误进入 Enrichment。
+- [x] P4-H2：修复 E9 POC 的中立性检查，使其只统计目标 SourceVersion 派生的 Candidate/Release；隔离真实 PostgreSQL与官方 E9 环路通过，Recall@5 `0.888889`、Recall@10 `0.944444`、外部模型请求 `0`。
 - [ ] P4：补全现有治理 UI，并关闭前端、Workflow、浏览器和全链路 POC Gate。
 
 ## Working Context
 
-- **Files being edited**: Releases immutable history、Audit 状态感知 target、router/contracts/component/PostgreSQL tests 与本阶段文档。
-- **Last command run**: Knowledge `311 passed, 12 skipped`、Workflow `366 passed, 1 skipped`、前端 `50 passed`/production build、Ruff、隔离真实 PostgreSQL与 Compose rebuild/health 均通过；`browser-use connect` 因 Chrome 未开启远程调试而失败。
-- **Key decisions**: 历史 Release 详情直接复用既有 hash-verified immutable manifest resolver，不向 workbench 复制第二套状态；Audit 根据 canonical Release.status 将 candidate 跳到 `candidate` URL、released 跳到 `release` URL。
-- **Blocker**: API/组件/真实 PostgreSQL/Compose Gate 已关闭；现有 Chrome 没有开启远程调试，无法复用人员登录态。取得用户对“启用真实 Chrome 远程调试”或“使用受管浏览器 profile”的选择前，真实浏览器与 390px Gate不能执行；不得重置管理员密码或以组件测试替代。
+- **Files being edited**: E9 POC scope-neutrality query、真实 PostgreSQL合同、P17 fixture 风险记录与 DevLog。
+- **Last command run**: 隔离官方 E9 环路成功，Recall@5 `0.888889`、Recall@10 `0.944444`、外部模型请求 `0`；真实 PostgreSQL scope Gate `1 passed`。
+- **Key decisions**: E9 retrieval baseline 保持 document-only/ephemeral；没有先冻结独立 processing plan 前，不新增通用 persistent Compose 开关，也不允许常驻 Enrichment Worker 把 E9 baseline 当 Candidate 生产任务。
+- **Blocker**: P4 输入所称“可重复 full-stack fixture”实际尚未成立。当前 Compose demo 缺 Evaluation/Rotation/Release；一次显式 E9 持久预检证明 6 个 Document 步骤和 41 Evidence/41 Chunk 成功，但第 7 个 Enrichment 步骤因数据边界失败。另有 Chrome 远程调试/登录态选择仍待用户确认。两项都关闭前，不执行或宣称完整浏览器/390px Gate。
 
 ## Phase Context
 
@@ -60,4 +62,4 @@ P17 P4 — 在现有九项导航内补全 API 权威的知识治理 UI，并关�
 
 ## Resume From
 
-先提交并推送 P4-G 文档记录；用户选择浏览器接入方式后，执行 Sources→Processing→Candidates→Relations→Audit、Evaluation→Query Lab→Releases（含历史 Release）的桌面与 390px Gate。若受管 profile 也无有效登录态，只记录 blocker，不覆盖管理员密码，也不以组件测试替代浏览器验收。
+先冻结最小 full-stack fixture 边界：E9 只走 document-only retrieval baseline，轮转/发布继续使用合成事实，并通过公开服务/Worker 形成可重复的独立测试环境；不得把默认完整 Enrichment 图硬套到 E9。fixture 就绪且用户选择浏览器接入方式后，再执行桌面与 390px Gate。当前 Compose 中本轮创建的失败 E9 run 保留审计，未经用户确认不删除；不得覆盖管理员密码或以组件测试替代浏览器验收。

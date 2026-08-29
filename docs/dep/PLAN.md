@@ -8,7 +8,7 @@ updated: 2026-08-29
 
 | # | 当前 Gate | 子计划 | 状态 |
 |---|----------|--------|------|
-| P17 | P4 现有治理 UI 与全链路 Gate | [P17-knowledge-lifecycle-retrieval-poc.md](plans/ongoing/P17-knowledge-lifecycle-retrieval-poc.md) | P1-P3 done；P4 API/组件/PostgreSQL 已接通 UI-01..08 与历史 Release 详情；Chrome 未开启远程调试，等待用户选择浏览器接入后完成真实浏览器/390px Gate；不调用模型 |
+| P17 | P4 现有治理 UI 与全链路 Gate | [P17-knowledge-lifecycle-retrieval-poc.md](plans/ongoing/P17-knowledge-lifecycle-retrieval-poc.md) | P1-P3 done；P4 API/组件/PostgreSQL 已接通 UI-01..08 与历史 Release 详情；真实 Compose 预检确认 full-stack fixture 尚缺，E9 retrieval-only 与默认 Enrichment 图冲突；先补独立可重复 fixture，再等待用户选择浏览器接入完成桌面/390px Gate；不调用模型 |
 | P12 | P2-B3 live vertical 等待外部输入 | [P12-knowledge-application-platform.md](plans/ongoing/P12-knowledge-application-platform.md) | waiting/frozen；P17 执行期间不修改 Evaluation/Release，待后续轮换 key、synthetic Evidence、预算与单次授权 |
 
 ## 待开始
@@ -16,7 +16,7 @@ updated: 2026-08-29
 | # | 子计划 | 文件 | 预估轮次 | 依赖 |
 |---|--------|------|----------|------|
 
-P17 是当前唯一实施主线，也是 P12 未完成检索、评估与 Release 能力的聚焦实施合同，不建立平行产品权威。P12 live Gate 已冻结等待外部输入；P17/P1-P3 已完成 ICH E9 单文档离线 Recall、合成轮转/Evaluation、Release Worker 候选构建、人工发布、原子 current、历史重放和只读 REST/MCP manifest resolver；P4 已接通 current/历史 immutable Release FTS、真实 Query Lab、服务端登记 suite 的 Evaluation 启动、由 immutable EvaluationRun 恢复范围的候选重放、同 suite/purpose regression diff、服务端权威的 Releases 治理工作台与 hash-verified 历史 Release 详情、Processing 只读 Chunk Inspector、Candidates Rotation Queue、Sources SourceVersion history/比较/impact、Relations 生命周期谱系，以及 Audit entity/case/release 精确过滤和状态感知的服务端权威跳转。下一输入是选择真实 Chrome 远程调试或受管 browser profile，并取得有效人员登录态以关闭真实浏览器/390px Gate；不依赖真实模型 Key，也不得重置现有管理员密码。
+P17 是当前唯一实施主线，也是 P12 未完成检索、评估与 Release 能力的聚焦实施合同，不建立平行产品权威。P12 live Gate 已冻结等待外部输入；P17/P1-P3 已完成 ICH E9 单文档离线 Recall、合成轮转/Evaluation、Release Worker 候选构建、人工发布、原子 current、历史重放和只读 REST/MCP manifest resolver；P4 已接通 current/历史 immutable Release FTS、真实 Query Lab、服务端登记 suite 的 Evaluation 启动、由 immutable EvaluationRun 恢复范围的候选重放、同 suite/purpose regression diff、服务端权威的 Releases 治理工作台与 hash-verified 历史 Release 详情、Processing 只读 Chunk Inspector、Candidates Rotation Queue、Sources SourceVersion history/比较/impact、Relations 生命周期谱系，以及 Audit entity/case/release 精确过滤和状态感知的服务端权威跳转。真实 Compose 预检已纠正“full-stack fixture 可用”的过早假设：E9 的 6 个 Document 步骤可生成 41 Evidence/41 Chunk，但默认第 7 个 Enrichment 步骤违反 retrieval-only 数据边界；因此下一任务是建立独立、可重复的最小测试环境，把 E9 document-only baseline 与合成轮转/发布事实组合而不混淆处理计划。之后再选择真实 Chrome 远程调试或受管 browser profile，并取得有效人员登录态以关闭浏览器/390px Gate；不依赖真实模型 Key，也不得重置现有管理员密码。
 
 P13、H0、P14、P15 与 P16 已关闭。OpenCode `1.18.14` 已完成容器准入；R111-R125 完成 Receipt 落账、独立 Supervisor、产品拥有的 hash-locked Pack、真实 Skill/MCP/internal Mock、PostgreSQL canonical Evidence → Candidate/API 本地 POC、随机空卷双 Worker正向环路、schema-invalid/timeout 离线失败矩阵、本地 tmpfs Secret 与能力保持型模型 gateway。普通 Compose 仍默认 replay；当前实现由 P17 推进，P12 保持架构权威并冻结 live Gate。显式 `harness` profile 可加载 DeepSeek runtime binding，但没有 secret/live 产品授权时不会调用。受控作用于 Attempt 外部副作用，不全局阉割 OpenCode 的 Skill/MCP/browser/工具循环；公共研究 recording gateway 仍是明确保留但尚未实现的独立能力。P12 live 下一输入必须由用户另行确认轮换 key、获授权 synthetic Evidence、网络策略、单次预算和明确调用授权。真实供应商调用仍未授权、未发生。
 
