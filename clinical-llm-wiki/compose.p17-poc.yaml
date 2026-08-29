@@ -1,0 +1,91 @@
+x-p17-environment: &p17-environment
+  KNOWLEDGE_DATABASE_URL: postgresql+psycopg://p17fixture:${P17_POC_POSTGRES_PASSWORD:?set P17_POC_POSTGRES_PASSWORD}@postgres:5432/clinical_p17_full_stack
+  KNOWLEDGE_OBJECT_STORE_ROOT: /var/lib/clinical-knowledge/objects
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.1-pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: clinical_p17_full_stack
+      POSTGRES_USER: p17fixture
+      POSTGRES_PASSWORD: ${P17_POC_POSTGRES_PASSWORD:?set P17_POC_POSTGRES_PASSWORD}
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          pg_isready -U p17fixture -d clinical_p17_full_stack
+          && test "$$(tr '\000' ' ' < /proc/1/cmdline)" = 'postgres '
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    volumes:
+      - p17-postgres:/var/lib/postgresql/data
+
+  fixture:
+    build: .
+    image: clinical-knowledge-platform:local
+    restart: "no"
+    working_dir: /workspace
+    command:
+      - python
+      - scripts/p17_full_stack_fixture.py
+      - prepare
+      - --asset-path
+      - /assets/ich-e9/E9_Guideline.pdf
+      - --receipt
+      - /runtime/receipt.json
+    environment:
+      <<: *p17-environment
+      PYTHONPATH: /workspace
+      P17_FIXTURE_CONTAINER_MODE: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - .:/workspace:ro
+      - ./.poc-assets/ich-e9:/assets/ich-e9:ro
+      - ${P17_POC_RUNTIME_DIR:?set P17_POC_RUNTIME_DIR}:/runtime
+      - p17-objects:/var/lib/clinical-knowledge/objects
+
+  api:
+    build: .
+    image: clinical-knowledge-platform:local
+    command: ["python", "-m", "service.platform_api.main"]
+    restart: unless-stopped
+    environment:
+      <<: *p17-environment
+      KNOWLEDGE_API_HOST: 0.0.0.0
+      KNOWLEDGE_API_PORT: "8788"
+      KNOWLEDGE_API_BIND_SCOPE: compose_local
+      KNOWLEDGE_ORGANIZATION_NAME: P17 isolated browser POC
+      KNOWLEDGE_BROWSER_ORIGINS: http://127.0.0.1:${P17_POC_FRONTEND_PORT:-4183},http://localhost:${P17_POC_FRONTEND_PORT:-4183}
+      KNOWLEDGE_RUNTIME_CONSUMER_SECRET: ${P17_POC_RUNTIME_CONSUMER_SECRET:?set P17_POC_RUNTIME_CONSUMER_SECRET}
+    depends_on:
+      fixture:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8788/api/prerelease/v1/health', timeout=2)
+      interval: 5s
+      timeout: 3s
+      retries: 24
+    ports: ["127.0.0.1:${P17_POC_API_PORT:-8798}:8788"]
+    volumes:
+      - p17-objects:/var/lib/clinical-knowledge/objects
+
+  frontend:
+    build: ./frontend
+    image: clinical-knowledge-frontend:local
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports: ["127.0.0.1:${P17_POC_FRONTEND_PORT:-4183}:80"]
+
+volumes:
+  p17-postgres:
+  p17-objects:

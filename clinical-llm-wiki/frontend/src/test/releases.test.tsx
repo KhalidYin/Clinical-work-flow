@@ -5,6 +5,7 @@ import { HttpResponse, http } from "msw";
 
 import { resolveApiPath } from "../contracts/knowledgeApi";
 import { server } from "../mocks/server";
+import releasePageCss from "../pages/pages.module.css?raw";
 import { createAppRouter } from "../router";
 
 
@@ -15,6 +16,13 @@ const meta = {
   fixture: false,
   generatedAt: "2026-08-16T10:00:00Z",
 };
+
+it("keeps the Release workbench bounded while its diff scrolls on narrow screens", () => {
+  expect(releasePageCss).toMatch(/\.releaseWorkbench\s*\{[^}]*min-width:\s*0/s);
+  expect(releasePageCss).toMatch(
+    /\.releaseWorkbench\s*>\s*section\s*\{[^}]*min-width:\s*0[^}]*max-width:\s*100%/s,
+  );
+});
 
 function workbench(blocked = false) {
   return {
@@ -134,6 +142,71 @@ describe("P17 Release governance workbench", () => {
     expect(publishedBody).toEqual({ baseReleaseId: "release-current-ui" });
   });
 
+  it("clears the consumed candidate URL and reloads current after publication", async () => {
+    let unscopedWorkbenchCalls = 0;
+    const afterPublication = {
+      ...workbench(),
+      data: {
+        ...workbench().data,
+        current: {
+          ...workbench().data.current,
+          releaseId: "release-candidate-ui",
+          version: "2026.08.2",
+        },
+        candidate: {
+          ...workbench().data.candidate,
+          releaseId: "release-stale-ui",
+          version: "2026.08.stale",
+          baseReleaseId: "release-current-ui",
+        },
+        gates: [
+          {
+            code: "base_release_current",
+            passed: false,
+            reason: "base_release_is_stale",
+          },
+        ],
+        blockers: ["base_release_is_stale"],
+        allowedActions: [],
+      },
+    };
+    server.use(
+      http.get(resolveApiPath(workbenchPath), ({ request }) => {
+        const candidateId = new URL(request.url).searchParams.get("candidate_id");
+        if (candidateId === "release-candidate-ui") return HttpResponse.json(workbench());
+        if (candidateId === "release-stale-ui") return HttpResponse.json(afterPublication);
+        unscopedWorkbenchCalls += 1;
+        return HttpResponse.json(afterPublication);
+      }),
+      http.post(resolveApiPath(publishPath), () =>
+        HttpResponse.json({
+          data: {
+            releaseId: "release-candidate-ui",
+            version: "2026.08.2",
+            previousReleaseId: "release-current-ui",
+            manifestObjectKey: "releases/release-candidate-ui/manifest.json",
+            manifestSha256: "a".repeat(64),
+            indexManifestVersion: "p17-index-v1",
+            publishedAt: "2026-08-16T10:05:00Z",
+          },
+          meta,
+        }),
+      ),
+    );
+    const { router } = renderApp();
+
+    fireEvent.click(await screen.findByRole("button", { name: "发布候选版本" }));
+
+    await waitFor(() => expect(unscopedWorkbenchCalls).toBeGreaterThan(0));
+    await waitFor(() =>
+      expect(router.state.location.search.candidate).toBe("release-stale-ui"),
+    );
+    expect(await screen.findByText("2026.08.stale")).toBeInTheDocument();
+    expect(screen.getByText("2026.08.2")).toBeInTheDocument();
+    expect(screen.getAllByText("base_release_is_stale").length).toBeGreaterThan(0);
+    expect(screen.queryByText("无法读取 Release 权威状态")).not.toBeInTheDocument();
+  });
+
   it("opens an immutable historical Release from URL even when no candidate exists", async () => {
     let requestedRelease = "";
     server.use(
@@ -169,36 +242,36 @@ describe("P17 Release governance workbench", () => {
         ({ params }) => {
           requestedRelease = String(params.releaseId ?? "release-historical-ui");
           return HttpResponse.json({
-            releaseId: "release-historical-ui",
+            release_id: "release-historical-ui",
             version: "2026.07.9",
-            manifestSha256: "a".repeat(64),
+            manifest_sha256: "a".repeat(64),
             manifest: {
-              schemaVersion: "p17-release-v1",
-              releaseId: "release-historical-ui",
-              releaseVersion: "2026.07.9",
-              baseReleaseId: "release-earlier-ui",
-              evaluationRunId: "evaluation-historical-ui",
-              chunkProfileId: "chunk-profile-p17",
-              chunkProfileVersion: "v1",
-              rotationCaseIds: [],
-              dbSchemaRevision: "20260816_0012",
-              knowledgeContractVersion: "p17-v1",
-              parserProfileVersion: "parser-v1",
-              modelProfileVersion: "replay-v1",
-              promptProfileVersion: "prompt-v1",
-              indexDescriptor: {
-                objectKey: "releases/release-historical-ui/index.json",
+              schema_version: "p17-release-v1",
+              release_id: "release-historical-ui",
+              release_version: "2026.07.9",
+              base_release_id: "release-earlier-ui",
+              evaluation_run_id: "evaluation-historical-ui",
+              chunk_profile_id: "chunk-profile-p17",
+              chunk_profile_version: "v1",
+              rotation_case_ids: [],
+              db_schema_revision: "20260816_0012",
+              knowledge_contract_version: "p17-v1",
+              parser_profile_version: "parser-v1",
+              model_profile_version: "replay-v1",
+              prompt_profile_version: "prompt-v1",
+              index_descriptor: {
+                object_key: "releases/release-historical-ui/index.json",
                 sha256: "b".repeat(64),
-                mediaType: "application/json",
-                sizeBytes: 128,
+                media_type: "application/json",
+                size_bytes: 128,
               },
               items: [
                 {
-                  knowledgeRevisionId: "revision-historical-ui",
-                  contentSha256: "c".repeat(64),
+                  knowledge_revision_id: "revision-historical-ui",
+                  content_sha256: "c".repeat(64),
                   disposition: "carry_forward",
-                  evidenceIds: ["evidence-historical-ui"],
-                  chunkIds: ["chunk-historical-ui"],
+                  evidence_ids: ["evidence-historical-ui"],
+                  chunk_ids: ["chunk-historical-ui"],
                 },
               ],
             },

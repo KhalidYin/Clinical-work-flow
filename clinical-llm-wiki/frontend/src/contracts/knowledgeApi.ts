@@ -266,6 +266,77 @@ export interface ReleasedManifest {
   manifest: ReleaseManifest;
 }
 
+export interface ReleasedManifestWire {
+  release_id: string;
+  version: string;
+  manifest_sha256: string;
+  manifest: {
+    schema_version: "p17-release-v1";
+    release_id: string;
+    release_version: string;
+    base_release_id: string | null;
+    evaluation_run_id: string;
+    chunk_profile_id: string;
+    chunk_profile_version: string;
+    rotation_case_ids: string[];
+    db_schema_revision: string;
+    knowledge_contract_version: string;
+    parser_profile_version: string;
+    model_profile_version: string;
+    prompt_profile_version: string;
+    index_descriptor: {
+      object_key: string;
+      sha256: string;
+      media_type: string;
+      size_bytes: number;
+    };
+    items: Array<{
+      knowledge_revision_id: string;
+      content_sha256: string;
+      disposition: string;
+      evidence_ids: string[];
+      chunk_ids: string[];
+    }>;
+  };
+}
+
+export function releasedManifestFromWire(payload: ReleasedManifestWire): ReleasedManifest {
+  const manifest = payload.manifest;
+  return {
+    releaseId: payload.release_id,
+    version: payload.version,
+    manifestSha256: payload.manifest_sha256,
+    manifest: {
+      schemaVersion: manifest.schema_version,
+      releaseId: manifest.release_id,
+      releaseVersion: manifest.release_version,
+      baseReleaseId: manifest.base_release_id,
+      evaluationRunId: manifest.evaluation_run_id,
+      chunkProfileId: manifest.chunk_profile_id,
+      chunkProfileVersion: manifest.chunk_profile_version,
+      rotationCaseIds: manifest.rotation_case_ids,
+      dbSchemaRevision: manifest.db_schema_revision,
+      knowledgeContractVersion: manifest.knowledge_contract_version,
+      parserProfileVersion: manifest.parser_profile_version,
+      modelProfileVersion: manifest.model_profile_version,
+      promptProfileVersion: manifest.prompt_profile_version,
+      indexDescriptor: {
+        objectKey: manifest.index_descriptor.object_key,
+        sha256: manifest.index_descriptor.sha256,
+        mediaType: manifest.index_descriptor.media_type,
+        sizeBytes: manifest.index_descriptor.size_bytes,
+      },
+      items: manifest.items.map((item) => ({
+        knowledgeRevisionId: item.knowledge_revision_id,
+        contentSha256: item.content_sha256,
+        disposition: item.disposition,
+        evidenceIds: item.evidence_ids,
+        chunkIds: item.chunk_ids,
+      })),
+    },
+  };
+}
+
 export function releasePublishPath(releaseId: string): string {
   return `/api/prerelease/v1/releases/${encodeURIComponent(releaseId)}/publish`;
 }

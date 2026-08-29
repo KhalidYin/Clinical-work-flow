@@ -6,10 +6,11 @@ import { LoadingSkeleton } from "../components/LoadingSkeleton";
 import { StatePanel } from "../components/StatePanel";
 import {
   API_PATHS,
+  releasedManifestFromWire,
   releaseManifestPath,
   releasePublishPath,
   type PublishedRelease,
-  type ReleasedManifest,
+  type ReleasedManifestWire,
   type ReleaseDiff,
   type ReleasePublishRequest,
   type ReleaseWorkbench,
@@ -61,8 +62,10 @@ export function ReleasesPage({
   const candidate = record?.candidate;
   const historicalRelease = useQuery({
     queryKey: ["released-manifest", releaseId],
-    queryFn: ({ signal }) =>
-      getRawJson<ReleasedManifest>(releaseManifestPath(releaseId), signal),
+    queryFn: async ({ signal }) =>
+      releasedManifestFromWire(
+        await getRawJson<ReleasedManifestWire>(releaseManifestPath(releaseId), signal),
+      ),
     enabled: Boolean(releaseId),
     staleTime: Number.POSITIVE_INFINITY,
   });
@@ -73,6 +76,9 @@ export function ReleasesPage({
         releasePublishPath(candidate.releaseId),
         { baseReleaseId: candidate.baseReleaseId },
       );
+    },
+    onSuccess: () => {
+      onCandidateChange("");
     },
     onSettled: async () => {
       await queryClient.invalidateQueries({ queryKey: ["release-workbench"] });
