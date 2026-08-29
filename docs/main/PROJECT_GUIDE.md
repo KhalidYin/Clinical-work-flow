@@ -33,7 +33,7 @@
 
 | 领域 | 当前基线 | 目标状态 |
 |------|----------|----------|
-| 知识控制面 | PostgreSQL durable DAG、Document/Enrichment/Release Worker、ObjectStore、Candidate/Review、React GUI 已有骨架；P17/P1-P3 已接通版本化 Chunk、轮转、E9 Recall、Evaluation 与 immutable Release/current/history/manifest resolver，P4 已接 Release Query Lab、Evaluation、Releases、只读 Chunk Inspector、Rotation Queue 与 SourceVersion 比较 | 补全生命周期谱系/审计、vector/relation route 与生产级 Knowledge MCP 接线 |
+| 知识控制面 | PostgreSQL durable DAG、Document/Enrichment/Release Worker、ObjectStore、Candidate/Review、React GUI 已有骨架；P17/P1-P3 已接通版本化 Chunk、轮转、E9 Recall、Evaluation 与 immutable Release/current/history/manifest resolver，P4 已接 Release Query Lab、Evaluation、Releases/历史详情、只读 Chunk Inspector、Rotation Queue、SourceVersion 比较、生命周期谱系与审计 | 完成认证浏览器/390px Gate、vector/relation route 与生产级 Knowledge MCP 接线 |
 | 临床控制面 | 固定十阶段合同、Review Protocol、ActionPolicy、Study 文件状态已有原型；仍存在自建 Agent Loop、多套状态表达和执行入口 | 收敛为唯一 Workflow Orchestrator，由容器化 Harness 执行 Engine 已选定的 Step |
 | Harness | 已有版本化合同、独立 Supervisor 生命周期、staging/MCP、OpenCode digest 准入、P15 PostgreSQL/API 本地 POC 及 P16/P2-P3 本地 tmpfs `secret://`/模型 gateway；普通 Compose 仍默认 replay | 以更收敛的生产 runtime/Secret authority 和分策略出站部署 Harness Attempt，不向业务 Worker 暴露 Docker 控制权 |
 | MCP | Attempt 级 broker 与 OpenCode 标准 stdio shim 已纳入独立 Supervisor 离线部署并实测 `initialize/tools-list/tools/call`、路径拒绝和脱敏审计；知识消费仍主要是 REST | 扩展确定性工具；知识消费 MCP 只从 immutable Release 读取 |
@@ -202,6 +202,8 @@ P17/P4-B 的 Releases workbench 由后端返回 current、候选、历史、五�
 allowed action；浏览器不直接读取 manifest 或自行判断能否发布。Release Manager 的发布命令必须显式携带
 `base_release_id`，发布事务继续复核对象 hash、current base、passed EvaluationRun 和 publication snapshot；409 后
 客户端刷新权威状态。候选仍只能由独立 Release Worker 构建，工作台不把人类会话扩权成 Worker。
+历史详情复用同一个 immutable manifest resolver，并以 `release` URL 展示冻结的 Revision/Evidence/Chunk membership；
+Audit 对 `candidate` 与 `released` 使用不同 URL 参数，选择依据只来自 PostgreSQL canonical Release 状态。
 
 P17/P4-C 已将既有 chunk projection 与 rotation API 接入现有 Processing/Candidates 页面。Chunk Inspector 仅做
 Evidence/Chunk 双向定位与 Profile、token、span、overlap、locator、rights、boundary、finding 展示，不产生新的
@@ -211,7 +213,8 @@ stale 后刷新 canonical Case，并展示不可变 DecisionReceipt。
 P17/P4-D 将 Sources 接到 SourceVersion history 与 impact materialization：客户端只提交同一 Source 下不同的
 from/to SourceVersion ID，服务端固定 `evidence-comparison-v1`、计算七类变化和受影响 Knowledge/RotationCase 数，
 并按权限返回 `allowedActions`。重复比较复用 immutable assessment，同版本或跨 Source 输入 fail closed；浏览器不
-提交 profile、计数或自动延续判断。生命周期谱系/审计 read model 和认证真实浏览器/390px 验收尚未完成。
+提交 profile、计数或自动延续判断。P17/P4-E/F 已接通生命周期谱系与审计 read model；认证真实浏览器/390px
+验收尚未完成，当前 Chrome 还需用户选择开启远程调试或改用受管 profile。
 
 ### 容器化 Harness Runtime
 

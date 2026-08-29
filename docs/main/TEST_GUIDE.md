@@ -123,7 +123,7 @@ Attempt 预算内终止 OpenCode 并返回 `timed_out` Receipt。两者均要求
 - ICH E9 retrieval（P17/P2/P4-B）：`python -m scripts.ich_e9_poc` 在临时 pgvector PostgreSQL 中下载/校验或复用本地 ignored E9，执行六步 Document DAG、metadata+FTS、18 条 GoldCase、Recall@5/10 与 informational EvaluationRun 持久化/重放，并销毁容器。报告还验证服务端 suite registry、重复启动的同事实稳定性、Run/Case 恢复候选范围及 self-regression；必须包含逐题 Evidence 命中/失败类别、单文档非认证声明、vector/relation degraded、generation disabled、`external_model_requests=0` 和 `database_retention=ephemeral`。
 - Release evaluation（P17/P3-B）：自动 threshold 只使用独立合成 suite；覆盖 pass/fail、逐指标失败原因、重复零增量、payload/列漂移拒绝、`release_id IS NULL` 和零模型请求。E9 Recall 报告不得作为该 Gate 输入。
 - 认证：用户名、Argon2id、HttpOnly/SameSite Cookie、CSRF、会话撤销和 RBAC。
-- 前端：Vitest/Testing Library 已覆盖核心组件行为，包括 Chunk 双向定位、Rotation allowed-action payload、stale 刷新与唯一 receipt、SourceVersion URL/比较/impact、Relations 服务端生命周期分支与 Release URL，以及 Audit entity/case/release 精确筛选和权威 target；真实浏览器与 390px 窄屏仍不是已签入自动化 E2E。
+- 前端：Vitest/Testing Library `50 passed` 已覆盖核心组件行为，包括 Chunk 双向定位、Rotation allowed-action payload、stale 刷新与唯一 receipt、SourceVersion URL/比较/impact、Relations 服务端生命周期分支与 Release URL、无 candidate 时的历史 immutable Release 详情，以及 Audit entity/case/release 精确筛选和 candidate/released 状态感知 target；真实浏览器与 390px 窄屏仍不是已签入自动化 E2E。
 - Workflow：固定阶段合同、ActionPolicy、Review Protocol、知识 Release resolve 和 ADAE fixture；start/resume ledger 只在限定 POC Workbench 中可执行，不是通用 Runtime。
 
 ### 尚未覆盖
@@ -131,7 +131,7 @@ Attempt 预算内终止 OpenCode 并返回 `timed_out` Receipt。两者均要求
 - 面向生产的 socket proxy/rootless runtime authority、TLS/服务身份轮换与获授权出站网络；当前只覆盖显式本地 Compose 离线信任链。
 - 生产 Secret Manager、生产 socket/rootless runtime authority、真实供应商出站质量与公共研究 recording gateway；P16 只使用合成 secret 和本地 TLS 假 endpoint，未调用 DeepSeek。全仓、Frontend、Workflow、migration 与 Compose 汇总 Gate 已通过。
 - 非 root Supervisor、socket proxy/远程容器运行时、明确 UID/GID 的 volume ownership；P15 为隔离的每 Attempt 临时目录开放宽写权限只服务本地 POC，不能沿用为生产证明。
-- P17/P3 已在真实 PostgreSQL 联合验收 EvaluationRun、Release Worker candidate、人工发布、stale base、current pointer、历史重放、对象漂移与紧急退役；P4-A/B 继续验收 immutable Release 查询、E9 Evaluation operations 与 Releases 治理，P4-C 已接只读 Chunk Inspector 和 Rotation Queue。P4-D 又覆盖 Source history、固定 comparison profile、同版本 422、权限、幂等重放、impact summary 与隔离真实 PostgreSQL，前端全量达到 `47 passed`。标准 MCP 仍只读解析 immutable manifest；vector/relation、Attempt 级 MCP broker、生命周期谱系/审计和认证浏览器 E2E 尚未实现。E9 文件报告不是 Release Gate 或当前数据库权威。
+- P17/P3 已在真实 PostgreSQL 联合验收 EvaluationRun、Release Worker candidate、人工发布、stale base、current pointer、历史重放、对象漂移与紧急退役；P4-A/B 继续验收 immutable Release 查询、E9 Evaluation operations 与 Releases 治理，P4-C 已接只读 Chunk Inspector 和 Rotation Queue，P4-D 覆盖 Source history/固定 comparison，P4-E/F/G 覆盖 lifecycle/audit、历史 manifest 详情及 candidate/released target。标准 MCP 仍只读解析 immutable manifest；vector/relation、Attempt 级 MCP broker 和认证浏览器 E2E 尚未实现。E9 文件报告不是 Release Gate 或当前数据库权威。
 - 临床统一 Runner 与 Harness artifact promotion。
 - 可重复执行的浏览器 E2E 与视觉回归门禁。
 

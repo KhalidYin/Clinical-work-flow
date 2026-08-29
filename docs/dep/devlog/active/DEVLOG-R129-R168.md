@@ -431,3 +431,41 @@
 - canonical Spec/Test、P17/PLAN/TASK_STATE、DevLog/INDEX（P4-E/F phase commit）
 
 ---
+
+### R140 [14:02] [P17-knowledge-lifecycle-retrieval-poc] P4-G: Historical immutable Release detail and browser preflight
+
+#### Done
+
+- 复核 P17-UI-06 后确认“旧 Release 仍可打开”不是登录态问题，而是既有页面只显示 history 摘要且无 candidate 时隐藏历史区的产品缺口；按 TDD 先观察失败测试，再完成最小修复。
+- Releases 增加 `release` URL 状态并直接调用既有 immutable manifest resolver，展示 hash-verified base、manifest SHA、ChunkProfile、index object 与 Revision/Evidence/Chunk membership；没有 candidate 时仍可查看历史，不复制第二套 Release read model。
+- Audit Release target 改为 canonical 状态感知：candidate 进入候选 workbench，released 进入 immutable history；不存在/未知状态不生成伪权威链接。
+- 本地 `.venv` 的 MCP 包漂移到不符合 `pyproject.toml` 的 2.0，已从官方 Python 包源恢复到声明范围 `mcp>=1,<2` 并通过 `pip check`；未修改依赖合同。
+- 浏览器前置探测完成：doctor 在 UTF-8 输出下通过核心检查，但现有 Chrome 未启用远程调试，无法复用人员登录态。按浏览器验收规范，等待用户选择真实 Chrome 调试或受管 profile。
+
+#### Issues / Risks
+
+- 一次直连 Compose 私网数据库的失败诊断在堆栈中意外回显本地开发数据库密码；该值未写入文件、日志正文或后续命令，应在本轮后轮换本地开发密码。
+- 真实浏览器与 390px 仍未执行；不得把 `50 passed` 组件测试替代视觉/行为 Gate，也不得为方便测试重置管理员密码。
+- semantic index、真实模型与公共研究 gateway 仍不在 P17 范围；本轮无模型调用或供应商请求。
+
+#### Validation
+
+- TDD RED：无 candidate 的历史 `release` URL 找不到详情；candidate Audit target 被错误送往历史 resolver。GREEN 后前端 `12 passed` files / `50 passed` tests，production build 通过。
+- 隔离真实 pgvector PostgreSQL `1 passed`，同时验证 released/candidate 两类 Audit target；临时容器自动删除。
+- Knowledge `311 passed, 12 skipped`、Ruff、`pip check` 通过；Clinical Workflow `366 passed, 1 skipped`。
+- 默认 Compose rebuild/`--wait` 通过，Knowledge API/frontend/PostgreSQL/两个 Worker healthy；独立 Harness 四容器保持 healthy。
+- `browser-use connect` 明确返回 Chrome 未开启 remote debugging；没有读取 Cookie、密码或重置身份。
+
+#### Next
+
+1. 提交 P4-G 文档并推送代码/文档两个阶段提交，核对本地、upstream 与远端一致。
+2. 用户选择：开启真实 Chrome 远程调试并复用现有登录态，或使用受管 browser profile；随后执行桌面与 390px 跨页 Gate。
+3. 浏览器 Gate 通过后再逐项关闭 P17-UI-01..08、同步 P12 对应状态并归档 P17。风险是认证状态仍不可用或历史 Compose 对象完整性失败关闭。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/frontend/src/` Releases history/contracts/router/CSS/client 与 component tests — `2cba292`
+- `clinical-llm-wiki/service/platform_api/repository.py`、真实 PostgreSQL integration test — `2cba292`
+- canonical Guide/Spec/Test、P17/PLAN/TASK_STATE、DevLog/INDEX — `(P4-G docs phase commit)`
+
+---

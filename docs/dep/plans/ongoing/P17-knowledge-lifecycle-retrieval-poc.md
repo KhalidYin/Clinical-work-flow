@@ -2,7 +2,7 @@
 phase_index: 17
 status: in-progress
 created: 2026-08-15
-updated: 2026-08-16
+updated: 2026-08-29
 priority: 1
 estimated_rounds: 11-15
 depends_on: []
@@ -432,6 +432,14 @@ syncs_to:
 - TDD 先观察 Relations/Audit 后端与前端 RED；GREEN 后 platform API `41 passed`，前端 `49 passed` 与 production build、Knowledge `311 passed, 12 skipped`、Ruff、Workflow `366 passed, 1 skipped` 均通过。真实 PostgreSQL relation/audit Gate `1 passed`，测试临时切换 singleton current pointer 并在结束后原样恢复。
 - 默认 Knowledge Compose rebuild/`--wait` 通过；API、PostgreSQL、前端和两个 Worker 正常，独立 Harness 四容器保持 healthy。未配置或调用真实模型。
 - 有效人员登录态仍不可用，本轮没有重置管理员密码。因此 P17-UI-07/08 的 API、组件和 PostgreSQL切片完成，但真实浏览器、390px 与完整 P4 跨页 Gate仍保持未关闭，不能宣告 P17 完成。
+
+### P4-G 历史 Release 独立查看结果（2026-08-29）
+
+- Releases 页面新增 `release` URL 状态并直接读取既有 hash-verified immutable manifest resolver；即使没有待发布 candidate，历史列表和选中 Release 的 base、manifest SHA、ChunkProfile、index object、Revision/Evidence/Chunk membership 仍可只读打开，前端不重算或复制发布事实。
+- Audit 的 Release target 改为状态感知：canonical `candidate` 进入 workbench candidate 参数，`released` 进入历史 `release` 参数；不存在或未知状态不生成伪权威 target。
+- TDD 已观察历史详情缺失与 candidate/released 错路由两个 RED；GREEN 后前端 `50 passed`、production build、Knowledge `311 passed, 12 skipped`、Workflow `366 passed, 1 skipped`、Ruff、隔离真实 PostgreSQL和 Compose health 均通过。
+- 本地 `.venv` 曾漂移到不符合 `pyproject.toml` 的 MCP 2.0；已按声明恢复 `mcp>=1,<2` 并通过 `pip check`。一次诊断堆栈意外回显本地开发数据库凭据，未记录或复用该值；应在本轮后轮换本地密码。
+- `browser-use connect` 已确认现有 Chrome 未开启远程调试。浏览器规范要求用户选择启用真实 Chrome 调试或受管 profile；在选择与有效登录态到位前，P17-UI-01..08 的桌面/390px 总验收仍不能关闭。
 
 ### 边界（本 Phase 明确不做）
 

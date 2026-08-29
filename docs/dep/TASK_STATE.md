@@ -1,7 +1,7 @@
 ---
 status: in-progress
 created: 2026-08-16 12:08
-updated: 2026-08-29 13:37
+updated: 2026-08-29 14:02
 ---
 
 # Current Task
@@ -40,14 +40,15 @@ P17 P4 — 在现有九项导航内补全 API 权威的知识治理 UI，并关�
 - [x] P4-E1：扩展 Relations 后端 read model，由服务端投影 SourceVersion/Evidence/derived Chunk/KnowledgeRevision/Release 谱系与 release membership。
 - [x] P4-E2：Relations 接入 lifecycle/release URL、只读谱系与缺边 partial 状态，Chunk 明确标记 derived，且不伪造 Chunk→Revision 权威边。
 - [x] P4-F：补 Audit entity/case/release 精确过滤、URL 状态与服务端权威对象跳转。
+- [x] P4-G：补历史 immutable Release 的 `release` URL、hash-verified manifest/membership 详情，以及 candidate/released 状态感知的 Audit 权威跳转。
 - [ ] P4：补全现有治理 UI，并关闭前端、Workflow、浏览器和全链路 POC Gate。
 
 ## Working Context
 
-- **Files being edited**: Relations/Audit repository/API/OpenAPI、前端只读视图、router/contracts/fixtures、PostgreSQL/contract/component tests 与本阶段文档。
-- **Last command run**: Knowledge `311 passed, 12 skipped`、Workflow `366 passed, 1 skipped`；前端 `49 passed`/production build、Ruff、真实 PostgreSQL relation/audit Gate 与 Compose rebuild/health 均通过。
-- **Key decisions**: 复用 `/relations/query` 作为服务端权威投影，不新增顶级页面/图服务；谱系真实 DAG 为 SourceVersion→Evidence→KnowledgeRevision→Release，并从 Evidence 分支到 `derived` Chunk，不伪造 Chunk→Revision canonical 边。Audit 精确筛选按 AND 处理，权威页面 target 由服务端解析。
-- **Blocker**: API/组件/真实 PostgreSQL Gate 已关闭；认证真实浏览器与 390px Gate 仍需有效人员登录态，不得为测试擅自重置管理员密码。因此 P4/P17 不能宣告完成。
+- **Files being edited**: Releases immutable history、Audit 状态感知 target、router/contracts/component/PostgreSQL tests 与本阶段文档。
+- **Last command run**: Knowledge `311 passed, 12 skipped`、Workflow `366 passed, 1 skipped`、前端 `50 passed`/production build、Ruff、隔离真实 PostgreSQL与 Compose rebuild/health 均通过；`browser-use connect` 因 Chrome 未开启远程调试而失败。
+- **Key decisions**: 历史 Release 详情直接复用既有 hash-verified immutable manifest resolver，不向 workbench 复制第二套状态；Audit 根据 canonical Release.status 将 candidate 跳到 `candidate` URL、released 跳到 `release` URL。
+- **Blocker**: API/组件/真实 PostgreSQL/Compose Gate 已关闭；现有 Chrome 没有开启远程调试，无法复用人员登录态。取得用户对“启用真实 Chrome 远程调试”或“使用受管浏览器 profile”的选择前，真实浏览器与 390px Gate不能执行；不得重置管理员密码或以组件测试替代。
 
 ## Phase Context
 
@@ -59,4 +60,4 @@ P17 P4 — 在现有九项导航内补全 API 权威的知识治理 UI，并关�
 
 ## Resume From
 
-先同步 P4-E/F 开发日志并阶段提交远端；取得有效人员登录态后执行 Sources→Processing→Candidates→Relations→Audit、Evaluation/Query Lab/Releases 跨页与 390px 浏览器 Gate。若仍无登录态，只记录 blocker，不覆盖管理员密码，也不以组件测试替代浏览器验收。
+先提交并推送 P4-G 文档记录；用户选择浏览器接入方式后，执行 Sources→Processing→Candidates→Relations→Audit、Evaluation→Query Lab→Releases（含历史 Release）的桌面与 390px Gate。若受管 profile 也无有效登录态，只记录 blocker，不覆盖管理员密码，也不以组件测试替代浏览器验收。

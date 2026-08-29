@@ -67,13 +67,13 @@
 
 #### GUI 细化
 
-- [已实现（P17/P4 增量）] 保留九个一级导航和现有视觉语言；Query Lab、Evaluation、Releases、Processing Chunk Inspector、Candidates Rotation Queue、Sources 版本/影响工作台、Relations 生命周期谱系与 Audit 精确过滤/权威跳转均消费 API 权威状态，不建立第二套前端。Relations 将 canonical SourceVersion→Evidence→KnowledgeRevision→Release 与 Evidence→derived Chunk 分支分开，Audit 只追溯、不推进业务状态。
+- [已实现（P17/P4 增量）] 保留九个一级导航和现有视觉语言；Query Lab、Evaluation、Releases、Processing Chunk Inspector、Candidates Rotation Queue、Sources 版本/影响工作台、Relations 生命周期谱系与 Audit 精确过滤/权威跳转均消费 API 权威状态，不建立第二套前端。Relations 将 canonical SourceVersion→Evidence→KnowledgeRevision→Release 与 Evidence→derived Chunk 分支分开；历史 Release 可由 URL 打开 hash-verified manifest/membership，Audit 按 candidate/released 状态跳到对应权威视图且只追溯、不推进业务状态。
 - [目标] 取得有效人员登录态后，完成可重复真实浏览器跨页与 390px E2E；不得为测试重置现有管理员密码。
 - [目标] “处理任务”展示 Workflow/Step/Attempt、executor、Harness/container 状态、tool summary、validator 和恢复操作。
 - [目标] “知识候选”完成 Evidence、Candidate revision、作者确认和独立审核的可追溯详情。
 - [目标] “检索实验室”只展示有来源的 metadata/FTS/vector/relation 路径与 citation。
 - [已实现/继续完善] “质量评估”展示 PostgreSQL EvaluationRun 的用例、期望 Evidence、Recall、阈值与失败类别；可启动服务端登记的 E9 suite、以 Run/Case 重放服务端恢复的 candidate scope，并比较同 suite/purpose 的版本差异。真实浏览器/390px 仍待验收。
-- [已实现/继续完善] “版本发布”展示 current/candidate/history、服务端 membership diff、evaluation/object/base/snapshot Gate、阻断和人工发布；候选创建仍由 Release Worker 负责，真实浏览器跨页与窄屏验收待完成。
+- [已实现/继续完善] “版本发布”展示 current/candidate/history、服务端 membership diff、evaluation/object/base/snapshot Gate、阻断和人工发布；历史 Release 即使没有待发布 candidate 也可按 ID 读取 hash-verified immutable manifest。候选创建仍由 Release Worker 负责，真实浏览器跨页与窄屏验收待完成。
 - [目标] 所有页面覆盖默认、加载、空、错误、部分数据和窄屏状态；无数据来源时隐藏、禁用或明确占位，不生成伪指标。
 
 ### 尚未实现
