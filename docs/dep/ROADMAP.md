@@ -1,6 +1,6 @@
 ---
 title: 产品重构路线图与目标架构
-updated: 2026-08-09
+updated: 2026-08-29
 status: planning
 ---
 
@@ -27,8 +27,9 @@ status: planning
         │     资格门 / KUI-05/09/10 / Audit                     │
         │ OpenCode 生产容器准入 done                             │
         │ 单 Attempt 应用接线 / Secret-MCP-Receipt done          │
-        │ 待办：独立 supervisor 部署 → live vertical → 关闭 P2   │
-        │ 后续：P3 评估/通用 Release/Query Lab → P4 产品闭环     │
+        │ 独立 Supervisor/P15/P16 本地 Gate done                 │
+        │ P17：Chunk/FTS/Evaluation/Release/UI/browser done       │
+        │ 待办：live vertical；vector/relation/完整 Knowledge MCP │
         └──────────────────────────┬───────────────────────────┘
                                    ▼
 阶段 2  最小 Harness 骨架 H0 [done 2026-08-05]
@@ -45,9 +46,9 @@ status: planning
 阶段 3  OpenCode 准入 + 知识闭环 Harness 化 [进行中]
         九条候选评估 + adapter + digest 容器准入 [done]
         单 Attempt Worker-supervisor/Secret/MCP/Receipt [done]
-        待办：独立 supervisor 最小权限部署
-        → live vertical → 关闭 P2 Gate
-        → Evaluation / 通用 Release / 只读 Knowledge MCP
+        独立 Supervisor、P15/P16 本地安全准备 [done]
+        P17 本地 Evaluation / Release / Query Lab [done]
+        待办：live vertical → vector/relation → 完整 Knowledge MCP
         └──────────────────────────┬───────────────────────────┘
                                    ▼
 阶段 4  临床 Workflow 收敛 [后续，复用同一执行合同]
@@ -68,9 +69,9 @@ status: planning
 | 阶段 | 状态 | 关键 Gate / 产出 | 依赖 |
 |------|------|------------------|------|
 | 0 架构定调 | done 2026-08-05 | 四份主文档；TDR 决策（不自建 Agent / Harness / 知识先行 / 保持 P12 lifecycle） | — |
-| 1 知识可信闭环（P12） | 进行中 | P2-B3 离线切片、OpenCode 准入与单 Attempt 接线 done；待独立 supervisor 部署与用户 live 配置；P3/P4 目标 | H0/容器准入；用户 live 授权 |
+| 1 知识可信闭环（P12） | 进行中 | P2-B3 离线切片与 P17 本地 Chunk/FTS/Evaluation/Release/UI/browser done；待用户 live 配置及 vector/relation/完整 MCP | H0-P17；用户 live 授权 |
 | 2 最小 Harness 骨架（H0） | done 2026-08-05 | H0-A…H0-F 六切片；当前 Harness 80 collected（76 passed、4 条平台条件跳过）；Enrichment replay 接线 + migration 0009 | 主文档定调；用户授权 |
-| 3 OpenCode 准入 + 知识闭环 Harness 化 | 进行中 | OpenCode 准入与单 Attempt应用接线 done；待独立 supervisor 部署和 live vertical | H0/容器准入；用户 live 授权 |
+| 3 OpenCode 准入 + 知识闭环 Harness 化 | 进行中 | OpenCode/独立 Supervisor/P15/P16 本地 Gate done；P17 本地知识闭环不使用 live；待 live vertical 与生产边界 | H0-P17；用户 live 授权 |
 | 4 临床 Workflow 收敛 | 后续 | 唯一 ledger；StepExecutionSpec 编译；Harness 执行；Runner 退役 | 知识闭环证明合同（阶段 3） |
 | 5 目标态 | 目标 | 两控制面 + 共享 Harness Runtime + MCP 三面 | 阶段 1–4 |
 
@@ -80,8 +81,7 @@ status: planning
   接线回归，零真实出站，合同/supervisor/MCP 骨架具备。
 - **P12 P2 Gate 关闭**：用户授权 live vertical 后，经 Harness 完成
   Source → Evidence → live Candidate → 作者确认 → 独立审核 可回放闭环（`approved` 仍 ≠ `released`）。
-- **知识闭环证明**：Evaluation + 通用 Release + 只读 Knowledge MCP 就绪，临床 Workflow
-  只消费 immutable Release。
+- **知识闭环证明**：P17 已证明 Evaluation + Release/current/history + REST/manifest MCP resolver；完整 search/get/trace Knowledge MCP 与 vector/relation 就绪后，临床 Workflow 才形成完整只读消费面。
 - **临床收敛完成**：Study 内唯一 Run/Step/Attempt ledger 生效，平行写入停止，自建
   Agent/Runner 退役。
 

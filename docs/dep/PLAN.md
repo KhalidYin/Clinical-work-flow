@@ -8,17 +8,16 @@ updated: 2026-08-29
 
 | # | 当前 Gate | 子计划 | 状态 |
 |---|----------|--------|------|
-| P17 | P4 现有治理 UI 与全链路 Gate | [P17-knowledge-lifecycle-retrieval-poc.md](plans/ongoing/P17-knowledge-lifecycle-retrieval-poc.md) | P1-P3 done；P4 API/组件/PostgreSQL 已接通 UI-01..08 与历史 Release 详情；真实 Compose 预检确认 full-stack fixture 尚缺，E9 retrieval-only 与默认 Enrichment 图冲突；先补独立可重复 fixture，再等待用户选择浏览器接入完成桌面/390px Gate；不调用模型 |
-| P12 | P2-B3 live vertical 等待外部输入 | [P12-knowledge-application-platform.md](plans/ongoing/P12-knowledge-application-platform.md) | waiting/frozen；P17 执行期间不修改 Evaluation/Release，待后续轮换 key、synthetic Evidence、预算与单次授权 |
+| P12 | P2-B3 live vertical 等待外部输入 | [P12-knowledge-application-platform.md](plans/ongoing/P12-knowledge-application-platform.md) | waiting；P17 已交付 P3 的 Chunk/FTS/Evaluation/Release/UI 本地范围，下一输入仍是轮换 key、获授权 synthetic Evidence、预算与单次 live 授权；不得复用既往 key |
 
 ## 待开始
 
 | # | 子计划 | 文件 | 预估轮次 | 依赖 |
 |---|--------|------|----------|------|
 
-P17 是当前唯一实施主线，也是 P12 未完成检索、评估与 Release 能力的聚焦实施合同，不建立平行产品权威。P12 live Gate 已冻结等待外部输入；P17/P1-P3 已完成 ICH E9 单文档离线 Recall、合成轮转/Evaluation、Release Worker 候选构建、人工发布、原子 current、历史重放和只读 REST/MCP manifest resolver；P4 已接通 current/历史 immutable Release FTS、真实 Query Lab、服务端登记 suite 的 Evaluation 启动、由 immutable EvaluationRun 恢复范围的候选重放、同 suite/purpose regression diff、服务端权威的 Releases 治理工作台与 hash-verified 历史 Release 详情、Processing 只读 Chunk Inspector、Candidates Rotation Queue、Sources SourceVersion history/比较/impact、Relations 生命周期谱系，以及 Audit entity/case/release 精确过滤和状态感知的服务端权威跳转。真实 Compose 预检已纠正“full-stack fixture 可用”的过早假设：E9 的 6 个 Document 步骤可生成 41 Evidence/41 Chunk，但默认第 7 个 Enrichment 步骤违反 retrieval-only 数据边界；因此下一任务是建立独立、可重复的最小测试环境，把 E9 document-only baseline 与合成轮转/发布事实组合而不混淆处理计划。之后再选择真实 Chrome 远程调试或受管 browser profile，并取得有效人员登录态以关闭浏览器/390px Gate；不依赖真实模型 Key，也不得重置现有管理员密码。
+P17 已关闭并归档，不建立平行产品权威。它完成 ICH E9 单文档离线 Recall、版本化 Chunk、合成轮转/Evaluation、Release Worker 候选构建、人工发布、原子 current、历史重放、current/历史 metadata+FTS、Query Lab、Evaluation、Releases、Chunk Inspector、Rotation Queue、Source comparison、生命周期谱系与 Audit。最终专用 Compose 从空卷组合 E9 document-only baseline 与合成治理事实，三角色真实浏览器和 390px Gate 通过，外部模型请求为 0，默认 Compose/管理员未修改，专用卷和凭据已清理。P12 继续拥有主线；vector/relation、完整 Knowledge MCP、生产边界和 live 仍是后续范围。
 
-P13、H0、P14、P15 与 P16 已关闭。OpenCode `1.18.14` 已完成容器准入；R111-R125 完成 Receipt 落账、独立 Supervisor、产品拥有的 hash-locked Pack、真实 Skill/MCP/internal Mock、PostgreSQL canonical Evidence → Candidate/API 本地 POC、随机空卷双 Worker正向环路、schema-invalid/timeout 离线失败矩阵、本地 tmpfs Secret 与能力保持型模型 gateway。普通 Compose 仍默认 replay；当前实现由 P17 推进，P12 保持架构权威并冻结 live Gate。显式 `harness` profile 可加载 DeepSeek runtime binding，但没有 secret/live 产品授权时不会调用。受控作用于 Attempt 外部副作用，不全局阉割 OpenCode 的 Skill/MCP/browser/工具循环；公共研究 recording gateway 仍是明确保留但尚未实现的独立能力。P12 live 下一输入必须由用户另行确认轮换 key、获授权 synthetic Evidence、网络策略、单次预算和明确调用授权。真实供应商调用仍未授权、未发生。
+P13、H0、P14、P15、P16 与 P17 已关闭。OpenCode `1.18.14` 已完成容器准入；R111-R125 完成 Receipt 落账、独立 Supervisor、产品拥有的 hash-locked Pack、真实 Skill/MCP/internal Mock、PostgreSQL canonical Evidence → Candidate/API 本地 POC、随机空卷双 Worker正向环路、schema-invalid/timeout 离线失败矩阵、本地 tmpfs Secret 与能力保持型模型 gateway。普通 Compose 仍默认 replay；P12 保持架构权威。显式 `harness` profile 可加载 DeepSeek runtime binding，但没有 secret/live 产品授权时不会调用。受控作用于 Attempt 外部副作用，不全局阉割 OpenCode 的 Skill/MCP/browser/工具循环；公共研究 recording gateway 仍是明确保留但尚未实现的独立能力。P12 live 下一输入必须由用户另行确认轮换 key、获授权 synthetic Evidence、网络策略、单次预算和明确调用授权。真实供应商调用仍未授权、未发生。
 
 P12/P13 共同构成唯一知识产品主线：P12 保持可信知识闭环，P13 收敛人员认证、中文界面和旧 Wiki 迁移退役。产品结果固定为“受控 Source → Evidence → AI Candidate → 作者确认 → 独立审核 → 检索评估 → immutable Release → REST/MCP 消费”。D0 Evidence Ledger HTML 继续作为颜色、排版、布局和核心交互基线。P1 已关闭产品基础 Gate；P2-A 已关闭 Source Registry、对象一致性、确定性解析、Document Worker DAG/fan-in、Evidence lineage、`202 + run_id` API 与 KUI-02/03。P2-B1 已冻结 Candidate eligibility、edge evidence、作者确认、独立审核、stale/idempotency、released immutability 和 worker/admin 越权合同。P2-B2 已用无网络 replay 接通真实 Source → Evidence → Candidate → request-change/revision → 独立批准的可启动前后端闭环，并证明 approved 仍无 Release。Docling/OCR、GraphRAG/Neo4j、Workflow、Agent Runtime 和 Project Memory 均不牵引当前执行。
 
@@ -28,6 +27,7 @@ P12/P13 共同构成唯一知识产品主线：P12 保持可信知识闭环，P1
 
 | 日期 | 子计划 | 文件 | 已同步到 |
 |------|--------|------|----------|
+| 2026-08-29 | 知识轮转、Chunk 与 ICH E9 检索最小 POC | [P17-knowledge-lifecycle-retrieval-poc.md](plans/complete/P17-knowledge-lifecycle-retrieval-poc.md) | P1-P4、隔离 PostgreSQL/Compose、三角色浏览器/390px、零模型请求与完整清理；R126-R142 |
 | 2026-08-12 | 新模型工作流本地 POC 测试环路 | [P15-knowledge-opencode-harness-poc.md](plans/complete/P15-knowledge-opencode-harness-poc.md) | 随机空卷、首次/重复 Worker、Receipt/API/DB/internal Mock 交叉核对、零 DeepSeek 请求与自动清理；R124 |
 | 2026-08-12 | Harness 临时 Secret 与能力保持型受控出站 Gate | [P16-harness-secret-egress-gate.md](plans/complete/P16-harness-secret-egress-gate.md) | tmpfs Secret、Squid 双网络、allow/deny/bypass、OpenCode Skill/MCP TLS mock、全仓/Compose Gate；R120-R123 |
 | 2026-08-11 | Knowledge–OpenCode 自定义 Harness Stack 最小 POC | [P15-knowledge-opencode-harness-poc.md](plans/complete/P15-knowledge-opencode-harness-poc.md) | Pack/Skill/MCP/internal Mock、PostgreSQL Candidate/API、幂等与风险 Gate；R116-R118 |

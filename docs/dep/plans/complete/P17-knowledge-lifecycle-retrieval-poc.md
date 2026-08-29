@@ -1,6 +1,6 @@
 ---
 phase_index: 17
-status: in-progress
+status: done
 created: 2026-08-15
 updated: 2026-08-29
 priority: 1
@@ -140,16 +140,16 @@ syncs_to:
 
 ## 视觉与行为验收清单
 
-- [ ] `[P17-UI-01]` SourceVersion 比较、变化计数与受影响知识完全来自 API，rights_changed 不出现自动延续动作。
-- [ ] `[P17-UI-02]` Evidence/Chunk 可双向定位，Profile、token、span、overlap 与排除 finding 可解释，且没有直接编辑 Chunk 的入口。
-- [ ] `[P17-UI-03]` Rotation Queue 的过滤、角色动作、409 stale 和唯一 DecisionReceipt 行为通过组件与浏览器测试。
-- [ ] `[P17-UI-04]` Query Lab 的 URL 恢复、分路贡献、degraded capability 和 released Evidence citation 通过验证。
-- [ ] `[P17-UI-05]` Recall@5/10 可回溯每个 GoldCase/ExpectedEvidence，缺失指标不补值，失败案例可重放。
-- [ ] `[P17-UI-06]` Release diff、阻断原因、base_release 并发保护、发布后 current 切换和旧 Release 查看均通过验证。
-- [ ] `[P17-UI-07..08]` 血缘与审计不成为可写业务状态，Chunk/candidate/released/retired 语义不混淆。
-- [ ] `[P17-UI-01..08]` 默认、loading、empty、error、partial-data 和 narrow-screen 均完成行为及视觉核验；适用的 mutation 另覆盖 stale。
-- [ ] 所有展示值均有声明数据源，核心测试验证交互结果而非仅检查标题/静态文本。
-- [ ] 所有设计偏差均已记录且为 `approved`；新增偏差在执行前取得用户确认。
+- [x] `[P17-UI-01]` SourceVersion 比较、变化计数与受影响知识完全来自 API，rights_changed 不出现自动延续动作。
+- [x] `[P17-UI-02]` Evidence/Chunk 可双向定位，Profile、token、span、overlap 与排除 finding 可解释，且没有直接编辑 Chunk 的入口。
+- [x] `[P17-UI-03]` Rotation Queue 的过滤、角色动作、409 stale 和唯一 DecisionReceipt 行为通过组件与浏览器测试。
+- [x] `[P17-UI-04]` Query Lab 的 URL 恢复、分路贡献、degraded capability 和 released Evidence citation 通过验证。
+- [x] `[P17-UI-05]` Recall@5/10 可回溯每个 GoldCase/ExpectedEvidence，缺失指标不补值，失败案例可重放。
+- [x] `[P17-UI-06]` Release diff、阻断原因、base_release 并发保护、发布后 current 切换和旧 Release 查看均通过验证。
+- [x] `[P17-UI-07..08]` 血缘与审计不成为可写业务状态，Chunk/candidate/released/retired 语义不混淆。
+- [x] `[P17-UI-01..08]` 默认、loading、empty、error、partial-data 和 narrow-screen 均完成行为及视觉核验；适用的 mutation 另覆盖 stale。
+- [x] 所有展示值均有声明数据源，核心测试验证交互结果而非仅检查标题/静态文本。
+- [x] 所有设计偏差均已记录且为 `approved`；新增偏差在执行前取得用户确认。
 
 ---
 
@@ -160,7 +160,7 @@ syncs_to:
 | P1 | 冻结 Chunk 与轮转数据库/API 合同 | 3 | P12 已完成非 live 基线 | done |
 | P2 | 用 ICH E9 建立确定性切块、检索与 Recall 基线 | 3-4 | P1 | done |
 | P3 | 接通轮转决策、Evaluation Gate 与 immutable Release | 3-4 | P2 | done |
-| P4 | 补全现有治理 UI 并关闭全链路 Gate | 3-4 | P3 | in_progress |
+| P4 | 补全现有治理 UI 并关闭全链路 Gate | 3-4 | P3 | done |
 
 ---
 
@@ -366,13 +366,13 @@ syncs_to:
 
 ### 完成标准
 
-- [ ] `[P17-UI-01..08]` 页面/组件/状态/交互矩阵和视觉与行为验收清单全部通过，无未批准偏差。
-- [ ] 后端返回计数、rank、Recall、allowed action、Gate 和 Release diff；前端不存在未声明推导或 fixture 冒充生产数据。
-- [ ] 默认/loading/empty/error/partial/narrow 全覆盖，适用 mutation 另覆盖 stale/409；行为测试不只断言标题。
-- [ ] 浏览器完成 Source/Evidence/Chunk 查看、E9 查询、Evaluation 失败重放、Rotation 决策、Release 阻断/发布和旧 Release 查看。
-- [ ] PostgreSQL migration/API、前端 test/typecheck/build、Workflow pytest、REST/MCP、Compose/E2E 及零模型出站 Gate 通过。
-- [ ] 官方 E9 下载来源、checksum、忽略策略和非再分发风险在使用文档中明确；原始 PDF 不在提交中。
-- [ ] P17 结果同步主文档；P12 P3 对应范围更新为已由 P17 交付，避免两个计划继续重复声明待实现。
+- [x] `[P17-UI-01..08]` 页面/组件/状态/交互矩阵和视觉与行为验收清单全部通过，无未批准偏差。
+- [x] 后端返回计数、rank、Recall、allowed action、Gate 和 Release diff；前端不存在未声明推导或 fixture 冒充生产数据。
+- [x] 默认/loading/empty/error/partial/narrow 全覆盖，适用 mutation 另覆盖 stale/409；行为测试不只断言标题。
+- [x] 浏览器完成 Source/Evidence/Chunk 查看、E9 查询、Evaluation 失败重放、Rotation 决策、Release 阻断/发布和旧 Release 查看。
+- [x] PostgreSQL migration/API、前端 test/typecheck/build、Workflow pytest、REST/MCP、Compose/E2E 及零模型出站 Gate 通过。
+- [x] 官方 E9 下载来源、checksum、忽略策略和非再分发风险在使用文档中明确；原始 PDF 不在提交中。
+- [x] P17 结果同步主文档；P12 P3 对应范围更新为已由 P17 交付，避免两个计划继续重复声明待实现。
 
 ### P4-A 完成结果（2026-08-16）
 
@@ -450,6 +450,15 @@ syncs_to:
 - 完整回归通过：Knowledge `311 passed, 13 skipped`、Workflow `366 passed, 1 skipped`、前端 `50 passed` 与 production build、Ruff 均成功。前端首次与两套 Python 全量并行时出现单条 5 秒资源争用超时；同文件 `6 passed`、随后前端全量独占 `50 passed`，未通过提高 timeout 掩盖。
 - 结论：E9 是 document-only retrieval baseline；轮转/Evaluation threshold/Release 仍使用合成事实。下一切片须建立独立、可重复的最小 full-stack fixture 或显式冻结 document-only processing plan，不能修改默认完整 Pipeline 语义，也不能用 MSW 冒充 production API。
 
+### P4-I isolated full-stack browser Gate 结果（2026-08-29）
+
+- 新增两阶段 production-service fixture：`prepare` 在专用空 PostgreSQL 中运行真实 E9 document-only baseline，再只 seed 合成 canonical 前置；生产 Evaluation、Release builder/publisher、impact materializer 和 Rotation service 形成 initial current、stale candidate 与 open Case。Case 未决定时 Release Worker continuation fail closed，独立 Curator/Reviewer 决定后才构建 publishable candidate。
+- 新增专用 `compose.p17-poc.yaml` 与 `scripts/p17-full-stack-poc.ps1`。固定 project、`clinical_p17_` 数据库、专用卷、loopback 端口和三名随机 Argon2id 临时身份；无 Document/Enrichment/Release 常驻 Worker、无 provider/live，API 必须等待 fixture 成功。`stop` 精确删除专用卷和凭据，不修改默认 Compose 或管理员。
+- 真实浏览器完成 Source、E9 Processing Evidence/Chunk 双向定位、Evaluation 18 题与失败题 replay、Query citation/degraded capability/零模型请求、Rotation proposal/独立 decision、stale Release 阻断、Release Manager 发布、current 切换和历史 A manifest/Evidence/Chunk 重放。
+- 浏览器暴露并修复两个前端缺陷：发布成功后 candidate URL 未清除导致 workbench 读取已消费 candidate；历史 manifest 的共享 REST/MCP wire 为 snake_case，而页面误按 camelCase 读取。修复采用显式边界 normalizer，不更改后端/MCP 合同。
+- 390px 真实 CDP Gate 又发现 Release diff 的 intrinsic grid 把整页撑至 969px；最小 shrink containment 修复后 document/client 宽度一致，只有 diff 自身保留横向滚动，drawer、历史详情和 Chunk 仍可用。
+- 最终 Gate：Knowledge `314 passed, 14 skipped`，Frontend `52 passed` + typecheck/build，Workflow `366 passed, 1 skipped`，Ruff/pip/Compose/PowerShell parse 通过；真实 verifier 返回 current C、history A、stale 双 blocker、Rotation `included_in_release` 和 E9 `externalModelRequests=0`。所有专用容器、卷、浏览器 session 和凭据已清理。
+
 ### 边界（本 Phase 明确不做）
 
 - 不新增一级页面或重做设计系统，不引入无关动画、图表或 dashboard。
@@ -488,7 +497,7 @@ syncs_to:
 | P17-F05 | 默认 E9 POC 使用临时 PostgreSQL；即使运行中已写 EvaluationRun，容器清理后也不能被 Compose 页面读取 | P4-B | accepted POC boundary | 报告增加 `database_retention=ephemeral`，页面空状态只信当前 API；后续若增加持久环境启动命令，必须同时绑定正确对象存储与数据库，不能导入报告冒充 canonical run |
 | P17-F06 | 已保留数据的 Compose demo ledger 含旧四步 Document 图，当前新增 `project_chunks` 后拒绝用同一事实覆盖为五步图 | P4-B | resolved compatibility defect | 保留旧 run 不变，将 demo SourceVersion 提升到 `1.1.0` 并使用新幂等键创建新 epoch；补合同测试，未删除数据库或重写 ledger |
 | P17-F07 | 后端 Dockerfile 第二次安装本地包仍启用 build isolation，代码层变化后会绕过既有镜像配置访问 PyPI，TLS 抖动导致 Compose rebuild 失败 | P4-D | resolved build defect | 在受控镜像源依赖层显式安装 pyproject 已声明的 setuptools，再让第二次本地代码安装使用 `--no-index --no-build-isolation --no-deps`；不新增来源、业务依赖或代码层出站 |
-| P17-F08 | P4 输入假设“合成 full-stack fixture 可用”，但默认 Compose 既缺 Evaluation/Rotation/Release，又会让 retrieval-only E9 进入完整 Enrichment 图 | P4-H | open contract gap | 已撤回不安全的 persistent 开关并保留失败 run 审计；E9 scope-neutrality 已修复、隔离 Recall 已重验。下一步冻结 document-only baseline 与合成治理事实的独立可重复测试环境，完成前不得关闭浏览器 Gate |
+| P17-F08 | P4 输入假设“合成 full-stack fixture 可用”，但默认 Compose 既缺 Evaluation/Rotation/Release，又会让 retrieval-only E9 进入完整 Enrichment 图 | P4-H | resolved contract gap | P4-I 新增专用两阶段 fixture/Compose：E9 只走 document-only baseline，合成治理事实复用生产服务；真实浏览器/390px/清理 Gate 通过，默认 Compose 不变 |
 
 ## 关键决策记录
 
@@ -506,4 +515,4 @@ syncs_to:
 
 | 日期 | 已同步到 | 说明 |
 |------|----------|------|
-| - | - | 计划完成后填写 |
+| 2026-08-29 | `PROJECT_SPEC.md`、`PROJECT_GUIDE.md`、`TEST_GUIDE.md`、`USAGE.md`、`README.md`、P12 lifecycle | P17 本地离线范围完成并归档；P12 不再重复声明 Chunk/FTS/Evaluation/Release/UI 待实现，vector/relation、完整 Knowledge MCP 与 live 仍保留为后续范围 |

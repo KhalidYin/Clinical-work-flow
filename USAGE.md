@@ -13,7 +13,7 @@
 
 其中“异步富化”当前是同一 durable DAG 中的单个 Enrichment step，并非已经形成可编排的富化子图。
 
-P13 已提供一次性 legacy immutable Release 和 Workflow REST 消费适配。H0 已建立 `harness-runtime/`；OpenCode `1.18.14` 的 digest 容器准入、独立 Supervisor、P15 合成 Evidence → PostgreSQL Candidate/API 本地 POC，以及 P16 临时 Secret/模型 gateway/全量 Gate 均已通过本地验证。P17 已增加 Document→Chunk、E9 Recall、immutable Release Query Lab、EvaluationRun 启动/候选重放/回归，以及服务端权威的 Releases diff/Gate/publish 工作台。默认 Compose 仍使用 replay，DeepSeek live 未完成且未授权；完整只读知识 MCP 仍是目标能力。Document、Enrichment、Release 是独立 Worker pool，通过 PostgreSQL durable DAG 协作，不是流式 pipeline；空卷 Compose 默认没有 current Release、candidate 或 EvaluationRun。临床 Workflow 的固定阶段顺序不变。
+P13 已提供一次性 legacy immutable Release 和 Workflow REST 消费适配。H0 已建立 `harness-runtime/`；OpenCode `1.18.14` 的 digest 容器准入、独立 Supervisor、P15 合成 Evidence → PostgreSQL Candidate/API 本地 POC，以及 P16 临时 Secret/模型 gateway/全量 Gate 均已通过本地验证。P17 已完成 Document→Chunk、E9 Recall、轮转、Evaluation、immutable Release/current/history、API 权威治理 UI 与隔离真实浏览器/390px POC。默认 Compose 仍使用 replay，DeepSeek live 未完成且未授权；vector/relation route 与完整只读知识 MCP 仍是目标能力。Document、Enrichment、Release 是独立 Worker pool，通过 PostgreSQL durable DAG 协作，不是流式 pipeline；空卷 Compose 默认没有 current Release、candidate 或 EvaluationRun。临床 Workflow 的固定阶段顺序不变。
 
 ## 2. 启动当前知识产品
 
@@ -198,7 +198,7 @@ Set-Location clinical-llm-wiki
 python -m scripts.ich_e9_poc
 ```
 
-命令会校验固定官方 URL/SHA，复用或下载到 ignored `.poc-assets/ich-e9/`，启动临时 pgvector PostgreSQL，
+命令只接受 ICH 官方 `https://database.ich.org/sites/default/files/E9_Guideline.pdf`，并校验 SHA-256 `0c0ddc93cb427a70265dbcb0e7c25bfc9a3f7b52e178212b3630ea2408ad9c7e`；文件复用或下载到 ignored `.poc-assets/ich-e9/`，启动临时 pgvector PostgreSQL，
 执行 6 步 Document DAG、41 条当前基线 Evidence/Chunk、metadata+FTS 和 18 条原创 GoldCase，并验证服务端
 suite registry、重复启动稳定性、Run/Case 候选重放和 self-regression，随后销毁临时容器。机器报告写到
 `reports/p17/ich-e9-retrieval-baseline.json`；当前基线 Recall@5 为 `0.888889`、Recall@10 为 `0.944444`，
@@ -208,6 +208,31 @@ embedding/语义检索证明或 current Release。没有 embedding 时 vector �
 浏览器 prerelease Query Lab 的候选重放后端为
 `POST /api/prerelease/v1/evaluations/{run_id}/cases/{case_id}/replay`，要求具备 `candidate:read` 的人员会话；
 请求体不接受客户端自报 scope。生产知识消费者仍只能读取 immutable Release。
+
+### 4.5 运行 P17 完整离线治理 POC
+
+这个入口用于复验 P17，而不是启动日常产品。它把真实 E9 document-only baseline 与完全合成的轮转、Evaluation Gate 和 Release 事实放进一个新的隔离数据库；两类数据只共享治理服务，不把 E9 送进默认 Enrichment，也不把合成版本冒充 ICH 修订。
+
+先确保 4.4 已把固定 SHA 的 E9 PDF 下载到 ignored `.poc-assets/ich-e9/`，然后执行：
+
+```powershell
+Set-Location .\clinical-llm-wiki
+pwsh -NoProfile -File scripts/p17-full-stack-poc.ps1 start
+```
+
+成功后打开 `http://127.0.0.1:4183/app.html`。临时用户为 `p17.curator`、`p17.reviewer` 和 `p17.release-manager`；本次随机密码只写入脚本提示的 ignored 本地 receipt。建议按下面顺序操作：
+
+1. Curator 查看 Sources、Processing 的 E9 Evidence/Chunk、Evaluation 和失败案例 Query Lab 重放。
+2. 在 Candidates → Rotation Queue 提交一个服务端允许的 proposal。
+3. 退出并以独立 Reviewer 登录，提交结构化决定。
+4. 回到终端运行 `pwsh -NoProfile -File scripts/p17-full-stack-poc.ps1 build`。该命令代表独立 Release Worker continuation；Case 未决定时必须失败，candidate 已发布后重复执行也会因 base 不匹配而失败。
+5. 以 Release Manager 登录，先观察旧 stale candidate 的阻断，再发布新 candidate，并打开旧 Release 核对历史 manifest/Evidence/Chunk。
+6. 运行 `pwsh -NoProfile -File scripts/p17-full-stack-poc.ps1 verify`；成功结果必须包含 `e9ExternalModelRequests: 0`、新 current、可重放历史 Release、stale blocker 和 `included_in_release`。
+7. 无论验收成功还是中止，都运行 `pwsh -NoProfile -File scripts/p17-full-stack-poc.ps1 stop`。
+
+`start` 固定使用 Compose project `clinical-p17-poc`、专用 `clinical_p17_` 数据库名、专用卷和 loopback 端口 `4183/8798`；它不加载 Document/Enrichment/Release 常驻 Worker，不配置模型 provider，也不触碰默认 Compose、现有管理员或现有知识数据。`stop` 会永久删除这个专用 POC 的数据库、对象卷和临时登录 receipt，不能用于清理其他项目。
+
+风险边界：E9 PDF 不提交或再分发；该单文档 Recall 不是临床质量认证；合成 Release 不是正式知识；本地 Docker 管理员可读取临时 receipt；真实模型、embedding、公共研究网络、生产 Secret/runtime authority 和生产级 Knowledge MCP 均不在此 POC 内。
 
 ## 5. API 与健康检查
 
@@ -280,4 +305,4 @@ python -m ruff check contracts adapters supervisor tests
 
 OpenCode 容器测试需要 `.[docker]` extra、可用 Docker daemon 和本地已拉取的 digest-locked 镜像；PATH 上真实 OpenCode binary 与部分 Linux 文件语义用例仍可能在 Windows 条件跳过。本地 tmpfs/gateway Gate 通过不代表生产 Secret/runtime authority、公共研究出站或 live 模型授权已完成。
 
-当前已签入 Vitest/Testing Library 组件行为测试；真实浏览器和 390px 窄屏属于既往手工验收证据，尚无可重复执行的浏览器 E2E/视觉脚本。后续完整 Gate 包括空卷 migration/bootstrap/start、用户名密码与会话 E2E、中文/窄屏 UI、Document/Enrichment 身份隔离及显式 release profile 下的 Release 身份隔离、ADAE online/offline 固定回归，以及无未授权真实模型调用。
+当前已签入 Vitest/Testing Library 组件行为测试。P17 的数据库/身份/应用环境可由 4.5 的脚本重复建立，并已实际完成真实浏览器与 390px Gate；浏览器交互本身尚未签入为无人值守 E2E/视觉脚本。后续完整 Gate 仍包括空卷 migration/bootstrap/start、用户名密码与会话 E2E、中文/窄屏 UI、Document/Enrichment 身份隔离及显式 release profile 下的 Release 身份隔离、ADAE online/offline 固定回归，以及无未授权真实模型调用。

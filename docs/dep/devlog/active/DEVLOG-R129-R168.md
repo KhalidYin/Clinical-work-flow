@@ -506,3 +506,45 @@
 - P17/PLAN/TASK_STATE、DevLog/INDEX（P4-H phase commit pending）
 
 ---
+
+### R142 [18:34] [P17-knowledge-lifecycle-retrieval-poc] P4-I: Isolated full-stack browser Gate and P17 closeout
+
+#### Done
+
+- 以 TDD 新增两阶段 P17 fixture：`prepare` 在专用空 PostgreSQL 中运行真实 E9 document-only baseline，随后只 seed 合成 canonical 前置；生产 Evaluation、Release builder/publisher、impact materializer 和 Rotation service 形成 initial current、stale candidate 与 open Case。Case 未决定时 Release Worker continuation fail closed，独立 Curator/Reviewer 决定后才可构建发布候选。
+- 新增 `compose.p17-poc.yaml` 与 `scripts/p17-full-stack-poc.ps1`，固定 `clinical-p17-poc`、`clinical_p17_` 数据库、专用卷、loopback 端口与三名随机 Argon2id 临时身份；无常驻 Document/Enrichment/Release Worker、无 provider/live，API 必须等待 fixture 完成。`stop` 精确删除该项目的卷、浏览器凭据与 runtime 目录，默认 Compose 和既有管理员未被修改。
+- 真实浏览器完成 Sources、E9 Processing Evidence/Chunk 双向定位、Evaluation 18 题与失败题 Query replay、citation/degraded capability/零模型请求、Rotation proposal/独立 decision、stale Release 阻断、Release Manager 发布、current 切换和历史 A manifest/Evidence/Chunk 重放。
+- 浏览器发现发布后仍保留已消费 candidate URL，导致页面请求已发布对象作为 candidate；先补组件 RED，再在 publish success 清空 candidate 并刷新 current/workbench。
+- 浏览器发现历史 manifest 的共享 REST/MCP wire 使用 snake_case，而前端测试错误地模拟 camelCase；改用真实 wire fixture，并在 API 边界显式转换为前端类型，不改后端/MCP 共享合同。
+- 390px CDP Gate 发现 Release diff 的 intrinsic grid 把整页撑到 969px；加入 shrink containment 后 document/client 宽度一致，仅 diff 自身保留有意横向滚动，drawer、历史详情和 Chunk 仍可用。
+- 同步 P17/P12/main docs/README/USAGE/memory；P17 归档，P12 只接收已交付本地范围，vector/relation、完整 Knowledge MCP、生产 Runtime/Secret 和 live 保持未完成。
+
+#### Issues / Risks
+
+- `build` 是 Reviewer 决定后的 Release Worker continuation，不是镜像构建命令；Case 未决定或 candidate 已发布后重复运行均应失败关闭。使用指南已明确阶段顺序。
+- 本地凭据 receipt 只适用于临时隔离项目，本机 Docker/文件管理员可读取；验收后必须 `stop`。两次实际 POC 均已删除专用容器、卷、session 和 receipt。
+- E9 仍是固定 SHA、ignored、非再分发的单文档词法基线，不是 ICH 修订、clinical quality certification、embedding/vector 证明或 Release Gate 输入。
+- 浏览器流程本轮真实执行并关闭 P17 目标 Gate，但尚未签入为无人值守 E2E；后续不能把本轮记录当永久视觉回归机制。
+- 既往 DeepSeek key 不视为有效输入，不从会话、日志或本机历史复用。P12 live 需要轮换 key、获授权 synthetic Evidence、预算和新的单次明确授权。
+
+#### Validation
+
+- 真实 PostgreSQL fixture integration `1 passed`：E9 informational run、三角色登录、open Case build 阻断、proposal/decision、candidate build/publish、current/history、stale blocker 与 included RotationCase。
+- 专用 Compose 从空卷实际启动两次；最终 verifier 返回 current C、historical A、`base_release_is_stale` + `publication_snapshot_blocked`、Rotation `included_in_release`、E9 `externalModelRequests=0`；两次均完整清理。
+- 真实浏览器桌面与 390px 主流程通过；最终窄屏 `documentElement.scrollWidth == clientWidth`，diff `scrollWidth > clientWidth` 仅在局部滚动容器内。
+- Knowledge `314 passed, 14 skipped`；Ruff 与 `pip check` 通过。Frontend `12 passed` files / `52 passed` tests、typecheck、production build 通过。Clinical Workflow `366 passed, 1 skipped`。
+- 默认与 P17 Compose config、PowerShell parser、runtime contract、`git diff --check` 通过；默认 Compose 未启动或改写。原始 E9 PDF、运行报告和临时凭据均未进入提交。
+
+#### Next
+
+1. 完成文档阶段提交与远端同步，核对本地 HEAD、upstream 和远端分支一致后关闭 P17 goal。
+2. P12 P2-B3 live 只在用户提供轮换 key、获授权 synthetic Evidence、精确 provider/model/endpoint、预算及本次真实调用授权后开始；先只读 preflight，再最多一次调用。
+3. 后续独立规划 vector/relation route、完整 Knowledge MCP 或无人值守浏览器 E2E；不得把其中任何一项混入 key 注入或单次 live Gate。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/compose.p17-poc.yaml`、`scripts/p17-full-stack-poc.ps1`、`scripts/p17_full_stack_fixture.py`、真实 PostgreSQL/runtime contract tests — `0bd53e3`
+- `clinical-llm-wiki/frontend/src/` Release wire/URL/responsive 修复及 tests — `0bd53e3`
+- canonical Guide/Spec/Test、README/USAGE/AGENTS、P12/P17/PLAN/TASK_STATE、memory、DevLog/INDEX — `(P17 docs phase commit)`
+
+---

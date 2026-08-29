@@ -33,7 +33,7 @@
 
 | 领域 | 当前基线 | 目标状态 |
 |------|----------|----------|
-| 知识控制面 | PostgreSQL durable DAG、Document/Enrichment/Release Worker、ObjectStore、Candidate/Review、React GUI 已有骨架；P17/P1-P3 已接通版本化 Chunk、轮转、E9 Recall、Evaluation 与 immutable Release/current/history/manifest resolver，P4 已接 Release Query Lab、Evaluation、Releases/历史详情、只读 Chunk Inspector、Rotation Queue、SourceVersion 比较、生命周期谱系与审计 | 完成认证浏览器/390px Gate、vector/relation route 与生产级 Knowledge MCP 接线 |
+| 知识控制面 | PostgreSQL durable DAG、Document/Enrichment/Release Worker、ObjectStore、Candidate/Review、React GUI 已有骨架；P17 已接通版本化 Chunk、轮转、E9 Recall、Evaluation、immutable Release/current/history/manifest resolver、九项导航治理 UI，并通过隔离认证浏览器/390px Gate | 完成 vector/relation route、生产级 Knowledge MCP、可无人值守浏览器回归与生产部署边界 |
 | 临床控制面 | 固定十阶段合同、Review Protocol、ActionPolicy、Study 文件状态已有原型；仍存在自建 Agent Loop、多套状态表达和执行入口 | 收敛为唯一 Workflow Orchestrator，由容器化 Harness 执行 Engine 已选定的 Step |
 | Harness | 已有版本化合同、独立 Supervisor 生命周期、staging/MCP、OpenCode digest 准入、P15 PostgreSQL/API 本地 POC 及 P16/P2-P3 本地 tmpfs `secret://`/模型 gateway；普通 Compose 仍默认 replay | 以更收敛的生产 runtime/Secret authority 和分策略出站部署 Harness Attempt，不向业务 Worker 暴露 Docker 控制权 |
 | MCP | Attempt 级 broker 与 OpenCode 标准 stdio shim 已纳入独立 Supervisor 离线部署并实测 `initialize/tools-list/tools/call`、路径拒绝和脱敏审计；知识消费仍主要是 REST | 扩展确定性工具；知识消费 MCP 只从 immutable Release 读取 |
@@ -213,8 +213,13 @@ stale 后刷新 canonical Case，并展示不可变 DecisionReceipt。
 P17/P4-D 将 Sources 接到 SourceVersion history 与 impact materialization：客户端只提交同一 Source 下不同的
 from/to SourceVersion ID，服务端固定 `evidence-comparison-v1`、计算七类变化和受影响 Knowledge/RotationCase 数，
 并按权限返回 `allowedActions`。重复比较复用 immutable assessment，同版本或跨 Source 输入 fail closed；浏览器不
-提交 profile、计数或自动延续判断。P17/P4-E/F 已接通生命周期谱系与审计 read model；认证真实浏览器/390px
-验收尚未完成，当前 Chrome 还需用户选择开启远程调试或改用受管 profile。
+提交 profile、计数或自动延续判断。P17/P4-E/F 已接通生命周期谱系与审计 read model。
+
+P17 最终 Gate 使用独立 `clinical-p17-poc` Compose project，从空卷组合官方 E9 document-only baseline 与合成
+轮转/Evaluation/Release 事实；API 仅在 fixture 完成后启动，三名临时人员通过 Argon2id/HttpOnly Cookie 完成
+Curator proposal、独立 Reviewer decision 和 Release Manager 发布。真实浏览器还验证了 Processing Evidence/Chunk、
+Evaluation 失败题重放、Query citation/degraded capability、stale blocker、current/history 与 390px；默认 Compose、
+管理员和既有数据未修改，`stop` 删除专用卷与凭据。该 Gate 不启用模型、embedding 或公共研究网络，也不是生产部署。
 
 ### 容器化 Harness Runtime
 

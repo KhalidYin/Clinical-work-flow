@@ -2,7 +2,7 @@
 phase_index: 12
 status: in-progress
 created: 2026-07-29
-updated: 2026-08-09
+updated: 2026-08-29
 priority: 1
 estimated_rounds: 37-52
 depends_on: []
@@ -348,12 +348,12 @@ Docling 是否进入锁定依赖，必须先用 SDTM IG 多栏与跨页表、ADa
 - [x] `[KUI-02..03]` Source 上传/版本、非流式 processing 状态/失败/checkpoint 重试均由 API 证据驱动；`evidence_ready` 不被误标为 Candidate 或待作者确认。
 - [x] `[KUI-04]` Candidate revision、evidence 对照、作者确认、独立 approve/reject/request-change、stale conflict 和作者自审拒绝行为闭合。
 - [x] `[KUI-05]` Relation 节点/边都有 typed evidence，candidate/released 不混淆，展开有上限且 URL 可恢复。
-- [ ] `[KUI-06]` Query Lab 分开展示 metadata/FTS/vector/relation 贡献和 degraded 状态，Context Package citation 可追溯。
-- [ ] `[KUI-07]` Evaluation 指标可回溯 Gold case 和 expected evidence，失败案例和版本差异可筛选。
-- [ ] `[KUI-08]` Release Gate 对未批准、评估失败、hash drift 和职责分离违规 fail closed。
+- [x] `[KUI-06]` Query Lab 分开展示 metadata/FTS/vector/relation 贡献和 degraded 状态，Context Package citation 可追溯。（P17：metadata/FTS 可用，未配置 vector/relation 明确 degraded。）
+- [x] `[KUI-07]` Evaluation 指标可回溯 Gold case 和 expected evidence，失败案例和版本差异可筛选。（P17。）
+- [x] `[KUI-08]` Release Gate 对未批准、评估失败、hash drift 和职责分离违规 fail closed。（P17。）
 - [x] `[KUI-09..10]` RBAC、Service Account、secret 不回显和 append-only audit 行为可验证。
-- [ ] `[KUI-01..10]` default、loading、empty、error、partial-data 和窄屏状态均有组件测试与真实浏览器核验。
-- [ ] 所有设计偏差均已记录并获批准；行为测试覆盖核心操作结果，不只检查标题或静态文本。
+- [x] `[KUI-01..10]` default、loading、empty、error、partial-data 和窄屏状态均有组件测试；P17 核心跨页真实浏览器与 390px Gate 已通过。
+- [x] 所有设计偏差均已记录并获批准；行为测试覆盖核心操作结果，不只检查标题或静态文本。
 
 ---
 
@@ -386,7 +386,7 @@ Docling 是否进入锁定依赖，必须先用 SDTM IG 多栏与跨页表、ADa
 | D0 | 大改前可运行前端 Demo Gate | 2-3 | - | done |
 | P1 | 产品基础：数据库迁移、身份权限、作业账本、模型与合同基线 | 8-11 | D0 | done |
 | P2 | AI 知识生产：Source → Evidence → Candidate → 作者确认 → 独立审核 | 12-17 | P1 | in-progress（P2-A/P2-B1/P2-B2 done；P2-B3 离线授权、失败、Candidate/Relation 资格门与 KUI-05/10 done，live vertical pending） |
-| P3 | 发布与检索：Approved Revision → 索引/评估 → immutable Release | 8-11 | P2 | pending |
+| P3 | 发布与检索：Approved Revision → 索引/评估 → immutable Release | 8-11 | P2 | in-progress（P17 已交付 Chunk、metadata/FTS、Evaluation、Release/current/history、治理 UI 与浏览器 Gate；vector/relation、完整 Knowledge MCP 仍待后续切片） |
 | P4 | 产品闭环：完整前端、外部接口、既有 Wiki 迁移、部署与运维验收 | 7-10 | P3 | pending |
 
 ---
@@ -755,6 +755,8 @@ P2-B 不再作为一次性“大模型 + 关系图 + 全部审核 UI”交付。
 
 P3 只消费 P2 已批准的 KnowledgeRevision。内部先构建可解释检索投影，再以独立 Gold Set 和 Release Gate 决定是否切换生产可见版本；“索引构建完成”与“正式发布”不是同一状态。
 
+> P17 交付同步（2026-08-29）：P3 的版本化 Chunk、metadata/FTS、current/历史 Release 查询、E9 informational Evaluation、独立合成 threshold Gate、Release candidate/人工发布/current pointer/历史重放及 KUI-06..08 已完成，并通过隔离真实 PostgreSQL、三角色浏览器与 390px Gate。P3 不再重复实现这些范围；余项是 vector/relation route、完整 search/get/trace Knowledge MCP、Project Memory submission stub 及对应生产部署证明。
+
 **P3-A：Hybrid Retrieval、Context API 与只读 MCP**
 
 ### 输入条件
@@ -776,12 +778,12 @@ P3 只消费 P2 已批准的 KnowledgeRevision。内部先构建可解释检索�
 ### 完成标准
 
 - [ ] exact terminology、semantic paraphrase、metadata scope、version、rights、negative query 和 relation expansion 均有独立测试。
-- [ ] 生产 API 的每个 hit/citation 可追溯 released Knowledge Unit → Evidence → SourceVersion → locator；未发布 revision 只允许在受控 evaluation/release-candidate sandbox 中测试。
-- [ ] embedding/index version 漂移、vector unavailable、FTS unavailable 或 relation expansion 超限时返回明确 degraded/gap，不静默回退为完整结果。
+- [x] 生产 API 的每个 hit/citation 可追溯 released Knowledge Unit → Evidence → SourceVersion → locator；未发布 revision 只允许在受控 evaluation/release-candidate sandbox 中测试。（P17 metadata/FTS 范围。）
+- [x] embedding/index version 漂移、vector unavailable、FTS unavailable 或 relation expansion 超限时返回明确 degraded/gap，不静默回退为完整结果。（P17 已覆盖未配置 vector/relation 和 FTS fail-closed；实现 route 本身仍待后续。）
 - [ ] fusion 权重和 rerank policy 配置版本化；前端和 LLM 不重算 rank。
 - [ ] MCP 只读且复用同一 Application Service/authorization，不形成第二检索实现。
 - [ ] candidate submission 只接受去标识、结构化 payload 并进入 inbox；不能写正式 Knowledge Unit。
-- [ ] `[KUI-06]` 与对应视觉/行为验收项通过组件、contract、API 和浏览器测试。
+- [x] `[KUI-06]` 与对应视觉/行为验收项通过组件、contract、API 和浏览器测试。（P17 metadata/FTS/degraded 范围。）
 
 ### 边界（本 Phase 明确不做）
 
@@ -827,12 +829,12 @@ P3 只消费 P2 已批准的 KnowledgeRevision。内部先构建可解释检索�
 
 - [ ] 指标定义、分母、K 值、case scope 和 expected evidence 全部版本化；不能只报告平均分掩盖失败类别。
 - [ ] exact/semantic/relation/negative/gap case 都能回溯各路候选和最终融合结果。
-- [ ] 未批准 revision、self-approved decision、rights 禁止、citation 断链、评估失败或 object hash drift 均阻断 release。
+- [x] 未批准 revision、self-approved decision、rights 禁止、citation 断链、评估失败或 object hash drift 均阻断 release。（P12/P17 联合 Gate。）
 - [ ] snapshot package 可离线验证 manifest、对象和 DB export hash；旧 release 不原地修改。
-- [ ] manifest 包含 `db_schema_revision`、`knowledge_contract_version`、`parser_profile_version`、`model_profile_version`、`prompt_profile_version` 和 `index_manifest_version`。
+- [x] manifest 包含 `db_schema_revision`、`knowledge_contract_version`、`parser_profile_version`、`model_profile_version`、`prompt_profile_version` 和 `index_manifest_version`。（P17。）
 - [ ] rollback 只切换 current release pointer，不删除或覆盖旧 release。
-- [ ] review-approved revision 在 release 完成前不会被生产 REST/MCP/Query Lab 返回。
-- [ ] `[KUI-07..08]` 与对应视觉/行为验收项通过组件、评估回放、tamper 和浏览器测试。
+- [x] review-approved revision 在 release 完成前不会被生产 REST/MCP/Query Lab 返回。（P12/P17。）
+- [x] `[KUI-07..08]` 与对应视觉/行为验收项通过组件、评估回放、tamper 和浏览器测试。（P17。）
 
 ### 边界（本 Phase 明确不做）
 
