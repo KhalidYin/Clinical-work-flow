@@ -390,3 +390,44 @@
 - canonical Guide/Spec/Test、P17/PLAN/TASK_STATE、DevLog/INDEX（P4-D phase commit）
 
 ---
+
+## 2026-08-29
+
+### R139 [13:37] [P17-knowledge-lifecycle-retrieval-poc] P4-E/F: Relations lifecycle and Audit traceability
+
+#### Done
+
+- 复用 `/relations/query` 增加后端 lifecycle projection 与 `release_id` 选择：由 canonical CandidateEvidence、Evidence、SourceVersion、RetrievalChunkEvidence、KnowledgeRevision、ReleaseItem 和 ReleasePointer 生成类型化 nodes/edges/release membership。
+- 冻结真实谱系为 SourceVersion→Evidence→KnowledgeRevision→Release，并从 Evidence 分支到 `derived` RetrievalChunk；没有伪造 Chunk→KnowledgeRevision 边，也没有新增图服务或第三套状态。
+- Relations 页面保留原 evidence-bound relation 视图，同时新增服务端谱系、Release 视角与 URL 恢复；页面不跨 API 推导边或 Release membership。
+- Audit API/UI 新增 `entity_id/case_id/release_id` 精确 AND 过滤。服务端解析 ImpactAssessment、RotationCase、EvaluationRun、Release、ProcessingRun 的权威 target，前端只提供只读跳转，不将 AuditEvent 当业务状态。
+- 真实 PostgreSQL test fixture 临时保存并切换 singleton current pointer，以验证 test Release；结束后恢复原 release ID/version，未重写现有 Release 或管理员凭据。
+
+#### Issues / Risks
+
+- 首次持久 PostgreSQL Gate 因旧测试假定“新插入 Release 自动成为 current”而失败；实际 current pointer 正确保持既有状态。已修复测试隔离并复跑通过，不修改产品语义。
+- Release 权威 target 当前进入既有 Releases workbench 的 candidate 参数；刚发布/current Release 可追溯，但完整历史 Release 独立详情仍受 P17-UI-06 既有页面边界约束，不在 Audit 内复制 manifest 状态。
+- 有效人员登录态仍不可用；未重置管理员密码。因此 API/组件/PostgreSQL 切片完成，但 Relations/Audit 真实浏览器、390px 与完整 P4 跨页 Gate 尚未关闭，P17 不得宣告完成。
+- semantic index 与真实模型仍未配置；本轮无模型调用、无供应商请求，也未停止 Harness 容器。
+
+#### Validation
+
+- TDD RED：Relations 后端缺少 `lifecycle`、前端缺少“生命周期血缘”；Audit 后端未透传三类过滤、前端请求参数为空。GREEN 后 platform API `41 passed`。
+- 前端全量 `12 passed` files / `49 passed` tests，production build 通过；Ruff 通过。
+- 真实 PostgreSQL relation/audit integration `1 passed`；Knowledge 全量 `311 passed, 12 skipped`，Clinical Workflow `366 passed, 1 skipped`。
+- 默认 Knowledge Compose rebuild/`--wait` 通过；API、PostgreSQL、frontend 与两个 Worker 正常，migration/bootstrap/admin-bootstrap 退出 0。独立 Harness 四容器保持 healthy。
+- 原始 E9 PDF 继续 ignored；没有配置或调用真实模型，`external_model_requests` 边界不变。
+
+#### Next
+
+1. 按 P4-E/F 文件范围提交并推送远端，核对本地、upstream 与远端 commit 一致。
+2. 取得有效人员登录态后执行 Sources→Processing→Candidates→Relations→Audit，以及 Evaluation→Query Lab→Releases 的真实浏览器和 390px Gate。
+3. 若登录态仍缺失，只记录 blocker；不得重置管理员密码，也不得用组件测试替代浏览器验收。风险是误把 API/组件完成报告成 P17 全部完成。
+
+#### Files Changed / Commits
+
+- `clinical-llm-wiki/service/platform_api/`、prerelease OpenAPI、platform/PostgreSQL tests
+- `clinical-llm-wiki/frontend/src/pages/RelationsPage.tsx`、`AuditPage.tsx`、contracts/router/MSW 与 component tests
+- canonical Spec/Test、P17/PLAN/TASK_STATE、DevLog/INDEX（P4-E/F phase commit）
+
+---

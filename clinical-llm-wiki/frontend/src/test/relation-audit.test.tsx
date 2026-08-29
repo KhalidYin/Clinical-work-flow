@@ -4,7 +4,12 @@ import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import { HttpResponse, http } from "msw";
 
 import { API_PATHS, resolveApiPath } from "../contracts/knowledgeApi";
-import { relationQueryFixture, sourcesFixture } from "../mocks/fixtures";
+import {
+  auditEventsFixture,
+  relationDirectoryFixture,
+  relationQueryFixture,
+  sourcesFixture,
+} from "../mocks/fixtures";
 import { server } from "../mocks/server";
 import { createAppRouter } from "../router";
 
@@ -85,9 +90,172 @@ describe("KUI-05 Relation Explorer", () => {
       screen.getByText("没有带 Evidence 的相邻关系"),
     ).toBeInTheDocument();
   });
+
+  it("renders server-projected lifecycle lineage and preserves the release in URL", async () => {
+    let requestedRelease: string | null = null;
+    server.use(
+      http.get(resolveApiPath(API_PATHS.relationQuery), ({ request }) => {
+        const url = new URL(request.url);
+        const nodeId = url.searchParams.get("node_id");
+        if (!nodeId) return HttpResponse.json(relationDirectoryFixture);
+        requestedRelease = url.searchParams.get("release_id");
+        return HttpResponse.json({
+          ...relationQueryFixture,
+          data: {
+            ...relationQueryFixture.data,
+            rootNodeId: nodeId,
+            lifecycle: {
+              rootKnowledgeRevisionId: "KREV-SDTM-AE-003",
+              selectedReleaseId: "rel-2026-07-29-001",
+              nodes: [
+                {
+                  nodeId: "srcv-sdtmig-34",
+                  nodeType: "source_version",
+                  label: "SDTMIG 3.4",
+                  status: "parsed",
+                  derived: false,
+                },
+                {
+                  nodeId: "evidence-ui-aeseq-001",
+                  nodeType: "evidence",
+                  label: "Evidence 6.2 AE",
+                  status: "canonical",
+                  derived: false,
+                },
+                {
+                  nodeId: "chunk-ui-aeseq-001",
+                  nodeType: "retrieval_chunk",
+                  label: "Chunk 12",
+                  status: "available",
+                  derived: true,
+                },
+                {
+                  nodeId: "KREV-SDTM-AE-003",
+                  nodeType: "knowledge_revision",
+                  label: "sdtm.domain.ae · r3",
+                  status: "released",
+                  derived: false,
+                },
+                {
+                  nodeId: "rel-2026-07-29-001",
+                  nodeType: "release",
+                  label: "2026.07-d0",
+                  status: "released",
+                  derived: false,
+                },
+              ],
+              edges: [
+                {
+                  sourceNodeId: "srcv-sdtmig-34",
+                  targetNodeId: "evidence-ui-aeseq-001",
+                  relationType: "contains",
+                },
+                {
+                  sourceNodeId: "evidence-ui-aeseq-001",
+                  targetNodeId: "chunk-ui-aeseq-001",
+                  relationType: "projected_as",
+                },
+                {
+                  sourceNodeId: "evidence-ui-aeseq-001",
+                  targetNodeId: "KREV-SDTM-AE-003",
+                  relationType: "supports",
+                },
+                {
+                  sourceNodeId: "KREV-SDTM-AE-003",
+                  targetNodeId: "rel-2026-07-29-001",
+                  relationType: "included_in",
+                },
+              ],
+              releaseMembership: [
+                {
+                  releaseId: "rel-2026-07-29-001",
+                  version: "2026.07-d0",
+                  status: "released",
+                  current: true,
+                },
+              ],
+              partial: false,
+              warnings: [],
+            },
+          },
+        });
+      }),
+    );
+    const router = renderApp(
+      "/relations?q=&node=KU-SDTM-AE&depth=1&view=paths&release=rel-2026-07-29-001",
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "生命周期血缘" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("检索投影 · derived")).toBeInTheDocument();
+    expect(screen.getByText("2026.07-d0 · current")).toBeInTheDocument();
+    expect(requestedRelease).toBe("rel-2026-07-29-001");
+    expect(router.state.location.search).toMatchObject({
+      release: "rel-2026-07-29-001",
+    });
+  });
 });
 
 describe("KUI-10 Audit ledger", () => {
+  it("keeps entity, case and release filters in URL and opens the server target", async () => {
+    const requested: Record<string, string | null> = {};
+    server.use(
+      http.get(resolveApiPath(API_PATHS.auditEvents), ({ request }) => {
+        const url = new URL(request.url);
+        requested.entity = url.searchParams.get("entity_id");
+        requested.case = url.searchParams.get("case_id");
+        requested.release = url.searchParams.get("release_id");
+        return HttpResponse.json({
+          ...auditEventsFixture,
+          data: {
+            ...auditEventsFixture.data,
+            total: 1,
+            items: [
+              {
+                auditEventId: "audit-rotation-ui-001",
+                actorId: "usr-review-002",
+                action: "rotation_case.decided",
+                objectType: "rotation_case",
+                objectId: "rotation-001",
+                runId: null,
+                beforeVersion: null,
+                afterVersion: null,
+                result: "approved",
+                correlationId: "rotation-decision-001",
+                createdAt: "2026-08-20T08:00:00Z",
+                authoritativeTarget: {
+                  resourceType: "rotation_case",
+                  resourceId: "rotation-001",
+                  path: "/candidates?view=rotation&status=&case=rotation-001",
+                },
+              },
+            ],
+          },
+        });
+      }),
+    );
+    const router = renderApp(
+      "/audit?actor=&action=&objectType=&result=&entity=impact-001&case=rotation-001&release=rel-001&cursor=&event=",
+    );
+
+    expect(await screen.findByText("rotation-decision-001")).toBeInTheDocument();
+    expect(requested).toEqual({
+      entity: "impact-001",
+      case: "rotation-001",
+      release: "rel-001",
+    });
+    expect(router.state.location.search).toMatchObject({
+      entity: "impact-001",
+      case: "rotation-001",
+      release: "rel-001",
+    });
+    expect(screen.getByRole("link", { name: "打开权威对象" })).toHaveAttribute(
+      "href",
+      "#/candidates?view=rotation&status=&case=rotation-001",
+    );
+  });
+
   it("stores filters and selection in URL and exposes only the read-only projection", async () => {
     const router = renderApp(
       "/audit?actor=&action=&objectType=&result=&cursor=&event=",

@@ -145,6 +145,78 @@ class FakePlatformRepository:
             content="AESEQ is the sequence identifier within the AE domain.",
             content_sha256="a" * 64,
         )
+        lifecycle = repository_module.LifecycleLineageRecord(
+            root_knowledge_revision_id="krev-api-001",
+            selected_release_id="rel-001",
+            nodes=(
+                repository_module.LifecycleNodeRecord(
+                    node_id="srcv-api-001",
+                    node_type="source_version",
+                    label="ICH E9 · 1.0",
+                    status="parsed",
+                    derived=False,
+                ),
+                repository_module.LifecycleNodeRecord(
+                    node_id="ev-api-001",
+                    node_type="evidence",
+                    label="Evidence 6.2 AE",
+                    status="canonical",
+                    derived=False,
+                ),
+                repository_module.LifecycleNodeRecord(
+                    node_id="chunk-api-001",
+                    node_type="retrieval_chunk",
+                    label="Chunk 12",
+                    status="available",
+                    derived=True,
+                ),
+                repository_module.LifecycleNodeRecord(
+                    node_id="krev-api-001",
+                    node_type="knowledge_revision",
+                    label="sdtm.ae.aeseq · r1",
+                    status="released",
+                    derived=False,
+                ),
+                repository_module.LifecycleNodeRecord(
+                    node_id="rel-001",
+                    node_type="release",
+                    label="2026.08-p17",
+                    status="released",
+                    derived=False,
+                ),
+            ),
+            edges=(
+                repository_module.LifecycleEdgeRecord(
+                    source_node_id="srcv-api-001",
+                    target_node_id="ev-api-001",
+                    relation_type="contains",
+                ),
+                repository_module.LifecycleEdgeRecord(
+                    source_node_id="ev-api-001",
+                    target_node_id="chunk-api-001",
+                    relation_type="projected_as",
+                ),
+                repository_module.LifecycleEdgeRecord(
+                    source_node_id="ev-api-001",
+                    target_node_id="krev-api-001",
+                    relation_type="supports",
+                ),
+                repository_module.LifecycleEdgeRecord(
+                    source_node_id="krev-api-001",
+                    target_node_id="rel-001",
+                    relation_type="included_in",
+                ),
+            ),
+            release_membership=(
+                repository_module.ReleaseMembershipRecord(
+                    release_id="rel-001",
+                    version="2026.08-p17",
+                    status="released",
+                    current=True,
+                ),
+            ),
+            warnings=(),
+        )
         self.relation_query = repository_module.RelationQueryRecord(
             root_node_id="ku-api-aeseq",
             requested_depth=1,
@@ -184,6 +256,7 @@ class FakePlatformRepository:
             total_nodes=2,
             truncated=False,
             warnings=(),
+            lifecycle=lifecycle,
         )
         self.audit_page = repository_module.AuditEventPageRecord(
             items=(
@@ -205,12 +278,20 @@ class FakePlatformRepository:
                     result="review_required",
                     correlation_id="api-author-confirm-001",
                     created_at=now,
+                    authoritative_target=repository_module.AuditTargetRecord(
+                        resource_type="rotation_case",
+                        resource_id="rotation-api-001",
+                        path=(
+                            "/candidates?view=rotation&status=&case=rotation-api-001"
+                        ),
+                    ),
                 ),
             ),
             total=1,
             next_cursor=None,
             warnings=(),
         )
+        self.last_audit_filters: dict[str, object] = {}
 
     def add_grant(self, grant: PlatformUserGrant) -> None:
         self._grants[(grant.issuer, grant.subject)] = grant
@@ -331,8 +412,18 @@ class FakePlatformRepository:
             origin_model_invocation_id="inv-api-001",
         )
 
-    def query_relations(self, *, node_id: str | None, query: str | None, depth: int):
+    def query_relations(
+        self,
+        *,
+        node_id: str | None,
+        query: str | None,
+        depth: int,
+        release_id: str | None,
+    ):
         del query
+        lifecycle = self.relation_query.lifecycle if node_id else None
+        if lifecycle is not None:
+            lifecycle = replace(lifecycle, selected_release_id=release_id)
         return self.relation_query.__class__(
             root_node_id=node_id,
             requested_depth=depth,
@@ -342,9 +433,11 @@ class FakePlatformRepository:
             total_nodes=self.relation_query.total_nodes,
             truncated=False,
             warnings=("relation depth was capped at 2",) if depth > 2 else (),
+            lifecycle=lifecycle,
         )
 
-    def list_audit_events(self, **_: object):
+    def list_audit_events(self, **filters: object):
+        self.last_audit_filters = filters
         return self.audit_page
 
 
@@ -2048,7 +2141,11 @@ def test_relation_explorer_is_evidence_bound_limited_and_governance_protected(
     response = client.get(
         f"{API_PREFIX}/relations/query",
         headers=_auth("curator-token"),
-        params={"node_id": "ku-api-aeseq", "depth": 7},
+        params={
+            "node_id": "ku-api-aeseq",
+            "depth": 7,
+            "release_id": "rel-001",
+        },
     )
 
     assert response.status_code == 200
@@ -2060,6 +2157,31 @@ def test_relation_explorer_is_evidence_bound_limited_and_governance_protected(
     assert data["edges"][0]["relationType"] == "applies_to"
     assert data["edges"][0]["evidence"][0]["evidenceId"] == "ev-api-001"
     assert data["nodes"][1]["releaseIds"] == ["rel-001"]
+    lifecycle = data["lifecycle"]
+    assert lifecycle["rootKnowledgeRevisionId"] == "krev-api-001"
+    assert lifecycle["selectedReleaseId"] == "rel-001"
+    assert lifecycle["releaseMembership"] == [
+        {
+            "releaseId": "rel-001",
+            "version": "2026.08-p17",
+            "status": "released",
+            "current": True,
+        }
+    ]
+    chunk = next(
+        node for node in lifecycle["nodes"] if node["nodeType"] == "retrieval_chunk"
+    )
+    assert chunk["nodeId"] == "chunk-api-001"
+    assert chunk["derived"] is True
+    assert {
+        (edge["sourceNodeId"], edge["targetNodeId"], edge["relationType"])
+        for edge in lifecycle["edges"]
+    } == {
+        ("srcv-api-001", "ev-api-001", "contains"),
+        ("ev-api-001", "chunk-api-001", "projected_as"),
+        ("ev-api-001", "krev-api-001", "supports"),
+        ("krev-api-001", "rel-001", "included_in"),
+    }
     assert (
         client.get(
             f"{API_PREFIX}/relations/query",
@@ -2347,12 +2469,19 @@ def test_rotation_decision_replays_receipt_and_rejects_stale_or_non_reviewer(
 def test_audit_events_are_read_only_filtered_projection_and_permission_protected(
     api_client,
 ) -> None:
-    client, _ = api_client
+    client, repository = api_client
 
     response = client.get(
         f"{API_PREFIX}/audit-events",
         headers=_auth("admin-token"),
-        params={"actor": "curator", "action": "author", "limit": 25},
+        params={
+            "actor": "curator",
+            "action": "author",
+            "entity_id": "impact-api-001",
+            "case_id": "rotation-api-001",
+            "release_id": "rel-001",
+            "limit": 25,
+        },
     )
 
     assert response.status_code == 200
@@ -2363,7 +2492,23 @@ def test_audit_events_are_read_only_filtered_projection_and_permission_protected
     assert event["actorId"] == "usr-curator"
     assert event["afterVersion"]["revisionNumber"] == 1
     assert event["correlationId"] == "api-author-confirm-001"
+    assert event["authoritativeTarget"] == {
+        "resourceType": "rotation_case",
+        "resourceId": "rotation-api-001",
+        "path": "/candidates?view=rotation&status=&case=rotation-api-001",
+    }
     assert {"details", "rationale", "secret", "token"}.isdisjoint(event)
+    assert repository.last_audit_filters == {
+        "actor": "curator",
+        "action": "author",
+        "object_type": None,
+        "result": None,
+        "entity_id": "impact-api-001",
+        "case_id": "rotation-api-001",
+        "release_id": "rel-001",
+        "cursor": None,
+        "limit": 25,
+    }
     assert (
         client.get(
             f"{API_PREFIX}/audit-events",

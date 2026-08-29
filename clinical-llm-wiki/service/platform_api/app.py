@@ -94,6 +94,7 @@ from .contracts import (
     AuditEventCollectionData,
     AuditEventCollectionResponse,
     AuditEventData,
+    AuditTargetData,
     AuditVersionData,
     AdminTemporaryPasswordData,
     AdminTemporaryPasswordResponse,
@@ -174,11 +175,15 @@ from .contracts import (
     ReleaseSummaryData,
     ReleaseWorkbenchData,
     ReleaseWorkbenchResponse,
+    LifecycleEdgeData,
+    LifecycleLineageData,
+    LifecycleNodeData,
     RelationEdgeData,
     RelationEvidenceData,
     RelationNodeData,
     RelationQueryData,
     RelationQueryResponse,
+    ReleaseMembershipData,
     ReviewDecisionData,
     ReviewDecisionRequest,
     ReviewDecisionResponse,
@@ -1869,12 +1874,14 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
         node_id: Annotated[str | None, Query(max_length=160)] = None,
         q: Annotated[str | None, Query(max_length=240)] = None,
         depth: Annotated[int, Query(ge=0, le=8)] = 1,
+        release_id: Annotated[str | None, Query(max_length=160)] = None,
     ) -> RelationQueryResponse:
         try:
             record = services.repository.query_relations(
                 node_id=node_id,
                 query=q,
                 depth=depth,
+                release_id=release_id,
             )
         except SQLAlchemyError as exc:
             raise PlatformApiError(
@@ -1924,6 +1931,45 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
                 truncated=record.truncated,
                 partial=bool(record.warnings),
                 warnings=list(record.warnings),
+                lifecycle=(
+                    LifecycleLineageData(
+                        root_knowledge_revision_id=(
+                            record.lifecycle.root_knowledge_revision_id
+                        ),
+                        selected_release_id=record.lifecycle.selected_release_id,
+                        nodes=[
+                            LifecycleNodeData(
+                                node_id=node.node_id,
+                                node_type=node.node_type,
+                                label=node.label,
+                                status=node.status,
+                                derived=node.derived,
+                            )
+                            for node in record.lifecycle.nodes
+                        ],
+                        edges=[
+                            LifecycleEdgeData(
+                                source_node_id=edge.source_node_id,
+                                target_node_id=edge.target_node_id,
+                                relation_type=edge.relation_type,
+                            )
+                            for edge in record.lifecycle.edges
+                        ],
+                        release_membership=[
+                            ReleaseMembershipData(
+                                release_id=membership.release_id,
+                                version=membership.version,
+                                status=membership.status,
+                                current=membership.current,
+                            )
+                            for membership in record.lifecycle.release_membership
+                        ],
+                        partial=bool(record.lifecycle.warnings),
+                        warnings=list(record.lifecycle.warnings),
+                    )
+                    if record.lifecycle is not None
+                    else None
+                ),
             ),
             meta=_meta(),
         )
@@ -1943,6 +1989,9 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
         action: Annotated[str | None, Query(max_length=160)] = None,
         object_type: Annotated[str | None, Query(max_length=120)] = None,
         result: Annotated[str | None, Query(max_length=120)] = None,
+        entity_id: Annotated[str | None, Query(max_length=160)] = None,
+        case_id: Annotated[str | None, Query(max_length=160)] = None,
+        release_id: Annotated[str | None, Query(max_length=160)] = None,
         cursor: Annotated[str | None, Query(max_length=160)] = None,
         limit: Annotated[int, Query(ge=1, le=100)] = 25,
     ) -> AuditEventCollectionResponse:
@@ -1952,6 +2001,9 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
                 action=action,
                 object_type=object_type,
                 result=result,
+                entity_id=entity_id,
+                case_id=case_id,
+                release_id=release_id,
                 cursor=cursor,
                 limit=limit,
             )
@@ -1990,6 +2042,17 @@ def create_platform_app(services: PlatformApiServices) -> FastAPI:
                         result=event.result,
                         correlation_id=event.correlation_id,
                         created_at=event.created_at,
+                        authoritative_target=(
+                            AuditTargetData(
+                                resource_type=(
+                                    event.authoritative_target.resource_type
+                                ),
+                                resource_id=event.authoritative_target.resource_id,
+                                path=event.authoritative_target.path,
+                            )
+                            if event.authoritative_target is not None
+                            else None
+                        ),
                     )
                     for event in page.items
                 ],

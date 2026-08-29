@@ -4,6 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { getJson } from "../api/client";
 import {
   API_PATHS,
+  type LifecycleLineage,
+  type LifecycleNode,
   type RelationEdge,
   type RelationNode,
   type RelationQuery,
@@ -19,6 +21,7 @@ export interface RelationsSearch {
   node: string;
   depth: number;
   view: "paths" | "list";
+  release: string;
 }
 
 interface RelationsPageProps {
@@ -50,12 +53,13 @@ export function RelationsPage({ search, onSearchChange }: RelationsPageProps) {
     staleTime: 30_000,
   });
   const graph = useQuery({
-    queryKey: ["relation-graph", search.node, search.depth],
+    queryKey: ["relation-graph", search.node, search.depth, search.release],
     queryFn: ({ signal }) =>
       getJson<RelationQuery>(
         relationPath({
           node_id: search.node,
           depth: String(search.depth),
+          ...(search.release ? { release_id: search.release } : {}),
         }),
         signal,
       ),
@@ -209,6 +213,12 @@ export function RelationsPage({ search, onSearchChange }: RelationsPageProps) {
               <span>{graphData.warnings.join("；") || "关系结果为部分数据。"}</span>
             </div>
           ) : null}
+          {graphData?.lifecycle ? (
+            <LifecycleLineagePanel
+              lineage={graphData.lifecycle}
+              onReleaseChange={(release) => onSearchChange({ release })}
+            />
+          ) : null}
           {graphData && graphData.edges.length === 0 ? (
             <div className={styles.detailState}>
               <h2 className={styles.stateTitle}>没有带 Evidence 的相邻关系</h2>
@@ -239,6 +249,103 @@ export function RelationsPage({ search, onSearchChange }: RelationsPageProps) {
         </div>
       </div>
     </section>
+  );
+}
+
+function lifecycleNodeTypeLabel(node: LifecycleNode): string {
+  if (node.nodeType === "retrieval_chunk") {
+    return node.derived ? "检索投影 · derived" : "检索投影";
+  }
+  return {
+    source_version: "SourceVersion",
+    evidence: "Evidence",
+    knowledge_revision: "KnowledgeRevision",
+    release: "Immutable Release",
+  }[node.nodeType];
+}
+
+function LifecycleLineagePanel({
+  lineage,
+  onReleaseChange,
+}: {
+  lineage: LifecycleLineage;
+  onReleaseChange: (release: string) => void;
+}) {
+  const nodes = new Map(lineage.nodes.map((node) => [node.nodeId, node]));
+  return (
+    <section className={styles.pathCard} aria-labelledby="lifecycle-lineage-title">
+      <div className={styles.directoryHeader}>
+        <div>
+          <span className={styles.asideLabel}>canonical + derived projection</span>
+          <h2 className={styles.stateTitle} id="lifecycle-lineage-title">
+            生命周期血缘
+          </h2>
+        </div>
+        {lineage.releaseMembership.length ? (
+          <label>
+            <span className={styles.asideLabel}>Release 视角</span>
+            <select
+              className={styles.search}
+              aria-label="Release 视角"
+              value={lineage.selectedReleaseId ?? ""}
+              onChange={(event) => onReleaseChange(event.target.value)}
+            >
+              {lineage.releaseMembership.map((membership) => (
+                <option value={membership.releaseId} key={membership.releaseId}>
+                  {membership.version}{membership.current ? " · current" : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <span className={styles.status}>尚未进入 Release</span>
+        )}
+      </div>
+      {lineage.partial ? (
+        <div className={styles.notice} role="status">
+          <span aria-hidden="true">△</span>
+          <span>{lineage.warnings.join("；")}</span>
+        </div>
+      ) : null}
+      <div className={styles.pathList}>
+        {lineage.edges.map((edge) => {
+          const source = nodes.get(edge.sourceNodeId);
+          const target = nodes.get(edge.targetNodeId);
+          return (
+            <div
+              className={styles.pathDiagram}
+              key={`${edge.sourceNodeId}-${edge.relationType}-${edge.targetNodeId}`}
+            >
+              <LifecycleNodeCard node={source} fallback={edge.sourceNodeId} />
+              <div className={styles.edgeMark}>
+                <span>{edge.relationType}</span>
+                <strong aria-hidden="true">→</strong>
+                <small>server projected</small>
+              </div>
+              <LifecycleNodeCard node={target} fallback={edge.targetNodeId} />
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function LifecycleNodeCard({
+  node,
+  fallback,
+}: {
+  node: LifecycleNode | undefined;
+  fallback: string;
+}) {
+  return (
+    <div className={styles.graphNode}>
+      <span className={styles.asideLabel}>
+        {node ? lifecycleNodeTypeLabel(node) : "未知节点"}
+      </span>
+      <strong>{node?.label ?? fallback}</strong>
+      <span className={styles.status}>{node?.status ?? "unknown"}</span>
+    </div>
   );
 }
 

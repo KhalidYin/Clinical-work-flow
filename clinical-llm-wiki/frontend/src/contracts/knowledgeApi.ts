@@ -843,6 +843,44 @@ export interface RelationEdge {
   evidence: RelationEvidence[];
 }
 
+export type LifecycleNodeType =
+  | "source_version"
+  | "evidence"
+  | "retrieval_chunk"
+  | "knowledge_revision"
+  | "release";
+
+export interface LifecycleNode {
+  nodeId: string;
+  nodeType: LifecycleNodeType;
+  label: string;
+  status: string;
+  derived: boolean;
+}
+
+export interface LifecycleEdge {
+  sourceNodeId: string;
+  targetNodeId: string;
+  relationType: "contains" | "projected_as" | "supports" | "included_in";
+}
+
+export interface ReleaseMembership {
+  releaseId: string;
+  version: string;
+  status: string;
+  current: boolean;
+}
+
+export interface LifecycleLineage {
+  rootKnowledgeRevisionId: string;
+  selectedReleaseId: string | null;
+  nodes: LifecycleNode[];
+  edges: LifecycleEdge[];
+  releaseMembership: ReleaseMembership[];
+  partial: boolean;
+  warnings: string[];
+}
+
 export interface RelationQuery {
   rootNodeId: string | null;
   requestedDepth: number;
@@ -853,11 +891,23 @@ export interface RelationQuery {
   truncated: boolean;
   partial: boolean;
   warnings: string[];
+  lifecycle: LifecycleLineage | null;
 }
 
 export interface AuditVersion {
   revisionNumber: number | null;
   contentSha256: string | null;
+}
+
+export interface AuditTarget {
+  resourceType:
+    | "impact_assessment"
+    | "rotation_case"
+    | "evaluation_run"
+    | "release"
+    | "processing_run";
+  resourceId: string;
+  path: string;
 }
 
 export interface AuditEvent {
@@ -872,6 +922,7 @@ export interface AuditEvent {
   result: string | null;
   correlationId: string | null;
   createdAt: string;
+  authoritativeTarget: AuditTarget | null;
 }
 
 export interface AuditEventCollection {

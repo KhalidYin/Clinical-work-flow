@@ -67,8 +67,8 @@
 
 #### GUI 细化
 
-- [已实现（P17/P4 增量）] 保留九个一级导航和现有视觉语言；Query Lab、Evaluation、Releases、Processing Chunk Inspector、Candidates Rotation Queue 与 Sources 版本/影响工作台均消费 API 权威状态，不建立第二套前端。Sources 只提交 from/to SourceVersion ID，comparison profile、变化/影响计数与允许动作均由服务端返回。
-- [目标] 补全 Relations 生命周期谱系、Audit 实体过滤/跳转和可重复浏览器 E2E。
+- [已实现（P17/P4 增量）] 保留九个一级导航和现有视觉语言；Query Lab、Evaluation、Releases、Processing Chunk Inspector、Candidates Rotation Queue、Sources 版本/影响工作台、Relations 生命周期谱系与 Audit 精确过滤/权威跳转均消费 API 权威状态，不建立第二套前端。Relations 将 canonical SourceVersion→Evidence→KnowledgeRevision→Release 与 Evidence→derived Chunk 分支分开，Audit 只追溯、不推进业务状态。
+- [目标] 取得有效人员登录态后，完成可重复真实浏览器跨页与 390px E2E；不得为测试重置现有管理员密码。
 - [目标] “处理任务”展示 Workflow/Step/Attempt、executor、Harness/container 状态、tool summary、validator 和恢复操作。
 - [目标] “知识候选”完成 Evidence、Candidate revision、作者确认和独立审核的可追溯详情。
 - [目标] “检索实验室”只展示有来源的 metadata/FTS/vector/relation 路径与 citation。

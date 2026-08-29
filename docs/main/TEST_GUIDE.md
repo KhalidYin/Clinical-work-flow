@@ -123,7 +123,7 @@ Attempt 预算内终止 OpenCode 并返回 `timed_out` Receipt。两者均要求
 - ICH E9 retrieval（P17/P2/P4-B）：`python -m scripts.ich_e9_poc` 在临时 pgvector PostgreSQL 中下载/校验或复用本地 ignored E9，执行六步 Document DAG、metadata+FTS、18 条 GoldCase、Recall@5/10 与 informational EvaluationRun 持久化/重放，并销毁容器。报告还验证服务端 suite registry、重复启动的同事实稳定性、Run/Case 恢复候选范围及 self-regression；必须包含逐题 Evidence 命中/失败类别、单文档非认证声明、vector/relation degraded、generation disabled、`external_model_requests=0` 和 `database_retention=ephemeral`。
 - Release evaluation（P17/P3-B）：自动 threshold 只使用独立合成 suite；覆盖 pass/fail、逐指标失败原因、重复零增量、payload/列漂移拒绝、`release_id IS NULL` 和零模型请求。E9 Recall 报告不得作为该 Gate 输入。
 - 认证：用户名、Argon2id、HttpOnly/SameSite Cookie、CSRF、会话撤销和 RBAC。
-- 前端：Vitest/Testing Library 已覆盖核心组件行为，包括 Chunk 双向定位、Rotation allowed-action payload、stale 刷新与唯一 receipt，以及 SourceVersion URL 恢复、精确 from/to 比较请求和服务端 impact summary；真实浏览器与 390px 窄屏仍不是已签入自动化 E2E。
+- 前端：Vitest/Testing Library 已覆盖核心组件行为，包括 Chunk 双向定位、Rotation allowed-action payload、stale 刷新与唯一 receipt、SourceVersion URL/比较/impact、Relations 服务端生命周期分支与 Release URL，以及 Audit entity/case/release 精确筛选和权威 target；真实浏览器与 390px 窄屏仍不是已签入自动化 E2E。
 - Workflow：固定阶段合同、ActionPolicy、Review Protocol、知识 Release resolve 和 ADAE fixture；start/resume ledger 只在限定 POC Workbench 中可执行，不是通用 Runtime。
 
 ### 尚未覆盖

@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from typing import Protocol, Sequence
+from urllib.parse import urlencode
 from uuid import NAMESPACE_URL, uuid5
 
 from sqlalchemy import func, select
@@ -265,6 +266,40 @@ class RelationEdgeRecord:
 
 
 @dataclass(frozen=True, slots=True)
+class LifecycleNodeRecord:
+    node_id: str
+    node_type: str
+    label: str
+    status: str
+    derived: bool
+
+
+@dataclass(frozen=True, slots=True)
+class LifecycleEdgeRecord:
+    source_node_id: str
+    target_node_id: str
+    relation_type: str
+
+
+@dataclass(frozen=True, slots=True)
+class ReleaseMembershipRecord:
+    release_id: str
+    version: str
+    status: str
+    current: bool
+
+
+@dataclass(frozen=True, slots=True)
+class LifecycleLineageRecord:
+    root_knowledge_revision_id: str
+    selected_release_id: str | None
+    nodes: tuple[LifecycleNodeRecord, ...]
+    edges: tuple[LifecycleEdgeRecord, ...]
+    release_membership: tuple[ReleaseMembershipRecord, ...]
+    warnings: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class RelationQueryRecord:
     root_node_id: str | None
     requested_depth: int
@@ -274,12 +309,20 @@ class RelationQueryRecord:
     total_nodes: int
     truncated: bool
     warnings: tuple[str, ...]
+    lifecycle: LifecycleLineageRecord | None = None
 
 
 @dataclass(frozen=True, slots=True)
 class AuditVersionRecord:
     revision_number: int | None
     content_sha256: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class AuditTargetRecord:
+    resource_type: str
+    resource_id: str
+    path: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -295,6 +338,7 @@ class AuditEventRecord:
     result: str | None
     correlation_id: str | None
     created_at: datetime
+    authoritative_target: AuditTargetRecord | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -547,6 +591,7 @@ class PlatformReadRepository(Protocol):
         node_id: str | None,
         query: str | None,
         depth: int,
+        release_id: str | None,
     ) -> RelationQueryRecord: ...
 
     def list_audit_events(
@@ -556,6 +601,9 @@ class PlatformReadRepository(Protocol):
         action: str | None,
         object_type: str | None,
         result: str | None,
+        entity_id: str | None,
+        case_id: str | None,
+        release_id: str | None,
         cursor: str | None,
         limit: int,
     ) -> AuditEventPageRecord: ...
@@ -1112,6 +1160,7 @@ class SqlAlchemyPlatformRepository:
         node_id: str | None,
         query: str | None,
         depth: int,
+        release_id: str | None,
     ) -> RelationQueryRecord:
         requested_depth = max(depth, 0)
         applied_depth = min(requested_depth, 2)
@@ -1194,6 +1243,11 @@ class SqlAlchemyPlatformRepository:
                 )
                 if evidence_ids
                 else []
+            )
+            lifecycle = _load_lifecycle_lineage(
+                session,
+                node_id=node_id,
+                release_id=release_id,
             )
 
         latest_revision_by_unit: dict[str, KnowledgeRevision] = {}
@@ -1357,6 +1411,7 @@ class SqlAlchemyPlatformRepository:
             total_nodes=total_nodes,
             truncated=truncated,
             warnings=tuple(warnings),
+            lifecycle=lifecycle,
         )
 
     def list_audit_events(
@@ -1366,6 +1421,9 @@ class SqlAlchemyPlatformRepository:
         action: str | None,
         object_type: str | None,
         result: str | None,
+        entity_id: str | None,
+        case_id: str | None,
+        release_id: str | None,
         cursor: str | None,
         limit: int,
     ) -> AuditEventPageRecord:
@@ -1377,6 +1435,18 @@ class SqlAlchemyPlatformRepository:
                 statement = statement.where(AuditEvent.action.ilike(f"%{action}%"))
             if object_type:
                 statement = statement.where(AuditEvent.entity_type.ilike(f"%{object_type}%"))
+            if entity_id:
+                statement = statement.where(AuditEvent.entity_id == entity_id)
+            if case_id:
+                statement = statement.where(
+                    AuditEvent.entity_type == "rotation_case",
+                    AuditEvent.entity_id == case_id,
+                )
+            if release_id:
+                statement = statement.where(
+                    AuditEvent.entity_type == "release",
+                    AuditEvent.entity_id == release_id,
+                )
             rows = list(
                 session.scalars(
                     statement.order_by(
@@ -1414,8 +1484,16 @@ class SqlAlchemyPlatformRepository:
         next_cursor = (
             page[-1].audit_event_id if page and start + len(page) < total else None
         )
+        with self._session_factory() as session:
+            items = tuple(
+                _audit_event_record(
+                    row,
+                    authoritative_target=_audit_authoritative_target(session, row),
+                )
+                for row in page
+            )
         return AuditEventPageRecord(
-            items=tuple(_audit_event_record(row) for row in page),
+            items=items,
             total=total,
             next_cursor=next_cursor,
             warnings=tuple(warnings),
@@ -2161,6 +2239,213 @@ def _source_status_label(status: str) -> str | None:
     return status if status in allowed else None
 
 
+def _load_lifecycle_lineage(
+    session: Session,
+    *,
+    node_id: str | None,
+    release_id: str | None,
+) -> LifecycleLineageRecord | None:
+    if node_id is None:
+        return None
+    revision = session.scalar(
+        select(KnowledgeRevision)
+        .where(KnowledgeRevision.knowledge_unit_id == node_id)
+        .order_by(KnowledgeRevision.revision_number.desc())
+        .limit(1)
+    )
+    if revision is None:
+        return None
+
+    unit = session.get(KnowledgeUnit, node_id)
+    evidence_ids = tuple(
+        session.scalars(
+            select(CandidateEvidence.evidence_id)
+            .where(CandidateEvidence.candidate_id == revision.candidate_id)
+            .order_by(CandidateEvidence.evidence_id)
+        )
+    )
+    evidence_rows = (
+        list(
+            session.scalars(
+                select(Evidence)
+                .where(Evidence.evidence_id.in_(evidence_ids))
+                .order_by(Evidence.evidence_id)
+            )
+        )
+        if evidence_ids
+        else []
+    )
+    source_version_ids = sorted(
+        {evidence.source_version_id for evidence in evidence_rows}
+    )
+    source_versions = (
+        list(
+            session.scalars(
+                select(SourceVersion)
+                .where(SourceVersion.source_version_id.in_(source_version_ids))
+                .order_by(SourceVersion.source_version_id)
+            )
+        )
+        if source_version_ids
+        else []
+    )
+    chunk_rows = (
+        list(
+            session.execute(
+                select(RetrievalChunkEvidence.evidence_id, RetrievalChunk)
+                .join(
+                    RetrievalChunk,
+                    RetrievalChunk.chunk_id == RetrievalChunkEvidence.chunk_id,
+                )
+                .where(RetrievalChunkEvidence.evidence_id.in_(evidence_ids))
+                .order_by(
+                    RetrievalChunkEvidence.evidence_id,
+                    RetrievalChunk.ordinal,
+                    RetrievalChunk.chunk_id,
+                )
+            )
+        )
+        if evidence_ids
+        else []
+    )
+    release_rows = list(
+        session.scalars(
+            select(Release)
+            .join(ReleaseItem, ReleaseItem.release_id == Release.release_id)
+            .where(ReleaseItem.knowledge_revision_id == revision.knowledge_revision_id)
+            .order_by(Release.version, Release.release_id)
+        )
+    )
+    current_release_id = session.scalar(
+        select(ReleasePointer.current_release_id).where(
+            ReleasePointer.pointer_key == "current"
+        )
+    )
+
+    warnings: list[str] = []
+    releases_by_id = {release.release_id: release for release in release_rows}
+    selected_release_id: str | None
+    if release_id is not None and release_id not in releases_by_id:
+        warnings.append(
+            f"release {release_id} does not contain revision "
+            f"{revision.knowledge_revision_id}"
+        )
+        selected_release_id = None
+    elif release_id is not None:
+        selected_release_id = release_id
+    elif current_release_id in releases_by_id:
+        selected_release_id = current_release_id
+    else:
+        selected_release_id = release_rows[0].release_id if release_rows else None
+
+    nodes: list[LifecycleNodeRecord] = []
+    edges: list[LifecycleEdgeRecord] = []
+    seen_node_ids: set[str] = set()
+    seen_edges: set[tuple[str, str, str]] = set()
+
+    def add_node(record: LifecycleNodeRecord) -> None:
+        if record.node_id not in seen_node_ids:
+            seen_node_ids.add(record.node_id)
+            nodes.append(record)
+
+    def add_edge(source: str, target: str, relation_type: str) -> None:
+        key = (source, target, relation_type)
+        if key not in seen_edges:
+            seen_edges.add(key)
+            edges.append(
+                LifecycleEdgeRecord(
+                    source_node_id=source,
+                    target_node_id=target,
+                    relation_type=relation_type,
+                )
+            )
+
+    for source_version in source_versions:
+        add_node(
+            LifecycleNodeRecord(
+                node_id=source_version.source_version_id,
+                node_type="source_version",
+                label=f"{source_version.source_id} · {source_version.version}",
+                status=source_version.status,
+                derived=False,
+            )
+        )
+    for evidence in evidence_rows:
+        add_node(
+            LifecycleNodeRecord(
+                node_id=evidence.evidence_id,
+                node_type="evidence",
+                label=f"Evidence · {evidence.evidence_id}",
+                status="canonical",
+                derived=False,
+            )
+        )
+        add_edge(evidence.source_version_id, evidence.evidence_id, "contains")
+        add_edge(
+            evidence.evidence_id,
+            revision.knowledge_revision_id,
+            "supports",
+        )
+    for evidence_id, chunk in chunk_rows:
+        add_node(
+            LifecycleNodeRecord(
+                node_id=chunk.chunk_id,
+                node_type="retrieval_chunk",
+                label=f"Chunk {chunk.ordinal + 1}",
+                status="available",
+                derived=True,
+            )
+        )
+        add_edge(evidence_id, chunk.chunk_id, "projected_as")
+
+    add_node(
+        LifecycleNodeRecord(
+            node_id=revision.knowledge_revision_id,
+            node_type="knowledge_revision",
+            label=(
+                f"{unit.stable_key} · r{revision.revision_number}"
+                if unit is not None
+                else f"{revision.knowledge_revision_id} · r{revision.revision_number}"
+            ),
+            status="released" if release_rows else revision.status,
+            derived=False,
+        )
+    )
+    if selected_release_id is not None:
+        selected_release = releases_by_id[selected_release_id]
+        add_node(
+            LifecycleNodeRecord(
+                node_id=selected_release.release_id,
+                node_type="release",
+                label=selected_release.version,
+                status=selected_release.status,
+                derived=False,
+            )
+        )
+        add_edge(
+            revision.knowledge_revision_id,
+            selected_release.release_id,
+            "included_in",
+        )
+
+    return LifecycleLineageRecord(
+        root_knowledge_revision_id=revision.knowledge_revision_id,
+        selected_release_id=selected_release_id,
+        nodes=tuple(nodes),
+        edges=tuple(edges),
+        release_membership=tuple(
+            ReleaseMembershipRecord(
+                release_id=release.release_id,
+                version=release.version,
+                status=release.status,
+                current=release.release_id == current_release_id,
+            )
+            for release in release_rows
+        ),
+        warnings=tuple(warnings),
+    )
+
+
 def _provenance_evidence_ids(provenance: object) -> tuple[str, ...]:
     if not isinstance(provenance, dict):
         return ()
@@ -2191,7 +2476,49 @@ def _relation_evidence_records(
     return tuple(records)
 
 
-def _audit_event_record(event: AuditEvent) -> AuditEventRecord:
+def _audit_authoritative_target(
+    session: Session,
+    event: AuditEvent,
+) -> AuditTargetRecord | None:
+    resource_type = event.entity_type
+    resource_id = event.entity_id
+    if resource_type == "impact_assessment":
+        assessment = session.get(ImpactAssessment, resource_id)
+        if assessment is None:
+            return None
+        source_version = session.get(SourceVersion, assessment.to_source_version_id)
+        if source_version is None:
+            return None
+        path = "/sources?" + urlencode(
+            {
+                "source": source_version.source_id,
+                "assessment": resource_id,
+            }
+        )
+    elif resource_type == "rotation_case":
+        path = "/candidates?" + urlencode(
+            {"view": "rotation", "status": "", "case": resource_id}
+        )
+    elif resource_type == "evaluation_run":
+        path = "/evaluation?" + urlencode({"run": resource_id})
+    elif resource_type == "release":
+        path = "/releases?" + urlencode({"candidate": resource_id})
+    elif resource_type == "processing_run":
+        path = "/processing?" + urlencode({"run": resource_id})
+    else:
+        return None
+    return AuditTargetRecord(
+        resource_type=resource_type,
+        resource_id=resource_id,
+        path=path,
+    )
+
+
+def _audit_event_record(
+    event: AuditEvent,
+    *,
+    authoritative_target: AuditTargetRecord | None = None,
+) -> AuditEventRecord:
     details = event.details if isinstance(event.details, dict) else {}
     revision_number = details.get("revision_number")
     safe_revision_number = revision_number if isinstance(revision_number, int) else None
@@ -2233,6 +2560,7 @@ def _audit_event_record(event: AuditEvent) -> AuditEventRecord:
             else event.run_id
         ),
         created_at=event.created_at,
+        authoritative_target=authoritative_target,
     )
 
 

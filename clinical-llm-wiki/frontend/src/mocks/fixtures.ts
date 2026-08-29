@@ -442,6 +442,7 @@ export const relationDirectoryFixture = response<RelationQuery>({
   truncated: false,
   partial: false,
   warnings: [],
+  lifecycle: null,
 });
 
 export const relationQueryFixture = response<RelationQuery>({
@@ -487,6 +488,79 @@ export const relationQueryFixture = response<RelationQuery>({
   truncated: false,
   partial: false,
   warnings: [],
+  lifecycle: {
+    rootKnowledgeRevisionId: "KREV-SDTM-AE-003",
+    selectedReleaseId: "rel-2026-07-29-001",
+    nodes: [
+      {
+        nodeId: "srcv-sdtmig-34",
+        nodeType: "source_version",
+        label: "SDTMIG 3.4",
+        status: "parsed",
+        derived: false,
+      },
+      {
+        nodeId: "evidence-ui-aeseq-001",
+        nodeType: "evidence",
+        label: "Evidence 6.2 AE",
+        status: "canonical",
+        derived: false,
+      },
+      {
+        nodeId: "chunk-ui-aeseq-001",
+        nodeType: "retrieval_chunk",
+        label: "Chunk 12",
+        status: "available",
+        derived: true,
+      },
+      {
+        nodeId: "KREV-SDTM-AE-003",
+        nodeType: "knowledge_revision",
+        label: "sdtm.domain.ae · r3",
+        status: "released",
+        derived: false,
+      },
+      {
+        nodeId: "rel-2026-07-29-001",
+        nodeType: "release",
+        label: "2026.07-d0",
+        status: "released",
+        derived: false,
+      },
+    ],
+    edges: [
+      {
+        sourceNodeId: "srcv-sdtmig-34",
+        targetNodeId: "evidence-ui-aeseq-001",
+        relationType: "contains",
+      },
+      {
+        sourceNodeId: "evidence-ui-aeseq-001",
+        targetNodeId: "chunk-ui-aeseq-001",
+        relationType: "projected_as",
+      },
+      {
+        sourceNodeId: "evidence-ui-aeseq-001",
+        targetNodeId: "KREV-SDTM-AE-003",
+        relationType: "supports",
+      },
+      {
+        sourceNodeId: "KREV-SDTM-AE-003",
+        targetNodeId: "rel-2026-07-29-001",
+        relationType: "included_in",
+      },
+    ],
+    releaseMembership: [
+      {
+        releaseId: "rel-2026-07-29-001",
+        version: "2026.07-d0",
+        status: "released",
+        current: true,
+      },
+    ],
+    partial: false,
+    warnings: [],
+  },
 });
 
 export const auditEventsFixture = response<AuditEventCollection>({
@@ -513,6 +587,7 @@ export const auditEventsFixture = response<AuditEventCollection>({
       result: "approved",
       correlationId: "review-aeseq-002",
       createdAt: fixtureTime,
+      authoritativeTarget: null,
     },
     {
       auditEventId: "audit-ui-002",
@@ -532,6 +607,7 @@ export const auditEventsFixture = response<AuditEventCollection>({
       result: "review_required",
       correlationId: "author-adae-001",
       createdAt: "2026-07-29T13:48:00Z",
+      authoritativeTarget: null,
     },
     {
       auditEventId: "audit-ui-001",
@@ -551,6 +627,7 @@ export const auditEventsFixture = response<AuditEventCollection>({
       result: "succeeded",
       correlationId: "attempt-replay-001",
       createdAt: "2026-07-29T13:44:00Z",
+      authoritativeTarget: null,
     },
   ],
 });

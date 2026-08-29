@@ -1,7 +1,7 @@
 ---
 status: in-progress
 created: 2026-08-16 12:08
-updated: 2026-08-16 22:47
+updated: 2026-08-29 13:37
 ---
 
 # Current Task
@@ -37,14 +37,17 @@ P17 P4 — 在现有九项导航内补全 API 权威的知识治理 UI，并关�
 - [x] P4-D1：新增 SourceVersion history/list 与服务端固定 comparison profile 的 impact materialization API；权限和计数由后端权威返回。
 - [x] P4-D2：Sources 接入版本/影响工作台，恢复 source/from/to/assessment/change URL，展示七类变化、受影响知识与轮转案例数。
 - [x] P4-D3：完成同版本 422、只读角色无 compare、幂等重放、组件行为与真实 PostgreSQL 隔离 Gate。
+- [x] P4-E1：扩展 Relations 后端 read model，由服务端投影 SourceVersion/Evidence/derived Chunk/KnowledgeRevision/Release 谱系与 release membership。
+- [x] P4-E2：Relations 接入 lifecycle/release URL、只读谱系与缺边 partial 状态，Chunk 明确标记 derived，且不伪造 Chunk→Revision 权威边。
+- [x] P4-F：补 Audit entity/case/release 精确过滤、URL 状态与服务端权威对象跳转。
 - [ ] P4：补全现有治理 UI，并关闭前端、Workflow、浏览器和全链路 POC Gate。
 
 ## Working Context
 
-- **Files being edited**: UI-01 的 platform API/OpenAPI/repository、`SourcesPage.tsx`、`SourceLifecyclePanel.tsx`、router/contracts 与 source lifecycle/PostgreSQL tests，以及 P17/canonical/DevLog 文档。
-- **Last command run**: Knowledge `311 passed, 12 skipped`、Ruff、Frontend `47 passed`/production build、Workflow `366 passed, 1 skipped`、一次性真实 pgvector materialization `1 passed`；默认 Compose rebuild/`--wait` 全部 healthy，临时容器已清理。
-- **Key decisions**: 只使用 E9，不使用 E9(R1)；原始 PDF 运行时下载且不提交 Git；测试/CI 使用自有合成 fixture；无 embedding 时 vector 显式 degraded；默认零模型调用。
-- **Blocker**: UI-07 lifecycle lineage projection 与 UI-08 entity/case/release 精确审计过滤/跳转仍缺合同；认证真实浏览器 Gate 仍需有效人员登录态，不得为测试擅自重置管理员密码。
+- **Files being edited**: Relations/Audit repository/API/OpenAPI、前端只读视图、router/contracts/fixtures、PostgreSQL/contract/component tests 与本阶段文档。
+- **Last command run**: Knowledge `311 passed, 12 skipped`、Workflow `366 passed, 1 skipped`；前端 `49 passed`/production build、Ruff、真实 PostgreSQL relation/audit Gate 与 Compose rebuild/health 均通过。
+- **Key decisions**: 复用 `/relations/query` 作为服务端权威投影，不新增顶级页面/图服务；谱系真实 DAG 为 SourceVersion→Evidence→KnowledgeRevision→Release，并从 Evidence 分支到 `derived` Chunk，不伪造 Chunk→Revision canonical 边。Audit 精确筛选按 AND 处理，权威页面 target 由服务端解析。
+- **Blocker**: API/组件/真实 PostgreSQL Gate 已关闭；认证真实浏览器与 390px Gate 仍需有效人员登录态，不得为测试擅自重置管理员密码。因此 P4/P17 不能宣告完成。
 
 ## Phase Context
 
@@ -56,4 +59,4 @@ P17 P4 — 在现有九项导航内补全 API 权威的知识治理 UI，并关�
 
 ## Resume From
 
-从 UI-07 lifecycle lineage projection 的后端合同 RED 开始；随后补 UI-08 entity/case/release 审计过滤和权威对象跳转，最后在取得有效登录态后关闭真实浏览器/390px Gate。
+先同步 P4-E/F 开发日志并阶段提交远端；取得有效人员登录态后执行 Sources→Processing→Candidates→Relations→Audit、Evaluation/Query Lab/Releases 跨页与 390px 浏览器 Gate。若仍无登录态，只记录 blocker，不覆盖管理员密码，也不以组件测试替代浏览器验收。

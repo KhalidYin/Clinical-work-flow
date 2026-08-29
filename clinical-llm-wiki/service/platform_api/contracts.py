@@ -292,6 +292,48 @@ class RelationEdgeData(ApiModel):
     evidence: list[RelationEvidenceData] = Field(min_length=1)
 
 
+class LifecycleNodeData(ApiModel):
+    node_id: str
+    node_type: Literal[
+        "source_version",
+        "evidence",
+        "retrieval_chunk",
+        "knowledge_revision",
+        "release",
+    ]
+    label: str
+    status: str
+    derived: bool
+
+
+class LifecycleEdgeData(ApiModel):
+    source_node_id: str
+    target_node_id: str
+    relation_type: Literal[
+        "contains",
+        "projected_as",
+        "supports",
+        "included_in",
+    ]
+
+
+class ReleaseMembershipData(ApiModel):
+    release_id: str
+    version: str
+    status: str
+    current: bool
+
+
+class LifecycleLineageData(ApiModel):
+    root_knowledge_revision_id: str
+    selected_release_id: str | None
+    nodes: list[LifecycleNodeData]
+    edges: list[LifecycleEdgeData]
+    release_membership: list[ReleaseMembershipData]
+    partial: bool
+    warnings: list[str]
+
+
 class RelationQueryData(ApiModel):
     root_node_id: str | None
     requested_depth: int = Field(ge=0)
@@ -302,11 +344,24 @@ class RelationQueryData(ApiModel):
     truncated: bool
     partial: bool
     warnings: list[str]
+    lifecycle: LifecycleLineageData | None
 
 
 class AuditVersionData(ApiModel):
     revision_number: int | None
     content_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+
+
+class AuditTargetData(ApiModel):
+    resource_type: Literal[
+        "impact_assessment",
+        "rotation_case",
+        "evaluation_run",
+        "release",
+        "processing_run",
+    ]
+    resource_id: str
+    path: str = Field(pattern=r"^/")
 
 
 class AuditEventData(ApiModel):
@@ -321,6 +376,7 @@ class AuditEventData(ApiModel):
     result: str | None
     correlation_id: str | None
     created_at: datetime
+    authoritative_target: AuditTargetData | None
 
 
 class AuditEventCollectionData(ApiModel):

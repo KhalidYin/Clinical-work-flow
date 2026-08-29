@@ -135,7 +135,7 @@ syncs_to:
 | P17-UI-04 | Query Lab | query、release、top-k、metadata/FTS/vector/relation 各路贡献、融合排序、Chunk 解释与 Evidence citation | 目标 API `data.queryId`、`data.capabilities`、`data.hits[]`、`data.contextPackage` | 空查询，不自动运行；默认 current release 与 top_k=10 | 提交后 q/release/top_k 写 URL；展开结果显示 Evidence/locator；前端不重算 rank | 默认/加载/空/错误/部分/窄屏；未配置 vector 显示 degraded，不伪造贡献 | 每个 hit 回到 released revision/Evidence/SourceVersion；URL 可恢复；无模型调用 | 不允许 |
 | P17-UI-05 | Evaluation | suite/version、case 数、Recall@5、Recall@10、逐题命中、失败类别与回归差异 | 目标 API `data.suite`、`data.run.metrics`、`data.caseResults[]` | 最近 E9 baseline run；无运行时显示启动条件 | suite/run/outcome 写 URL；启动产生 immutable run；失败案例进入 Query Lab 重放 | 默认/加载/空/错误/部分/窄屏；缺失指标显示 N/A 原因 | 指标可回到 expected Evidence；前端不补值；E9 页面明确“非临床质量认证” | 不允许 |
 | P17-UI-06 | Releases | current/base/candidate 差异、included/carried/replaced/retired、未决案例、评估与对象 Gate | 目标 API `data.release`、`data.diff`、`data.gates[]`、`data.allowedActions[]` | current 与最新 candidate；没有 candidate 时说明创建条件 | 创建/发布携带 base_release_id；失败 Gate 禁用；409 刷新并展示并发冲突 | 默认/加载/空/错误/部分/窄屏/stale；对象不可用 fail closed | 未决 RotationCase、评估失败、rights 或 checksum 错误阻断；旧 Release 仍可打开 | D-P17-01 |
-| P17-UI-07 | Relations / 生命周期血缘 | SourceVersion → Evidence → Chunk → KnowledgeRevision → Release 路径，Chunk 明确标为 derived | 目标 API `data.nodes[]`、`data.edges[]`、`data.releaseMembership` | 从选中 revision 展开一跳，继承现有 depth 上限 | node/depth/view/release 写 URL；只读跳转到来源、Case 或 Release | 默认/加载/空/错误/部分/窄屏；缺边提示而非补边 | Chunk 不被展示成 Knowledge Unit；candidate/released/retired 视觉可区分 | D-P17-01 |
+| P17-UI-07 | Relations / 生命周期血缘 | SourceVersion → Evidence → KnowledgeRevision → Release canonical 路径，以及 Evidence → derived Chunk 分支 | 扩展 API `data.lifecycle.nodes[]`、`edges[]`、`releaseMembership[]` | 从选中 Knowledge Unit 的最新 revision 投影，继承现有 depth 上限 | node/depth/view/release 写 URL；Release 视角由服务端 membership 约束 | 默认/加载/空/错误/部分/窄屏；缺边提示而非补边 | Chunk 不被展示成 Knowledge Unit，也不伪造 Chunk→Revision canonical 边 | D-P17-01 |
 | P17-UI-08 | Audit / 轮转与发布 | Impact、Case、DecisionReceipt、EvaluationRun、Release 事件时间线与 actor | 现有/扩展 Audit API `data.items[]` 与详情 payload | 最近事件；支持 entity/case/release 过滤 | 过滤与选中事件写 URL；可跳转权威对象；无状态修改 | 默认/加载/空/错误/部分/窄屏；截断结果显示 cap 提示 | Audit 只追溯，不作为 Rotation/Release 状态权威；receipt 字段完整 | D-P17-01 |
 
 ## 视觉与行为验收清单
@@ -423,6 +423,15 @@ syncs_to:
 - Sources 页面增加版本治理入口，`source/from/to/assessment/change` 可由 URL 恢复；页面原样展示 API 计数和 impact 明细，`rights_changed` 只作为风险类别展示，不产生自动延续动作。
 - 后端合同 `41 passed`、前端全量 `47 passed` 与 production build、Knowledge `311 passed, 12 skipped`、Ruff、Workflow `366 passed, 1 skipped` 均通过；隔离真实 pgvector materialization `1 passed`，临时容器已清理，未修改运行数据库；修复代码层 build isolation 后默认 Compose rebuild/`--wait` 全部 healthy。
 - 组件与 PostgreSQL 行为已覆盖，但有效人员登录态仍不可用，未重置管理员密码，因此 P17-UI-01 的真实浏览器/390px 总验收仍保持未勾选。下一切片是 UI-07/08 生命周期谱系与审计。
+
+### P4-E/F Relations 生命周期与 Audit 追溯结果（2026-08-29）
+
+- 扩展既有 `/relations/query`，由后端从 canonical 外键和映射表投影选中最新 KnowledgeRevision 的生命周期。主路径是 SourceVersion→Evidence→KnowledgeRevision→Release，Evidence 同时投影到可重建的 derived Chunk；没有创建不存在的 Chunk→Revision 依赖，也没有新增图服务或第三套状态。
+- `release_id` 只选择该 Revision 实际所属的 Release；响应同时返回全部 release membership 与 current 标记。Relations 页面保留原有限关系图，并新增只读生命周期视图和 `release` URL 状态，前端不跨接口补边。
+- Audit 新增 `entity_id/case_id/release_id` 精确 AND 筛选并写入 URL；服务端为 ImpactAssessment、RotationCase、EvaluationRun、Release、ProcessingRun 解析权威 target，浏览器只渲染只读跳转，不以 AuditEvent 替代业务对象。
+- TDD 先观察 Relations/Audit 后端与前端 RED；GREEN 后 platform API `41 passed`，前端 `49 passed` 与 production build、Knowledge `311 passed, 12 skipped`、Ruff、Workflow `366 passed, 1 skipped` 均通过。真实 PostgreSQL relation/audit Gate `1 passed`，测试临时切换 singleton current pointer 并在结束后原样恢复。
+- 默认 Knowledge Compose rebuild/`--wait` 通过；API、PostgreSQL、前端和两个 Worker 正常，独立 Harness 四容器保持 healthy。未配置或调用真实模型。
+- 有效人员登录态仍不可用，本轮没有重置管理员密码。因此 P17-UI-07/08 的 API、组件和 PostgreSQL切片完成，但真实浏览器、390px 与完整 P4 跨页 Gate仍保持未关闭，不能宣告 P17 完成。
 
 ### 边界（本 Phase 明确不做）
 

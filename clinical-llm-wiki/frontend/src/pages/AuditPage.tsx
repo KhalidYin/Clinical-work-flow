@@ -16,6 +16,9 @@ export interface AuditSearch {
   action: string;
   objectType: string;
   result: string;
+  entity: string;
+  case: string;
+  release: string;
   cursor: string;
   event: string;
 }
@@ -31,6 +34,9 @@ function auditPath(search: AuditSearch): string {
   if (search.action) params.set("action", search.action);
   if (search.objectType) params.set("object_type", search.objectType);
   if (search.result) params.set("result", search.result);
+  if (search.entity) params.set("entity_id", search.entity);
+  if (search.case) params.set("case_id", search.case);
+  if (search.release) params.set("release_id", search.release);
   if (search.cursor) params.set("cursor", search.cursor);
   return `${API_PATHS.auditEvents}?${params.toString()}`;
 }
@@ -44,6 +50,9 @@ export function AuditPage({ search, onSearchChange }: AuditPageProps) {
       search.action,
       search.objectType,
       search.result,
+      search.entity,
+      search.case,
+      search.release,
       search.cursor,
     ],
     queryFn: ({ signal }) =>
@@ -106,6 +115,24 @@ export function AuditPage({ search, onSearchChange }: AuditPageProps) {
           placeholder="succeeded"
           onChange={(result) => updateFilter({ result })}
         />
+        <FilterField
+          label="实体 ID"
+          value={search.entity}
+          placeholder="impact-assessment-id"
+          onChange={(entity) => updateFilter({ entity })}
+        />
+        <FilterField
+          label="RotationCase"
+          value={search.case}
+          placeholder="rotation-case-id"
+          onChange={(caseId) => updateFilter({ case: caseId })}
+        />
+        <FilterField
+          label="Release"
+          value={search.release}
+          placeholder="release-id"
+          onChange={(release) => updateFilter({ release })}
+        />
         <button
           className={styles.secondaryButton}
           type="button"
@@ -115,6 +142,9 @@ export function AuditPage({ search, onSearchChange }: AuditPageProps) {
               action: "",
               objectType: "",
               result: "",
+              entity: "",
+              case: "",
+              release: "",
               cursor: "",
               event: "",
             })
@@ -278,6 +308,14 @@ function AuditEventDetail({ event }: { event: AuditEvent }) {
       <p className={styles.readOnlyNote}>
         此为只追加投影，不提供编辑、删除或读取原始详情的操作。
       </p>
+      {event.authoritativeTarget ? (
+        <a
+          className={styles.secondaryButton}
+          href={`#${event.authoritativeTarget.path}`}
+        >
+          打开权威对象
+        </a>
+      ) : null}
     </article>
   );
 }

@@ -228,6 +228,7 @@ const relationsRoute = createRoute({
     node: typeof search.node === "string" ? search.node : "",
     depth: search.depth === 2 || search.depth === "2" ? 2 : 1,
     view: search.view === "list" ? ("list" as const) : ("paths" as const),
+    release: typeof search.release === "string" ? search.release : "",
   }),
   component: RelationsRoute,
 });
@@ -256,6 +257,9 @@ const auditRoute = createRoute({
     action: typeof search.action === "string" ? search.action : "",
     objectType: typeof search.objectType === "string" ? search.objectType : "",
     result: typeof search.result === "string" ? search.result : "",
+    entity: typeof search.entity === "string" ? search.entity : "",
+    case: typeof search.case === "string" ? search.case : "",
+    release: typeof search.release === "string" ? search.release : "",
     cursor: typeof search.cursor === "string" ? search.cursor : "",
     event: typeof search.event === "string" ? search.event : "",
   }),

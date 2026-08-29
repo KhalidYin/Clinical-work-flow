@@ -19,7 +19,9 @@ from service.auth.password_sessions import (
 )
 from service.db.models import (
     AuditEvent,
+    CandidateEvidence,
     CandidateRelationProposal,
+    ChunkProfile,
     Evidence,
     KnowledgeCandidate,
     KnowledgeRevision,
@@ -30,7 +32,10 @@ from service.db.models import (
     ProcessingRun,
     Release,
     ReleaseItem,
+    ReleasePointer,
     RelationProposalEvidence,
+    RetrievalChunk,
+    RetrievalChunkEvidence,
     RoleBinding,
     Source,
     SourceArtifact,
@@ -159,6 +164,8 @@ def test_real_postgres_repository_serves_authorized_read_routes(
     engine = create_database_engine(TEST_DATABASE_URL)
     session_factory = create_session_factory(engine)
     now = datetime(2026, 7, 30, 3, 30, tzinfo=timezone.utc)
+    previous_current_release_id: str | None = None
+    previous_pointer_version = 0
 
     with session_factory.begin() as session:
         session.add_all(
@@ -197,6 +204,12 @@ def test_real_postgres_repository_serves_authorized_read_routes(
             ]
         )
         session.flush()
+        pointer = session.get(ReleasePointer, "current")
+        assert pointer is not None
+        previous_current_release_id = pointer.current_release_id
+        previous_pointer_version = pointer.pointer_version
+        pointer.current_release_id = "rel-p1d-integration"
+        pointer.pointer_version += 1
         session.add_all(
             [
                 RoleBinding(
@@ -220,6 +233,17 @@ def test_real_postgres_repository_serves_authorized_read_routes(
                     rights={"status": "licensed"},
                     data_boundary="local_processing_only",
                     status="registered",
+                ),
+                ChunkProfile(
+                    chunk_profile_id="chunk-profile-p1d-integration",
+                    version="p1d-integration-v1",
+                    tokenizer_id="whitespace-v1",
+                    target_min_tokens=10,
+                    target_max_tokens=40,
+                    hard_max_tokens=60,
+                    overlap_tokens=5,
+                    table_hard_max_tokens=80,
+                    format_rules={"major_section_boundary": True},
                 ),
             ]
         )
@@ -300,6 +324,19 @@ def test_real_postgres_repository_serves_authorized_read_routes(
                     content_sha256="f" * 64,
                     author_actor_id="usr-p1d-integration",
                 ),
+                RetrievalChunk(
+                    chunk_id="chunk-p1d-integration",
+                    chunk_profile_id="chunk-profile-p1d-integration",
+                    source_version_id="srcv-p1d-integration",
+                    evidence_type="paragraph",
+                    ordinal=0,
+                    content="AESEQ identifies a record within SDTM AE.",
+                    content_sha256="f" * 64,
+                    token_count=8,
+                    locator={"page": 35, "section": "AE"},
+                    data_boundary="local_processing_only",
+                    rights={"status": "licensed", "storage_allowed": True},
+                ),
                 AuditEvent(
                     audit_event_id="audit-p1d-integration",
                     actor_subject="usr-p1d-integration",
@@ -314,6 +351,30 @@ def test_real_postgres_repository_serves_authorized_read_routes(
                         "result": "approved",
                         "correlation_id": "integration-review-001",
                         "rationale": "must not leave the audit projection",
+                    },
+                ),
+                AuditEvent(
+                    audit_event_id="audit-p1d-rotation-integration",
+                    actor_subject="usr-p1d-integration",
+                    action="rotation_case.decided",
+                    entity_type="rotation_case",
+                    entity_id="rotation-p1d-integration",
+                    run_id=None,
+                    details={
+                        "result": "approved",
+                        "correlation_id": "integration-rotation-001",
+                    },
+                ),
+                AuditEvent(
+                    audit_event_id="audit-p1d-release-integration",
+                    actor_subject="usr-p1d-integration",
+                    action="release.published",
+                    entity_type="release",
+                    entity_id="rel-p1d-integration",
+                    run_id=None,
+                    details={
+                        "result": "released",
+                        "correlation_id": "integration-release-001",
                     },
                 ),
             ]
@@ -339,6 +400,19 @@ def test_real_postgres_repository_serves_authorized_read_routes(
         session.flush()
         session.add_all(
             [
+                CandidateEvidence(
+                    candidate_id="cand-p1d-integration",
+                    evidence_id="evidence-p1d-integration",
+                    evidence_role="supports",
+                ),
+                RetrievalChunkEvidence(
+                    chunk_id="chunk-p1d-integration",
+                    position=0,
+                    evidence_id="evidence-p1d-integration",
+                    start_offset=0,
+                    end_offset=len("AESEQ identifies a record within SDTM AE."),
+                    span_role="primary",
+                ),
                 CandidateRelationProposal(
                     proposal_id="proposal-p1d-integration",
                     candidate_id="cand-p1d-integration",
@@ -393,12 +467,30 @@ def test_real_postgres_repository_serves_authorized_read_routes(
         release = client.get("/api/prerelease/v1/releases/current")
         relations = client.get(
             "/api/prerelease/v1/relations/query",
-            params={"node_id": "ku-p1d-source", "depth": 1},
+            params={
+                "node_id": "ku-p1d-source",
+                "depth": 1,
+                "release_id": "rel-p1d-integration",
+            },
         )
         audit = client.get("/api/prerelease/v1/audit-events")
+        case_audit = client.get(
+            "/api/prerelease/v1/audit-events",
+            params={"case_id": "rotation-p1d-integration"},
+        )
+        release_audit = client.get(
+            "/api/prerelease/v1/audit-events",
+            params={"release_id": "rel-p1d-integration"},
+        )
+        entity_audit = client.get(
+            "/api/prerelease/v1/audit-events",
+            params={"entity_id": "krev-p1d-integration"},
+        )
 
         assert session.status_code == sources.status_code == users.status_code == 200
         assert release.status_code == relations.status_code == audit.status_code == 200
+        assert case_audit.status_code == release_audit.status_code == 200
+        assert entity_audit.status_code == 200
         assert session.json()["data"]["roles"] == ["platform_admin"]
         assert any(
             item["sourceId"] == "src-p1d-integration" for item in sources.json()["data"]["items"]
@@ -412,6 +504,39 @@ def test_real_postgres_repository_serves_authorized_read_routes(
         assert relation_data["edges"][0]["evidence"][0]["evidenceId"] == (
             "evidence-p1d-integration"
         )
+        lifecycle = relation_data["lifecycle"]
+        assert lifecycle["rootKnowledgeRevisionId"] == "krev-p1d-integration"
+        assert lifecycle["selectedReleaseId"] == "rel-p1d-integration"
+        assert {
+            (edge["sourceNodeId"], edge["targetNodeId"], edge["relationType"])
+            for edge in lifecycle["edges"]
+        } == {
+            (
+                "srcv-p1d-integration",
+                "evidence-p1d-integration",
+                "contains",
+            ),
+            (
+                "evidence-p1d-integration",
+                "chunk-p1d-integration",
+                "projected_as",
+            ),
+            (
+                "evidence-p1d-integration",
+                "krev-p1d-integration",
+                "supports",
+            ),
+            (
+                "krev-p1d-integration",
+                "rel-p1d-integration",
+                "included_in",
+            ),
+        }
+        assert next(
+            node
+            for node in lifecycle["nodes"]
+            if node["nodeId"] == "chunk-p1d-integration"
+        )["derived"] is True
         audit_event = next(
             item
             for item in audit.json()["data"]["items"]
@@ -420,8 +545,40 @@ def test_real_postgres_repository_serves_authorized_read_routes(
         assert audit_event["correlationId"] == "integration-review-001"
         assert "details" not in audit_event
         assert "rationale" not in audit_event
+        assert case_audit.json()["data"]["items"][0]["authoritativeTarget"] == {
+            "resourceType": "rotation_case",
+            "resourceId": "rotation-p1d-integration",
+            "path": (
+                "/candidates?view=rotation&status=&case=rotation-p1d-integration"
+            ),
+        }
+        assert release_audit.json()["data"]["items"][0][
+            "authoritativeTarget"
+        ] == {
+            "resourceType": "release",
+            "resourceId": "rel-p1d-integration",
+            "path": "/releases?candidate=rel-p1d-integration",
+        }
+        assert entity_audit.json()["data"]["items"][0]["objectId"] == (
+            "krev-p1d-integration"
+        )
     finally:
         with session_factory.begin() as database_session:
+            pointer = database_session.get(ReleasePointer, "current")
+            assert pointer is not None
+            pointer.current_release_id = previous_current_release_id
+            pointer.pointer_version = previous_pointer_version
+            database_session.flush()
+            database_session.execute(
+                delete(RetrievalChunkEvidence).where(
+                    RetrievalChunkEvidence.chunk_id == "chunk-p1d-integration"
+                )
+            )
+            database_session.execute(
+                delete(CandidateEvidence).where(
+                    CandidateEvidence.candidate_id == "cand-p1d-integration"
+                )
+            )
             database_session.execute(
                 delete(RelationProposalEvidence).where(
                     RelationProposalEvidence.proposal_id == "proposal-p1d-integration"
@@ -444,7 +601,13 @@ def test_real_postgres_repository_serves_authorized_read_routes(
             )
             database_session.execute(
                 delete(AuditEvent).where(
-                    AuditEvent.audit_event_id == "audit-p1d-integration"
+                    AuditEvent.audit_event_id.in_(
+                        (
+                            "audit-p1d-integration",
+                            "audit-p1d-rotation-integration",
+                            "audit-p1d-release-integration",
+                        )
+                    )
                 )
             )
             database_session.execute(
@@ -455,6 +618,16 @@ def test_real_postgres_repository_serves_authorized_read_routes(
             database_session.execute(
                 delete(Evidence).where(
                     Evidence.evidence_id == "evidence-p1d-integration"
+                )
+            )
+            database_session.execute(
+                delete(RetrievalChunk).where(
+                    RetrievalChunk.chunk_id == "chunk-p1d-integration"
+                )
+            )
+            database_session.execute(
+                delete(ChunkProfile).where(
+                    ChunkProfile.chunk_profile_id == "chunk-profile-p1d-integration"
                 )
             )
             database_session.execute(
